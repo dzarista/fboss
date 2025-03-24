@@ -33,6 +33,8 @@
 
 #include "fbiob-auxdev.h"
 #include "fbiob-cdev.h"
+#include "scratchpad-bits.h"
+#include "scd-reload-cause-pci.h"
 
 #define REG_BLK_SIZE			4
 #define REG_MAX_BITSIZE			32
@@ -41,12 +43,13 @@
 #define SCD_PCI_VENDOR_ID		0x3475
 #define SCD_PCI_DEVICE_ID		0x0001
 #define DARWIN_SCD_PCI_SUBDEVICE_ID	0x0002
-#define FAIRYWREN_SCD_PCI_SUBDEVICE_ID	0x0008
 #define VIPER_SCD_PCI_SUBDEVICE_ID	0x0003
 #define BLACKCOMB_SCD0_PCI_SUBDEVICE_ID	0x0004
 #define BLACKCOMB_SCD1_PCI_SUBDEVICE_ID	0x0005
 #define BLACKCOMB_SCD2_PCI_SUBDEVICE_ID	0x0006
 #define BLACKCOMB_SCD3_PCI_SUBDEVICE_ID	0x0007
+#define FAIRYWREN_SCD_PCI_SUBDEVICE_ID	0x0008
+#define QUICKSILVER_SCD_PCI_SUBDEVICE_ID	0x0009
 #define SCD_BAR_REGS			0
 #define SCD_BAR_1			1
 #define SCD_MAGIC			0xdeadbeef
@@ -86,6 +89,7 @@ struct scd_reg {
 };
 
 struct regbit_sysfs_entry {
+	const char *prefix;
 	const char *name;
 	u32 reg_offset;
 	u32 bit_offset;
@@ -136,8 +140,8 @@ struct scd_dev_priv {
  */
 
 static struct pci_device_id scd_lpc_table[] = {
-        { PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f76) },
-        { 0 },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x6f76) },
+	{ 0 },
 };
 
 static unsigned long lpc_res_addr = 0xb0000000;
@@ -151,6 +155,10 @@ MODULE_PARM_DESC(lpc_res_size, "size of LPC resource");
 static int lpc_irq = 7;
 module_param(lpc_irq, int, 0);
 MODULE_PARM_DESC(lpc_irq, "interrupt of LPC SCD");
+
+/* Lock to protect CPLD scratchpad register. Each register bit acts as a flag -
+   hence the register might be updated at different places */
+static DEFINE_MUTEX(scratchpad_mutex);
 
 static
 u32 scd_read_register(struct pci_dev *pdev, struct scd_reg *reg)
@@ -318,8 +326,9 @@ static int scd_read_regbit(struct device *dev,
 	return 0;
 }
 
-static ssize_t regbit_sysfs_show(struct device *dev,
-				 struct device_attribute *dattr, char *buf)
+static ssize_t regbit_sysfs_read(struct device *dev,
+				 struct device_attribute *dattr, bool updatebuf,
+				 char *buf, u32 *regval)
 {
 	int ret;
 	u32 data;
@@ -336,13 +345,42 @@ static ssize_t regbit_sysfs_show(struct device *dev,
 				entry->bit_len, entry->bit_offset, &data);
 			if (ret)
 				continue;
-
-			if (entry->bit_len == 1) return sprintf(buf, "%d\n", data);
-			return sprintf(buf, "0x%x\n", data);
+			if (updatebuf) {
+				if (entry->bit_len == 1)
+					return sprintf(buf, "%d\n", data);
+				return sprintf(buf, "0x%x\n", data);
+			} else {
+				*regval = data;
+				return 0;
+			}
 		}
 	}
 
 	return -ENOENT;
+}
+
+static ssize_t sat_cpld_fw_ver_show(struct device *dev,
+				 struct device_attribute *dattr, char *buf)
+{
+	ssize_t ret;
+	u32 data;
+	u32 fw_ver;
+	u32 fw_sub_ver;
+
+	ret = regbit_sysfs_read(dev, dattr, false, NULL, &data);
+	if (ret) {
+		return ret;
+	} else {
+		fw_ver = (data & 0xFF00) >> 8;
+		fw_sub_ver = data & 0xFF;
+		return sprintf(buf, "%u.%u\n", fw_ver, fw_sub_ver);
+	}
+}
+
+static ssize_t regbit_sysfs_show(struct device *dev,
+				 struct device_attribute *dattr, char *buf)
+{
+	return regbit_sysfs_read(dev, dattr, true, buf, NULL);
 }
 
 static ssize_t regbit_sysfs_store(struct device *dev,
@@ -388,6 +426,96 @@ static ssize_t regbit_sysfs_store(struct device *dev,
 	return -ENOENT;
 }
 
+static void scratchpad_lock(void)
+{
+	mutex_lock(&scratchpad_mutex);
+}
+
+static void scratchpad_unlock(void)
+{
+	mutex_unlock(&scratchpad_mutex);
+}
+
+static void print_reload_cause_info(struct scd_dev_priv *priv)
+{
+	struct mapped_register *reload_cause_reg_map;
+	size_t reload_cause_reg_count;
+	size_t reload_cause_reg_loop;
+	void __iomem *scratchpad_map;
+	struct resource *res;
+	u32 scratchpad_val;
+	bool power_cycle_detected = false;
+	int op_status;
+
+	get_reload_cause_register_map(&reload_cause_reg_map, &reload_cause_reg_count);
+	for (reload_cause_reg_loop = 0; reload_cause_reg_loop < reload_cause_reg_count; reload_cause_reg_loop++) {
+		res = NULL;
+		res = devm_request_mem_region(
+			&(priv->pdev->dev),
+			priv->csr_bus_addr + reload_cause_reg_map[reload_cause_reg_loop].offset,
+			REG_BLK_SIZE,
+			SCD_MODULE_NAME);
+		if (!res) {
+			dev_err(&(priv->pdev->dev), "cannot request PCI memory region - "
+			"relaod cause functionality disabled\n");
+			break;
+		}
+		reload_cause_reg_map[reload_cause_reg_loop].mem = devm_ioremap(
+			&(priv->pdev->dev),
+			priv->csr_bus_addr + reload_cause_reg_map[reload_cause_reg_loop].offset,
+			REG_BLK_SIZE);
+		if (!reload_cause_reg_map[reload_cause_reg_loop].mem) {
+			dev_err(&(priv->pdev->dev), "cannot remap reload cause PCI registers - "
+			"relaod cause functionality disabled\n");
+			break;
+		}
+	}
+	if (reload_cause_reg_loop == reload_cause_reg_count) {
+		scratchpad_map = devm_ioremap(
+				&(priv->pdev->dev), priv->csr_bus_addr + get_reload_cause_scratchpad_reg_offset(),
+				REG_BLK_SIZE);
+		if (!scratchpad_map) {
+			dev_err(&(priv->pdev->dev), "cannot remap scratchpad register - "
+			"not processing relaod cause\n");
+		} else {
+			scratchpad_lock();
+			scratchpad_val = ioread32(scratchpad_map);
+			if ((scratchpad_val & FAIRYWREN_SCD_RELOAD_CAUSE_COOKIE_MASK) == 0) {
+				iowrite32((1 << FAIRYWREN_SCD_RELOAD_CAUSE_COOKIE_BITPOS), scratchpad_map);
+				power_cycle_detected = true;
+			}
+			scratchpad_unlock();
+			devm_iounmap(&(priv->pdev->dev), scratchpad_map);
+		}
+		if (power_cycle_detected == true) {
+			op_status = process_reload_cause(&(priv->pdev->dev));
+			if (op_status < 0) {
+				dev_info(&(priv->pdev->dev), "error in processing reload cause\n");
+			}
+		} else {
+			dev_info(&(priv->pdev->dev), "didn't detect a system power cycle - "
+			"not processing relaod cause");
+		}
+		start_reload_cause_periodic_task();
+	}
+}
+
+static void release_reload_cause_resources(struct scd_dev_priv *priv)
+{
+	struct mapped_register *reload_cause_reg_map;
+	size_t reload_cause_reg_count;
+	size_t reload_cause_reg_loop;
+
+	get_reload_cause_register_map(&reload_cause_reg_map, &reload_cause_reg_count);
+	for (reload_cause_reg_loop = 0; reload_cause_reg_loop < reload_cause_reg_count; reload_cause_reg_loop++) {
+		devm_iounmap(&(priv->pdev->dev), reload_cause_reg_map[reload_cause_reg_loop].mem);
+		devm_release_mem_region(
+			&(priv->pdev->dev),
+			priv->csr_bus_addr + reload_cause_reg_map[reload_cause_reg_loop].offset,
+			REG_BLK_SIZE);
+	}
+}
+
 /*
  * Below macros define a set of sysfs files, and each file is mapped to
  * a specific bit field in SCD/CPU_CPLD registers.
@@ -396,114 +524,135 @@ static ssize_t regbit_sysfs_store(struct device *dev,
 #define FMODE_RW	(S_IRUGO | S_IWUSR | S_IWGRP)
 
 #define DARWIN_REGBIT_FPGA_FILES							\
-	REGBIT_FILE(sat0_cpld_sub_ver, 0x400, 0, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(sat0_cpld_ver, 0x400, 8, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(sat1_cpld_sub_ver, 0x400, 16, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(sat1_cpld_ver, 0x400, 24, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(pem_present, 0x5000, 0, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(rackmon_present, 0x5000, 1, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(pem_status, 0x5000, 8, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(pem_input_ok, 0x5000, 10, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(sec_chip_reset_enter, 0x4000, 0, 1, FMODE_RW,			\
+	REGBIT_FILE(darwin, sat0_cpld_sub_ver, 0x400, 0, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(darwin, sat0_cpld_ver, 0x400, 8, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(darwin, sat1_cpld_sub_ver, 0x400, 16, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(darwin, sat1_cpld_ver, 0x400, 24, 8, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(darwin, sat0_cpld_fw_ver, 0x400, 0, 16, FMODE_RO,				\
+		    sat_cpld_fw_ver_show, NULL)						\
+	REGBIT_FILE(darwin, sat1_cpld_fw_ver, 0x400, 16, 16, FMODE_RO,				\
+		    sat_cpld_fw_ver_show, NULL)						\
+	REGBIT_FILE(darwin, pem_present, 0x5000, 0, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(darwin, rackmon_present, 0x5000, 1, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(darwin, pem_status, 0x5000, 8, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(darwin, pem_input_ok, 0x5000, 10, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(darwin, sec_chip_reset_enter, 0x4000, 0, 1, FMODE_RW,			\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(th3_pci_reset_enter, 0x4000, 1, 1, FMODE_RW,			\
+	REGBIT_FILE(darwin, th3_pci_reset_enter, 0x4000, 1, 1, FMODE_RW,			\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(th3_sys_reset_enter, 0x4000, 2, 1, FMODE_RW,			\
+	REGBIT_FILE(darwin, th3_sys_reset_enter, 0x4000, 2, 1, FMODE_RW,			\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(sat0_cpld_reset_enter, 0x4000, 3, 1, FMODE_RW,			\
+	REGBIT_FILE(darwin, sat0_cpld_reset_enter, 0x4000, 3, 1, FMODE_RW,			\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(sat1_cpld_reset_enter, 0x4000, 4, 1, FMODE_RW,			\
+	REGBIT_FILE(darwin, sat1_cpld_reset_enter, 0x4000, 4, 1, FMODE_RW,			\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(sec_chip_reset_clear, 0x4010, 0, 1, FMODE_RW,			\
+	REGBIT_FILE(darwin, sec_chip_reset_clear, 0x4010, 0, 1, FMODE_RW,			\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(th3_pci_reset_clear, 0x4010, 1, 1, FMODE_RW,			\
+	REGBIT_FILE(darwin, th3_pci_reset_clear, 0x4010, 1, 1, FMODE_RW,			\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(th3_sys_reset_clear, 0x4010, 2, 1, FMODE_RW,			\
+	REGBIT_FILE(darwin, th3_sys_reset_clear, 0x4010, 2, 1, FMODE_RW,			\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(sat0_cpld_reset_clear, 0x4010, 3, 1, FMODE_RW,			\
+	REGBIT_FILE(darwin, sat0_cpld_reset_clear, 0x4010, 3, 1, FMODE_RW,			\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(sat1_cpld_reset_clear, 0x4010, 4, 1, FMODE_RW,			\
+	REGBIT_FILE(darwin, sat1_cpld_reset_clear, 0x4010, 4, 1, FMODE_RW,			\
 		    regbit_sysfs_show, regbit_sysfs_store)
 
 #define FAIRYWREN_REGBIT_FPGA_FILES							\
-	REGBIT_FILE(bmc_mode, 0x8, 30, 1, FMODE_RO, regbit_sysfs_show, NULL)		\
-	REGBIT_FILE(bmc_aboot_grab, 0x2e00, 2, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(bmc_state, 0x2e00, 1, 1, FMODE_RO, regbit_sysfs_show, NULL)		\
-	REGBIT_FILE(bmc_not_reset, 0x2e00, 0, 1, FMODE_RW,				\
+	REGBIT_FILE(fairywren, bmc_mode, 0x8, 30, 1, FMODE_RO, regbit_sysfs_show, NULL)		\
+	REGBIT_FILE(fairywren, bmc_aboot_grab, 0x2e00, 2, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(fairywren, bmc_state, 0x2e00, 1, 1, FMODE_RO, regbit_sysfs_show, NULL)		\
+	REGBIT_FILE(fairywren, bmc_not_reset, 0x2e00, 0, 1, FMODE_RW,				\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(swap_uart, 0x2e30, 0, 8, FMODE_RW,					\
+	REGBIT_FILE(fairywren, swap_uart, 0x2e30, 0, 8, FMODE_RW,					\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(spi_eeprom_intf, 0x2f30, 1, 1, FMODE_RW,				\
+	REGBIT_FILE(fairywren, spi_eeprom_intf, 0x2f30, 1, 1, FMODE_RW,				\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(mgmt_switch_reset, 0x2f30, 0, 1, FMODE_RW,				\
+	REGBIT_FILE(fairywren, mgmt_switch_reset, 0x2f30, 0, 1, FMODE_RW,				\
 		    regbit_sysfs_show, regbit_sysfs_store)                              \
-	REGBIT_FILE(opmode_override, 0x2f30, 5, 3, FMODE_RW,				\
+	REGBIT_FILE(fairywren, opmode_override, 0x2f30, 5, 3, FMODE_RW,				\
 		    regbit_sysfs_show, regbit_sysfs_store)                              \
-	REGBIT_FILE(switch_jtag_enable, 0x2f40, 0, 1, FMODE_RW,				\
+	REGBIT_FILE(fairywren, switch_jtag_enable, 0x2f40, 0, 1, FMODE_RW,				\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(chassis_power_cycle, 0x7000, 0, 32, S_IWUSR | S_IWGRP,		\
+	REGBIT_FILE(fairywren, chassis_power_cycle, 0x7000, 0, 32, S_IWUSR | S_IWGRP,		\
 		    NULL, chassis_power_cycle)						\
-	REGBIT_FILE(oob_eeprom_cmd, 0x7f00, 0, 32, FMODE_RW,				\
+	REGBIT_FILE(fairywren, oob_eeprom_cmd, 0x7f00, 0, 32, FMODE_RW,				\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(oob_eeprom_resp, 0x7f10, 0, 32, FMODE_RW,				\
+	REGBIT_FILE(fairywren, oob_eeprom_resp, 0x7f10, 0, 32, FMODE_RW,				\
 		    regbit_sysfs_show, regbit_sysfs_store)
 
 #define VIPER_REGBIT_FPGA_FILES								\
-	REGBIT_FILE(psu1_present, 0x5000, 0, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(psu2_present, 0x5000, 1, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(psu1_output_ok, 0x5000, 8, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(psu2_output_ok, 0x5000, 9, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(psu1_input_ok, 0x5000, 10, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(psu2_input_ok, 0x5000, 11, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(j3_sys_reset_set, 0x4000, 0, 1, FMODE_RW,				\
+	REGBIT_FILE(viper, psu1_present, 0x5000, 0, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(viper, psu2_present, 0x5000, 1, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(viper, psu1_output_ok, 0x5000, 8, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(viper, psu2_output_ok, 0x5000, 9, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(viper, psu1_input_ok, 0x5000, 10, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(viper, psu2_input_ok, 0x5000, 11, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(viper, j3_sys_reset_set, 0x4000, 0, 1, FMODE_RW,				\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(j3_pcie_reset_set, 0x4000, 1, 1, FMODE_RW,				\
+	REGBIT_FILE(viper, j3_pcie_reset_set, 0x4000, 1, 1, FMODE_RW,				\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(tpm_reset_set, 0x4000, 2, 1, FMODE_RW,				\
+	REGBIT_FILE(viper, tpm_reset_set, 0x4000, 2, 1, FMODE_RW,				\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(j3_sys_reset_clear, 0x4010, 0, 1, FMODE_RW,				\
+	REGBIT_FILE(viper, j3_sys_reset_clear, 0x4010, 0, 1, FMODE_RW,				\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(j3_pcie_reset_clear, 0x4010, 1, 1, FMODE_RW,			\
+	REGBIT_FILE(viper, j3_pcie_reset_clear, 0x4010, 1, 1, FMODE_RW,			\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(tpm_reset_clear, 0x4010, 2, 1, FMODE_RW,				\
+	REGBIT_FILE(viper, tpm_reset_clear, 0x4010, 2, 1, FMODE_RW,				\
 		    regbit_sysfs_show, regbit_sysfs_store)
 
 #define BLACKCOMB0_REGBIT_FPGA_FILES							\
-	REGBIT_FILE(ramon3_0_sys_reset_set, 0x4000, 0, 1, FMODE_RW,			\
+	REGBIT_FILE(blackcomb, ramon3_0_sys_reset_set, 0x4000, 0, 1, FMODE_RW,			\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(ramon3_0_pcie_reset_set, 0x4000, 1, 1, FMODE_RW,			\
+	REGBIT_FILE(blackcomb, ramon3_0_pcie_reset_set, 0x4000, 1, 1, FMODE_RW,			\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(ramon3_1_sys_reset_set, 0x4000, 2, 1, FMODE_RW,			\
+	REGBIT_FILE(blackcomb, ramon3_1_sys_reset_set, 0x4000, 2, 1, FMODE_RW,			\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(ramon3_1_pcie_reset_set, 0x4000, 3, 1, FMODE_RW,			\
+	REGBIT_FILE(blackcomb, ramon3_1_pcie_reset_set, 0x4000, 3, 1, FMODE_RW,			\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(ramon3_0_sys_reset_clear, 0x4010, 0, 1, FMODE_RW,			\
+	REGBIT_FILE(blackcomb, ramon3_0_sys_reset_clear, 0x4010, 0, 1, FMODE_RW,			\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(ramon3_0_pcie_reset_clear, 0x4010, 1, 1, FMODE_RW,			\
+	REGBIT_FILE(blackcomb, ramon3_0_pcie_reset_clear, 0x4010, 1, 1, FMODE_RW,			\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(ramon3_1_sys_reset_clear, 0x4010, 2, 1, FMODE_RW,			\
+	REGBIT_FILE(blackcomb, ramon3_1_sys_reset_clear, 0x4010, 2, 1, FMODE_RW,			\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(ramon3_1_pcie_reset_clear, 0x4010, 3, 1, FMODE_RW,			\
+	REGBIT_FILE(blackcomb, ramon3_1_pcie_reset_clear, 0x4010, 3, 1, FMODE_RW,			\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(psu1_prsnt, 0x5000, 0, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(psu2_prsnt, 0x5000, 1, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(psu3_prsnt, 0x5000, 2, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(psu4_prsnt, 0x5000, 3, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(psu1_in_ok, 0x5000, 4, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(psu2_in_ok, 0x5000, 5, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(psu3_in_ok, 0x5000, 6, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(psu4_in_ok, 0x5000, 7, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(psu1_out_ok, 0x5000, 8, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(psu2_out_ok, 0x5000, 9, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(psu3_out_ok, 0x5000, 10, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
-	REGBIT_FILE(psu4_out_ok, 0x5000, 11, 1, FMODE_RO, regbit_sysfs_show, NULL)
+	REGBIT_FILE(blackcomb, psu1_present, 0x5000, 0, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(blackcomb, psu2_present, 0x5000, 1, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(blackcomb, psu3_present, 0x5000, 2, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(blackcomb, psu4_present, 0x5000, 3, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(blackcomb, psu1_input_ok, 0x5000, 4, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(blackcomb, psu2_input_ok, 0x5000, 5, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(blackcomb, psu3_input_ok, 0x5000, 6, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(blackcomb, psu4_input_ok, 0x5000, 7, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(blackcomb, psu1_output_ok, 0x5000, 8, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(blackcomb, psu2_output_ok, 0x5000, 9, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(blackcomb, psu3_output_ok, 0x5000, 10, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(blackcomb, psu4_output_ok, 0x5000, 11, 1, FMODE_RO, regbit_sysfs_show, NULL)
 
-#define REGBIT_FILE(_name, _reg, _bitops, _bitlen, _mode, _show, _store)	\
-	{									\
-		.name = #_name,							\
-		.reg_offset = _reg,						\
-		.bit_offset = _bitops,						\
-		.bit_len = _bitlen,						\
+#define QUICKSILVER_REGBIT_FPGA_FILES								\
+	REGBIT_FILE(quicksilver, th5_sys_reset_set, 0x4000, 2, 1, FMODE_RW,				\
+		    regbit_sysfs_show, regbit_sysfs_store)				\
+	REGBIT_FILE(quicksilver, th5_pcie_reset_set, 0x4000, 3, 1, FMODE_RW,				\
+		    regbit_sysfs_show, regbit_sysfs_store)				\
+	REGBIT_FILE(quicksilver, th5_sys_reset_clear, 0x4010, 2, 1, FMODE_RW,				\
+		    regbit_sysfs_show, regbit_sysfs_store)				\
+	REGBIT_FILE(quicksilver, th5_pcie_reset_clear, 0x4010, 3, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)				\
+	REGBIT_FILE(quicksilver, psu1_present, 0x5000, 0, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(quicksilver, psu2_present, 0x5000, 1, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(quicksilver, psu1_output_ok, 0x5000, 8, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(quicksilver, psu2_output_ok, 0x5000, 9, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(quicksilver, psu1_input_ok, 0x5000, 10, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(quicksilver, psu2_input_ok, 0x5000, 11, 1, FMODE_RO, regbit_sysfs_show, NULL)
+
+#define REGBIT_FILE(_prefix, _name, _reg, _bitops, _bitlen, _mode, _show, _store)	\
+	{										\
+		.prefix = #_prefix,							\
+		.name = #_name,								\
+		.reg_offset = _reg,							\
+		.bit_offset = _bitops,							\
+		.bit_len = _bitlen,							\
 	},
 
 struct regbit_sysfs_entry scd_regbit_sysfs[] = {
@@ -560,18 +709,29 @@ struct regbit_sysfs_entry blackcomb_scd##_id##_regbit_sysfs[] = {	\
 BLACKCOMB_REGBIT_SYSFS(1)
 BLACKCOMB_REGBIT_SYSFS(2)
 BLACKCOMB_REGBIT_SYSFS(3)
+
+struct regbit_sysfs_entry quicksilver_scd_regbit_sysfs[] = {
+	QUICKSILVER_REGBIT_FPGA_FILES
+
+	/* Always the last entry */
+	{
+		.name = NULL,
+	},
+};
 #undef REGBIT_FILE
 
-#define REGBIT_FILE(_name, _reg, _bitops, _bitlen, _mode, _show, _store)	\
-static DEVICE_ATTR(_name, _mode, _show, _store);
+#define REGBIT_FILE(_prefix, _name, _reg, _bitops, _bitlen, _mode, _show, _store)	\
+static struct device_attribute dev_attr_##_prefix##_##_name = \
+	__ATTR(_name, _mode, _show, _store);
 DARWIN_REGBIT_FPGA_FILES
 FAIRYWREN_REGBIT_FPGA_FILES
 VIPER_REGBIT_FPGA_FILES
 BLACKCOMB0_REGBIT_FPGA_FILES
+QUICKSILVER_REGBIT_FPGA_FILES
 #undef REGBIT_FILE
 
-#define REGBIT_FILE(_name, _reg, _bitops, _bitlen, _mode, _show, _store)	\
-	&dev_attr_##_name.attr,
+#define REGBIT_FILE(_prefix, _name, _reg, _bitops, _bitlen, _mode, _show, _store)	\
+	&dev_attr_##_prefix##_##_name.attr,
 
 static struct attribute *scd_attrs[] = {
 	NULL,
@@ -629,6 +789,15 @@ static struct attribute_group blackcomb_scd##_id##_attr_group = {	\
 BLACKCOMB_SCD_ATTRS(1)
 BLACKCOMB_SCD_ATTRS(2)
 BLACKCOMB_SCD_ATTRS(3)
+
+static struct attribute *quicksilver_scd_attrs[] = {
+	QUICKSILVER_REGBIT_FPGA_FILES
+	NULL,
+};
+
+static struct attribute_group quicksilver_scd_attr_group = {
+	.attrs = quicksilver_scd_attrs,
+};
 #undef REGBIT_FILE
 
 /*
@@ -728,6 +897,12 @@ static void scd_remove(struct pci_dev *pdev)
 	if (priv == NULL)
 		return;
 
+	if (pdev->subsystem_device == FAIRYWREN_SCD_PCI_SUBDEVICE_ID) {
+		stop_reload_cause_periodic_task();
+		release_reload_cause_resources(priv);
+	}
+	mutex_destroy(&scratchpad_mutex);
+
 	priv->magic = 0;
 
 	if (priv->cdev_initialized)
@@ -765,39 +940,43 @@ static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		scd_cb = &scd_pci_cb;
 	}
 
-	switch(ent->subdevice) {
-		case DARWIN_SCD_PCI_SUBDEVICE_ID:
-			sysfs_attr_group = &darwin_scd_attr_group;
-			regbit_sysfs_table = darwin_scd_regbit_sysfs;
-			break;
-		case FAIRYWREN_SCD_PCI_SUBDEVICE_ID:
-			sysfs_attr_group = &fairywren_scd_attr_group;
-			regbit_sysfs_table = fairywren_scd_regbit_sysfs;
-			break;
-		case VIPER_SCD_PCI_SUBDEVICE_ID:
-			sysfs_attr_group = &viper_scd_attr_group;
-			regbit_sysfs_table = viper_scd_regbit_sysfs;
-			break;
-		case BLACKCOMB_SCD0_PCI_SUBDEVICE_ID:
-			sysfs_attr_group = &blackcomb_scd0_attr_group;
-			regbit_sysfs_table = blackcomb_scd0_regbit_sysfs;
-			break;
-		case BLACKCOMB_SCD1_PCI_SUBDEVICE_ID:
-			sysfs_attr_group = &blackcomb_scd1_attr_group;
-			regbit_sysfs_table = blackcomb_scd1_regbit_sysfs;
-			break;
-		case BLACKCOMB_SCD2_PCI_SUBDEVICE_ID:
-			sysfs_attr_group = &blackcomb_scd2_attr_group;
-			regbit_sysfs_table = blackcomb_scd2_regbit_sysfs;
-			break;
-		case BLACKCOMB_SCD3_PCI_SUBDEVICE_ID:
-			sysfs_attr_group = &blackcomb_scd3_attr_group;
-			regbit_sysfs_table = blackcomb_scd3_regbit_sysfs;
-			break;
-		default:
-			sysfs_attr_group = &scd_attr_group;
-			regbit_sysfs_table = scd_regbit_sysfs;
-       }
+	switch (ent->subdevice) {
+	case DARWIN_SCD_PCI_SUBDEVICE_ID:
+		sysfs_attr_group = &darwin_scd_attr_group;
+		regbit_sysfs_table = darwin_scd_regbit_sysfs;
+		break;
+	case FAIRYWREN_SCD_PCI_SUBDEVICE_ID:
+		sysfs_attr_group = &fairywren_scd_attr_group;
+		regbit_sysfs_table = fairywren_scd_regbit_sysfs;
+		break;
+	case VIPER_SCD_PCI_SUBDEVICE_ID:
+		sysfs_attr_group = &viper_scd_attr_group;
+		regbit_sysfs_table = viper_scd_regbit_sysfs;
+		break;
+	case BLACKCOMB_SCD0_PCI_SUBDEVICE_ID:
+		sysfs_attr_group = &blackcomb_scd0_attr_group;
+		regbit_sysfs_table = blackcomb_scd0_regbit_sysfs;
+		break;
+	case BLACKCOMB_SCD1_PCI_SUBDEVICE_ID:
+		sysfs_attr_group = &blackcomb_scd1_attr_group;
+		regbit_sysfs_table = blackcomb_scd1_regbit_sysfs;
+		break;
+	case BLACKCOMB_SCD2_PCI_SUBDEVICE_ID:
+		sysfs_attr_group = &blackcomb_scd2_attr_group;
+		regbit_sysfs_table = blackcomb_scd2_regbit_sysfs;
+		break;
+	case BLACKCOMB_SCD3_PCI_SUBDEVICE_ID:
+		sysfs_attr_group = &blackcomb_scd3_attr_group;
+		regbit_sysfs_table = blackcomb_scd3_regbit_sysfs;
+		break;
+	case QUICKSILVER_SCD_PCI_SUBDEVICE_ID:
+		sysfs_attr_group = &quicksilver_scd_attr_group;
+		regbit_sysfs_table = quicksilver_scd_regbit_sysfs;
+		break;
+	default:
+		sysfs_attr_group = &scd_attr_group;
+		regbit_sysfs_table = scd_regbit_sysfs;
+	}
 
 	if (pci_get_drvdata(pdev)) {
 		dev_warn(&pdev->dev, "private data already attached %p",
@@ -829,6 +1008,10 @@ static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	err = scd_sysfs_regs_init(priv);
 	if (err) {
 		goto fail;
+	}
+
+	if (ent->subdevice == FAIRYWREN_SCD_PCI_SUBDEVICE_ID) {
+		print_reload_cause_info(priv);
 	}
 
 	if (priv->sysfs_attr_group->attrs[0]) {
@@ -891,6 +1074,8 @@ static struct pci_device_id scd_pci_table[] = {
 			 SCD_PCI_VENDOR_ID, BLACKCOMB_SCD2_PCI_SUBDEVICE_ID) },
 	{ PCI_DEVICE_SUB(SCD_PCI_VENDOR_ID, SCD_PCI_DEVICE_ID,
 			 SCD_PCI_VENDOR_ID, BLACKCOMB_SCD3_PCI_SUBDEVICE_ID) },
+	{ PCI_DEVICE_SUB(SCD_PCI_VENDOR_ID, SCD_PCI_DEVICE_ID,
+			 SCD_PCI_VENDOR_ID, QUICKSILVER_SCD_PCI_SUBDEVICE_ID) },
 	{
 		0,
 	},

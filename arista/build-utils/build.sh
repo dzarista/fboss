@@ -219,7 +219,7 @@ then
    rm -rf $SCRATCH_DIR/bsp-kmods
    rm -rf $SCRATCH_DIR/showtech
    rm -rf $SCRATCH_DIR/sw_test
-   make -C $KERNEL_SRC BUILD_KERNEL=$KERNEL M=$FBOSS_DIR/fboss.git/arista/bsp-kmods clean
+   make -C $KERNEL_SRC BUILD_KERNEL=$KERNEL M=$FBOSS_DIR/fboss.git/fboss.bsp.arista/bsp-kmods clean
    make -C $FBOSS_DIR/fboss.git/arista/showtech clean
 fi
 cd $FBOSS_DIR/fboss.git
@@ -319,11 +319,11 @@ else
    cp -L $lib_path $fboss_output_dir/lib64
 
    echo "****BUILDING BSP-KMODS"
-   make -C $KERNEL_SRC M=$FBOSS_DIR/fboss.git/arista/bsp-kmods modules
+   make -C $KERNEL_SRC M=$FBOSS_DIR/fboss.git/fboss.bsp.arista/bsp-kmods modules
    mkdir -p $SCRATCH_DIR/bsp-kmods
-   find $FBOSS_DIR/fboss.git/arista/bsp-kmods -type f -name "*.ko" -exec cp -f {} $SCRATCH_DIR/bsp-kmods/ \;
-   find $FBOSS_DIR/fboss.git/arista/bsp-kmods -type f -name "kmods.json" -exec cp -f {} $SCRATCH_DIR/bsp-kmods/ \;
-   make -C $KERNEL_SRC M=$FBOSS_DIR/fboss.git/arista/bsp-kmods clean
+   find $FBOSS_DIR/fboss.git/fboss.bsp.arista/bsp-kmods -type f -name "*.ko" -exec cp -f {} $SCRATCH_DIR/bsp-kmods/ \;
+   find $FBOSS_DIR/fboss.git/fboss.bsp.arista/bsp-kmods -type f -name "kmods.json" -exec cp -f {} $SCRATCH_DIR/bsp-kmods/ \;
+   make -C $KERNEL_SRC M=$FBOSS_DIR/fboss.git/fboss.bsp.arista/bsp-kmods clean
 
    echo "****BUILDING SHOWTECH DEPENDENCIES"
    make -C $FBOSS_DIR/fboss.git/arista/showtech

@@ -200,23 +200,56 @@ static const struct regbit_sysfs_config cpld_sys_attrs[] = {
 	},
 };
 
-static int cpld_i2c_probe(struct i2c_client *client)
+static int fw_ver_read(struct i2c_client *client, char *buf)
 {
 	int ret;
 	u8 major_rev, minor_rev;
-
-	ret = i2c_smbus_read_byte_data(client, CPLD_REG_REV_MINOR);
-	if (ret < 0)
-		return ret;
-	minor_rev = (u8)ret;
 
 	ret = i2c_smbus_read_byte_data(client, CPLD_REG_REV_MAJOR);
 	if (ret < 0)
 		return ret;
 	major_rev = (u8)ret;
 
-	dev_info(&client->dev, "blackhawk cpld revision: %02x.%02x\n",
-		major_rev, minor_rev);
+	ret = i2c_smbus_read_byte_data(client, CPLD_REG_REV_MINOR);
+	if (ret < 0)
+		return ret;
+	minor_rev = (u8)ret;
+
+	/* If buf is NULL. print the CPLD revision instead of updating the buffer */
+	if (buf) {
+		return sprintf(buf, "%u.%u\n", major_rev, minor_rev);
+	} else {
+		dev_info(&client->dev, "blackhawk cpld revision: %02x.%02x\n",
+			major_rev, minor_rev);
+		return 0;
+	}
+}
+
+static ssize_t fw_ver_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+
+	return fw_ver_read(client, buf);
+}
+
+DEVICE_ATTR(fw_ver, 0444, fw_ver_show, NULL);
+
+static int cpld_i2c_probe(struct i2c_client *client)
+{
+	int ret;
+
+	ret = fw_ver_read(client, NULL);
+	if (ret < 0)
+		return ret;
+
+	ret = sysfs_create_file(&client->dev.kobj, &dev_attr_fw_ver.attr);
+	if (ret < 0) {
+		dev_err(&client->dev,
+			"could not create %s attribute for cpld: %d",
+			dev_attr_fw_ver.attr.name,
+			ret);
+		return ret;
+	}
 
 	return regbit_sysfs_init_i2c(&client->dev, cpld_sys_attrs,
 				     ARRAY_SIZE(cpld_sys_attrs));
