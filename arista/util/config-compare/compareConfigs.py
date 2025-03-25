@@ -9,7 +9,7 @@ import argparse
 import sys
 import difflib
 
-LOCAL_REPO = "../../../"
+DEFAULT_LOCAL_REPO = "../../../"
 UPSTREAM_REPO_URL = "https://github.com/facebook/fboss.git"
 CONFIG_DIR = "fboss/platform/configs"
 
@@ -21,7 +21,6 @@ def load_json(file_path):
     except Exception as e:
         print(f"Error loading {file_path}: {e}", file=sys.stderr)
         return None
-
 
 def get_json_files(base_path, platform_filter=None, config_filter=None):
     configs_path = Path(base_path) / CONFIG_DIR
@@ -49,41 +48,61 @@ def get_json_files(base_path, platform_filter=None, config_filter=None):
                 json_files.append(str(root_path.relative_to(configs_path) / file))
     return sorted(json_files)
 
-
 def format_diff(diff, local_json, upstream_json):
     formatted_diff = {}
 
+    added_items = {}
+    removed_items = {}
+
     if 'dictionary_item_added' in diff:
-        formatted_diff['added_in_upstream'] = {
+        added_items.update({
             '.'.join(path.replace("root", "").replace("['", ".").replace("']", "").split('.')[1:]):
-            get_nested_value(upstream_json, '.'.join(path.replace("root", "").replace("['", ".").replace("']", "").split('.')[1:]))
+                get_nested_value(upstream_json, '.'.join(path.replace("root", "").replace("['", ".").replace("']", "").split('.')[1:]))
             for path in diff['dictionary_item_added']
-        }
+        })
 
     if 'dictionary_item_removed' in diff:
-        formatted_diff['removed_from_upstream'] = {
+        removed_items.update({
             '.'.join(path.replace("root", "").replace("['", ".").replace("']", "").split('.')[1:]):
-            get_nested_value(local_json, '.'.join(path.replace("root", "").replace("['", ".").replace("']", "").split('.')[1:]))
+                get_nested_value(local_json, '.'.join(path.replace("root", "").replace("['", ".").replace("']", "").split('.')[1:]))
             for path in diff['dictionary_item_removed']
-        }
+        })
+
+    if 'iterable_item_added' in diff:
+        added_items.update({
+            '.'.join(path.replace("root", "").replace("['", ".").replace("']", "").split('.')[1:]):
+                get_nested_value(upstream_json, '.'.join(path.replace("root", "").replace("['", ".").replace("']", "").split('.')[1:]))
+            for path in diff['iterable_item_added']
+        })
+
+    if 'iterable_item_removed' in diff:
+        removed_items.update({
+            '.'.join(path.replace("root", "").replace("['", ".").replace("']", "").split('.')[1:]):
+                get_nested_value(local_json, '.'.join(path.replace("root", "").replace("['", ".").replace("']", "").split('.')[1:]))
+            for path in diff['iterable_item_removed']
+        })
+
+    if added_items:
+        formatted_diff['added_in_upstream'] = added_items
+    if removed_items:
+        formatted_diff['removed_from_upstream'] = removed_items
 
     if 'values_changed' in diff:
         formatted_diff['value_changes'] = {
             '.'.join(path.replace("root", "").replace("['", ".").replace("']", "").split('.')[1:]):
-            {'local': change['old_value'], 'upstream': change['new_value']}
+                {'local': change['old_value'], 'upstream': change['new_value']}
             for path, change in diff['values_changed'].items()
         }
 
     if 'type_changes' in diff:
         formatted_diff['type_changes'] = {
             '.'.join(path.replace("root", "").replace("['", ".").replace("']", "").split('.')[1:]):
-            {'local': {'value': change['old_value'], 'type': str(change['old_type'])},
-             'upstream': {'value': change['new_value'], 'type': str(change['new_type'])}}
+                {'local': {'value': change['old_value'], 'type': str(change['old_type'])},
+                 'upstream': {'value': change['new_value'], 'type': str(change['new_type'])}}
             for path, change in diff['type_changes'].items()
         }
 
     return formatted_diff
-
 
 def get_nested_value(obj, path):
     current = obj
@@ -94,12 +113,10 @@ def get_nested_value(obj, path):
             return None
     return current
 
-
 def format_value(value):
     if isinstance(value, (dict, list)):
         return json.dumps(value, indent=4).splitlines()
     return str(value).splitlines()
-
 
 def print_formatted_diff(file_path, formatted_diff):
     print(f"==== Diff for file: {file_path} ====")
@@ -138,14 +155,16 @@ def print_formatted_diff(file_path, formatted_diff):
 
     print("-" * 40)
 
-
 def main():
     parser = argparse.ArgumentParser(description='Compare JSON configurations between local and upstream repositories.')
     parser.add_argument('--platform', help='Filter by platform directory (exact or prefix with *)')
     parser.add_argument('--config', help='Filter by config file prefix')
+    parser.add_argument('--workspace', help='Path to the local repository workspace')
     args = parser.parse_args()
 
-    local_files = get_json_files(LOCAL_REPO, args.platform, args.config)
+    local_repo_path = args.workspace if args.workspace else DEFAULT_LOCAL_REPO
+
+    local_files = get_json_files(local_repo_path, args.platform, args.config)
 
     if args.platform or args.config:
         filters = []
@@ -169,7 +188,7 @@ def main():
 
         diffs_found = False
         for file_path in sorted(common_files):
-            local_full_path = Path(LOCAL_REPO) / CONFIG_DIR / file_path
+            local_full_path = Path(local_repo_path) / CONFIG_DIR / file_path
             upstream_full_path = Path(upstream_temp_dir) / CONFIG_DIR / file_path
 
             local_json = load_json(local_full_path)
@@ -189,7 +208,6 @@ def main():
             print("No differences found.")
 
         print("Analysis complete", file=sys.stderr)
-
 
 if __name__ == "__main__":
     main()
