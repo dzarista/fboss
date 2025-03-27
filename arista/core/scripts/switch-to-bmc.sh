@@ -16,6 +16,16 @@ usage() {
    exit 1
 }
 
+chassis_power_cycle() {
+   SCD_ADDR="07:00.0"
+   BASE_ADDR=$(lspci -s "$SCD_ADDR" -v | grep "Memory" | head -n 1 | awk '{print $3}')
+   BASE_ADDR="0x$BASE_ADDR"
+   REG_OFFSET="0x7000"
+   printf -v mem_addr '%#X' "$((BASE_ADDR + REG_OFFSET))"
+
+   devmem2.x86_64 $mem_addr w 0xdead
+}
+
 switch_to_bmc_fairywren() {
    REV="$1"
 
@@ -39,7 +49,7 @@ switch_to_bmc_fairywren() {
    i2cset -f -y 1 "$DEV_ADDR" 0xf4 0x1
    sleep 0.1
    if [ $no_reboot -eq 0 ]; then
-      echo 0xdead > "$CPLD/chassis_power_cycle"
+      chassis_power_cycle
    fi
 }
 

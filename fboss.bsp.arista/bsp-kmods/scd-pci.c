@@ -273,40 +273,6 @@ static struct scd_reg *scd_reg_at_offset(struct scd_dev_priv *priv, u32 offset)
 	return NULL;
 }
 
-static ssize_t chassis_power_cycle(struct device *dev,
-				   struct device_attribute *dattr,
-				   const char *buf,
-				   size_t count)
-{
-	struct scd_dev_priv *priv = dev_get_drvdata(dev);
-	u32 cmd = (u32)simple_strtoul(buf, NULL, 0);
-	struct regbit_sysfs_entry *entry = priv->regbit_sysfs_table;
-	struct attribute *attr = &dattr->attr;
-	struct scd_reg *reg;
-
-	if (entry == NULL)
-		return -ENOENT;
-
-	/*
-	 * Users must write "0xdead" to trigger power cycle, and this is
-	 * to prevent people from powering cycle the chassis by accident.
-	 */
-	if (cmd != 0xdead)
-		return -EINVAL;
-
-	for (; entry->name != NULL; entry++) {
-		if (strcmp(entry->name, attr->name))
-			continue;
-		reg = scd_reg_at_offset(priv, entry->reg_offset);
-		if (!reg)
-			continue;
-		scd_write_register(priv->pdev, reg, cmd);
-		return count; /* Never reach here as chassis is power cycled */
-	}
-
-	return -ENOENT;
-}
-
 static int scd_read_regbit(struct device *dev,
 						   u32 reg_offset,
 						   u32 bit_len,
@@ -573,8 +539,6 @@ static void release_reload_cause_resources(struct scd_dev_priv *priv)
 		    regbit_sysfs_show, regbit_sysfs_store)                              \
 	REGBIT_FILE(fairywren, switch_jtag_enable, 0x2f40, 0, 1, FMODE_RW,				\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
-	REGBIT_FILE(fairywren, chassis_power_cycle, 0x7000, 0, 32, S_IWUSR | S_IWGRP,		\
-		    NULL, chassis_power_cycle)						\
 	REGBIT_FILE(fairywren, oob_eeprom_cmd, 0x7f00, 0, 32, FMODE_RW,				\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
 	REGBIT_FILE(fairywren, oob_eeprom_resp, 0x7f10, 0, 32, FMODE_RW,				\
