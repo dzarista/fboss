@@ -18695,25 +18695,13 @@
           "test_name_regex": "SpeedChangeTest.*$"
         },
         {
-          "test_name_regex": "Prbs.*$"
-        },
-        {
           "test_name_regex": "PtpTests.verifyPtpTc.*$"
         },
         {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
         },
         {
-          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
-        },
-        {
-          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
-        },
-        {
-          "test_name_regex": "LinkTest.testOpticsRemediation$"
-        },
-        {
-          "test_name_regex": "Prbs.*ASIC.*$"
+          "test_name_regex": "Prbs.*TRANSCEIVER.*$"
         },
         {
           "test_name_regex": "LinkTest.ptpEnableIsHitless$"
@@ -18729,12 +18717,6 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
-        },
-        {
-          "test_name_regex": "LinkTest.ecmpShrink$"
-        },
-        {
-          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
@@ -18781,25 +18763,13 @@
           "test_name_regex": "SpeedChangeTest.*$"
         },
         {
-          "test_name_regex": "Prbs.*$"
-        },
-        {
           "test_name_regex": "PtpTests.verifyPtpTc.*$"
         },
         {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
         },
         {
-          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
-        },
-        {
-          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
-        },
-        {
-          "test_name_regex": "LinkTest.testOpticsRemediation$"
-        },
-        {
-          "test_name_regex": "Prbs.*ASIC.*$"
+          "test_name_regex": "Prbs.*TRANSCEIVER.*$"
         },
         {
           "test_name_regex": "LinkTest.ptpEnableIsHitless$"
@@ -18815,12 +18785,6 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
-        },
-        {
-          "test_name_regex": "LinkTest.ecmpShrink$"
-        },
-        {
-          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
@@ -18867,25 +18831,13 @@
           "test_name_regex": "SpeedChangeTest.*$"
         },
         {
-          "test_name_regex": "Prbs.*$"
-        },
-        {
           "test_name_regex": "PtpTests.verifyPtpTc.*$"
         },
         {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
         },
         {
-          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
-        },
-        {
-          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
-        },
-        {
-          "test_name_regex": "LinkTest.testOpticsRemediation$"
-        },
-        {
-          "test_name_regex": "Prbs.*ASIC.*$"
+          "test_name_regex": "Prbs.*TRANSCEIVER.*$"
         },
         {
           "test_name_regex": "LinkTest.ptpEnableIsHitless$"
@@ -18901,12 +18853,6 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
-        },
-        {
-          "test_name_regex": "LinkTest.ecmpShrink$"
-        },
-        {
-          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
@@ -18953,25 +18899,13 @@
           "test_name_regex": "SpeedChangeTest.*$"
         },
         {
-          "test_name_regex": "Prbs.*$"
-        },
-        {
           "test_name_regex": "PtpTests.verifyPtpTc.*$"
         },
         {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
         },
         {
-          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
-        },
-        {
-          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
-        },
-        {
-          "test_name_regex": "LinkTest.testOpticsRemediation$"
-        },
-        {
-          "test_name_regex": "Prbs.*ASIC.*$"
+          "test_name_regex": "Prbs.*TRANSCEIVER.*$"
         },
         {
           "test_name_regex": "LinkTest.ptpEnableIsHitless$"
@@ -18987,12 +18921,6 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
-        },
-        {
-          "test_name_regex": "LinkTest.ecmpShrink$"
-        },
-        {
-          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
@@ -19039,25 +18967,13 @@
           "test_name_regex": "SpeedChangeTest.*$"
         },
         {
-          "test_name_regex": "Prbs.*$"
-        },
-        {
           "test_name_regex": "PtpTests.verifyPtpTc.*$"
         },
         {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
         },
         {
-          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
-        },
-        {
-          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
-        },
-        {
-          "test_name_regex": "LinkTest.testOpticsRemediation$"
-        },
-        {
-          "test_name_regex": "Prbs.*ASIC.*$"
+          "test_name_regex": "Prbs.*TRANSCEIVER.*$"
         },
         {
           "test_name_regex": "LinkTest.ptpEnableIsHitless$"
@@ -19073,12 +18989,6 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
-        },
-        {
-          "test_name_regex": "LinkTest.ecmpShrink$"
-        },
-        {
-          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
@@ -19125,25 +19035,13 @@
           "test_name_regex": "SpeedChangeTest.*$"
         },
         {
-          "test_name_regex": "Prbs.*$"
-        },
-        {
           "test_name_regex": "PtpTests.verifyPtpTc.*$"
         },
         {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
         },
         {
-          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
-        },
-        {
-          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
-        },
-        {
-          "test_name_regex": "LinkTest.testOpticsRemediation$"
-        },
-        {
-          "test_name_regex": "Prbs.*ASIC.*$"
+          "test_name_regex": "Prbs.*TRANSCEIVER.*$"
         },
         {
           "test_name_regex": "LinkTest.ptpEnableIsHitless$"
@@ -19159,12 +19057,6 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
-        },
-        {
-          "test_name_regex": "LinkTest.ecmpShrink$"
-        },
-        {
-          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
@@ -19211,25 +19103,13 @@
           "test_name_regex": "SpeedChangeTest.*$"
         },
         {
-          "test_name_regex": "Prbs.*$"
-        },
-        {
           "test_name_regex": "PtpTests.verifyPtpTc.*$"
         },
         {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
         },
         {
-          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
-        },
-        {
-          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
-        },
-        {
-          "test_name_regex": "LinkTest.testOpticsRemediation$"
-        },
-        {
-          "test_name_regex": "Prbs.*ASIC.*$"
+          "test_name_regex": "Prbs.*TRANSCEIVER.*$"
         },
         {
           "test_name_regex": "LinkTest.ptpEnableIsHitless$"
@@ -19245,12 +19125,6 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
-        },
-        {
-          "test_name_regex": "LinkTest.ecmpShrink$"
-        },
-        {
-          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
@@ -19297,25 +19171,13 @@
           "test_name_regex": "SpeedChangeTest.*$"
         },
         {
-          "test_name_regex": "Prbs.*$"
-        },
-        {
           "test_name_regex": "PtpTests.verifyPtpTc.*$"
         },
         {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
         },
         {
-          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
-        },
-        {
-          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
-        },
-        {
-          "test_name_regex": "LinkTest.testOpticsRemediation$"
-        },
-        {
-          "test_name_regex": "Prbs.*ASIC.*$"
+          "test_name_regex": "Prbs.*TRANSCEIVER.*$"
         },
         {
           "test_name_regex": "LinkTest.ptpEnableIsHitless$"
@@ -19331,12 +19193,6 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
-        },
-        {
-          "test_name_regex": "LinkTest.ecmpShrink$"
-        },
-        {
-          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
@@ -19383,25 +19239,13 @@
           "test_name_regex": "SpeedChangeTest.*$"
         },
         {
-          "test_name_regex": "Prbs.*$"
-        },
-        {
           "test_name_regex": "PtpTests.verifyPtpTc.*$"
         },
         {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
         },
         {
-          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
-        },
-        {
-          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
-        },
-        {
-          "test_name_regex": "LinkTest.testOpticsRemediation$"
-        },
-        {
-          "test_name_regex": "Prbs.*ASIC.*$"
+          "test_name_regex": "Prbs.*TRANSCEIVER.*$"
         },
         {
           "test_name_regex": "LinkTest.ptpEnableIsHitless$"
@@ -19417,12 +19261,6 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
-        },
-        {
-          "test_name_regex": "LinkTest.ecmpShrink$"
-        },
-        {
-          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
@@ -19469,25 +19307,13 @@
           "test_name_regex": "SpeedChangeTest.*$"
         },
         {
-          "test_name_regex": "Prbs.*$"
-        },
-        {
           "test_name_regex": "PtpTests.verifyPtpTc.*$"
         },
         {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
         },
         {
-          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
-        },
-        {
-          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
-        },
-        {
-          "test_name_regex": "LinkTest.testOpticsRemediation$"
-        },
-        {
-          "test_name_regex": "Prbs.*ASIC.*$"
+          "test_name_regex": "Prbs.*TRANSCEIVER.*$"
         },
         {
           "test_name_regex": "LinkTest.ptpEnableIsHitless$"
@@ -19503,12 +19329,6 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
-        },
-        {
-          "test_name_regex": "LinkTest.ecmpShrink$"
-        },
-        {
-          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
@@ -19555,25 +19375,13 @@
           "test_name_regex": "SpeedChangeTest.*$"
         },
         {
-          "test_name_regex": "Prbs.*$"
-        },
-        {
           "test_name_regex": "PtpTests.verifyPtpTc.*$"
         },
         {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
         },
         {
-          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
-        },
-        {
-          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
-        },
-        {
-          "test_name_regex": "LinkTest.testOpticsRemediation$"
-        },
-        {
-          "test_name_regex": "Prbs.*ASIC.*$"
+          "test_name_regex": "Prbs.*TRANSCEIVER.*$"
         },
         {
           "test_name_regex": "LinkTest.ptpEnableIsHitless$"
@@ -19589,12 +19397,6 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
-        },
-        {
-          "test_name_regex": "LinkTest.ecmpShrink$"
-        },
-        {
-          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
@@ -19641,25 +19443,13 @@
           "test_name_regex": "SpeedChangeTest.*$"
         },
         {
-          "test_name_regex": "Prbs.*$"
-        },
-        {
           "test_name_regex": "PtpTests.verifyPtpTc.*$"
         },
         {
           "test_name_regex": "roundtrip.*.testOpticsRemediation$"
         },
         {
-          "test_name_regex": "LinkTest.opticsTxDisableRandomPorts$"
-        },
-        {
-          "test_name_regex": "LinkTest.opticsTxDisableEnable$"
-        },
-        {
-          "test_name_regex": "LinkTest.testOpticsRemediation$"
-        },
-        {
-          "test_name_regex": "Prbs.*ASIC.*$"
+          "test_name_regex": "Prbs.*TRANSCEIVER.*$"
         },
         {
           "test_name_regex": "LinkTest.ptpEnableIsHitless$"
@@ -19675,12 +19465,6 @@
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
-        },
-        {
-          "test_name_regex": "LinkTest.ecmpShrink$"
-        },
-        {
-          "test_name_regex": "MacLearningTest.l2EntryFlap$"
         },
         {
           "test_name_regex": "warm_boot.MacLearningTest.l2EntryFlap"
@@ -19761,6 +19545,9 @@
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
@@ -19846,6 +19633,9 @@
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
         },
         {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
+        },
+        {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
@@ -19927,6 +19717,9 @@
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
@@ -20012,6 +19805,9 @@
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
         },
         {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
+        },
+        {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
@@ -20093,6 +19889,9 @@
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
@@ -20178,6 +19977,9 @@
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
         },
         {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
+        },
+        {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
@@ -20259,6 +20061,9 @@
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
@@ -20344,6 +20149,9 @@
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
         },
         {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
+        },
+        {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
@@ -20425,6 +20233,9 @@
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
@@ -20510,6 +20321,9 @@
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
         },
         {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
+        },
+        {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
@@ -20588,6 +20402,9 @@
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
@@ -20670,6 +20487,9 @@
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
         },
         {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
+        },
+        {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
@@ -20748,6 +20568,9 @@
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
@@ -20830,6 +20653,9 @@
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
         },
         {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
+        },
+        {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
@@ -20908,6 +20734,9 @@
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
@@ -20990,6 +20819,9 @@
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
         },
         {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
+        },
+        {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
@@ -21068,6 +20900,9 @@
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
@@ -21150,6 +20985,9 @@
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
         },
         {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
+        },
+        {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
@@ -21228,6 +21066,9 @@
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
@@ -21310,6 +21151,9 @@
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
         },
         {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
+        },
+        {
           "test_name_regex": "LinkTest.testOpticsRemediation$"
         },
         {
@@ -21388,6 +21232,9 @@
         },
         {
           "test_name_regex": "Prbs.*TRANSCEIVER_LINE.*DR4_400G.*$"
+        },
+        {
+          "test_name_regex": "MacLearningTest.l2EntryFlap"
         },
         {
           "test_name_regex": "LinkTest.testOpticsRemediation$"

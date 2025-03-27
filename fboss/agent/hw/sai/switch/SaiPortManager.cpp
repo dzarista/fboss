@@ -13,6 +13,7 @@
 #include "fboss/agent/FbossError.h"
 #include "fboss/agent/hw/CounterUtils.h"
 #include "fboss/agent/hw/HwPortFb303Stats.h"
+#include "fboss/agent/hw/StatsConstants.h"
 #include "fboss/agent/hw/gen-cpp2/hardware_stats_constants.h"
 #include "fboss/agent/hw/sai/store/SaiStore.h"
 #include "fboss/agent/hw/sai/switch/ConcurrentIndices.h"
@@ -54,11 +55,6 @@ DEFINE_int32(
     fec_counters_update_interval_s,
     10,
     "Interval in seconds for reading fec counters");
-
-DEFINE_int32(
-    prbs_update_interval_s,
-    10,
-    "Interval in seconds for reading PRBS RX State");
 
 using namespace std::chrono;
 
@@ -1586,6 +1582,17 @@ std::shared_ptr<Port> SaiPortManager::swPortFromAttributes(
   }
 #endif
 
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_7)
+  if (platform_->getAsic()->isSupported(
+          HwAsic::Feature::FEC_ERROR_DETECT_ENABLE)) {
+    auto fecErrorDetectEnable =
+        GET_OPT_ATTR(Port, FecErrorDetectEnable, attributes);
+    if (fecErrorDetectEnable) {
+      port->setFecErrorDetectEnable(fecErrorDetectEnable);
+    }
+  }
+#endif
+
   return port;
 }
 
@@ -1701,7 +1708,7 @@ bool SaiPortManager::rxSNRSupported() const {
 
 bool SaiPortManager::fecCodewordsStatsSupported(PortID portId) const {
 #if defined(BRCM_SAI_SDK_GTE_10_0) || defined(BRCM_SAI_SDK_DNX_GTE_11_0) || \
-    defined(TAJO_SDK_GTE_24_4_90)
+    defined(TAJO_SDK_GTE_24_8_3001)
   return platform_->getAsic()->isSupported(
              HwAsic::Feature::SAI_FEC_CODEWORDS_STATS) &&
       utility::isReedSolomonFec(getFECMode(portId)) &&
@@ -2087,6 +2094,24 @@ void SaiPortManager::clearStats(PortID port) {
       statsToClear.end());
   portHandle->port->clearStats(statsToClear);
   managerTable_->queueManager().clearStats(portHandle->configuredQueues);
+}
+
+void SaiPortManager::clearInterfacePhyCounters(const PortID& portId) {
+  auto portStatItr = portStats_.find(portId);
+  if (portStatItr == portStats_.end()) {
+    return;
+  }
+
+  // Clear accumulated FEC counters
+  auto curPortStats = portStatItr->second->portStats();
+  curPortStats.fecCorrectableErrors() = 0;
+  curPortStats.fecUncorrectableErrors() = 0;
+
+  portStatItr->second->clearStat(kFecCorrectable());
+  portStatItr->second->clearStat(kFecUncorrectable());
+
+  auto now = duration_cast<seconds>(system_clock::now().time_since_epoch());
+  portStatItr->second->updateStats(curPortStats, now);
 }
 
 const HwPortFb303Stats* SaiPortManager::getLastPortStat(PortID port) const {

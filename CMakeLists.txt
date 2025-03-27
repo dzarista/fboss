@@ -763,22 +763,83 @@ foreach(cmakeFile ${cmakeFiles})
   INCLUDE(${cmakeFile})
 endforeach(cmakeFile)
 
+if(BUILD_SAI_FAKE AND BUILD_SAI_FAKE_BENCHMARKS)
+add_custom_target(fboss_fake_agent_benchmarks)
+add_dependencies(fboss_fake_agent_benchmarks
+  sai_fsw_scale_route_add_speed-fake
+  sai_fsw_scale_route_del_speed-fake
+  sai_th_alpm_scale_route_add_speed-fake
+  sai_th_alpm_scale_route_del_speed-fake
+  sai_hgrid_du_scale_route_add_speed-fake
+  sai_hgrid_du_scale_route_del_speed-fake
+  sai_hgrid_uu_scale_route_add_speed-fake
+  sai_hgrid_uu_scale_route_del_speed-fake
+  sai_anticipated_scale_route_add_speed-fake
+  sai_anticipated_scale_route_del_speed-fake
+  sai_stats_collection_speed-fake
+  sai_tx_slow_path_rate-fake
+  sai_ecmp_shrink_speed-fake
+  sai_ecmp_shrink_with_competing_route_updates_speed-fake
+  sai_rx_slow_path_rate-fake
+  sai_init_and_exit_40Gx10G-fake
+  sai_init_and_exit_100Gx10G-fake
+  sai_init_and_exit_100Gx25G-fake
+  sai_init_and_exit_100Gx50G-fake
+  sai_init_and_exit_100Gx100G-fake
+  sai_init_and_exit_voq-fake
+  sai_init_and_exit_fabric-fake
+  sai_rib_resolution_speed-fake
+  sai_rib_sync_fib_speed-fake
+  sai_voq_scale_route_add_speed-fake
+  sai_voq_scale_route_del_speed-fake
+  sai_switch_reachability_change_speed-fake
+  sai_voq_sys_port_programming-fake
+)
+endif()
+
+add_custom_target(fboss_agent_benchmark_libs)
+add_dependencies(fboss_agent_benchmark_libs
+  hw_flowlet_stats_collection_speed
+  hw_rx_slow_path_arp_rate
+  hw_bgp_rx_slow_path_rate
+  hw_init_and_exit_benchmark_helper
+  hw_system_scale_memory_benchmark
+)
+
+
 add_custom_target(fboss_platform_services)
 add_dependencies(fboss_platform_services
+  # Services
   sensor_service
-  sensor_service_hw_test
-  sensor_service_sw_test
   fan_service
-  fan_service_sw_test
-  fan_service_hw_test
   rackmon
-  rackmon_test
   platform_manager
-  platform_manager_hw_test
   fw_util
   weutil
   led_service
   data_corral_service
+  # Unit Tests
+  platform_config_lib_config_lib_test
+  platform_manager_device_path_resolver_test
+  platform_manager_platform_explorer_test
+  platform_data_corral_sw_test
+  platform_manager_utils_test
+  platform_helpers_platform_name_lib_test
+  platform_manager_data_store_test
+  platform_manager_config_validator_test
+  platform_manager_presence_checker_test
+  platform_manager_i2c_explorer_test
+  weutil_crc16_ccitt_test
+  weutil_fboss_eeprom_parser_test
+  sensor_service_sw_test
+  sensor_service_utils_test
+  rackmon_test
+  fan_service_sw_test
+  data_corral_service_hw_test
+  fan_service_hw_test
+  sensor_service_hw_test
+  weutil_hw_test
+  platform_manager_hw_test
 )
 
 add_custom_target(qsfp_targets)
@@ -841,41 +902,6 @@ endif()
 endif()
 
 if (GITHUB_ACTIONS_BUILD)
-  add_custom_target(github_actions_fboss_platform_services)
-  add_dependencies(github_actions_fboss_platform_services
-    # Services
-    sensor_service
-    fan_service
-    rackmon
-    platform_manager
-    fw_util
-    weutil
-    led_service
-    data_corral_service
-    # Unit Tests
-    platform_config_lib_config_lib_test
-    platform_manager_device_path_resolver_test
-    platform_manager_platform_explorer_test
-    platform_data_corral_sw_test
-    platform_manager_utils_test
-    platform_helpers_platform_name_lib_test
-    platform_manager_data_store_test
-    platform_manager_config_validator_test
-    platform_manager_presence_checker_test
-    platform_manager_i2c_explorer_test
-    weutil_crc16_ccitt_test
-    weutil_fboss_eeprom_parser_test
-    sensor_service_sw_test
-    sensor_service_utils_test
-    rackmon_test
-    fan_service_sw_test
-    data_corral_service_hw_test
-    fan_service_hw_test
-    sensor_service_hw_test
-    weutil_hw_test
-    platform_manager_hw_test
-  )
-
   add_custom_target(github_actions_fboss_other_services)
   add_dependencies(github_actions_fboss_other_services
     # Services

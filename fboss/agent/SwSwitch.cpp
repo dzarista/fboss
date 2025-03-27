@@ -179,8 +179,6 @@ DEFINE_bool(rx_sw_priority, false, "Enable rx packet prioritization");
 
 DEFINE_int32(rx_pkt_thread_timeout, 100, "Rx packet thread timeout (ms)");
 
-DEFINE_int32(max_l2_entries, 1000, "Maximum L2 entries supported");
-
 using namespace facebook::fboss;
 namespace {
 
@@ -250,10 +248,11 @@ std::string getDrainStateChangedStr(
 }
 
 std::string getAsicSdkVersion(const std::optional<SdkVersion>& sdkVersion) {
-  return sdkVersion.has_value() ? (sdkVersion.value().get_asicSdk() != nullptr
-                                       ? *(sdkVersion.value().get_asicSdk())
-                                       : std::string("Not found"))
-                                : std::string("Not found");
+  return sdkVersion.has_value()
+      ? (apache::thrift::get_pointer(sdkVersion.value().asicSdk()) != nullptr
+             ? *(apache::thrift::get_pointer(sdkVersion.value().asicSdk()))
+             : std::string("Not found"))
+      : std::string("Not found");
 }
 
 // Create string about upper/lower port threshold for draining/undraining
@@ -346,16 +345,16 @@ void updatePhyFb303Stats(
   for (auto& [portID, phyInfo] : phyInfoMap) {
     auto& phyStats = *phyInfo.stats();
     auto& phyState = *phyInfo.state();
-    if (phyState.get_name().empty()) {
+    if (phyState.name().value().empty()) {
       continue;
     }
     if (auto pcs = phyStats.line()->pcs()) {
       if (auto fec = pcs->rsFec()) {
-        auto preFECBer = fec->get_preFECBer();
+        auto preFECBer = folly::copy(fec->preFECBer().value());
         // Pre-FEC BER should be >= 0 and <= 1
         if (preFECBer < 0 || preFECBer > 1) {
           XLOG(ERR) << "Invalid preFECBer value: " << preFECBer
-                    << " for port: " << phyState.get_name();
+                    << " for port: " << phyState.name().value();
           continue;
         }
         // For a BER of 2.2e-10, we will just log the exponent -10 to FB303
@@ -367,9 +366,10 @@ void updatePhyFb303Stats(
           preFECBerForFb303 = std::floor(std::log10(preFECBer));
         }
         facebook::fb303::fbData->setCounter(
-            "port." + phyState.get_name() + ".preFecBerLog", preFECBerForFb303);
+            "port." + phyState.name().value() + ".preFecBerLog",
+            preFECBerForFb303);
         if (auto fecTail = fec->fecTail()) {
-          STATS_port_fec_tail.addValue(*fecTail, phyState.get_name());
+          STATS_port_fec_tail.addValue(*fecTail, phyState.name().value());
         }
       }
     }
@@ -822,7 +822,7 @@ AgentStats SwSwitch::fillFsdbStats() {
           {switchIdx, *hwSwitchStats.switchDropStats()});
       for (auto& [_, phyInfo] : *hwSwitchStats.phyInfo()) {
         auto portName = phyInfo.state()->name().value();
-        agentStats.phyStats()->insert({portName, phyInfo.get_stats()});
+        agentStats.phyStats()->insert({portName, phyInfo.stats().value()});
       }
       agentStats.flowletStatsMap()->insert(
           {switchIdx, *hwSwitchStats.flowletStats()});
@@ -2326,7 +2326,8 @@ void SwSwitch::switchReachabilityChanged(
     const SwitchID switchId,
     const std::map<SwitchID, std::set<PortID>>& switchReachabilityInfo) {
   switch_reachability::SwitchReachability newReachability;
-  int currentIdx = 1;
+  const int kEmptyFabricPortGroupId = 0;
+  int nextUsableFabricPortGroupId = 1;
   uint64_t collectionTimestamp =
       duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
   if (hwReachabilityInfo_.find(switchId) == hwReachabilityInfo_.end()) {
@@ -2336,21 +2337,34 @@ void SwSwitch::switchReachabilityChanged(
   std::unordered_map<std::set<PortID>, int> portGrp2Id;
   for (const auto& [destinationSwitchId, portIdSet] : switchReachabilityInfo) {
     int portGroupId;
-    auto [_, inserted] = portGrp2Id.insert({portIdSet, currentIdx});
-    if (inserted) {
-      std::vector<std::string> portGroup(portIdSet.size());
-      std::transform(
-          portIdSet.begin(),
-          portIdSet.end(),
-          portGroup.begin(),
-          [this](PortID portId) {
-            return getState()->getPorts()->getNode(portId)->getName();
-          });
-      newReachability.fabricPortGroupMap()[currentIdx] = std::move(portGroup);
-      portGroupId = currentIdx++;
+    // When a switchID is unreachable, the portIdSet will be empty. In this
+    // case, use 0 as the fabricPortGroupId. With this, clients looking up
+    // switchID in switchIdToFabricPortGroupMap can conclude that the switch
+    // is unreachable if it has a fabricPortGroupId of 0 and reachable
+    // otherwise.
+    if (!portIdSet.size()) {
+      portGroupId = kEmptyFabricPortGroupId;
+      newReachability.fabricPortGroupMap()[portGroupId] =
+          std::vector<std::string>();
     } else {
-      // Need to find the ID for the portIdSet that was already added
-      portGroupId = portGrp2Id.find(portIdSet)->second;
+      auto [_, inserted] =
+          portGrp2Id.insert({portIdSet, nextUsableFabricPortGroupId});
+      if (inserted) {
+        std::vector<std::string> portGroup(portIdSet.size());
+        std::transform(
+            portIdSet.begin(),
+            portIdSet.end(),
+            portGroup.begin(),
+            [this](PortID portId) {
+              return getState()->getPorts()->getNode(portId)->getName();
+            });
+        portGroupId = nextUsableFabricPortGroupId++;
+        newReachability.fabricPortGroupMap()[portGroupId] =
+            std::move(portGroup);
+      } else {
+        // Need to find the ID for the portIdSet that was already added
+        portGroupId = portGrp2Id.find(portIdSet)->second;
+      }
     }
     newReachability.switchIdToFabricPortGroupMap()[static_cast<int64_t>(
         destinationSwitchId)] = portGroupId;

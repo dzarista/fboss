@@ -159,6 +159,11 @@ SaiPortTraits::Attributes::AttributeReachabilityGroup::operator()() {
 }
 
 std::optional<sai_attr_id_t>
+SaiPortTraits::Attributes::AttributeFecErrorDetectEnable::operator()() {
+  return std::nullopt;
+}
+
+std::optional<sai_attr_id_t>
 SaiSwitchTraits::Attributes::AttributeRestartIssuWrapper::operator()() {
   return SAI_SWITCH_ATTR_EXT_RESTART_ISSU;
 }
@@ -604,6 +609,16 @@ SaiSwitchTraits::Attributes::AttributeMaxSwitchId::operator()() {
 std::optional<sai_attr_id_t>
 SaiSwitchTraits::Attributes::AttributeArsAvailableFlows::operator()() {
   return std::nullopt;
+}
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeSdkRegDumpLogPath::operator()() {
+  return SAI_SWITCH_ATTR_SDK_REG_DUMP_LOG_PATH;
+}
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeFirmwareObjectList::operator()() {
+  return SAI_SWITCH_ATTR_FIRMWARE_OBJECT_LIST;
 }
 
 } // namespace facebook::fboss

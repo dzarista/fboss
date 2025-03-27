@@ -24,7 +24,8 @@ class AgentAclInDiscardsCounterTest : public AgentHwTest {
   cfg::SwitchConfig initialConfig(
       const AgentEnsemble& ensemble) const override {
     auto cfg = AgentHwTest::initialConfig(ensemble);
-    auto* acl = utility::addAcl(&cfg, "block all", cfg::AclActionType::DENY);
+    auto* acl =
+        utility::addAcl_DEPRECATED(&cfg, "block all", cfg::AclActionType::DENY);
     acl->dstIp() = "::/0";
     return cfg;
   }
@@ -42,8 +43,9 @@ TEST_F(AgentAclInDiscardsCounterTest, aclInDiscards) {
   auto verify = [=, this]() {
     auto port = masterLogicalInterfacePortIds()[1];
     auto portStatsBefore = getLatestPortStats(port);
-    auto vlanId = utility::firstVlanID(getProgrammedState());
-    auto intfMac = utility::getFirstInterfaceMac(getProgrammedState());
+    auto vlanId = utility::firstVlanIDWithPorts(getProgrammedState());
+    auto intfMac =
+        utility::getMacForFirstInterfaceWithPorts(getProgrammedState());
     auto srcMac = utility::MacAddressGenerator().get(intfMac.u64NBO() + 1);
     auto pkt = utility::makeUDPTxPacket(
         getSw(),

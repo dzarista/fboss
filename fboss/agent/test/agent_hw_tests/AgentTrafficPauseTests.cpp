@@ -25,6 +25,7 @@ class AgentTrafficPauseTest : public AgentHwTest {
   }
 
   void setCmdLineFlagOverrides() const override {
+    AgentHwTest::setCmdLineFlagOverrides();
     // Turn on Leaba SDK shadow cache to avoid test case timeout
     FLAGS_counter_refresh_interval = 1;
   }
@@ -34,11 +35,12 @@ class AgentTrafficPauseTest : public AgentHwTest {
     std::vector<uint8_t> payload{0x00, 0x01, 0xff, 0xff};
     std::vector<uint8_t> padding(42, 0);
     payload.insert(payload.end(), padding.begin(), padding.end());
-    auto intfMac = utility::getFirstInterfaceMac(getProgrammedState());
+    auto intfMac =
+        utility::getMacForFirstInterfaceWithPorts(getProgrammedState());
     for (int idx = 0; idx < count; idx++) {
       auto pkt = utility::makeEthTxPacket(
           getSw(),
-          utility::firstVlanID(getProgrammedState()),
+          utility::firstVlanIDWithPorts(getProgrammedState()),
           utility::MacAddressGenerator().get(intfMac.u64NBO() + 1),
           folly::MacAddress("01:80:C2:00:00:01"),
           ETHERTYPE::ETHERTYPE_EPON,
@@ -59,9 +61,9 @@ class AgentTrafficPauseTest : public AgentHwTest {
   static void sendPacket(
       AgentEnsemble* ensemble,
       const folly::IPAddressV6& destIpv6Addr) {
-    auto vlanId = utility::firstVlanID(ensemble->getProgrammedState());
-    auto intfMac =
-        utility::getFirstInterfaceMac(ensemble->getProgrammedState());
+    auto vlanId = utility::firstVlanIDWithPorts(ensemble->getProgrammedState());
+    auto intfMac = utility::getMacForFirstInterfaceWithPorts(
+        ensemble->getProgrammedState());
     auto dscp = utility::kOlympicQueueToDscp().at(0).front();
     auto srcMac = utility::MacAddressGenerator().get(intfMac.u64NBO() + 1);
     auto txPacket = utility::makeUDPTxPacket(

@@ -139,6 +139,10 @@ class SaiSwitch : public HwSwitch {
   void clearPortAsicPrbsStats(PortID portId) override;
   prbs::InterfacePrbsState getPortPrbsState(PortID portId) override;
 
+  void clearSignalDetectAndLockChangedStats(const PortID& portId);
+  void clearInterfacePhyCounters(
+      const std::unique_ptr<std::vector<int32_t>>& ports) override;
+
   cfg::PortSpeed getPortMaxSpeed(PortID port) const override;
 
   void linkStateChangedCallbackTopHalf(
@@ -244,6 +248,8 @@ class SaiSwitch : public HwSwitch {
   std::shared_ptr<SwitchState> reconstructSwitchState() const override;
 
   void injectSwitchReachabilityChangeNotification() override;
+
+  bool getArsExhaustionStatus() override;
 
  private:
   void gracefulExitImpl() override;

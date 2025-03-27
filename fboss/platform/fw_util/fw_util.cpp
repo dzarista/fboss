@@ -1,5 +1,6 @@
 //  Copyright 2021-present Facebook. All Rights Reserved.
 
+#include <folly/logging/Init.h>
 #include <folly/logging/xlog.h>
 
 #include <filesystem>
@@ -63,6 +64,11 @@ int main(int argc, char* argv[]) {
   } else if (
       FLAGS_fw_action == "program" || FLAGS_fw_action == "verify" ||
       FLAGS_fw_action == "read") {
+    // For actions which involve more than just reading versions/config, we want
+    // to always log all the commands that are run.
+    folly::LoggerDB::get()
+        .getCategory("fboss.platform.helpers.PlatformUtils")
+        ->setLevel(folly::LogLevel::DBG2);
     fwUtilImpl.doFirmwareAction(
         toLower(FLAGS_fw_target_name), toLower(FLAGS_fw_action));
   } else if (FLAGS_fw_action == "list") {

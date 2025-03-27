@@ -34,6 +34,9 @@ struct PortPgFields {
   11: optional i64 maxSramXoffThresholdBytes;
   12: optional i64 minSramXoffThresholdBytes;
   13: optional i64 sramResumeOffsetBytes;
+  // Not all implementations support specifying an offset at which to send XON.
+  // Allowing configuring an absolute value at which to send XON in such cases.
+  14: optional i64 resumeBytes;
 }
 
 struct MKASakKey {
@@ -139,6 +142,9 @@ struct PortFields {
   55: bool conditionalEntropyRehash = false;
   56: bool selfHealingECMPLagEnable_DEPRECATED = false;
   57: optional bool selfHealingECMPLagEnable;
+  // DSF option to enable FEC error detection on port to prevent any
+  // errored cells from making it to the forwarding pipeline.
+  58: optional bool fecErrorDetectEnable;
 }
 
 typedef ctrl.SystemPortThrift SystemPortFields

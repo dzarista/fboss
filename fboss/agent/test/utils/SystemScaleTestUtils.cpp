@@ -3,6 +3,7 @@
 #include "fboss/agent/hw/test/ConfigFactory.h"
 
 #include "fboss/agent/AgentFeatures.h"
+#include "fboss/agent/ThriftHandler.h"
 #include "fboss/agent/packet/PktFactory.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
 #include "fboss/agent/test/RouteScaleGenerators.h"
@@ -11,8 +12,10 @@
 #include "fboss/agent/test/utils/AsicUtils.h"
 #include "fboss/agent/test/utils/CoppTestUtils.h"
 #include "fboss/agent/test/utils/ScaleTestUtils.h"
+#include "folly/Benchmark.h"
 
 DECLARE_bool(intf_nbr_tables);
+DECLARE_bool(json);
 
 namespace {
 constexpr int kNumMacs = 8000;
@@ -215,6 +218,7 @@ void configureMaxRouteEntries(AgentEnsemble* ensemble) {
 
   auto routeGenerator = ScaleTestRouteScaleGenerator(sw->getState());
   auto allThriftRoutes = routeGenerator.allThriftRoutes();
+  int numThriftRoutes = allThriftRoutes.size();
 
   std::vector<RoutePrefixV6> ecmpPrefixes;
   utility::EcmpSetupTargetedPorts6 ecmpHelper(ensemble->getProgrammedState());
@@ -268,36 +272,30 @@ void configureMaxRouteEntries(AgentEnsemble* ensemble) {
         "Route scale generator not supported for platform: ", platformType);
   }
 
-  auto updater = ensemble->getSw()->getRouteUpdater();
-  const RouterID kRid(0);
-  auto syncFib =
-      [&updater, kRid](
-          const utility::RouteDistributionGenerator::ThriftRouteChunk& routes) {
-        std::for_each(
-            routes.begin(), routes.end(), [&updater, kRid](const auto& route) {
-              updater.addRoute(kRid, ClientID::BGPD, route);
-            });
-        updater.program(
-            {{{kRid, ClientID::BGPD}},
-             RouteUpdateWrapper::SyncFibInfo::SyncFibType::IP_ONLY});
-      };
+  ThriftHandler handler(ensemble->getSw());
   // Sync fib with same set of routes
   // TH doesn't support 75K route scale, the following is a work around
   if (asic->getAsicType() == cfg::AsicType::ASIC_TYPE_TOMAHAWK) {
     std::vector<UnicastRoute> quarterThriftRoutes = std::vector<UnicastRoute>(
         allThriftRoutes.begin(),
         allThriftRoutes.begin() + allThriftRoutes.size() / 4);
-    syncFib(quarterThriftRoutes);
+    std::unique_ptr<std::vector<UnicastRoute>> routesPtr =
+        std::make_unique<std::vector<UnicastRoute>>(quarterThriftRoutes);
+    StopWatch timer("program_routes_msecs", FLAGS_json);
+    handler.syncFib(static_cast<int>(ClientID::BGPD), std::move(routesPtr));
   } else {
-    syncFib(allThriftRoutes);
+    std::unique_ptr<std::vector<UnicastRoute>> routesPtr =
+        std::make_unique<std::vector<UnicastRoute>>(allThriftRoutes);
+    StopWatch timer("program_routes_msecs", FLAGS_json);
+    handler.syncFib(static_cast<int>(ClientID::BGPD), std::move(routesPtr));
   }
   int route_count = 0;
   auto countRoutes = [&route_count](RouterID, auto&) { ++route_count; };
   forAllRoutes(sw->getState(), countRoutes);
   if (asic->getAsicType() == cfg::AsicType::ASIC_TYPE_TOMAHAWK) {
-    CHECK_GE(route_count, allThriftRoutes.size() / 4);
+    CHECK_GE(route_count, numThriftRoutes / 4);
   } else {
-    CHECK_GE(route_count, allThriftRoutes.size());
+    CHECK_GE(route_count, numThriftRoutes);
   }
 }
 
