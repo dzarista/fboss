@@ -12,7 +12,8 @@ Source: %{expand:%%(pwd)}
 
 %define _fboss_target_opt %{root}/%{buildroot}/opt/fboss/
 %define _fboss_target_bin %{root}/%{buildroot}/opt/fboss/bin/
-%define _fboss_target_systemd %{root}/%{buildroot}/opt/fboss/share/systemd/
+%define _fboss_target_share %{root}/%{buildroot}/opt/fboss/share/
+%define _fboss_target_systemd %{_fboss_target_share}/systemd/
 
 %description
 This package provides core utilities to run Meta FBOSS OSS on Arista switches.
@@ -34,6 +35,8 @@ find %{SOURCEURL0}/%{_fboss_build_dir} -maxdepth 1 -type f -executable -exec cp 
 # Install core binaries.
 mkdir -p %{_fboss_target_bin}
 cp -rf fboss_bins-*/* %{_fboss_target_opt}
+# Darwin qsfp config needs to be renamed for fboss_init.sh assumptions to hold
+mv %{_fboss_target_share}/qsfp_test_configs/darwin_original.materialized_JSON %{_fboss_target_share}/qsfp_test_configs/darwin.materialized_JSON
 cp -f scripts/fboss_init.sh %{_fboss_target_bin}
 cp -f scripts/run_data_corral_service.sh %{_fboss_target_bin}
 cp -f scripts/run_fan_service.sh %{_fboss_target_bin}

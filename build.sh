@@ -164,6 +164,7 @@ SRC_MAPPING_FILES=(
     "${SRC_MAPPING_DIR}/meru800bfa/Meru800bfaP2PlatformMapping.h"
     "${SRC_MAPPING_DIR}/meru800bfa/Meru800bfaProdPlatformMapping.h"
     "${SRC_MAPPING_DIR}/meru800bfa/Meru800bfaP1PlatformMapping.cpp"
+    "${SRC_MAPPING_DIR}/darwin/DarwinPlatformMapping.cpp"
 )
 arista/build-utils/ExtractMappings.py -d "${SCRATCH_DIR}/PlatformMappings" "${SRC_MAPPING_FILES[@]}"
 
