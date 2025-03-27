@@ -31,8 +31,8 @@
 #define SCD_LED_GREEN			BIT(28)
 #define SCD_LED_RED				BIT(27)
 #define SCD_LED_FLASH_ENABLE	BIT(24)
-#define SCD_LED_INTENSITY_BLUE		0xff << 16
-#define SCD_LED_INTENSITY_GREEN		0xff << 8
+#define SCD_LED_INTENSITY_BLUE		(0xff << 16)
+#define SCD_LED_INTENSITY_GREEN		(0xff << 8)
 #define SCD_LED_INTENSITY_RED		0xff
 #define SCD_LED_MASK_ALL	(SCD_LED_BLUE | SCD_LED_GREEN | \
 							SCD_LED_RED | SCD_LED_FLASH_ENABLE)
@@ -81,7 +81,7 @@ struct scd_led_priv {
 	u32 id;
 	u8 num_leds;
 	struct mutex lock;
-	struct scd_led_dev leds[0];
+	struct scd_led_dev leds[];
 };
 
 static u32 csr_read(void __iomem *reg_offset)
@@ -194,7 +194,8 @@ static ssize_t show_delay(struct device *dev, struct device_attribute *attr, cha
 		return sprintf(buf, "%d\n", led_cdev->blink_delay_off);
 	return sprintf(buf, "%d\n", led_cdev->blink_delay_on);
 }
-static int led_trigger_init(struct scd_led_dev *ldev) {
+static int led_trigger_init(struct scd_led_dev *ldev)
+{
 	int ret;
 
 	SCD_RW_LED_ATTR(ldev->attr[0], "trigger", show_trigger, store_trigger, ldev);
@@ -213,7 +214,8 @@ static int led_trigger_init(struct scd_led_dev *ldev) {
 	return ret;
 }
 
-static int led_trigger_deinit(struct scd_led_dev *ldev) {
+static int led_trigger_deinit(struct scd_led_dev *ldev)
+{
 	for (int i = 0; i < SCD_LED_ATTR_COUNT; ++i) {
 		sysfs_remove_file(&ldev->cdev.dev->kobj, &ldev->attr[i].attr.attr);
 	}
@@ -289,7 +291,8 @@ static int scd_leds_init(struct scd_led_priv *priv, const char *name)
 
     for (int i = 0; i < priv->num_leds; ++i) {
 		ret = scd_led_init(priv, name, colors[i], &priv->leds[i]);
-        if (ret) return ret;
+	if (ret)
+		return ret;
     }
 
 	// Initialize register and sysfs value for blue/green led
@@ -316,8 +319,10 @@ static int scd_led_probe(struct auxiliary_device *auxdev,
 	struct fbiob_led_data led_data = pdata->led_data;
 
 
-	if (led_data.port_num > 0) num_leds = 2;
-	else num_leds = 4;
+	if (led_data.port_num > 0)
+		num_leds = 2;
+	else
+		num_leds = 4;
 
 	priv = devm_kzalloc(dev, sizeof(*priv) +
 				num_leds * sizeof(priv->leds[0]),
@@ -350,8 +355,9 @@ static int scd_led_probe(struct auxiliary_device *auxdev,
 	*/
 	if (led_data.port_num > 0) {
 		sprintf(led_name, "port%d_led%d", led_data.port_num, led_data.led_idx);
+	} else {
+		strcpy(led_name, pdata->id.name);
 	}
-	else strcpy(led_name, pdata->id.name);
 
 	ret = scd_leds_init(priv, led_name);
 
@@ -361,7 +367,8 @@ static int scd_led_probe(struct auxiliary_device *auxdev,
 	return 0;
 }
 
-static void scd_led_remove(struct auxiliary_device *auxdev) {
+static void scd_led_remove(struct auxiliary_device *auxdev)
+{
 	struct scd_led_priv *priv = dev_get_drvdata(&auxdev->dev);
 	for (int i = 0; i < priv->num_leds; ++i) {
 		led_trigger_deinit(&priv->leds[i]);

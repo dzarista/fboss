@@ -255,7 +255,8 @@ static const struct regbit_sysfs_config cpld_sys_attrs[] = {
 	},
 };
 
-static ssize_t fw_ver_show(struct device *dev, struct device_attribute *attr, char *buf) {
+static ssize_t fw_ver_show(struct device *dev, struct device_attribute *attr, char *buf)
+{
 	int ret;
 	u8 major_rev, minor_rev;
 	struct i2c_client *client = to_i2c_client(dev);

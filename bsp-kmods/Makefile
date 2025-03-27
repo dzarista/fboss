@@ -4,11 +4,11 @@
 
 PWD := $(shell pwd)
 
-subdir-ccflags-y += -I${M}/lib
+subdir-ccflags-y += -I${M}/lib -I${M}/backports
 subdir-ccflags-y += -DBSP_VERSION=\"${BSP_VERSION}\"
 
 obj-m += scd.o
-scd-objs := scd-pci.o lib/fbiob-auxdev.o lib/fbiob-cdev.o lib/regbit-sysfs.o
+scd-objs := scd-pci.o lib/fbiob-auxdev.o lib/fbiob-cdev.o lib/regbit-sysfs.o scd-reload-cause-pci.o
 obj-m += scd-info.o
 scd-info-objs := scd-info-aux.o lib/regbit-sysfs.o
 obj-m += scd-smbus.o
@@ -24,6 +24,9 @@ obj-y += dsf/
 
 #Device drivers for Darwin.
 obj-y += darwin/
+
+#Device drivers for QuickSilver.
+obj-y += meru800ba/
 
 KDIR ?= /lib/modules/${BUILD_KERNEL}/build
 
