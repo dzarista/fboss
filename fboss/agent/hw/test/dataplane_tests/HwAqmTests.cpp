@@ -48,12 +48,13 @@ void verifyWredDroppedPacketCount(
     AqmTestStats& after,
     AqmTestStats& before,
     int expectedDroppedPkts) {
-  constexpr auto kAcceptableError = 2;
+  constexpr auto kAcceptableErrorPct = 10;
   auto deltaWredDroppedPackets =
       after.wredDroppedPackets - before.wredDroppedPackets;
   XLOG(DBG0) << "Delta WRED dropped pkts: " << deltaWredDroppedPackets;
-  EXPECT_GT(deltaWredDroppedPackets, expectedDroppedPkts - kAcceptableError);
-  EXPECT_LT(deltaWredDroppedPackets, expectedDroppedPkts + kAcceptableError);
+  int allowedDeviation = kAcceptableErrorPct * expectedDroppedPkts / 100;
+  EXPECT_GT(deltaWredDroppedPackets, expectedDroppedPkts - allowedDeviation);
+  EXPECT_LT(deltaWredDroppedPackets, expectedDroppedPkts + allowedDeviation);
 }
 
 /*
@@ -211,7 +212,7 @@ class HwAqmTest : public HwLinkStateDependentTest {
       int payloadLen = kDefaultTxPayloadBytes,
       int ttl = 255,
       std::optional<PortID> outPort = std::nullopt) {
-    auto vlanId = utility::firstVlanID(initialConfig());
+    auto vlanId = utility::firstVlanIDWithPorts(initialConfig());
     for (int i = 0; i < cnt; i++) {
       sendPkt(
           dscpVal,
@@ -224,7 +225,7 @@ class HwAqmTest : public HwLinkStateDependentTest {
     }
   }
   folly::MacAddress getIntfMac() const {
-    return utility::getFirstInterfaceMac(getProgrammedState());
+    return utility::getMacForFirstInterfaceWithPorts(getProgrammedState());
   }
 
   void queueShaperAndBurstSetup(
@@ -250,7 +251,7 @@ class HwAqmTest : public HwLinkStateDependentTest {
     for (auto queueId : queueIds) {
       if (isEcn) {
         utility::addQueueEcnConfig(
-            &cfg,
+            cfg,
             {getPlatform()->getAsic()},
             queueId,
             utility::kQueueConfigAqmsEcnThresholdMinMax,
@@ -258,7 +259,7 @@ class HwAqmTest : public HwLinkStateDependentTest {
             isVoq);
       } else {
         utility::addQueueWredConfig(
-            &cfg,
+            cfg,
             {getPlatform()->getAsic()},
             queueId,
             utility::kQueueConfigAqmsWredThresholdMinMax,
@@ -302,13 +303,14 @@ class HwAqmTest : public HwLinkStateDependentTest {
       if (getPlatform()->getAsic()->isSupported(
               HwAsic::Feature::QUEUE_ECN_COUNTER)) {
         stats.outEcnCounter +=
-            portStats.get_queueEcnMarkedPackets_().find(queueId)->second;
+            portStats.queueEcnMarkedPackets_().value().find(queueId)->second;
       }
       stats.wredDroppedPackets +=
-          portStats.get_queueWredDroppedPackets_().find(queueId)->second;
+          portStats.queueWredDroppedPackets_().value().find(queueId)->second;
     } else {
-      stats.outEcnCounter += portStats.get_outEcnCounter_();
-      stats.wredDroppedPackets += portStats.get_wredDroppedPackets_();
+      stats.outEcnCounter += folly::copy(portStats.outEcnCounter_().value());
+      stats.wredDroppedPackets +=
+          folly::copy(portStats.wredDroppedPackets_().value());
     }
     // Always populate outPackets
     stats.outPackets += utility::getPortOutPkts(portStats);
@@ -322,8 +324,8 @@ class HwAqmTest : public HwLinkStateDependentTest {
       const uint8_t& queueId,
       AqmTestStats& stats) const {
     stats.wredDroppedPackets +=
-        sysPortStats.get_queueWredDroppedPackets_().find(queueId)->second;
-    stats.outPackets += portStats.get_queueOutPackets_().at(queueId);
+        sysPortStats.queueWredDroppedPackets_().value().find(queueId)->second;
+    stats.outPackets += portStats.queueOutPackets_().value().at(queueId);
   }
 
   template <typename StatsT>
@@ -428,10 +430,11 @@ class HwAqmTest : public HwLinkStateDependentTest {
       EXPECT_TRUE(
           getHwSwitchEnsemble()->waitPortStatsCondition(countIncremented));
 
-      auto watermarkBytes =
+      auto watermarkBytes = folly::copy(
           getHwSwitchEnsemble()
               ->getLatestPortStats(masterLogicalInterfacePortIds()[0])
-              .get_queueWatermarkBytes_();
+              .queueWatermarkBytes_()
+              .value());
 
       // Queue0 watermark should be higher than queue2 since it drops less
       // packets.
@@ -531,8 +534,8 @@ class HwAqmTest : public HwLinkStateDependentTest {
      */
     int numPacketsToSend =
         ceil(
-            (double)utility::getRoundedBufferThreshold(
-                getHwSwitch(), thresholdBytes, roundUp) /
+            static_cast<double>(utility::getRoundedBufferThreshold(
+                getHwSwitch(), thresholdBytes, roundUp)) /
             utility::getEffectiveBytesPerPacket(getHwSwitch(), kTxPacketLen)) +
         expectedMarkedOrDroppedPacketCount;
     auto setup = [=, this]() {

@@ -145,6 +145,8 @@ void handleExtensionAttributes() {
   SAI_EXT_ATTR_MAP(Switch, ArsAvailableFlows);
 #endif
   SAI_EXT_ATTR_MAP(Switch, SflowAggrNofSamples);
+  SAI_EXT_ATTR_MAP(Switch, SdkRegDumpLogPath);
+  SAI_EXT_ATTR_MAP(Switch, FirmwareObjectList);
 }
 
 } // namespace

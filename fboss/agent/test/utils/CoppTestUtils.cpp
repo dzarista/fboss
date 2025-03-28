@@ -110,6 +110,7 @@ uint16_t getCoppHighPriQueueId(const HwAsic* hwAsic) {
     case cfg::AsicType::ASIC_TYPE_TOMAHAWK3:
     case cfg::AsicType::ASIC_TYPE_TOMAHAWK4:
     case cfg::AsicType::ASIC_TYPE_TOMAHAWK5:
+    case cfg::AsicType::ASIC_TYPE_TOMAHAWK6:
       return 9;
     case cfg::AsicType::ASIC_TYPE_EBRO:
     case cfg::AsicType::ASIC_TYPE_GARONNE:
@@ -151,6 +152,7 @@ cfg::ToCpuAction getCpuActionType(const HwAsic* hwAsic) {
     case cfg::AsicType::ASIC_TYPE_TOMAHAWK3:
     case cfg::AsicType::ASIC_TYPE_TOMAHAWK4:
     case cfg::AsicType::ASIC_TYPE_TOMAHAWK5:
+    case cfg::AsicType::ASIC_TYPE_TOMAHAWK6:
     case cfg::AsicType::ASIC_TYPE_EBRO:
     case cfg::AsicType::ASIC_TYPE_GARONNE:
     case cfg::AsicType::ASIC_TYPE_YUBA:
@@ -357,11 +359,28 @@ void setDefaultCpuTrafficPolicyConfig(
     const std::vector<const HwAsic*>& asics,
     bool isSai) {
   auto hwAsic = checkSameAndGetAsic(asics);
-  auto cpuAcls = utility::defaultCpuAcls(hwAsic, config, isSai);
+  std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>> cpuAcls;
 
-  for (int i = 0; i < cpuAcls.size(); i++) {
-    utility::addAclEntry(
-        &config, cpuAcls[i].first, utility::kDefaultAclTable());
+  if (!isSai) {
+    cpuAcls =
+        utility::defaultCpuAcls(hwAsic, config, isSai, cfg::AclStage::INGRESS);
+
+    for (int i = 0; i < cpuAcls.size(); i++) {
+      utility::addAcl(&config, cpuAcls[i].first, cfg::AclStage::INGRESS);
+    }
+  } else {
+    for (auto stage :
+         {cfg::AclStage::INGRESS, cfg::AclStage::INGRESS_POST_LOOKUP}) {
+      auto stageCpuAcls = utility::defaultCpuAcls(hwAsic, config, isSai, stage);
+
+      for (int i = 0; i < stageCpuAcls.size(); i++) {
+        utility::addAcl(&config, stageCpuAcls[i].first, stage);
+      }
+      cpuAcls.insert(
+          cpuAcls.end(),
+          std::make_move_iterator(stageCpuAcls.begin()),
+          std::make_move_iterator(stageCpuAcls.end()));
+    }
   }
 
   // prepare cpu traffic config
@@ -385,11 +404,6 @@ void setDefaultCpuTrafficPolicyConfig(
     cpuConfig.rxReasonToQueueOrderedList() = rxReasonToQueues;
   }
   config.cpuTrafficPolicy() = cpuConfig;
-}
-
-uint16_t getNumDefaultCpuAcls(const HwAsic* hwAsic, bool isSai) {
-  cfg::SwitchConfig config; // unused
-  return utility::defaultCpuAcls(hwAsic, config, isSai).size();
 }
 
 cfg::MatchAction
@@ -800,7 +814,8 @@ void addNoActionAclForUnicastLinkLocal(
       {nw.first.isV6() ? cfg::EtherType::IPv6 : cfg::EtherType::IPv4});
 }
 
-std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>> defaultCpuAclsForSai(
+std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>>
+defaultIngressCpuAclsForSai(
     const HwAsic* hwAsic,
     cfg::SwitchConfig& /* unused */) {
   std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>> acls;
@@ -845,6 +860,7 @@ std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>> defaultCpuAclsForSai(
       getCoppMidPriQueueId({hwAsic}));
 
   if (hwAsic->isSupported(HwAsic::Feature::ACL_METADATA_QUALIFER)) {
+    // metadata qualifiers are in post ingress stage
     addHighPriAclForMyIPNetworkControl(
         hwAsic,
         cfg::ToCpuAction::TRAP,
@@ -887,6 +903,50 @@ std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>> defaultCpuAclsForSai(
   }
 
   return acls;
+}
+
+std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>>
+defaultPostIngressCpuAclsForSai(
+    const HwAsic* hwAsic,
+    cfg::SwitchConfig& /* unused */) {
+  std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>> acls;
+  if (hwAsic->getAsicType() != cfg::AsicType::ASIC_TYPE_CHENAB) {
+    return acls;
+  }
+  addHighPriAclForMyIPNetworkControl(
+      hwAsic,
+      cfg::ToCpuAction::TRAP,
+      getCoppHighPriQueueId(hwAsic),
+      acls,
+      true /*isSai*/);
+  /*
+   * Unresolved route class ID to low pri queue.
+   * For unresolved route ACL, both the hostif trap and the ACL will
+   * be hit on TAJO and 2 packets will be punted to CPU.
+   * Do not rely on getCpuActionType but explicitly configure
+   * the cpu action to TRAP. Connected subnet route has the same class ID
+   * and also goes to low pri queue
+   */
+  addLowPriAclForUnresolvedRoutes(
+      hwAsic, cfg::ToCpuAction::TRAP, acls, true /*isSai*/);
+
+  return acls;
+}
+
+std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>> defaultCpuAclsForSai(
+    const HwAsic* hwAsic,
+    cfg::SwitchConfig& cfg,
+    cfg::AclStage aclStage) {
+  switch (aclStage) {
+    case cfg::AclStage::INGRESS:
+      return defaultIngressCpuAclsForSai(hwAsic, cfg);
+    case cfg::AclStage::INGRESS_POST_LOOKUP:
+      return defaultPostIngressCpuAclsForSai(hwAsic, cfg);
+    case cfg::AclStage::EGRESS_MACSEC:
+    case cfg::AclStage::INGRESS_MACSEC:
+      throw FbossError("MACSEC stage not supported for CPU ACLs");
+  }
+  return {};
 }
 
 std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>> defaultCpuAclsForBcm(
@@ -1069,9 +1129,12 @@ std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>> defaultCpuAclsForBcm(
   return acls;
 }
 
-std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>>
-defaultCpuAcls(const HwAsic* hwAsic, cfg::SwitchConfig& config, bool isSai) {
-  return isSai ? defaultCpuAclsForSai(hwAsic, config)
+std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>> defaultCpuAcls(
+    const HwAsic* hwAsic,
+    cfg::SwitchConfig& config,
+    bool isSai,
+    cfg::AclStage aclStage) {
+  return isSai ? defaultCpuAclsForSai(hwAsic, config, aclStage)
                : defaultCpuAclsForBcm(hwAsic, config);
 }
 
@@ -1412,8 +1475,8 @@ void sendAndVerifyPkts(
     PortID srcPort,
     uint8_t trafficClass) {
   auto sendPkts = [&] {
-    auto vlanId = utility::firstVlanID(swState);
-    auto intfMac = utility::getFirstInterfaceMac(swState);
+    auto vlanId = utility::firstVlanIDWithPorts(swState);
+    auto intfMac = utility::getMacForFirstInterfaceWithPorts(swState);
     utility::sendTcpPkts(
         switchPtr,
         1 /*numPktsToSend*/,
@@ -1517,7 +1580,7 @@ std::map<int, std::vector<uint8_t>> getOlympicQosMaps(
   std::map<int, std::vector<uint8_t>> queueToDscp;
 
   for (const auto& qosPolicy : *config.qosPolicies()) {
-    const auto& qosName = qosPolicy.get_name();
+    const auto& qosName = qosPolicy.name().value();
     XLOG(DBG2) << "Iterating over QoS policies: found qosPolicy " << qosName;
 
     // Optional thrift field access
@@ -1525,7 +1588,7 @@ std::map<int, std::vector<uint8_t>> getOlympicQosMaps(
       const auto& dscpMaps = *qosMap->dscpMaps();
 
       for (const auto& dscpMap : dscpMaps) {
-        auto queueId = dscpMap.get_internalTrafficClass();
+        auto queueId = folly::copy(dscpMap.internalTrafficClass().value());
         // Internally (i.e. in thrift), the mapping is implemented as a
         // map<int16_t, vector<int8_t>>; however, in functions like
         // verifyQueueMapping in HwTestQosUtils, the argument used is of the
@@ -1536,7 +1599,7 @@ std::map<int, std::vector<uint8_t>> getOlympicQosMaps(
         for (auto val : *dscpMap.fromDscpToTrafficClass()) {
           dscps.push_back((uint8_t)val);
         }
-        queueToDscp[(int)queueId] = std::move(dscps);
+        queueToDscp[static_cast<int>(queueId)] = std::move(dscps);
       }
     } else {
       XLOG(ERR) << "qosMap not found in qosPolicy: " << qosName;

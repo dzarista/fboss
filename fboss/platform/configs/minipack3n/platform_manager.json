@@ -1731,6 +1731,15 @@
             },
             {
               "fpgaIpBlockConfig": {
+                "pmUnitScopedName": "MCB_LED_PORT_65_LED_2",
+                "deviceName": "port_led",
+                "csrOffset": "0x40510"
+              },
+              "portNumber": 65,
+              "ledId": 2
+            },
+            {
+              "fpgaIpBlockConfig": {
                 "pmUnitScopedName": "MCB_LED_PORT_1_LED_2",
                 "deviceName": "port_led",
                 "csrOffset": "0x40414"
@@ -2601,15 +2610,6 @@
               },
               "portNumber": 65,
               "ledId": 1
-            },
-            {
-              "fpgaIpBlockConfig": {
-                "pmUnitScopedName": "MCB_LED_PORT_66_LED_1",
-                "deviceName": "port_led",
-                "csrOffset": "0x40510"
-              },
-              "portNumber": 66,
-              "ledId": 1
             }
           ],
           "infoRomConfigs": [
@@ -3053,7 +3053,7 @@
           "busName": "INCOMING@0",
           "address": "0x53",
           "kernelDeviceName": "24c64",
-          "pmUnitScopedName": "FCB_T_IDPROM"
+          "pmUnitScopedName": "CHASSIS_IDPROM"
         },
         {
           "busName": "INCOMING@1",
@@ -3168,7 +3168,7 @@
     "/run/devmap/eeproms/SMB_EEPROM": "/SMB_SLOT@0/[IDPROM]",
     "/run/devmap/eeproms/FCB_B_EEPROM": "/FCBBOTTOM_SLOT@0/[IDPROM]",
     "/run/devmap/eeproms/FCB_T_EEPROM": "/FCBTOP_SLOT@0/[IDPROM]",
-    "/run/devmap/eeproms/CHASSIS_EEPROM": "/FCBTOP_SLOT@0/[FCB_T_IDPROM]",
+    "/run/devmap/eeproms/CHASSIS_EEPROM": "/FCBTOP_SLOT@0/[CHASSIS_IDPROM]",
     "/run/devmap/eeproms/3V3_L_EEPROM": "/SMB_SLOT@0/OPTICL_SLOT@0/[IDPROM]",
     "/run/devmap/eeproms/3V3_R_EEPROM": "/SMB_SLOT@0/OPTICR_SLOT@0/[IDPROM]",
     "/run/devmap/sensors/CPU_CORE_TEMP": "/[CPU_CORE_TEMP]",
@@ -3406,10 +3406,11 @@
     "/run/devmap/flashes/MCB_SPI_MASTER_7_DEVICE_1": "/[MCB_SPI_MASTER_7_DEVICE_1]"
   },
   "bspKmodsRpmName": "fboss_bsp_kmods",
-  "bspKmodsRpmVersion": "2.7.0-1",
+  "bspKmodsRpmVersion": "2.8.1-1",
   "requiredKmodsToLoad": [
     "i2c_i801",
     "spidev",
-    "fboss_iob_pci"
+    "fboss_iob_pci",
+    "ledtrig_timer"
   ]
 }

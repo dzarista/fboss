@@ -125,7 +125,7 @@ class AgentMmuTuningTest : public AgentHwTest {
     });
   }
   MacAddress dstMac() const {
-    return utility::getFirstInterfaceMac(getProgrammedState());
+    return utility::getMacForFirstInterfaceWithPorts(getProgrammedState());
   }
   std::unique_ptr<facebook::fboss::TxPacket> createUdpPkt(
       uint8_t dscpVal) const {
@@ -133,7 +133,7 @@ class AgentMmuTuningTest : public AgentHwTest {
 
     return utility::makeUDPTxPacket(
         getSw(),
-        utility::firstVlanID(getProgrammedState()),
+        utility::firstVlanIDWithPorts(getProgrammedState()),
         srcMac,
         dstMac(),
         folly::IPAddressV6("2620:0:1cfe:face:b00c::3"),

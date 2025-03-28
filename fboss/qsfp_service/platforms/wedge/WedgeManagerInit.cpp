@@ -19,6 +19,7 @@
 #include "fboss/agent/platforms/common/montblanc/MontblancPlatformMapping.h"
 #include "fboss/agent/platforms/common/morgan800cc/Morgan800ccPlatformMapping.h"
 #include "fboss/agent/platforms/common/tahan800bc/Tahan800bcPlatformMapping.h"
+#include "fboss/agent/platforms/common/darwin/DarwinPlatformMapping.h"
 #include "fboss/lib/bsp/BspGenericSystemContainer.h"
 #include "fboss/lib/bsp/janga800bic/Janga800bicBspPlatformMapping.h"
 #include "fboss/lib/bsp/meru400bfu/Meru400bfuBspPlatformMapping.h"
@@ -30,6 +31,7 @@
 #include "fboss/lib/bsp/montblanc/MontblancBspPlatformMapping.h"
 #include "fboss/lib/bsp/morgan800cc/Morgan800ccBspPlatformMapping.h"
 #include "fboss/lib/bsp/tahan800bc/Tahan800bcBspPlatformMapping.h"
+#include "fboss/lib/bsp/darwin/DarwinBspPlatformMapping.h"
 #include "fboss/lib/platforms/PlatformProductInfo.h"
 #include "fboss/qsfp_service/platforms/wedge/BspWedgeManager.h"
 #include "fboss/qsfp_service/platforms/wedge/GalaxyManager.h"
@@ -102,11 +104,24 @@ std::unique_ptr<WedgeManager> createWedgeManager() {
   } else if (
       mode == PlatformType::PLATFORM_FUJI ||
       mode == PlatformType::PLATFORM_MINIPACK ||
-      mode == PlatformType::PLATFORM_WEDGE400 ||
-      mode == PlatformType::PLATFORM_CLOUDRIPPER) {
+      mode == PlatformType::PLATFORM_WEDGE400) {
     return createFBWedgeManager(std::move(productInfo), platformMappingStr);
   }
   return std::make_unique<Wedge40Manager>(platformMappingStr);
+}
+
+std::unique_ptr<WedgeManager> createDarwinWedgeManager(
+    const std::string& platformMappingStr) {
+  auto systemContainer =
+      BspGenericSystemContainer<DarwinBspPlatformMapping>::getInstance()
+          .get();
+  return std::make_unique<BspWedgeManager>(
+      systemContainer,
+      std::make_unique<BspTransceiverApi>(systemContainer),
+      platformMappingStr.empty()
+          ? std::make_unique<DarwinPlatformMapping>()
+          : std::make_unique<DarwinPlatformMapping>(platformMappingStr),
+      PlatformType::PLATFORM_DARWIN);
 }
 
 std::unique_ptr<WedgeManager> createMeru400bfuWedgeManager(

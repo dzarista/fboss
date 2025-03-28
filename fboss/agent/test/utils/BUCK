@@ -80,6 +80,7 @@ cpp_library(
         "//fboss/agent:stats",
         "//fboss/agent:switch_config-cpp2-types",
         "//fboss/agent/hw/test:config_factory",
+        "//fboss/agent/test:agent_ensemble",
         "//fboss/agent/test:test_ensemble_if",
         "//fboss/lib:common_utils",
     ],
@@ -228,6 +229,8 @@ cpp_library(
     ],
     exported_deps = [
         "fbsource//third-party/googletest:gtest",
+        ":asic_test_utils",
+        ":voq_test_utils",
         "//fboss/agent:core",
         "//fboss/agent:fboss-types",
         "//fboss/agent:hw_asic_table",
@@ -496,10 +499,11 @@ cpp_library(
     ],
     exported_deps = [
         ":acl_test_utils",
+        ":asic_test_utils",
         "//fboss/agent:switch_config-cpp2-types",
         "//fboss/agent:utils",
         "//fboss/agent/hw:hardware_stats-cpp2-types",
-        "//fboss/agent/test:agent_ensemble",
+        "//fboss/agent/test:test_ensemble_if",
     ],
 )
 
@@ -512,7 +516,6 @@ cpp_library(
         "QueueTestUtils.h",
     ],
     exported_deps = [
-        ":config_utils",
         "//fboss/agent:agent_features",
         "//fboss/agent:fboss-types",
         "//fboss/agent:switch_config-cpp2-types",
@@ -623,6 +626,7 @@ cpp_library(
         ":copp_test_utils",
         ":scale_test_utils",
         "//fboss/agent:agent_features",
+        "//fboss/agent:handler",
         "//fboss/agent:packet",
         "//fboss/agent/benchmarks:agent_benchmarks_h",  # @manual
         "//fboss/agent/hw/test:config_factory",
@@ -630,6 +634,7 @@ cpp_library(
         "//fboss/agent/test:agent_ensemble",
         "//fboss/agent/test:ecmp_helper",
         "//fboss/agent/test:route_scale_gen",
+        "//folly:benchmark",
     ],
 )
 
@@ -677,5 +682,22 @@ cpp_library(
     headers = ["EcmpTestUtils.h"],
     exported_deps = [
         "//fboss/agent/test:agent_ensemble",
+    ],
+)
+
+cpp_library(
+    name = "mac_learning_flood_helper",
+    srcs = [
+        "MacLearningFloodHelper.cpp",
+    ],
+    headers = [
+        "MacLearningFloodHelper.h",
+    ],
+    exported_deps = [
+        ":qos_test_utils",
+        "//fboss/agent:packet",
+        "//fboss/agent/packet:packet_factory",
+        "//fboss/agent/test:agent_ensemble",
+        "//fboss/agent/test:ecmp_helper",
     ],
 )

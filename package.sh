@@ -16,6 +16,11 @@ mkdir -p $rpm_dest
 mkdir -p /tmp/fboss.git
 # Copy arista dir from arista-fboss for rpmbuild to find
 cp -r arista /tmp/fboss.git
+# Copy darwin fruid to FBOSS_DATA/th3 as a workaround until setup.py is fixed
+cp arista/platform/darwin/config/fruid/fruid.json /tmp/tmp_build_dir/fboss_bins-*/share/th3
+# Copy known unsupported sai hwtest list. It is not packaged by package-fboss.py
+find /tmp/tmp_build_dir -name fboss_bins* -exec mkdir -p {}/share/_sai_hw_unsupported_tests \;
+cp -r fboss/oss/sai_hw_unsupported_tests/* /tmp/tmp_build_dir/fboss_bins-*/share/_sai_hw_unsupported_tests/
 
 # Avoid packaging kmods for kernel versions 4.18 and 5.12
 if [ "$kernel" == "4.18" ] || [ "$kernel" == "5.12" ]; then

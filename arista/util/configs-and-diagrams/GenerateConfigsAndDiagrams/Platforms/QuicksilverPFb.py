@@ -286,13 +286,13 @@ class QuicksilverPFbSMB( SMBUnit ):
       self.addOutgoingSlotConfigs( [
          SlotConfig(
             slotName="PSU_SLOT@0",
-            presenceFileName="meru800ba_psu1_prsnt",
+            presenceFileName="psu1_present",
             presenceDevicePath="/SMB_SLOT@0/[SMB_FPGA]",
             outgoingI2cBuses=[ smbI2cMaster0.buses[ 3 ] ]
          ),
          SlotConfig(
             slotName="PSU_SLOT@1",
-            presenceFileName="meru800ba_psu2_prsnt",
+            presenceFileName="psu2_present",
             presenceDevicePath="/SMB_SLOT@0/[SMB_FPGA]",
             outgoingI2cBuses=[ smbI2cMaster0.buses[ 4 ] ]
          ),
