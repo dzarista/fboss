@@ -106,8 +106,6 @@ static DECLARE_DELAYED_WORK(scd_delayed_work, workqueue_func);
 static void workqueue_func(struct work_struct *work)
 {
 	time64_t cur_time;
-	u8 rtc_byte;
-	int op_status;
 
 	cur_time = ktime_get_real_seconds();
 	cur_time -= MILLENIUM_UNIX_TIMESTAMP;
@@ -162,7 +160,6 @@ int process_reload_cause(struct device *dev)
 	u32 fault_timestamp = 0;
 	time64_t rtc_counter_val;
 	struct rtc_time rtc_time_val;
-	u8 byte;
 
 	reg_val = ioread32(reload_cause_registers[LATCHED_RELOAD_CAUSE_REG_MAP_INDEX].mem);
 	fault_cause = (u8)reg_val;
