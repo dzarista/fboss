@@ -468,4 +468,6 @@ target_link_libraries(hw_clear_interface_counters_phy_benchmark
   mono_agent_ensemble
   mono_agent_benchmarks
   Folly::follybenchmark
+  port_flap_helper
+  mac_learning_flood_helper
 )

@@ -225,6 +225,7 @@ target_link_libraries(transceiver_manager
   firmware_upgrader
   transceiver_validator
   ${RE2}
+  restart_time_tracker
 )
 
 add_library(qsfp_handler
