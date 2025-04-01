@@ -70,6 +70,8 @@ elseif (SAI_BRCM_IMPL)
     fboss/agent/hw/sai/switch/oss/SaiAclTableManager.cpp
     fboss/agent/hw/sai/switch/oss/SaiArsProfileManager.cpp
     fboss/agent/hw/sai/switch/oss/SaiVendorSwitchManager.cpp
+    fboss/agent/hw/sai/api/bcm/DebugCounterApi.cpp
+
   )
 elseif (CHENAB_SAI_SDK)
 # Chenab-TODO: Use non-default files here

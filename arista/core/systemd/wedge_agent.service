@@ -1,0 +1,8 @@
+[Unit]
+Description=Start wedge_agent
+
+[Service]
+ExecStart=/opt/fboss/bin/run_wedge_agent.sh
+
+[Install]
+WantedBy=multi-user.target

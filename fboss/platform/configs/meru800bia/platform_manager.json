@@ -43,22 +43,11 @@
           "pmUnitScopedName": "SCM_MPS_PMBUS"
         },
         {
-          "busName": "SCM_I2C_MASTER0@2",
-          "address": "0x30",
-          "kernelDeviceName": "pxm1310",
-          "pmUnitScopedName": "SCM_PXM1310_1"
-        },
-        {
-          "busName": "SCM_I2C_MASTER0@2",
-          "address": "0x3e",
-          "kernelDeviceName": "pxe1610",
-          "pmUnitScopedName": "SCM_PXE1211"
-        },
-        {
-          "busName": "SCM_I2C_MASTER0@2",
-          "address": "0x40",
-          "kernelDeviceName": "pxm1310",
-          "pmUnitScopedName": "SCM_PXM1310_2"
+          "busName": "SCM_I2C_MASTER0@1",
+          "address": "0x50",
+          "kernelDeviceName": "24c512",
+          "pmUnitScopedName": "SCM_IDPROM_P1",
+          "hasCpuMac": true
         }
       ],
       "outgoingSlotConfigs": {
@@ -112,12 +101,22 @@
         {
           "pmUnitScopedName": "CPU_CORE_TEMP",
           "sysfsPath": "/sys/bus/platform/devices/coretemp.0"
+        },
+        {
+          "pmUnitScopedName": "NVME_TEMP",
+          "sysfsPath": "/sys/class/nvme/nvme0"
         }
       ]
     },
     "SMB": {
       "pluggedInSlotType": "SMB_SLOT",
       "i2cDeviceConfigs": [
+        {
+          "busName": "INCOMING@0",
+          "address": "0x23",
+          "kernelDeviceName": "scd_vcpld",
+          "pmUnitScopedName": "SCD_VCPLD"
+        },
         {
           "busName": "INCOMING@0",
           "address": "0x74",
@@ -186,6 +185,14 @@
             {
               "regOffset": 39,
               "ioBuf": [-121]
+            },
+            {
+              "regOffset": 75,
+              "ioBuf": [31]
+            },
+            {
+              "regOffset": 76,
+              "ioBuf": [127]
             }
           ]
         },
@@ -200,12 +207,6 @@
               "ioBuf": [95]
             }
           ]
-        },
-        {
-          "busName": "INCOMING@2",
-          "address": "0x60",
-          "kernelDeviceName": "pali2_cpld",
-          "pmUnitScopedName": "FAN_CPLD"
         },
         {
           "busName": "SMB_I2C_MASTER0@0",
@@ -230,6 +231,12 @@
           "address": "0x48",
           "kernelDeviceName": "lm75",
           "pmUnitScopedName": "SMB_MGMT_TMP75"
+        },
+        {
+          "busName": "INCOMING@2",
+          "address": "0x60",
+          "kernelDeviceName": "fan_cpld",
+          "pmUnitScopedName": "FAN_CPLD"
         }
       ],
       "outgoingSlotConfigs": {
@@ -1505,10 +1512,9 @@
     "/run/devmap/i2c-busses/MERU_SCM_CPLD_SMBUS1_CH7": "/[SCM_I2C_MASTER1@7]",
     "/run/devmap/eeproms/MERU800BIA_SMB_EEPROM": "/SMB_SLOT@0/[IDPROM]",
     "/run/devmap/sensors/CPU_MPS_PMBUS": "/[SCM_MPS_PMBUS]",
-    "/run/devmap/sensors/CPU_PXM1310_1": "/[SCM_PXM1310_1]",
-    "/run/devmap/sensors/CPU_PXE1211": "/[SCM_PXE1211]",
-    "/run/devmap/sensors/CPU_PXM1310_2": "/[SCM_PXM1310_2]",
+    "/run/devmap/eeproms/MERU_SCM_EEPROM_P1": "/[SCM_IDPROM_P1]",
     "/run/devmap/sensors/CPU_CORE_TEMP": "/[CPU_CORE_TEMP]",
+    "/run/devmap/sensors/NVME_TEMP": "/[NVME_TEMP]",
     "/run/devmap/fpgas/MERU800BIA_SMB_FPGA": "/SMB_SLOT@0/[SMB_FPGA]",
     "/run/devmap/fpgas/MERU800BIA_SMB_FPGA_INFO_ROM": "/SMB_SLOT@0/[SMB_FPGA_INFO_ROM]",
     "/run/devmap/inforoms/MERU800BIA_SMB_FPGA_INFO_ROM": "/SMB_SLOT@0/[SMB_FPGA_INFO_ROM]",
@@ -1565,12 +1571,12 @@
     "/run/devmap/sensors/SMB_TMP75_REAR": "/SMB_SLOT@0/[SMB_TMP75_REAR]",
     "/run/devmap/sensors/SMB_MAX6581": "/SMB_SLOT@0/[SMB_MAX6581]",
     "/run/devmap/sensors/FAN_TMP75": "/SMB_SLOT@0/[FAN_TMP75]",
-    "/run/devmap/cplds/FAN_CPLD": "/SMB_SLOT@0/[FAN_CPLD]",
-    "/run/devmap/sensors/FAN_CPLD": "/SMB_SLOT@0/[FAN_CPLD]",
     "/run/devmap/sensors/SMB_RAA228926_J3": "/SMB_SLOT@0/[SMB_RAA228926_J3]",
     "/run/devmap/sensors/SMB_ISL68226_J3": "/SMB_SLOT@0/[SMB_ISL68226_J3]",
     "/run/devmap/sensors/SMB_ISL68226_OPTICS": "/SMB_SLOT@0/[SMB_ISL68226_OPTICS]",
     "/run/devmap/sensors/SMB_MGMT_TMP75": "/SMB_SLOT@0/[SMB_MGMT_TMP75]",
+    "/run/devmap/cplds/FAN_CPLD": "/SMB_SLOT@0/[FAN_CPLD]",
+    "/run/devmap/sensors/FAN_CPLD": "/SMB_SLOT@0/[FAN_CPLD]",
     "/run/devmap/xcvrs/xcvr_1": "/SMB_SLOT@0/[OSFP_PORT1_XCVR]",
     "/run/devmap/xcvrs/xcvr_2": "/SMB_SLOT@0/[OSFP_PORT2_XCVR]",
     "/run/devmap/xcvrs/xcvr_3": "/SMB_SLOT@0/[OSFP_PORT3_XCVR]",
@@ -1611,8 +1617,6 @@
     "/run/devmap/xcvrs/xcvr_38": "/SMB_SLOT@0/[OSFP_PORT38_XCVR]",
     "/run/devmap/xcvrs/xcvr_39": "/SMB_SLOT@0/[QSFP_PORT39_XCVR]",
     "/run/devmap/flashes/SMB_SPI_MASTER0_DEVICE1": "/SMB_SLOT@0/[SMB_SPI_MASTER0_DEVICE1]",
-    "/run/devmap/sensors/PSU1_PMBUS": "/SMB_SLOT@0/PSU_SLOT@0/[PSU_PMBUS]",
-    "/run/devmap/sensors/PSU2_PMBUS": "/SMB_SLOT@0/PSU_SLOT@1/[PSU_PMBUS]",
     "/run/devmap/xcvrs/xcvr_io_1": "/SMB_SLOT@0/[SMB_I2C_MASTER1@0]",
     "/run/devmap/xcvrs/xcvr_ctrl_1": "/SMB_SLOT@0/[OSFP_PORT1_XCVR]",
     "/run/devmap/xcvrs/xcvr_io_2": "/SMB_SLOT@0/[SMB_I2C_MASTER1@1]",
@@ -1690,7 +1694,9 @@
     "/run/devmap/xcvrs/xcvr_io_38": "/SMB_SLOT@0/[SMB_I2C_MASTER5@5]",
     "/run/devmap/xcvrs/xcvr_ctrl_38": "/SMB_SLOT@0/[OSFP_PORT38_XCVR]",
     "/run/devmap/xcvrs/xcvr_io_39": "/SMB_SLOT@0/[SMB_I2C_MASTER0@4]",
-    "/run/devmap/xcvrs/xcvr_ctrl_39": "/SMB_SLOT@0/[QSFP_PORT39_XCVR]"
+    "/run/devmap/xcvrs/xcvr_ctrl_39": "/SMB_SLOT@0/[QSFP_PORT39_XCVR]",
+    "/run/devmap/sensors/PSU1_PMBUS": "/SMB_SLOT@0/PSU_SLOT@0/[PSU_PMBUS]",
+    "/run/devmap/sensors/PSU2_PMBUS": "/SMB_SLOT@0/PSU_SLOT@1/[PSU_PMBUS]"
   },
   "bspKmodsRpmName": "arista_bsp_kmods",
   "bspKmodsRpmVersion": "0.7.7-1",
