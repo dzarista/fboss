@@ -3,8 +3,7 @@ set -x
 #### This script merges code from https://github.com/facebookexternal/fboss.bsp.arista
 #### to Git subtree in https://github.com/aristanetworks/arista-fboss
 
-# FIXME change repo to arista-fboss
-repo_name=git@github.com:arajeev-ARISTA/arista-fboss.git
+repo_name=git@github.com:aristanetworks/arista-fboss.git
 date_string=$(date +"%m-%d-%Y")
 pr_title="pull fboss.bsp.arista to subtree in arista-fboss - ${date_string}"
 pr_description="syncing https://github.com/facebookexternal/fboss.bsp.arista to fboss.bsp.arista subtree in https://github.com/aristanetworks/arista-fboss on ${date_string}"
@@ -20,8 +19,7 @@ git config --local user.email "srv-fboss-arista@arista.com"
 git config --local user.name "srv-fboss-arista-robot"
 
 # Set up upstream branch
-# FIXME change repo to fboss.bsp.arista
-git remote add bsp_upstream git@github.com:arajeev-ARISTA/fboss.bsp.arista.git
+git remote add bsp_upstream git@github.com:facebookexternal/fboss.bsp.arista.git
 git fetch bsp_upstream
 
 # Check out a new branch which will be updated
