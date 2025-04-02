@@ -2317,6 +2317,9 @@
         },
         {
           "test_name_regex": "AgentTrafficPfc.*$"
+        },
+        {
+          "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         }
     ],
     "brcm/10.2.0.0_odp/10.2.0.0_odp/tomahawk4/multi_switch": [
@@ -2733,6 +2736,9 @@
         },
         {
           "test_name_regex": "AgentTrafficPfc.*$"
+        },
+        {
+          "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         }
     ],
     "brcm/10.2.0.0_odp/10.2.0.0_odp/tomahawk5/mono": [
@@ -3164,6 +3170,9 @@
         },
         {
           "test_name_regex": "warm_boot.AgentCoppTest/1.CpuPortIpv6LinkLocalUcastIp$"
+        },
+        {
+          "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
           "test_name_regex": "AgentMacOverFlowTest.*$"
@@ -3637,6 +3646,9 @@
         },
         {
           "test_name_regex": "warm_boot.AgentCoppTest/1.CpuPortIpv6LinkLocalUcastIp$"
+        },
+        {
+          "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
           "test_name_regex": "AgentMacOverFlowTest.*$"
@@ -4588,6 +4600,9 @@
         },
         {
           "test_name_regex": "AgentFabricSwitchTest.reachDiscard"
+        },
+        {
+          "test_name_regex": "AgentFabricSwitchTest.configUpdateForExpectedFabricPortConnectivity"
         }
     ],
     "brcm/11.7.0.0_dnx_odp/12.0_ea_dnx_odp/jericho3/mono": [
@@ -5533,6 +5548,9 @@
         },
         {
           "test_name_regex": "AgentFabricSwitchTest.reachDiscard"
+        },
+        {
+          "test_name_regex": "AgentFabricSwitchTest.configUpdateForExpectedFabricPortConnectivity"
         }
     ],
     "brcm/11.7.0.0_odp/11.7.0.0_odp/tomahawk5/mono": [
@@ -5964,6 +5982,9 @@
         },
         {
           "test_name_regex": "warm_boot.AgentCoppTest/1.CpuPortIpv6LinkLocalUcastIp$"
+        },
+        {
+          "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
           "test_name_regex": "AgentMacOverFlowTest.*$"
@@ -6437,6 +6458,9 @@
         },
         {
           "test_name_regex": "warm_boot.AgentCoppTest/1.CpuPortIpv6LinkLocalUcastIp$"
+        },
+        {
+          "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
           "test_name_regex": "AgentMacOverFlowTest.*$"
@@ -7388,6 +7412,9 @@
         },
         {
           "test_name_regex": "AgentFabricSwitchTest.reachDiscard"
+        },
+        {
+          "test_name_regex": "AgentFabricSwitchTest.configUpdateForExpectedFabricPortConnectivity"
         },
         {
           "test_name_regex": "AgentHwParityErrorTest.verifyParityError$"
@@ -10156,6 +10183,9 @@
           "test_name_regex": "AgentAqmTest.verifyPerQueueWredDropStats$"
         },
         {
+          "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
@@ -10456,6 +10486,9 @@
         },
         {
           "test_name_regex": "AgentAqmTest.verifyPerQueueWredDropStats$"
+        },
+        {
+          "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -10778,6 +10811,9 @@
           "test_name_regex": "AgentRouteTest/[01].VerifyClassIdWithNhopResolutionFlap$"
         },
         {
+          "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
@@ -11072,6 +11108,9 @@
         },
         {
           "test_name_regex": "AgentRouteTest/[01].VerifyClassIdWithNhopResolutionFlap$"
+        },
+        {
+          "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
@@ -11385,6 +11424,9 @@
           "test_name_regex": "AgentNeighborTest/[13].ResolveLinkLocalEntry$"
         },
         {
+          "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
+        },
+        {
           "test_name_regex": "AgentAclAndDscpQueueMappingTest.VerifyAclAndQosMap$"
         },
         {
@@ -11622,6 +11664,9 @@
         },
         {
           "test_name_regex": "AgentNeighborTest/[13].ResolveLinkLocalEntry$"
+        },
+        {
+          "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
           "test_name_regex": "AgentAclAndDscpQueueMappingTest.VerifyAclAndQosMap$"

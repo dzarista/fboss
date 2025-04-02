@@ -1121,7 +1121,10 @@ void ThriftConfigApplier::processUpdatedDsfNodes() {
     switchInfo.globalSystemPortOffset() = *node->getGlobalSystemPortOffset();
     switchInfo.inbandPortId() = *node->getInbandPortId();
     return HwAsic::makeAsic(
-        static_cast<int64_t>(node->getSwitchId()), switchInfo, std::nullopt);
+        static_cast<int64_t>(node->getSwitchId()),
+        switchInfo,
+        std::nullopt,
+        std::nullopt /* fabricNodeRole is N/A for VOQ switches */);
   };
   auto processLoopbacks = [&](const std::shared_ptr<DsfNode>& node,
                               const HwAsic* dsfNodeAsic) {
@@ -4831,6 +4834,14 @@ shared_ptr<SwitchSettings> ThriftConfigApplier::updateSwitchSettings(
       origSwitchSettings->getVoqOutOfBoundsLatencyNsec()) {
     newSwitchSettings->setVoqOutOfBoundsLatencyNsec(
         newVoqOutOfBoundsLatencyNsec);
+    switchSettingsChange = true;
+  }
+  std::optional<std::map<int32_t, int32_t>> newTcToRateLimitKbps;
+  if (cfg_->switchSettings()->tcToRateLimitKbps()) {
+    newTcToRateLimitKbps = *cfg_->switchSettings()->tcToRateLimitKbps();
+  }
+  if (newTcToRateLimitKbps != origSwitchSettings->getTcToRateLimitKbps()) {
+    newSwitchSettings->setTcToRateLimitKbps(newTcToRateLimitKbps);
     switchSettingsChange = true;
   }
 

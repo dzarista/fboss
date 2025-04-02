@@ -92,6 +92,7 @@ extern "C" {
 #if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
 #include <saiextensions.h>
 #ifndef IS_OSS_BRCM_SAI
+#include <experimental/saiexperimentalfirmware.h>
 #include <experimental/saiexperimentaltameventaginggroup.h>
 #else
 #include <saiexperimentaltameventaginggroup.h>
@@ -1536,6 +1537,14 @@ void SaiSwitch::processSwitchSettingsChangeSansDrainedEntryLocked(
     if (oldVoqOutOfBoundsLatencyNs != newVoqOutOfBoundsLatencyNs) {
       managerTable_->switchManager().setVoqOutOfBoundsLatency(
           newVoqOutOfBoundsLatencyNs.value_or(0));
+    }
+  }
+
+  {
+    const auto oldTcToRateLimitKbps = oldSwitchSettings->getTcToRateLimitKbps();
+    const auto newTcToRateLimitKbps = newSwitchSettings->getTcToRateLimitKbps();
+    if (oldTcToRateLimitKbps != newTcToRateLimitKbps) {
+      managerTable_->switchManager().setTcRateLimitList(newTcToRateLimitKbps);
     }
   }
 }
@@ -3346,6 +3355,9 @@ void SaiSwitch::unregisterCallbacksLocked(
 #if defined(BRCM_SAI_SDK_DNX_GTE_12_0)
   if (platform_->getAsic()->isSupported(
           HwAsic::Feature::VENDOR_SWITCH_NOTIFICATION)) {
+    // Disable vendor switch interrupts before unregistering callback
+    managerTable_->vendorSwitchManager().setVendorSwitchEventEnableState(
+        false /*enable*/);
     switchApi.unregisterVendorSwitchEventNotifyCallback(saiSwitchId_);
   }
 #endif
@@ -3705,8 +3717,9 @@ void SaiSwitch::switchRunStateChangedImplLocked(
         auto& switchApi = SaiApiTable::getInstance()->switchApi();
         switchApi.registerVendorSwitchEventNotifyCallback(
             saiSwitchId_, __gVendorSwitchEventNotificationCallback);
-        // Init the vendor switch events now that callback is registered
-        managerTable_->vendorSwitchManager().initVendorSwitchEvents();
+        // Enable vendor switch events now that callback is registered
+        managerTable_->vendorSwitchManager().setVendorSwitchEventEnableState(
+            true /*enable*/);
       }
 #endif
     } break;
@@ -4151,6 +4164,12 @@ std::string SaiSwitch::listObjects(
         break;
       case HwObjectType::SYSTEM_PORT:
         objTypes.push_back(SAI_OBJECT_TYPE_SYSTEM_PORT);
+        break;
+      case HwObjectType::FIRMWARE:
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
+        objTypes.push_back(
+            static_cast<sai_object_type_t>(SAI_OBJECT_TYPE_FIRMWARE));
+#endif
         break;
     }
   }

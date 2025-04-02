@@ -1008,6 +1008,7 @@ enum PacketRxReason {
   TTL_0 = 19, // Packets with TTL as 0
   EAPOL = 20, // EAPOL for Macsec
   PORT_MTU_ERROR = 21, // Packet size exceeds port MTU, should not use together with L3_MTU_ERROR
+  HOST_MISS = 22, // Packet is destined for an unresolved neighbor in the subnet of a connected RIF
 }
 
 enum PortLoopbackMode {
@@ -1880,7 +1881,7 @@ struct SwitchSettings {
   29: optional i32 voqOutOfBoundsLatencyNsec;
   // Number of sflow samples to pack in a single packet being sent out
   30: optional byte numberOfSflowSamplesPerPacket;
-  31: optional map<i16, i16> tcToRateLimitKbps;
+  31: optional map<i32, i32> tcToRateLimitKbps;
 }
 
 // Global buffer pool
@@ -2103,6 +2104,8 @@ enum SwitchingMode {
   PER_PACKET_QUALITY = 1,
   // flowlet is disabled
   FIXED_ASSIGNMENT = 2,
+  // per packet random, no quality
+  PER_PACKET_RANDOM = 3,
 }
 
 struct FlowletSwitchingConfig {
@@ -2133,6 +2136,8 @@ struct FlowletSwitchingConfig {
   11: i16 maxLinks;
   // switching mode
   12: SwitchingMode switchingMode = FLOWLET_QUALITY;
+  // fall back switching mode if DLB groups are exhausted
+  13: SwitchingMode backupSwitchingMode = FIXED_ASSIGNMENT;
 }
 
 /**

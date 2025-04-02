@@ -385,6 +385,21 @@ bool isPortDrained(
       HwSwitchMatcher(std::unordered_set<SwitchID>({portSwitchId})));
   return switchSettings->isSwitchDrained() || port->isDrained();
 }
+
+std::string getVirtualDeviceIdToEligibleNumActivePortsStr(
+    const std::map<int32_t, int32_t>& virtualDeviceIdToEligibleNumActivePorts) {
+  std::vector<std::string> stringPairs;
+  std::transform(
+      virtualDeviceIdToEligibleNumActivePorts.begin(),
+      virtualDeviceIdToEligibleNumActivePorts.end(),
+      std::back_inserter(stringPairs),
+      [](const auto& pair) {
+        return std::to_string(pair.first) + ": " + std::to_string(pair.second);
+      });
+
+  return folly::to<std::string>("{", folly::join(", ", stringPairs), "}");
+}
+
 } // anonymous namespace
 
 namespace std {
@@ -447,8 +462,10 @@ SwSwitch::SwSwitch(
       teFlowNextHopHandler_(new TeFlowNexthopHandler(this)),
       dsfSubscriber_(new DsfSubscriber(this)),
       switchInfoTable_(getSwitchInfoFromConfig(config)),
-      hwAsicTable_(
-          new HwAsicTable(getSwitchInfoFromConfig(config), sdkVersion_)),
+      hwAsicTable_(new HwAsicTable(
+          getSwitchInfoFromConfig(config),
+          sdkVersion_,
+          getDsfNodesFromConfig(config))),
       scopeResolver_(
           new SwitchIdScopeResolver(getSwitchInfoFromConfig(config))),
       switchStatsObserver_(new SwitchStatsObserver(this)),
@@ -1956,22 +1973,10 @@ PortDescriptor SwSwitch::getPortFromPkt(const RxPacket* pkt) const {
 }
 
 void SwSwitch::handlePacket(std::unique_ptr<RxPacket> pkt) {
-  auto port = getPortFromPkt(pkt.get());
-
-  // Handle packets for CPU port separately
-  if (port.type() == PortDescriptor::PortType::PHYSICAL &&
-      port.phyPortID() == PortID(0)) {
-    XLOG(DBG2) << "Dropping packet received from CPU port (" << port.str()
-               << ").";
-    portStats(port.phyPortID())->pktDropped();
-    return;
-  }
-
   if (FLAGS_intf_nbr_tables) {
-    handlePacketImpl(
-        std::move(pkt),
-        getState()->getInterfaces()->getNodeIf(
-            getState()->getInterfaceIDForPort(port)));
+    auto intf = getState()->getInterfaces()->getNodeIf(
+        getState()->getInterfaceIDForPort(getPortFromPkt(pkt.get())));
+    handlePacketImpl(std::move(pkt), intf);
   } else {
     // TODO: get rid of getVlanIDHelper, packet must have a valid vlan here if
     // vlans are maintained
@@ -2205,12 +2210,57 @@ void SwSwitch::linkActiveStateChangedOrFwIsolated(
       return newState;
     }
 
+    // Pick matcher for any port.
+    // This is OK because the matcher is used to retrieve switchSettings which
+    // are same for all the ports of a HwSwitch.
+    // And, SwSwitch::linkActiveStateChanged is invoked by a HwSwitch and thus
+    // passed port2IsActive always contains ports from a single HwSwitch.
+    auto matcher = getScopeResolver()->scope(port2IsActive.cbegin()->first);
+    auto switchSettings =
+        state->getSwitchSettings()->getNodeIf(matcher.matcherString());
+    auto switchInfo = switchSettings->getSwitchIdToSwitchInfo()
+                          .find(matcher.switchId())
+                          ->second;
+    std::map<int32_t, int32_t> virtualDeviceIdToEligibleNumActivePorts;
+
+    const auto platformMapping =
+        getPlatformMappingForPlatformType(getPlatformType());
+    auto hwAsic = getHwAsicTable()->getHwAsicIf(matcher.switchId());
+
     auto numActiveFabricPorts = 0;
     for (const auto& [portID, isActive] : port2IsActive) {
       auto* port = newState->getPorts()->getNodeIf(portID).get();
       if (port) {
         if (isActive) {
           numActiveFabricPorts++;
+
+          if (platformMapping) {
+            auto virtualDeviceId =
+                platformMapping->getVirtualDeviceID(port->getName());
+            CHECK(virtualDeviceId.has_value());
+
+            switch (*switchInfo.switchType()) {
+              case cfg::SwitchType::VOQ:
+                virtualDeviceIdToEligibleNumActivePorts[virtualDeviceId
+                                                            .value()]++;
+                break;
+              case cfg::SwitchType::FABRIC: {
+                auto it = hwAsic->getL1FabricPortsToConnectToL2().find(
+                    static_cast<int16_t>(port->getID()));
+                if (it != hwAsic->getL1FabricPortsToConnectToL2().end()) {
+                  virtualDeviceIdToEligibleNumActivePorts[virtualDeviceId
+                                                              .value()]++;
+                }
+                break;
+              }
+              case cfg::SwitchType::NPU:
+              case cfg::SwitchType::PHY:
+                throw FbossError(
+                    "Only SwitchTypes with fabric ports can get active/inactive callback: ",
+                    apache::thrift::util::enumNameSafe(
+                        *switchInfo.switchType()));
+            }
+          }
         }
 
         if (port->isActive() != isActive) {
@@ -2232,14 +2282,12 @@ void SwSwitch::linkActiveStateChangedOrFwIsolated(
       }
     }
 
-    // Pick matcher for any port.
-    // This is OK because the matcher is used to retrieve switchSettings which
-    // are same for all the ports of a HwSwitch.
-    // And, SwSwitch::linkActiveStateChanged is invoked by a HwSwitch and thus
-    // passed port2IsActive always contains ports from a single HwSwitch.
-    auto matcher = getScopeResolver()->scope(port2IsActive.cbegin()->first);
-    auto switchSettings =
-        state->getSwitchSettings()->getNodeIf(matcher.matcherString());
+    // Update per VD num Active port counter
+    for (const auto& [virtualDeviceId, numActivePorts] :
+         virtualDeviceIdToEligibleNumActivePorts) {
+      stats()->setNumActiveFabricLinksEligibleForMinLink(
+          virtualDeviceId, numActivePorts);
+    }
 
     SwitchDrainState newActualSwitchDrainState;
     if (fwIsolated) {
@@ -2263,9 +2311,6 @@ void SwSwitch::linkActiveStateChangedOrFwIsolated(
     auto currentActualDrainState = switchSettings->getActualSwitchDrainState();
 
     if (newActualSwitchDrainState != currentActualDrainState) {
-      auto switchInfo = switchSettings->getSwitchIdToSwitchInfo()
-                            .find(matcher.switchId())
-                            ->second;
       stats()->setDrainState(
           *switchInfo.switchIndex(), newActualSwitchDrainState);
       auto newSwitchSettings = switchSettings->modify(&newState);
@@ -2285,7 +2330,9 @@ void SwSwitch::linkActiveStateChangedOrFwIsolated(
                << port2IsActive.size() << " ("
                << getDrainThresholdStr(
                       newActualSwitchDrainState, switchSettings.get())
-               << ")";
+               << ")  virtualDeviceIdToEligibleNumActivePorts: "
+               << getVirtualDeviceIdToEligibleNumActivePortsStr(
+                      virtualDeviceIdToEligibleNumActivePorts);
 
     return newState;
   };
@@ -3315,7 +3362,9 @@ VlanID SwSwitch::getVlanIDHelper(
     std::optional<VlanID> vlanID,
     cfg::InterfaceType type) const {
   // if vlanID does have value, it must be VLAN interface
-  CHECK(vlanID.has_value() && (type == cfg::InterfaceType::VLAN));
+  if (vlanID.has_value()) {
+    CHECK(type == cfg::InterfaceType::VLAN);
+  }
 
   // TODO(skhare)
   // VOQ/Fabric switches require that the packets are not tagged with any

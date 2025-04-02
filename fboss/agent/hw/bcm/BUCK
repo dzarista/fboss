@@ -261,10 +261,11 @@ thrift_library(
     languages = [
         "cpp2",
         "py-deprecated",
-        "py3",
+        "py3-deprecated",
         "go",
         "py-asyncio",
         "rust",
+        "python",
     ],
     py3_namespace = "neteng.fboss.bcm_config",
     py_asyncio_base_module = "neteng.fboss.asyncio",
@@ -280,7 +281,8 @@ thrift_library(
     languages = [
         "cpp2",
         "py-deprecated",
-        "py3",
+        "py3-deprecated",
+        "python",
     ],
     py3_namespace = "neteng.fboss",
     py_base_module = "neteng.fboss",
@@ -440,7 +442,8 @@ thrift_library(
     languages = [
         "cpp2",
         "py-deprecated",
-        "py3",
+        "py3-deprecated",
+        "python",
     ],
     py3_namespace = "neteng.fboss",
     py_base_module = "neteng.fboss",
