@@ -19,8 +19,8 @@ git config --local user.email "srv-fboss-arista@arista.com"
 git config --local user.name "srv-fboss-arista-robot"
 
 # Set up upstream branch
-git remote add bsp_upstream git@github.com:facebookexternal/fboss.bsp.arista.git
-git fetch bsp_upstream
+GIT_SSH_COMMAND="ssh -i private.key" git remote add bsp_upstream git@github.com:facebookexternal/fboss.bsp.arista.git
+GIT_SSH_COMMAND="ssh -i private.key" git fetch bsp_upstream
 
 # Check out a new branch which will be updated
 branch_name="srv-fboss-arista-robot.bsp_pull_${date_string}"
@@ -33,7 +33,7 @@ echo "fboss.bsp.arista pull: $date_string" > $email_subject_file
 
 # Pull fboss.bsp.arista to subtree in the arista-fboss repository
 # --squash option had to be used since the subtree was originally created with the --squash option
-if git subtree pull --prefix=fboss.bsp.arista bsp_upstream main --squash &> subtree_pull_status.txt; then
+if GIT_SSH_COMMAND="ssh -i private.key" git subtree pull --prefix=fboss.bsp.arista bsp_upstream main --squash &> subtree_pull_status.txt; then
    auto_merge_successful=true
    if grep "Subtree is already at commit" subtree_pull_status.txt; then
       echo "No action was taken" > $output_file
