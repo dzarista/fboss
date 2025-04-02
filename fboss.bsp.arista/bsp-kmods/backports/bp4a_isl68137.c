@@ -257,9 +257,21 @@ static struct pmbus_driver_info raa_dmpvr_info = {
 static int isl68226_cache_fw_ver(struct i2c_client *client,
 				 struct isl68137_priv *priv)
 {
-	/* FIXME: read firmware version and cache it in "priv->fw_ver[]"
-	 * in xx.yy.zz format.
-	 */
+	int ret;
+
+	u8 fw_ver;
+
+	u8 fw_ver_block[I2C_SMBUS_BLOCK_MAX + 1];
+
+	ret = i2c_smbus_read_block_data(client, 0x9B, fw_ver_block);
+	if (ret < 0) {
+		dev_err(&client->dev, "Failed to read ISL firmware version block");
+		return ret;
+	}
+
+	fw_ver = fw_ver_block[0];
+	snprintf(priv->fw_ver, FW_VER_MAX_LEN, "%d", fw_ver);
+
 	return 0;
 }
 

@@ -1059,9 +1059,17 @@ static void scd_shutdown(struct pci_dev *pdev)
 	dev_info(&pdev->dev, "scd shutdown\n");
 }
 
+/*
+ * XXX Please DO NOT add darwin IDs into the table until platform_manager
+ * is enabled on darwin: this is to prevent potential conflict in FBOSS
+ * provisioning (ramdisk) kernel, when both legacy scd (mfd-style) and
+ * new scd (auxdev-style) drivers want to claim the SCD FPGA.
+ */
 static struct pci_device_id scd_pci_table[] = {
+#if 0
 	{ PCI_DEVICE_SUB(SCD_PCI_VENDOR_ID, SCD_PCI_DEVICE_ID,
 			SCD_PCI_VENDOR_ID, DARWIN_SCD_PCI_SUBDEVICE_ID) },
+#endif
 	{ PCI_DEVICE_SUB(SCD_PCI_VENDOR_ID, SCD_PCI_DEVICE_ID,
 			 SCD_PCI_VENDOR_ID, FAIRYWREN_SCD_PCI_SUBDEVICE_ID) },
 	{ PCI_DEVICE_SUB(SCD_PCI_VENDOR_ID, SCD_PCI_DEVICE_ID,
