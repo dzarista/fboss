@@ -63,7 +63,7 @@ class RookCpld( PciDeviceConfig ):
 class RackhawkScd( PciDeviceConfig ):
    def __init__( self ):
       super().__init__( 'SCD_FPGA', '0x3475', '0x0001', '0x3475', '0x0002',
-                        symlinkDeviceName='SCD_FPGA' )
+                        symlinkDeviceName='SCD_FPGA', desiredDriver='scd' )
       self.addI2cAdapters()
       self.addXcvrConfigs()
       self.addLeds()
