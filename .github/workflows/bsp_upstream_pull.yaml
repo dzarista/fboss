@@ -17,16 +17,14 @@ jobs:
           ssh-key: ${{ secrets.GIT_PRIVATE_KEY }}
         env:
           GH_TOKEN: ${{ github.token }}
-      - name: add ssh key to access fboss.bsp.arista
-        run: ./arista-ci-scripts/add-ssh-keys.sh
-        shell: bash
-        env:
-          GIT_PRIVATE_KEY: ${{ secrets.SRV_ACCOUNT_SSH_PRV_KEY }}
       - name: Run Bash script
         env:
           GH_TOKEN: ${{ secrets.SRV_FBOSS_ARISTA_ROBOT_TOKEN }}
+          SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.SRV_ACCOUNT_SSH_PRV_KEY }}
         run: |
-          source agent.sh && ./arista-ci-scripts/bsp_upstream_pull.sh
+          echo "$SERVICE_ACCOUNT_PRIVATE_KEY" > private.key
+          sudo chmod 600 private.key
+          ./arista-ci-scripts/bsp_upstream_pull_alternate.sh
       - name: Send status email
         if: success() || failure()
         run: |
