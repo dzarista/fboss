@@ -24,7 +24,7 @@ jobs:
         run: |
           echo "$SERVICE_ACCOUNT_PRIVATE_KEY" > private.key
           sudo chmod 600 private.key
-          ./arista-ci-scripts/bsp_upstream_pull_alternate.sh
+          ./arista-ci-scripts/bsp_upstream_pull.sh
       - name: Send status email
         if: success() || failure()
         run: |
