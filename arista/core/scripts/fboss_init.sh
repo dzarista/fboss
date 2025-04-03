@@ -114,3 +114,6 @@ if [ -f "$LINK_PLATFORM_CONFIG" ]; then
 else
    echo "No platform hw_link_test config found for model name ${MODEL_NAME}"
 fi
+
+# Prevent the scd driver from being automatically bound to the SCD device
+echo "blacklist scd" >> /etc/modprobe.d/blacklist.conf
