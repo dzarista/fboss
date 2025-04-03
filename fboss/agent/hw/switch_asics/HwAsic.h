@@ -195,7 +195,7 @@ class HwAsic {
     PORT_MTU_ERROR_TRAP,
     L3_INTF_MTU,
     DEDICATED_CPU_BUFFER_POOL,
-    EGRESS_ACL_TABLE,
+    INGRESS_POST_LOOKUP_ACL_TABLE,
     FAST_LLFC_COUNTER,
     INGRESS_SRAM_MIN_BUFFER_WATERMARK,
     FDR_FIFO_WATERMARK,
@@ -205,6 +205,10 @@ class HwAsic {
     SFLOW_SAMPLES_PACKING,
     VENDOR_SWITCH_NOTIFICATION,
     SDK_REGISTER_DUMP,
+    FEC_ERROR_DETECT_ENABLE,
+    BUFFER_POOL_HEADROOM_WATERMARK,
+    SAI_SET_TC_FOR_USER_DEFINED_TRAP,
+    SAI_HOST_MISS_TRAP,
   };
 
   enum class AsicMode {
@@ -234,7 +238,9 @@ class HwAsic {
   static std::unique_ptr<HwAsic> makeAsic(
       std::optional<int64_t> switchID,
       const cfg::SwitchInfo& switchInfo,
-      std::optional<cfg::SdkVersion> sdkVersion);
+      std::optional<cfg::SdkVersion> sdkVersion,
+      std::optional<HwAsic::FabricNodeRole> fabricNodeRole);
+
   virtual bool isSupported(Feature) const = 0;
   virtual cfg::AsicType getAsicType() const = 0;
   std::string getAsicTypeStr() const;
@@ -266,6 +272,8 @@ class HwAsic {
     return false;
   }
   virtual FabricNodeRole getFabricNodeRole() const;
+  virtual const std::set<uint16_t>& getL1FabricPortsToConnectToL2() const;
+
   // Get the smallest packet buffer unit for ASIC, cell size for BCM
   virtual uint32_t getPacketBufferUnitSize() const = 0;
 

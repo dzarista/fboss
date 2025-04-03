@@ -173,6 +173,7 @@ enum PortProfileID {
   PROFILE_100G_1_PAM4_RS544_OPTICAL = 47,
   PROFILE_50G_2_NRZ_RS528_OPTICAL = 48,
   PROFILE_100G_1_PAM4_NOFEC_COPPER = 49,
+  PROFILE_800G_8_PAM4_RS544X2N_COPPER = 50,
 }
 
 enum Scope {
@@ -676,7 +677,7 @@ enum AclStage {
   INGRESS = 0,
   INGRESS_MACSEC = 1,
   EGRESS_MACSEC = 2,
-  EGRESS = 3,
+  INGRESS_POST_LOOKUP = 3,
 }
 
 // startdocs_AclTableGroup_struct
@@ -1007,6 +1008,7 @@ enum PacketRxReason {
   TTL_0 = 19, // Packets with TTL as 0
   EAPOL = 20, // EAPOL for Macsec
   PORT_MTU_ERROR = 21, // Packet size exceeds port MTU, should not use together with L3_MTU_ERROR
+  HOST_MISS = 22, // Packet is destined for an unresolved neighbor in the subnet of a connected RIF
 }
 
 enum PortLoopbackMode {
@@ -1049,6 +1051,10 @@ const i32 DEFAULT_PORT_MTU = 9412;
 const string DEFAULT_INGRESS_ACL_TABLE_GROUP = "ingress-ACL-Table-Group";
 
 const string DEFAULT_INGRESS_ACL_TABLE = "AclTable1";
+
+const string DEFAULT_POST_LOOKUP_INGRESS_ACL_TABLE_GROUP = "post-lookup-ingress-ACL-Table-Group";
+
+const string DEFAULT_POST_LOOKUP_INGRESS_ACL_TABLE = "PostLookupAclTable1";
 
 enum PortType {
   INTERFACE_PORT = 0,
@@ -1244,6 +1250,12 @@ struct Port {
    * DSF Interface node to enable SHEL messages - port UP/DOWN notification to other interface nodes.
    */
   34: optional bool selfHealingECMPLagEnable;
+
+  /*
+   * DSF option to enable FEC error detection on port to prevent any
+   * errored cells from making it to the forwarding pipeline.
+   */
+  35: optional bool fecErrorDetectEnable;
 }
 
 enum LacpPortRate {
@@ -1437,6 +1449,7 @@ enum AsicType {
   ASIC_TYPE_YUBA = 15,
   ASIC_TYPE_RAMON3 = 16,
   ASIC_TYPE_CHENAB = 17,
+  ASIC_TYPE_TOMAHAWK6 = 18,
 }
 /**
  * The configuration for an interface
@@ -1868,6 +1881,7 @@ struct SwitchSettings {
   29: optional i32 voqOutOfBoundsLatencyNsec;
   // Number of sflow samples to pack in a single packet being sent out
   30: optional byte numberOfSflowSamplesPerPacket;
+  31: optional map<i32, i32> tcToRateLimitKbps;
 }
 
 // Global buffer pool
@@ -1897,6 +1911,7 @@ struct PortPgConfig {
   // packets
   5: optional i32 headroomLimitBytes;
   // Offset from XOFF before allowing XON
+  // resumeOffsetBytes and resumeBytes should not be set at the same time.
   6: optional i32 resumeOffsetBytes;
   // global buffer pool as used by this PG
   7: string bufferPoolName;
@@ -1908,6 +1923,10 @@ struct PortPgConfig {
   11: optional i64 minSramXoffThresholdBytes;
   // Offset from XOFF in SRAM before allowing XON
   12: optional i64 sramResumeOffsetBytes;
+  // Not all implementations support specifying an offset at which to send XON.
+  // Allowing configuring an absolute value at which to send XON in such cases.
+  // resumeOffsetBytes and resumeBytes should not be set at the same time.
+  13: optional i32 resumeBytes;
 }
 
 // asicSdk: Native SDK version. may or may not support SAI
@@ -2085,6 +2104,8 @@ enum SwitchingMode {
   PER_PACKET_QUALITY = 1,
   // flowlet is disabled
   FIXED_ASSIGNMENT = 2,
+  // per packet random, no quality
+  PER_PACKET_RANDOM = 3,
 }
 
 struct FlowletSwitchingConfig {
@@ -2115,6 +2136,8 @@ struct FlowletSwitchingConfig {
   11: i16 maxLinks;
   // switching mode
   12: SwitchingMode switchingMode = FLOWLET_QUALITY;
+  // fall back switching mode if DLB groups are exhausted
+  13: SwitchingMode backupSwitchingMode = FIXED_ASSIGNMENT;
 }
 
 /**

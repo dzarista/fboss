@@ -124,8 +124,11 @@ void NeighborCacheImpl<NTable>::programEntry(Entry* entry) {
               entry->getFields().ip),
           std::move(updateFn));
     } catch (const FbossHwUpdateError& e) {
-      XLOG(ERR) << "Failed to program neighbor entry: " << e.what();
+      XLOG(ERR)
+          << "Failed to program neighbor entry with hw failure protection "
+          << entry->getFields().ip << " with error: " << e.what();
       sw_->stats()->neighborTableUpdateFailure();
+      throw FbossError("Failed to program neighbor entry");
     }
   } else {
     sw_->updateState(
@@ -156,9 +159,7 @@ NeighborCacheImpl<NTable>::getUpdateFnToProgramEntryForVlan(Entry* entry) {
 
     auto isAggregatePort = fields.port.isAggregatePort();
     auto switchId = isAggregatePort
-        ? sw_->getScopeResolver()
-              ->scope(sw_->getState(), fields.port)
-              .switchId()
+        ? sw_->getScopeResolver()->scope(state, fields.port).switchId()
         : sw_->getScopeResolver()->scope(fields.port.phyPortID()).switchId();
     auto asic = sw_->getHwAsicTable()->getHwAsicIf(switchId);
     if (asic->isSupported(HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE)) {
@@ -212,9 +213,7 @@ SwSwitch::StateUpdateFn NeighborCacheImpl<NTable>::getUpdateFnToProgramEntry(
 
     auto isAggregatePort = fields.port.isAggregatePort();
     auto switchId = isAggregatePort
-        ? sw_->getScopeResolver()
-              ->scope(sw_->getState(), fields.port)
-              .switchId()
+        ? sw_->getScopeResolver()->scope(state, fields.port).switchId()
         : sw_->getScopeResolver()->scope(fields.port.phyPortID()).switchId();
     auto asic = sw_->getHwAsicTable()->getHwAsicIf(switchId);
     if (asic->isSupported(HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE)) {
@@ -224,7 +223,7 @@ SwSwitch::StateUpdateFn NeighborCacheImpl<NTable>::getUpdateFnToProgramEntry(
 
     if (switchType == cfg::SwitchType::VOQ) {
       CHECK(!fields.port.isSystemPort());
-      interfaceID = sw_->getState()->getInterfaceIDForPort(fields.port);
+      interfaceID = state->getInterfaceIDForPort(fields.port);
       // SystemPortID is always same as the InterfaceID
       systemPortID = SystemPortID(interfaceID);
     } else {
@@ -332,8 +331,11 @@ void NeighborCacheImpl<NTable>::programPendingEntry(
               entry->getFields().ip),
           std::move(updateFn));
     } catch (const FbossHwUpdateError& e) {
-      XLOG(ERR) << "Failed to program pending entry: " << e.what();
+      XLOG(ERR)
+          << "Failed to program pending neighbor entry with hw failure protection "
+          << entry->getFields().ip << " with error: " << e.what();
       sw_->stats()->neighborTableUpdateFailure();
+      throw FbossError("Failed to program pending neighbor entry");
     }
   } else {
     sw_->updateStateNoCoalescing(
@@ -413,9 +415,7 @@ NeighborCacheImpl<NTable>::getUpdateFnToProgramPendingEntry(
 
     auto isAggregatePort = fields.port.isAggregatePort();
     auto switchId = isAggregatePort
-        ? sw_->getScopeResolver()
-              ->scope(sw_->getState(), fields.port)
-              .switchId()
+        ? sw_->getScopeResolver()->scope(state, fields.port).switchId()
         : sw_->getScopeResolver()->scope(fields.port.phyPortID()).switchId();
     auto asic = sw_->getHwAsicTable()->getHwAsicIf(switchId);
     if (asic->isSupported(HwAsic::Feature::RESERVED_ENCAP_INDEX_RANGE)) {
@@ -424,7 +424,7 @@ NeighborCacheImpl<NTable>::getUpdateFnToProgramPendingEntry(
 
     if (switchType == cfg::SwitchType::VOQ) {
       CHECK(!fields.port.isSystemPort());
-      interfaceID = sw_->getState()->getInterfaceIDForPort(port);
+      interfaceID = state->getInterfaceIDForPort(port);
       // SystemPortID is always same as the InterfaceID
       systemPortID = SystemPortID(interfaceID);
     } else {
@@ -503,7 +503,7 @@ void NeighborCacheImpl<NTable>::repopulate(std::shared_ptr<NTable> table) {
 
     switch (entry->getType()) {
       case state::NeighborEntryType::DYNAMIC_ENTRY:
-        setEntryInternal(
+        addOrUpdateEntryInternal(
             EntryFields::fromThrift(entry->toThrift()),
             state,
             state::NeighborEntryType::DYNAMIC_ENTRY);
@@ -524,12 +524,27 @@ void NeighborCacheImpl<NTable>::setEntry(
     folly::MacAddress mac,
     PortDescriptor port,
     NeighborEntryState state) {
-  auto entry = setEntryInternal(
+  // First update switchState and asic, if it succeeds, then update cache.
+  // SwitchState update is transaction protected, if HW_FAILURE_PROTECTION flag
+  // is set. Thus we want to update cache only if switchState update succeeds,
+  // to avoid switchState and neighbor cache inconsistency
+  auto entryPtr = std::make_unique<Entry>(
       EntryFields(ip, mac, port, intfID_),
+      evb_,
+      cache_,
       state,
       state::NeighborEntryType::DYNAMIC_ENTRY);
-  if (entry) {
+  auto entry = entryPtr.get();
+
+  try {
     programEntry(entry);
+    addOrUpdateEntryInternal(
+        EntryFields(ip, mac, port, intfID_),
+        state,
+        state::NeighborEntryType::DYNAMIC_ENTRY);
+
+  } catch (const FbossError& e) {
+    XLOG(ERR) << e.what();
   }
 }
 
@@ -539,14 +554,28 @@ void NeighborCacheImpl<NTable>::setExistingEntry(
     folly::MacAddress mac,
     PortDescriptor port,
     NeighborEntryState state) {
-  auto entry = setEntryInternal(
-      EntryFields(ip, mac, port, intfID_),
-      state,
-      state::NeighborEntryType::DYNAMIC_ENTRY,
-      false);
+  auto entry = getCacheEntry(ip);
   if (entry) {
-    // only program an entry if one exists
-    programEntry(entry);
+    auto changed = !entry->fieldsMatch(EntryFields(ip, mac, port, intfID_));
+    if (changed) {
+      // only program an entry if one exists and the fields have changed
+      try {
+        // make a copy of the entry to update the fields locally
+        auto entryCopy = std::make_unique<Entry>(
+            EntryFields(ip, mac, port, intfID_),
+            evb_,
+            cache_,
+            state,
+            entry->getType());
+        programEntry(entryCopy.get());
+        // update the cache entry with the new fields if hw update succeeds
+        entry->updateFields(EntryFields(ip, mac, port, intfID_));
+        entry->updateState(state);
+
+      } catch (const FbossError& e) {
+        XLOG(ERR) << e.what();
+      }
+    }
   }
 }
 
@@ -621,11 +650,10 @@ void NeighborCacheImpl<NTable>::updateEntryClassID(
 }
 
 template <typename NTable>
-NeighborCacheEntry<NTable>* NeighborCacheImpl<NTable>::setEntryInternal(
+NeighborCacheEntry<NTable>* NeighborCacheImpl<NTable>::addOrUpdateEntryInternal(
     const EntryFields& fields,
     NeighborEntryState state,
-    state::NeighborEntryType type,
-    bool add) {
+    state::NeighborEntryType type) {
   auto entry = getCacheEntry(fields.ip);
   if (entry) {
     auto changed = !entry->fieldsMatch(fields);
@@ -634,7 +662,7 @@ NeighborCacheEntry<NTable>* NeighborCacheImpl<NTable>::setEntryInternal(
     }
     entry->updateState(state);
     return changed ? entry : nullptr;
-  } else if (add) {
+  } else {
     auto to_store = std::make_shared<Entry>(fields, evb_, cache_, state, type);
     entry = to_store.get();
     setCacheEntry(std::move(to_store));
@@ -653,13 +681,27 @@ void NeighborCacheImpl<NTable>::setPendingEntry(
     return;
   }
 
-  auto entry = setEntryInternal(
+  // first update switchState and asic, if it succeeds, then update cache
+  auto entryPtr = std::make_unique<Entry>(
       EntryFields(ip, intfID_, NeighborState::PENDING),
+      evb_,
+      cache_,
       NeighborEntryState::INCOMPLETE,
-      state::NeighborEntryType::DYNAMIC_ENTRY,
-      true);
+      state::NeighborEntryType::DYNAMIC_ENTRY);
+  auto entry = entryPtr.get();
+
   if (entry) {
-    programPendingEntry(entry, port, force);
+    try {
+      programPendingEntry(entry, port, force);
+      addOrUpdateEntryInternal(
+          EntryFields(ip, intfID_, NeighborState::PENDING),
+          NeighborEntryState::INCOMPLETE,
+          state::NeighborEntryType::DYNAMIC_ENTRY);
+
+    } catch (const FbossHwUpdateError& e) {
+      XLOG(ERR) << "Failed to program pending entry: " << e.what();
+      sw_->stats()->neighborTableUpdateFailure();
+    }
   }
 }
 

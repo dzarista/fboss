@@ -41,10 +41,6 @@ void addAclEntry(cfg::SwitchConfig& cfg, cfg::AclEntry* acl) {
 namespace facebook::fboss {
 
 class AgentAclPriorityTest : public AgentHwTest {
-  void setCmdLineFlagOverrides() const override {
-    AgentHwTest::setCmdLineFlagOverrides();
-  }
-
  public:
   std::vector<production_features::ProductionFeature>
   getProductionFeaturesVerified() const override {
@@ -225,8 +221,9 @@ TEST_F(AgentAclPriorityTest, Reprioritize) {
     cfg::CPUTrafficPolicyConfig cpuConfig;
     cfg::TrafficPolicyConfig trafficConfig;
     trafficConfig.matchToAction()->resize(2);
+    const auto& asic = getAsic(SwitchID(0));
     cfg::MatchAction matchAction = utility::getToQueueAction(
-        1, this->getAgentEnsemble()->isSai(), cfg::ToCpuAction::TRAP);
+        &asic, 1, this->getAgentEnsemble()->isSai(), cfg::ToCpuAction::TRAP);
     for (int i = 0; i < 2; i++) {
       auto& acls = utility::getAcls(&config, std::nullopt);
       trafficConfig.matchToAction()[i].matcher() = *acls[i].name();
@@ -245,8 +242,9 @@ TEST_F(AgentAclPriorityTest, Reprioritize) {
     cfg::CPUTrafficPolicyConfig cpuConfig;
     cfg::TrafficPolicyConfig trafficConfig;
     trafficConfig.matchToAction()->resize(2);
+    const auto& asic = getAsic(SwitchID(0));
     cfg::MatchAction matchAction = utility::getToQueueAction(
-        1, this->getAgentEnsemble()->isSai(), cfg::ToCpuAction::TRAP);
+        &asic, 1, this->getAgentEnsemble()->isSai(), cfg::ToCpuAction::TRAP);
     for (int i = 0; i < 2; i++) {
       auto& acls = utility::getAcls(&config, std::nullopt);
       trafficConfig.matchToAction()[i].matcher() = *acls[i].name();

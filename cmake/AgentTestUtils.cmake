@@ -397,7 +397,6 @@ target_link_libraries(pfc_test_utils
   agent_hw_test_ctrl_cpp2
   hardware_stats_cpp2
   switch_config_cpp2
-  utils
 )
 
 add_library(queue_test_utils
@@ -493,4 +492,28 @@ add_library(ecmp_test_utils
 
 target_link_libraries(ecmp_test_utils
   agent_ensemble
+)
+
+add_library(mac_learning_flood_helper
+  fboss/agent/test/utils/MacLearningFloodHelper.cpp
+)
+
+target_link_libraries(mac_learning_flood_helper
+  agent_ensemble
+  ecmp_helper
+  packet_factory
+  qos_test_utils
+)
+
+add_library(agent_fsdb_integ_bench_helper
+  fboss/agent/test/utils/AgentFsdbIntegrationBenchmarkHelper.cpp
+)
+
+target_link_libraries(agent_fsdb_integ_bench_helper
+  agent_ensemble
+  agent_fsdb_sync_manager
+  fsdb_pub_sub
+  fsdb_model
+  fsdb_flags
+  Folly::folly
 )

@@ -195,6 +195,10 @@ std::string PciDevice::charDevPath() const {
   return charDevPath_;
 }
 
+std::string PciDevice::name() const {
+  return name_;
+}
+
 PciExplorer::PciExplorer(std::shared_ptr<PlatformFsUtils> platformFsUtils)
     : platformFsUtils_(std::move(platformFsUtils)) {}
 

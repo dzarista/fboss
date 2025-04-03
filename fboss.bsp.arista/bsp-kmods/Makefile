@@ -4,7 +4,7 @@
 
 PWD := $(shell pwd)
 
-subdir-ccflags-y += -I${M}/lib
+subdir-ccflags-y += -I${M}/lib -I${M}/backports
 subdir-ccflags-y += -DBSP_VERSION=\"${BSP_VERSION}\"
 
 obj-m += scd.o

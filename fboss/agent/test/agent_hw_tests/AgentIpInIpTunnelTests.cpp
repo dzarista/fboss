@@ -40,7 +40,7 @@ class AgentIpInIpTunnelTest : public AgentHwTest {
         ensemble.masterLogicalPortIds()[1],
         ensemble.getSw()->getPlatformSupportsAddRemovePort(),
         asic->desiredLoopbackModes());
-    addTunnelConfig(cfg);
+    addTunnelConfig(cfg, asic);
     auto port = ensemble.masterLogicalInterfacePortIds()[0];
     utility::addTrapPacketAcl(asic, &cfg, port);
     return cfg;
@@ -49,7 +49,7 @@ class AgentIpInIpTunnelTest : public AgentHwTest {
   void setupHelper() {
     utility::EcmpSetupAnyNPorts6 ecmpHelper(
         getProgrammedState(), getLocalMacAddress());
-    resolveNeigborAndProgramRoutes(
+    resolveNeighborAndProgramRoutes(
         ecmpHelper, 1); // forwarding takes the first port: 0
   }
 
@@ -65,19 +65,21 @@ class AgentIpInIpTunnelTest : public AgentHwTest {
   }
 
  private:
-  void addTunnelConfig(cfg::SwitchConfig& cfg) const {
+  void addTunnelConfig(cfg::SwitchConfig& cfg, const HwAsic* asic) const {
     std::vector<cfg::IpInIpTunnel> tunnelList;
     tunnelList.push_back(makeTunnelConfig(
         "hwTestTunnel",
         kTunnelTermDstIp,
-        (InterfaceID)cfg.interfaces()[0].intfID().value()));
+        (InterfaceID)cfg.interfaces()[0].intfID().value(),
+        asic));
     cfg.ipInIpTunnels() = tunnelList;
   }
 
   cfg::IpInIpTunnel makeTunnelConfig(
       std::string name,
       std::string dstIp,
-      InterfaceID interfaceId) const {
+      InterfaceID interfaceId,
+      const HwAsic* asic) const {
     cfg::IpInIpTunnel tunnel;
     tunnel.ipInIpTunnelId() = name;
     tunnel.underlayIntfID() = interfaceId;
@@ -86,7 +88,7 @@ class AgentIpInIpTunnelTest : public AgentHwTest {
     tunnel.tunnelTermType() = cfg::TunnelTerminationType::P2MP;
     tunnel.tunnelType() = cfg::TunnelType::IP_IN_IP;
     tunnel.ttlMode() = cfg::IpTunnelMode::PIPE;
-    tunnel.dscpMode() = cfg::IpTunnelMode::PIPE;
+    tunnel.dscpMode() = asic->getTunnelDscpMode();
     tunnel.ecnMode() = cfg::IpTunnelMode::PIPE;
 
     return tunnel;
@@ -202,6 +204,10 @@ TEST_F(AgentIpInIpTunnelTest, IpinIpNoTunnelConfigured) {
 TEST_F(AgentIpInIpTunnelTest, DecapPacketParsing) {
   auto setup = [=, this]() { setupHelper(); };
   auto verify = [=, this]() {
+    auto ensemble = getAgentEnsemble();
+    auto l3Asics = ensemble->getSw()->getHwAsicTable()->getL3Asics();
+    auto asic = utility::checkSameAndGetAsic(l3Asics);
+
     utility::SwSwitchPacketSnooper snooper(getSw(), "snooper");
     sendIpInIpPacketPort(kTunnelTermDstIp, "dead::1", 0xFA, 0xCE);
     auto capturedPktBuf = snooper.waitForPacket(1);
@@ -213,8 +219,16 @@ TEST_F(AgentIpInIpTunnelTest, DecapPacketParsing) {
     auto hdr = v6Pkt->header();
     EXPECT_EQ(hdr.dstAddr, folly::IPAddress("dead::1"));
     EXPECT_EQ(hdr.srcAddr, folly::IPAddress("4004::23"));
-    // using PIPE mode: inner DSCP and ECN should not be changed
-    EXPECT_EQ(hdr.trafficClass, 0xCE);
+
+    if (cfg::IpTunnelMode::PIPE == asic->getTunnelDscpMode()) {
+      // using PIPE mode: inner DSCP and ECN should not be changed
+      EXPECT_EQ(hdr.trafficClass, 0xCE);
+    } else {
+      // using UNIFORM mode: Where the DSCP field is preserved end-to-end by
+      // copying into the outer header on encapsulation and copying from the
+      // outer header on decapsulation.
+      EXPECT_EQ(hdr.trafficClass, 0xF8);
+    }
 
     auto udpPkt = v6Pkt->udpPayload();
     auto payload = udpPkt->payload();
