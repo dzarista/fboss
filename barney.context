@@ -32,7 +32,7 @@
                "commit": "9af00e6421bae54bdb7a36f60055d0d66c07909d"
             },
             "code.arista.io/fboss/fboss-bcm-sai": {
-               "commit": "ad2703c66562d32c46e4a6d74a285a3a506df34f"
+               "commit": "76aafd8d8299fc0fe44b9216b2b0f3a6eaaf2f9d"
             },
             "code.arista.io/fboss/fboss-bcm-sdk": {
                "commit": "92d6557eb15e978bc55e5f7fd2ee0089e7da7404"
