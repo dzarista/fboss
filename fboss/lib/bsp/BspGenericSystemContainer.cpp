@@ -13,6 +13,7 @@
 #include "fboss/lib/bsp/montblanc/MontblancBspPlatformMapping.h"
 #include "fboss/lib/bsp/morgan800cc/Morgan800ccBspPlatformMapping.h"
 #include "fboss/lib/bsp/tahan800bc/Tahan800bcBspPlatformMapping.h"
+#include "fboss/lib/bsp/darwin/DarwinBspPlatformMapping.h"
 
 DEFINE_string(
     bsp_platform_mapping_override_path,
@@ -132,6 +133,15 @@ template <>
 std::shared_ptr<Tahan800bcSystemContainer>
 Tahan800bcSystemContainer::getInstance() {
   return _tahan800bcSystemContainer.try_get();
+}
+
+using DarwinSystemContainer =
+    BspGenericSystemContainer<DarwinBspPlatformMapping>;
+folly::Singleton<DarwinSystemContainer> _darwinSystemContainer;
+template <>
+std::shared_ptr<DarwinSystemContainer>
+DarwinSystemContainer::getInstance() {
+  return _darwinSystemContainer.try_get();
 }
 
 } // namespace fboss

@@ -1,0 +1,23 @@
+#!/usr/bin/bash
+
+cmd="$1"
+shift
+
+if [ "$cmd" == "setup" ]; then
+   # Run inside the docker environment
+   ln -sf /var/FBOSS/tmp_build_dir/installed/fbthrift/lib/fb-py-libs/thrift_py/thrift/ .
+   /var/FBOSS/tmp_build_dir/installed/fbthrift/bin/thrift1 -r --gen py -I ../../ -I ../../../tmp_build_dir/build/fbthrift/source/  ../../fboss/agent/if/ctrl.thrift 
+
+elif [ "$cmd" == "copy" ]; then
+   for dut in $@; do
+      echo ""
+      echo "# Copying to $dut"
+      scp -4 -r state-sync.py gen-py ../../../fboss-build-upstream-thrift-client/FBOSS_DIR/tmp_build_dir/installed/fbthrift/lib/fb-py-libs/thrift_py/thrift/ root@${dut}:/tmp/
+   done
+
+else
+	echo "Usage:"
+	echo "  manage.sh setup"
+	echo "  manage.sh copy <dut1> <dut2> ..."
+fi
+
