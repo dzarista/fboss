@@ -880,7 +880,9 @@ class Rackhawk( PlatformConfig ):
          kmods.append( 'bp4a_max1363' )
       self.addKmodsSettings(
          {
-            'requiredKmodsToLoad': [ 'i2c_i801', 'scd' ]
+            'requiredKmodsToLoad': [ 'i2c_i801',
+                                     'scd',
+                                     'ledtrig_timer' ]
          }
       )
 
