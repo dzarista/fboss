@@ -37,7 +37,7 @@ protected:
 class GenericShowtech : public Showtech {
 public:
   GenericShowtech(bool verbose) : Showtech(verbose) {}
-  void printPlatformInfo() override {};
+  void printPlatformInfo() override{};
   std::set<int> i2cBusIgnore() override { return {}; }
 };
 } // namespace showtech
