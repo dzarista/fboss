@@ -1412,7 +1412,7 @@ class SCMUnit( PmUnitConfig ):
 
 
 class SCMFairywren( SCMUnit ):
-   supportsP1 = True
+   supportsP1 = False
 
    def __init__( self ):
       super().__init__()
