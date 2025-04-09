@@ -9,6 +9,7 @@
 namespace showtech {
 int run_cmd(std::string cmd, std::string &output);
 std::string run_cmd_no_check(std::string cmd);
+std::string run_cmd_with_limit(std::string cmd, int max_lines = 5000);
 void print_fboss2_show_cmd(std::string cmd);
 void strip(std::string &str);
 int get_max_i2c_bus();
