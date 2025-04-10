@@ -35,10 +35,7 @@ echo "fboss.bsp.arista pull: $date_string" > $email_subject_file
 # --squash option had to be used since the subtree was originally created with the --squash option
 if GIT_SSH_COMMAND="ssh -i private.key -o IdentitiesOnly=yes" git subtree pull --prefix=fboss.bsp.arista bsp_upstream main --squash &> subtree_pull_status.txt; then
    auto_merge_successful=true
-   if grep "Subtree is already at commit" subtree_pull_status.txt; then
-      echo "No action was taken" > $output_file
-      echo "Git subtree is up to date with fboss.bsp.arista" > $status_email_file
-   else
+   if ! grep "Subtree is already at commit" subtree_pull_status.txt; then
       git push origin HEAD
       pr_link=$(gh pr create --title "$pr_title" --body "$pr_description" --head $branch_name --base main --repo $repo_name | grep https)
       echo "Created a pull request from branch $branch_name" > $output_file

@@ -3,7 +3,7 @@
 name: Config Diff Tool
 on:
   schedule:
-    - cron: "0 5 * * *"
+    - cron: "0 17 * * *"
   workflow_dispatch:
 jobs:
   job:
@@ -29,10 +29,17 @@ jobs:
           ./arista/util/config-compare/compareConfigs.py --workspace "$GITHUB_WORKSPACE" > config-compare-output.txt 2>&1
         shell: bash
 
+      - name: Print Config Compare Output
+        run: |
+          echo "--- Contents of config-compare-output.txt ---"
+          cat config-compare-output.txt
+          echo "--- End of config-compare-output.txt ---"
+        shell: bash
+
       - name: Send mail to owners
         if: always()
         run: |
-          mail_to="daniel.zhu@arista.com"
+          mail_to="fbosstest-dev@arista.com"
           subject="Config Diffs between Internal and Upstream"
           body="View the attachment for the diff"
           attachment_path="config-compare-output.txt"

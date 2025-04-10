@@ -31,7 +31,7 @@ find . -mindepth 1 -delete
 cp -af %{SOURCEURL0}/%{_fboss_meru800biab_dir}/* .
 find %{SOURCEURL0}/%{_sai_sdk_src_dir} -wholename "*/tools/sand/db" -exec cp -r {} . \;
 mkdir -p platform_configs
-cp -af %{SOURCEURL0}/%{_fboss_config_dir}/meru800biab/* platform_configs/
+cp -af %{SOURCEURL0}/%{_fboss_config_dir}/meru800bia/* platform_configs/
 mkdir -p firmware
 cp -af %{SOURCEURL0}/%{_fboss_platform_dir}/meru800bia/firmware/* firmware/
 

@@ -2,7 +2,7 @@
 	"version": 1,
         "repomap": {
             "barney.ci/barneyfile": {
-               "commit": "b4cf4c4f726e2426f8c2b27a9b5e8447c061f53b"
+               "commit": "309a269aec9c3656013ed4cb99d6782cb17eed7d"
             },
             "code.arista.io/os/fboss-centos": {
                "commit": "0b6fd54c9f3415b621e9d7e3620fe945db443564"
@@ -14,7 +14,7 @@
                "commit": "07c2fa251086468fe356d340c1438694f9c2f750"
             },
             "code.arista.io/infra/barney/barnzilla-repos": {
-               "commit": "bedf1007e1045b18fa361842fd4b9a9cba0f72d7"
+               "commit": "a9932504369946c199632fa88d730846a38357e8"
             },
             "barney.ci/alpine": {
                "commit": "453f5b721ea0cab5aed1ae209644734ff63884f0"
@@ -32,10 +32,10 @@
                "commit": "9af00e6421bae54bdb7a36f60055d0d66c07909d"
             },
             "code.arista.io/fboss/fboss-bcm-sai": {
-               "commit": "ad2703c66562d32c46e4a6d74a285a3a506df34f"
+               "commit": "76aafd8d8299fc0fe44b9216b2b0f3a6eaaf2f9d"
             },
             "code.arista.io/fboss/fboss-bcm-sdk": {
-               "commit": "3e08460635f2cb338eb02aeb2eb8ffe5db205629"
+               "commit": "293a5c4ee4803b27803957cf9d20fd69689a0c2b"
             }
         }
 }

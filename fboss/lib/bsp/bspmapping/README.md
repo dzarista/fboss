@@ -46,6 +46,7 @@ This will write the configs for each platform to a directory called `generated_c
 | generated_configs/morgan800cc.json | fboss/lib/bsp/morgan800cc/Morgan800ccBspPlatformMapping.cpp |
 | generated_configs/tahan800bc.json  | fboss/lib/bsp/tahan800bc/Tahan800bcBspPlatformMapping.cpp   |
 | generated_configs/darwin.json      | fboss/lib/bsp/darwin/DarwinBspPlatformMapping.cpp           |
+| generated_configs/meru800ba.json   | fboss/lib/bsp/meru800ba/Meru800baBspPlatformMapping.cpp     |
 
 
 ## Instructions (Meta-Internal)

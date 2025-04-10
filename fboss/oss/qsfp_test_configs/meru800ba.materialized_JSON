@@ -1,0 +1,12 @@
+{
+  "defaultCommandLineArgs": {
+    "mode": "meru800ba"
+  },
+  "transceiverConfigOverrides": [
+
+  ],
+  "qsfpTestConfig": {
+    "cabledPortPairs": [
+    ]
+  }
+}
