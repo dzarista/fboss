@@ -16,7 +16,7 @@ usage() {
    exit 1
 }
 
-chassis_power_cycle() {
+chassis_power_cycle_fairywren() {
    SCD_ADDR="07:00.0"
    BASE_ADDR=$(lspci -s "$SCD_ADDR" -v | grep "Memory" | head -n 1 | awk '{print $3}')
    BASE_ADDR="0x$BASE_ADDR"
@@ -49,7 +49,7 @@ switch_to_bmc_fairywren() {
    i2cset -f -y 1 "$DEV_ADDR" 0xf4 0x1
    sleep 0.1
    if [ $no_reboot -eq 0 ]; then
-      chassis_power_cycle
+      chassis_power_cycle_fairywren
    fi
 }
 
