@@ -124,10 +124,10 @@ if [ "$KERNEL" == "5.19" ] || [ "$KERNEL" == "6.4" ]; then
    tar -xf $SCRATCH_DIR/downloads/"${KERNEL_SRC_TAR}" -C $SCRATCH_DIR/installed
 
    # Building bsp-kmods
-   make -C $SCRATCH_DIR/installed/$KERNEL_SRC M=~+/arista/bsp-kmods modules
+   make -C $SCRATCH_DIR/installed/$KERNEL_SRC M=~+/fboss.bsp.arista/bsp-kmods modules
    mkdir -p $SCRATCH_DIR/bsp-kmods
-   find arista/bsp-kmods -type f -name "*.ko" -exec cp -f {} $SCRATCH_DIR/bsp-kmods/ \;
-   find arista/bsp-kmods -type f -name "kmods.json" -exec cp -f {} $SCRATCH_DIR/bsp-kmods/ \;
+   find fboss.bsp.arista/bsp-kmods -type f -name "*.ko" -exec cp -f {} $SCRATCH_DIR/bsp-kmods/ \;
+   find fboss.bsp.arista/bsp-kmods -type f -name "kmods.json" -exec cp -f {} $SCRATCH_DIR/bsp-kmods/ \;
 fi
 
 # Building showtech dependencies

@@ -126,7 +126,7 @@ class WhistlerSMB( SMBUnit ):
                        ) )
       ] )
 
-      smbIslR3R0Analog0 = Sensor( "0x50", "isl68226", "SMB_ISL68226_R3R0_ANLG0",
+      smbIslR3R0Analog0 = Sensor( "0x50", "bp4a_isl68226", "SMB_ISL68226_R3R0_ANLG0",
                                 incomingBusIndex=1 )
       smbIslR3R0Analog0.addSensorConfigs( [
          SensorConfig( "VRM_R3R0_ANLG0_VIN", "in1_input", SensorType.VOLTAGE,
@@ -166,7 +166,7 @@ class WhistlerSMB( SMBUnit ):
                        ) )
       ] )
 
-      smbIslR3R0Analog1 = Sensor( "0x51", "isl68226", "SMB_ISL68226_R3R0_ANLG1",
+      smbIslR3R0Analog1 = Sensor( "0x51", "bp4a_isl68226", "SMB_ISL68226_R3R0_ANLG1",
                                 incomingBusIndex=1 )
       smbIslR3R0Analog1.addSensorConfigs( [
          SensorConfig( "VRM_R3R0_ANLG1_VIN", "in1_input", SensorType.VOLTAGE,
@@ -226,7 +226,7 @@ class WhistlerSMB( SMBUnit ):
                        ) )
       ] )
 
-      smbIslR3R1Analog0 = Sensor( "0x52", "isl68226", "SMB_ISL68226_R3R1_ANLG0",
+      smbIslR3R1Analog0 = Sensor( "0x52", "bp4a_isl68226", "SMB_ISL68226_R3R1_ANLG0",
                  incomingBusIndex=1 )
       smbIslR3R1Analog0.addSensorConfigs( [
          SensorConfig( "VRM_R3R1_ANLG0_VIN", "in1_input", SensorType.VOLTAGE,
@@ -266,7 +266,7 @@ class WhistlerSMB( SMBUnit ):
                        ) )
       ] )
 
-      smbIslR3R1Analog1 = Sensor( "0x53", "isl68226", "SMB_ISL68226_R3R1_ANLG1",
+      smbIslR3R1Analog1 = Sensor( "0x53", "bp4a_isl68226", "SMB_ISL68226_R3R1_ANLG1",
                                   incomingBusIndex=1 )
       smbIslR3R1Analog1.addSensorConfigs( [
          SensorConfig( "VRM_R3R1_ANLG1_VIN", "in1_input", SensorType.VOLTAGE,
@@ -586,7 +586,10 @@ class Whistler( PlatformConfig ):
 
       self.addKmodsSettings(
          {
-            "requiredKmodsToLoad": [ "spidev", "i2c_i801", "scd" ]
+            "requiredKmodsToLoad": [ "spidev",
+                                     "i2c_i801",
+                                     "scd",
+                                     "ledtrig_timer" ]
          }
       )
 

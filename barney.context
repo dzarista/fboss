@@ -8,13 +8,13 @@
                "commit": "0b6fd54c9f3415b621e9d7e3620fe945db443564"
             },
             "code.arista.io/aqua-sai/in-eos": {
-               "commit": "0d936b5948692795e5d748e5c03c7c200ccb6f2a"
+               "commit": "962e8bc195c952d4f0e5f3f8457730e16da23ee5"
             },
             "code.arista.io/infra/barney/barnzilla": {
                "commit": "07c2fa251086468fe356d340c1438694f9c2f750"
             },
             "code.arista.io/infra/barney/barnzilla-repos": {
-               "commit": "df887d5215ccad6d6ac7543c590f2d69122d3ac5"
+               "commit": "d6e99c35cfb42484e1df3466e15e9ec69816d8c5"
             },
             "barney.ci/alpine": {
                "commit": "453f5b721ea0cab5aed1ae209644734ff63884f0"
@@ -32,10 +32,10 @@
                "commit": "9af00e6421bae54bdb7a36f60055d0d66c07909d"
             },
             "code.arista.io/fboss/fboss-bcm-sai": {
-               "commit": "76aafd8d8299fc0fe44b9216b2b0f3a6eaaf2f9d"
+               "commit": "a008b58d1ecb13ba0c2665068f853a3c52e7eb34"
             },
             "code.arista.io/fboss/fboss-bcm-sdk": {
-               "commit": "7f95baffb34f5a1e5368329b49be614427a5d202"
+               "commit": "293a5c4ee4803b27803957cf9d20fd69689a0c2b"
             }
         }
 }

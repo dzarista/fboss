@@ -5,8 +5,8 @@
 #include "ShowtechUtils.h"
 #include <filesystem>
 #include <iostream>
-#include <string>
 #include <sstream>
+#include <string>
 #include <vector>
 
 namespace showtech {
@@ -37,7 +37,8 @@ void Showtech::printFbossDetails() {
 
 void Showtech::printWeutil(std::string target) {
   std::string cmd = "weutil --eeprom " + target;
-  std::filesystem::path ossConfigPath{"/opt/fboss/share/platform_configs/weutil.json"};
+  std::filesystem::path ossConfigPath{
+      "/opt/fboss/share/platform_configs/weutil.json"};
 
   if (std::filesystem::exists(ossConfigPath)) {
     // OSS doesn't support running weutil without the -config_file arg.
@@ -56,7 +57,7 @@ void Showtech::printLspci() {
 
   cmd = "lspci";
   if (verbose_) {
-     cmd = cmd + " -vvv";
+    cmd = cmd + " -vvv";
   }
   std::cout << cmd << std::endl << run_cmd_no_check(cmd) << std::endl;
 }
@@ -87,19 +88,33 @@ void Showtech::printLogs() {
   std::cout << "################################\n\n";
 
   std::cout << "#### SENSORS LOG ####\n";
-  std::cout << run_cmd_no_check("journalctl -u sensor_service") << std::endl;
+  std::cout << run_cmd_with_limit("journalctl -u sensor_service") << std::endl;
 
   std::cout << "#### FAN LOG ####\n";
-  std::cout << run_cmd_no_check("journalctl -u fan_service") << std::endl;
+  std::cout << run_cmd_with_limit("journalctl -u fan_service") << std::endl;
+
+  std::cout << "#### DATA CORRAL LOG ####\n";
+  std::cout << run_cmd_with_limit("journalctl -u data_corral_service")
+            << std::endl;
+
+  std::cout << "#### QSFP LOG ####\n";
+  std::cout << run_cmd_with_limit("journalctl -u qsfp_service") << std::endl;
+
+  std::cout << "#### SW AGENT LOG ####\n";
+  std::cout << run_cmd_with_limit("journalctl -u fboss_sw_agent") << std::endl;
+
+  std::cout << "#### HW AGENT LOG ####\n";
+  std::cout << run_cmd_with_limit("journalctl -u fboss_hw_agent@0")
+            << std::endl;
 
   std::cout << "#### DMESG LOG ####\n";
-  std::cout << run_cmd_no_check("dmesg") << std::endl;
+  std::cout << run_cmd_with_limit("dmesg") << std::endl;
 
   std::cout << "#### BOOT CONSOLE LOG ####\n";
-  std::cout << run_cmd_no_check("cat /var/log/boot.log") << std::endl;
+  std::cout << run_cmd_with_limit("cat /var/log/boot.log") << std::endl;
 
   std::cout << "#### LINUX MESSAGES LOG ####\n";
-  std::cout << run_cmd_no_check("cat /var/log/messages") << std::endl;
+  std::cout << run_cmd_with_limit("cat /var/log/messages") << std::endl;
 }
 
 void Showtech::printL1Info() {

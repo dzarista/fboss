@@ -89,7 +89,7 @@ class PlatformConfig:
       self.i2cAdaptersFromCpu = []
       self.kmodsSettings = {
          "bspKmodsRpmName": "arista_bsp_kmods",
-         "bspKmodsRpmVersion": "0.7.7-1",
+         "bspKmodsRpmVersion": "0.7.8-1",
          "requiredKmodsToLoad": [],
       }
 
@@ -1412,7 +1412,7 @@ class SCMUnit( PmUnitConfig ):
 
 
 class SCMFairywren( SCMUnit ):
-   supportsP1 = True
+   supportsP1 = False
 
    def __init__( self ):
       super().__init__()
