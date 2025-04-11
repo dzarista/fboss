@@ -131,10 +131,10 @@ if [ "$KERNEL" == "5.19" ] || [ "$KERNEL" == "6.4" ]; then
 fi
 
 # Building showtech dependencies
-make -C arista/showtech
+make -C fboss.bsp.arista/showtech
 mkdir -p $SCRATCH_DIR/showtech
-cp -f arista/showtech/platform-showtech $SCRATCH_DIR/showtech/
-cp -f arista/showtech/Makefile $SCRATCH_DIR/showtech/
+cp -f fboss.bsp.arista/showtech/platform-showtech $SCRATCH_DIR/showtech/
+cp -f fboss.bsp.arista/showtech/Makefile $SCRATCH_DIR/showtech/
 
 # Building psu-upgrade dependencies
 make -C arista/psu-upgrade

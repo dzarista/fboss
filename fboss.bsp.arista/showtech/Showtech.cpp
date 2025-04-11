@@ -77,7 +77,8 @@ void Showtech::printI2cDetect() {
   for (bus = 0; bus <= get_max_i2c_bus(); ++bus) {
     if (bus_to_ignore.find(bus) == bus_to_ignore.end()) {
       cmd = "i2cdetect -y " + std::to_string(bus);
-      std::cout << cmd << std::endl << run_cmd_no_check(cmd) << std::endl;
+      std::cout << cmd << std::endl
+                << run_cmd_with_timeout(cmd, 30) << std::endl;
     }
   }
 }
@@ -133,7 +134,7 @@ void Showtech::printL1Info() {
 
   if (verbose_) {
     std::cout << "#### wedge_qsfp_util ####\n";
-    std::cout << run_cmd_no_check("wedge_qsfp_util") << std::endl;
+    std::cout << run_cmd_with_timeout("wedge_qsfp_util", 30) << std::endl;
   }
 }
 
