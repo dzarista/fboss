@@ -345,6 +345,3 @@ class Viper( PlatformConfig ):
 
       for pmConfig in self.pmUnitConfigs:
          pmConfig.populateSymlinkToDevicePaths()
-
-class ViperB0( Viper ):
-    codename = 'meru800biab'
