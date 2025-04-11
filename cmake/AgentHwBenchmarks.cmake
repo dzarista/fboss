@@ -409,6 +409,7 @@ target_link_libraries(hw_voq_scale_route_add_speed
   route_scale_gen
   dsf_config_utils
   voq_test_utils
+  agent_hw_test_ctrl_cpp2
   Folly::folly
   Folly::follybenchmark
 )
@@ -422,6 +423,7 @@ target_link_libraries(hw_voq_scale_route_del_speed
   route_scale_gen
   dsf_config_utils
   voq_test_utils
+  agent_hw_test_ctrl_cpp2
   Folly::folly
   Folly::follybenchmark
 )
@@ -450,6 +452,7 @@ add_library(hw_voq_sys_port_programming
 target_link_libraries(hw_voq_sys_port_programming
   voq_test_utils
   dsf_config_utils
+  agent_hw_test_ctrl_cpp2
   Folly::folly
   Folly::follybenchmark
 )
