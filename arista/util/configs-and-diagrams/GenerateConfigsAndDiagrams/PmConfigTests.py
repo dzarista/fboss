@@ -79,6 +79,19 @@ class PlatformConfigTest( unittest.TestCase ):
       self.assertEqual( pmConfig[ "bspKmodsRpmVersion" ], "1.1.1-1" )
       self.assertEqual( pmConfig[ "requiredKmodsToLoad" ], [ "test1", "test2", "test3" ] )
 
+   def testChassisEepromDevicePath( self ):
+      platform = PlatformConfig( "test_platform" )
+      platform.setChassisEepromDevicePath = True
+      scmPmUnit = PmUnitConfig( "SCM" )
+
+      pmConfig = json.loads( platform.pmConfigJson() )
+      self.assertEqual( pmConfig[ "chassisEepromDevicePath" ], "/[CHASSIS_EEPROM]")
+
+      scmPmUnit.addOutgoingSlotConfigs( [ SlotConfig( slotName="SMB_SLOT@0" ) ] )
+      platform.addPmUnitConfigs( [ scmPmUnit ] )
+      pmConfig = json.loads( platform.pmConfigJson() )
+      self.assertEqual( pmConfig[ "chassisEepromDevicePath" ], "/SMB_SLOT@0/[IDPROM]")
+
 
 class SlotTypeConfigTest( unittest.TestCase ):
    def testWithIdPromConfig( self ):
