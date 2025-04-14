@@ -13,6 +13,7 @@ add_library(agent_hw_test_src
   fboss/agent/test/agent_hw_tests/AgentEcmpTests.cpp
   fboss/agent/test/agent_hw_tests/AgentEmptyTests.cpp
   fboss/agent/test/agent_hw_tests/AgentEgressForwardingDiscardCounterTests.cpp
+  fboss/agent/test/agent_hw_tests/AgentFlowletSwitchingTests.cpp
   fboss/agent/test/agent_hw_tests/AgentRouteOverDifferentAddressFamilyNhopTests.cpp
   fboss/agent/test/agent_hw_tests/AgentAclInDiscardCounterTests.cpp
   fboss/agent/test/agent_hw_tests/AgentJumboFramesTests.cpp
@@ -126,6 +127,7 @@ target_link_libraries(agent_hw_test_src
   voq_test_utils
   fib_updater
   ecmp_test_utils
+  scale_test_utils
 )
 
 function(BUILD_SAI_AGENT_HW_TEST SAI_IMPL_NAME SAI_IMPL_ARG)

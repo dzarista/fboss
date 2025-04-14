@@ -12,19 +12,19 @@ namespace showtech {
 int run_cmd(std::string cmd, std::string &output) {
   std::array<char, 128> buffer;
   std::string result;
-  std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"),
-                                                pclose);
+  FILE *pipe = popen(cmd.c_str(), "r");
 
   if (!pipe) {
     return -1;
   }
 
-  while (std::fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+  while (std::fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
     result += buffer.data();
   }
   output = result;
+  int exit_status = pclose(pipe);
 
-  return 0;
+  return exit_status;
 }
 
 std::string run_cmd_no_check(std::string cmd) {
@@ -57,6 +57,21 @@ std::string run_cmd_with_limit(std::string cmd, int max_lines) {
   return truncation_message + first_part +
          "\n\n=== " + std::to_string(total_lines - max_lines) +
          " lines truncated ===\n\n" + last_part;
+}
+
+std::string run_cmd_with_timeout(std::string cmd, int timeout_s) {
+  std::string output;
+  std::string cmd_with_timeout;
+
+  cmd_with_timeout = "timeout " + std::to_string(timeout_s) + " " + cmd;
+
+  int status = run_cmd(cmd_with_timeout, output);
+  if (WEXITSTATUS(status) == 124) {
+    output += "\nError: " + cmd + " timed out after " +
+              std::to_string(timeout_s) + " seconds";
+  }
+
+  return output;
 }
 
 void print_fboss2_show_cmd(std::string cmd) {

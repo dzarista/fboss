@@ -220,7 +220,7 @@ then
    rm -rf $SCRATCH_DIR/showtech
    rm -rf $SCRATCH_DIR/sw_test
    make -C $KERNEL_SRC BUILD_KERNEL=$KERNEL M=$FBOSS_DIR/fboss.git/fboss.bsp.arista/bsp-kmods clean
-   make -C $FBOSS_DIR/fboss.git/arista/showtech clean
+   make -C $FBOSS_DIR/fboss.git/fboss.bsp.arista/showtech clean
 fi
 cd $FBOSS_DIR/fboss.git
 
@@ -326,11 +326,11 @@ else
    make -C $KERNEL_SRC M=$FBOSS_DIR/fboss.git/fboss.bsp.arista/bsp-kmods clean
 
    echo "****BUILDING SHOWTECH DEPENDENCIES"
-   make -C $FBOSS_DIR/fboss.git/arista/showtech
+   make -C $FBOSS_DIR/fboss.git/fboss.bsp.arista/showtech
    mkdir -p $SCRATCH_DIR/showtech
-   cp -f $FBOSS_DIR/fboss.git/arista/showtech/platform-showtech $SCRATCH_DIR/showtech/
-   cp -f $FBOSS_DIR/fboss.git/arista/showtech/Makefile $SCRATCH_DIR/showtech/
-   make -C $FBOSS_DIR/fboss.git/arista/showtech clean
+   cp -f $FBOSS_DIR/fboss.git/fboss.bsp.arista/showtech/platform-showtech $SCRATCH_DIR/showtech/
+   cp -f $FBOSS_DIR/fboss.git/fboss.bsp.arista/showtech/Makefile $SCRATCH_DIR/showtech/
+   make -C $FBOSS_DIR/fboss.git/fboss.bsp.arista/showtech clean
 
    echo "****BUILDING PSU UPGRADE DEPENDENCIES"
    make -C $FBOSS_DIR/fboss.git/arista/psu-upgrade
