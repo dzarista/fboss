@@ -14,7 +14,7 @@ std::string run_cmd_with_timeout(std::string cmd, int timeout_s = 30);
 void print_fboss2_show_cmd(std::string cmd);
 void strip(std::string &str);
 int get_max_i2c_bus();
-std::string i2c_dump(int bus, int addr);
+std::string i2c_dump(int bus, int addr, char type = 'b');
 
 class Device {
 public:
