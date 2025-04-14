@@ -87,6 +87,7 @@ class PlatformConfig:
       self.rootPmUnitPointer = None
       self.pmUnitConfigs = []
       self.i2cAdaptersFromCpu = []
+      self.setChassisEepromDevicePath = True
       self.kmodsSettings = {
          "bspKmodsRpmName": "arista_bsp_kmods",
          "bspKmodsRpmVersion": "0.7.8-1",
@@ -129,6 +130,14 @@ class PlatformConfig:
             symlinkDict[ symlink ] = devicePath
       return symlinkDict
 
+   def getChassisEepromDevicePath( self ):
+      scmPmUnit = self.getPmUnit( "SCM" )
+      if scmPmUnit:
+         for slotConfig in scmPmUnit.outgoingSlotConfigs:
+            if slotConfig.slotType == "SMB_SLOT":
+               return f"/{ slotConfig.slotName }/[IDPROM]"
+      return "/[CHASSIS_EEPROM]"
+
    def addI2cAdaptersFromCpu( self, newConfigs ):
       self.i2cAdaptersFromCpu.extend( newConfigs )
 
@@ -156,6 +165,8 @@ class PlatformConfig:
       jsonDict[ "symbolicLinkToDevicePath" ] = (
          self.parseSymbolicLinkToDevicePaths()
       )
+      if self.setChassisEepromDevicePath:
+         jsonDict[ "chassisEepromDevicePath"] = self.getChassisEepromDevicePath()
       jsonDict[ "bspKmodsRpmName" ] = self.kmodsSettings[ "bspKmodsRpmName" ]
       jsonDict[ "bspKmodsRpmVersion" ] = self.kmodsSettings[ "bspKmodsRpmVersion" ]
       jsonDict[ "requiredKmodsToLoad" ] = self.kmodsSettings[ "requiredKmodsToLoad" ]
