@@ -83,9 +83,9 @@ int get_max_i2c_bus() {
   return std::stoi(output);
 }
 
-std::string i2c_dump(int bus, int addr) {
+std::string i2c_dump(int bus, int addr, char type) {
   std::string cmd = "i2cdump -f -y " + std::to_string(bus) + " " +
-                    std::to_string(addr) + " b";
+                    std::to_string(addr) + " " + type;
   return cmd + "\n" + run_cmd_no_check(cmd);
 }
 
