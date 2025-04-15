@@ -20,6 +20,7 @@
 #include "fboss/agent/platforms/common/morgan800cc/Morgan800ccPlatformMapping.h"
 #include "fboss/agent/platforms/common/tahan800bc/Tahan800bcPlatformMapping.h"
 #include "fboss/agent/platforms/common/darwin/DarwinPlatformMapping.h"
+#include "fboss/agent/platforms/common/meru800ba/Meru800baPlatformMapping.h"
 #include "fboss/lib/bsp/BspGenericSystemContainer.h"
 #include "fboss/lib/bsp/janga800bic/Janga800bicBspPlatformMapping.h"
 #include "fboss/lib/bsp/meru400bfu/Meru400bfuBspPlatformMapping.h"
@@ -32,6 +33,7 @@
 #include "fboss/lib/bsp/morgan800cc/Morgan800ccBspPlatformMapping.h"
 #include "fboss/lib/bsp/tahan800bc/Tahan800bcBspPlatformMapping.h"
 #include "fboss/lib/bsp/darwin/DarwinBspPlatformMapping.h"
+#include "fboss/lib/bsp/meru800ba/Meru800baBspPlatformMapping.h"
 #include "fboss/lib/platforms/PlatformProductInfo.h"
 #include "fboss/qsfp_service/platforms/wedge/BspWedgeManager.h"
 #include "fboss/qsfp_service/platforms/wedge/GalaxyManager.h"
@@ -101,6 +103,8 @@ std::unique_ptr<WedgeManager> createWedgeManager() {
     return createJanga800bicWedgeManager(platformMappingStr);
   } else if (mode == PlatformType::PLATFORM_TAHAN800BC) {
     return createTahan800bcWedgeManager(platformMappingStr);
+  } else if (mode == PlatformType::PLATFORM_MERU800BA) {
+    return createMeru800baWedgeManager(platformMappingStr);
   } else if (
       mode == PlatformType::PLATFORM_FUJI ||
       mode == PlatformType::PLATFORM_MINIPACK ||
@@ -122,6 +126,20 @@ std::unique_ptr<WedgeManager> createDarwinWedgeManager(
           ? std::make_unique<DarwinPlatformMapping>()
           : std::make_unique<DarwinPlatformMapping>(platformMappingStr),
       PlatformType::PLATFORM_DARWIN);
+}
+
+std::unique_ptr<WedgeManager> createMeru800baWedgeManager(
+  const std::string& platformMappingStr) {
+auto systemContainer =
+    BspGenericSystemContainer<Meru800baBspPlatformMapping>::getInstance()
+        .get();
+return std::make_unique<BspWedgeManager>(
+    systemContainer,
+    std::make_unique<BspTransceiverApi>(systemContainer),
+    platformMappingStr.empty()
+        ? std::make_unique<Meru800baPlatformMapping>()
+        : std::make_unique<Meru800baPlatformMapping>(platformMappingStr),
+    PlatformType::PLATFORM_MERU800BA);
 }
 
 std::unique_ptr<WedgeManager> createMeru400bfuWedgeManager(
