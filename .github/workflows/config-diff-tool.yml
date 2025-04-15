@@ -40,7 +40,7 @@ jobs:
         if: always()
         run: |
           mail_to="fbosstest-dev@arista.com"
-          subject="Config Diffs between Internal and Upstream"
+          subject="Fboss Config Diffs between Internal and Upstream"
           body="View the attachment for the diff"
           attachment_path="config-compare-output.txt"
           ./arista-ci-scripts/mailer.py --mail_to="$mail_to" --subject="$subject" --body="$body" --attachment_path="$attachment_path" --sender_mail_id="${{ secrets.GMAIL_USERNAME }}" --sender_mail_password="${{ secrets.GMAIL_PASSWORD }}"
