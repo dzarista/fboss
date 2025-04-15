@@ -33,13 +33,10 @@ def get_json_files(base_path, platform_filter=None, config_filter=None):
         platform_filter = platform_filter[:-1]
 
     json_files = []
-    required_platform_prefixes = ("darwin", "meru")
     for root, _, files in os.walk(configs_path):
         root_path = Path(root)
         try:
             platform_dir = root_path.relative_to(configs_path).parts[0].lower()
-            if not platform_dir.startswith(required_platform_prefixes):
-                continue
             if platform_filter and ((platform_is_prefix and not platform_dir.startswith(platform_filter.lower())) or
                                      (not platform_is_prefix and platform_dir != platform_filter.lower())):
                 continue
