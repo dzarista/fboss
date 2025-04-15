@@ -37,6 +37,9 @@ def get_json_files(base_path, platform_filter=None, config_filter=None):
         root_path = Path(root)
         try:
             platform_dir = root_path.relative_to(configs_path).parts[0].lower()
+            arista_platforms_path = Path(DEFAULT_LOCAL_REPO) / "arista/platform"
+            if not (arista_platforms_path / platform_dir).is_dir():
+               continue
             if platform_filter and ((platform_is_prefix and not platform_dir.startswith(platform_filter.lower())) or
                                      (not platform_is_prefix and platform_dir != platform_filter.lower())):
                 continue
