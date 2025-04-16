@@ -116,6 +116,15 @@ void Showtech::printLogs() {
 
   std::cout << "#### LINUX MESSAGES LOG ####\n";
   std::cout << run_cmd_with_limit("cat /var/log/messages") << std::endl;
+
+  std::cout << "#### NVME SSD SMART LOG ####\n";
+  std::cout << run_cmd_no_check("nvme smart-log /dev/nvme0n1") << std::endl;
+
+  std::cout << "#### NVME SSD ERROR LOG ####\n";
+  std::cout << run_cmd_no_check("nvme error-log /dev/nvme0n1") << std::endl;
+
+  std::cout << "#### NVME SSD ID CTRL LOG ####\n";
+  std::cout << run_cmd_no_check("nvme id-ctrl /dev/nvme0n1") << std::endl;
 }
 
 void Showtech::printL1Info() {

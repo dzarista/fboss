@@ -30,5 +30,6 @@ buildDeps=(
    double-conversion
    xxhash-libs
    lz4
+   nvme-cli
 )
 yum install ${buildDeps[*]} -y
