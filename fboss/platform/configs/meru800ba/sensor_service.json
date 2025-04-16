@@ -409,7 +409,7 @@
             "upperCriticalVal": 4.125,
             "lowerCriticalVal": 2.475
           },
-          "compute": "@/1000.0"
+          "compute": "1.2*@/1000.0"
         },
         {
           "name": "SMB_ISL_OPTICS_B_TEMP",
@@ -439,7 +439,7 @@
             "upperCriticalVal": 4.125,
             "lowerCriticalVal": 2.475
           },
-          "compute": "@/1000.0"
+          "compute": "1.2@/1000.0"
         }
       ]
     },
