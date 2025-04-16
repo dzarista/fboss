@@ -58,8 +58,8 @@ TEST(ParserTest, GetNameForTests) {
       "darwin48v");
   EXPECT_EQ(
       facebook::fboss::Parser::getNameFor(
-          facebook::fboss::PlatformType::PLATFORM_MERU800BA),
-      "meru800ba");
+          facebook::fboss::PlatformType::PLATFORM_GLATH05A_64O),
+      "glath05a-64o");
 }
 
 TEST(ParserTest, GetTransceiverConfigRowFromCsvLine) {

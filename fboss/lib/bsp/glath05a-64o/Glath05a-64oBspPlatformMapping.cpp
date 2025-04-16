@@ -1,6 +1,6 @@
 // (c) Meta Platforms, Inc. and affiliates. Confidential and proprietary.
 
-#include "fboss/lib/bsp/meru800ba/Meru800baBspPlatformMapping.h"
+#include "fboss/lib/bsp/glath05a-64o/Glath05a-64oBspPlatformMapping.h"
 #include <thrift/lib/cpp2/protocol/Serializer.h>
 #include "fboss/lib/bsp/BspPlatformMapping.h"
 #include "fboss/lib/bsp/gen-cpp2/bsp_platform_mapping_types.h"
@@ -1867,7 +1867,7 @@ constexpr auto kJsonBspPlatformMappingStr = R"(
 }
 )";
 
-static BspPlatformMappingThrift buildMeru800baPlatformMapping(
+static BspPlatformMappingThrift buildGlath05a_64oPlatformMapping(
     const std::string& platformMappingStr) {
   return apache::thrift::SimpleJSONSerializer::deserialize<
       BspPlatformMappingThrift>(platformMappingStr);
@@ -1878,13 +1878,13 @@ static BspPlatformMappingThrift buildMeru800baPlatformMapping(
 namespace facebook {
 namespace fboss {
 
-Meru800baBspPlatformMapping::Meru800baBspPlatformMapping()
+Glath05a_64oBspPlatformMapping::Glath05a_64oBspPlatformMapping()
     : BspPlatformMapping(
-          buildMeru800baPlatformMapping(kJsonBspPlatformMappingStr)) {}
+          buildGlath05a_64oPlatformMapping(kJsonBspPlatformMappingStr)) {}
 
-Meru800baBspPlatformMapping::Meru800baBspPlatformMapping(
+Glath05a_64oBspPlatformMapping::Glath05a_64oBspPlatformMapping(
     const std::string& platformMappingStr)
-    : BspPlatformMapping(buildMeru800baPlatformMapping(platformMappingStr)) {}
+    : BspPlatformMapping(buildGlath05a_64oPlatformMapping(platformMappingStr)) {}
 
 } // namespace fboss
 } // namespace facebook

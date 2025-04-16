@@ -38,12 +38,12 @@ class QuicksilverPFbSCM( SCMFairywren ):
       ] )
 
 class QuicksilverPFbSMB( SMBUnit ):
-   prefixSymlink = 'MERU800BA'
+   prefixSymlink = 'GLATH05A-64O'
 
    def __init__( self ):
       super().__init__( self.prefixSymlink )
 
-      smbFanCpld = FANCpld( "0x60", "meru800ba_fan_cpld", "FAN_CPLD",
+      smbFanCpld = FANCpld( "0x60", "glath05a-64o_fan_cpld", "FAN_CPLD",
                             incomingBusIndex=2 )
       smbFanCpld.addFANRpms( 4, upperCriticalVal=14900.0, lowerCriticalVal=1100.0 )
 
@@ -56,7 +56,7 @@ class QuicksilverPFbSMB( SMBUnit ):
       )
 
 
-      smbCpld = SMBCpld( "0x23", "meru800ba_cpld", "SMB_CPLD", incomingBusIndex=0 )
+      smbCpld = SMBCpld( "0x23", "glath05a-64o_cpld", "SMB_CPLD", incomingBusIndex=0 )
 
       smbFanTmp = Sensor( "0x48", "lm75", "FAN_TMP75", incomingBusIndex=2,
                           # Overtemperature threshold set to match EOS
@@ -244,7 +244,7 @@ class QuicksilverPFbSMB( SMBUnit ):
 
       self.addPciDeviceConfigs( [
          PciDeviceConfig( "SMB_FPGA", "0x3475", "0x0001", "0x3475", "0x0009",
-                         symlinkDeviceName="MERU800BA_SMB_FPGA" )
+                         symlinkDeviceName="GLATH05A-64O_SMB_FPGA" )
       ] )
 
       smbFpga = self.pciDeviceConfigs[ 0 ]
@@ -301,7 +301,7 @@ class QuicksilverPFbSMB( SMBUnit ):
 
 
 class QuicksilverPFb( PlatformConfig ):
-   codename = 'meru800ba'
+   codename = 'glath05a-64o'
 
    def __init__( self ):
       super().__init__( self.codename )

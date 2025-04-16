@@ -16,7 +16,7 @@ const std::string kMeru800bfa = "meru800bfa";
 const std::string kMorgan800cc = "morgan800cc";
 const std::string kJanga800bic = "janga800bic";
 const std::string kTahan800bc = "tahan800bc";
-const std::string kMeru800ba = "meru800ba";
+const std::string kGlath05a_64o = "glath05a-64o";
 const std::string kSample = "sample";
 const std::string kNonExistentPlatform = "nonExistentPlatform";
 } // namespace
@@ -29,7 +29,7 @@ TEST(ConfigLibTest, Basic) {
   EXPECT_NO_THROW(ConfigLib().getSensorServiceConfig(kMorgan800cc));
   EXPECT_NO_THROW(ConfigLib().getSensorServiceConfig(kJanga800bic));
   EXPECT_NO_THROW(ConfigLib().getSensorServiceConfig(kTahan800bc));
-  EXPECT_NO_THROW(ConfigLib().getSensorServiceConfig(kMeru800ba));
+  EXPECT_NO_THROW(ConfigLib().getSensorServiceConfig(kGlath05a_64o));
   EXPECT_THROW(
       ConfigLib().getSensorServiceConfig(kNonExistentPlatform),
       std::out_of_range);
@@ -41,7 +41,7 @@ TEST(ConfigLibTest, Basic) {
   EXPECT_NO_THROW(ConfigLib().getFanServiceConfig(kMorgan800cc));
   EXPECT_NO_THROW(ConfigLib().getFanServiceConfig(kJanga800bic));
   EXPECT_NO_THROW(ConfigLib().getFanServiceConfig(kTahan800bc));
-  EXPECT_NO_THROW(ConfigLib().getSensorServiceConfig(kMeru800ba));
+  EXPECT_NO_THROW(ConfigLib().getSensorServiceConfig(kGlath05a_64o));
   EXPECT_NO_THROW(ConfigLib().getFanServiceConfig(kSample));
   EXPECT_THROW(
       ConfigLib().getFanServiceConfig(kNonExistentPlatform), std::out_of_range);
@@ -54,7 +54,7 @@ TEST(ConfigLibTest, Basic) {
   EXPECT_NO_THROW(ConfigLib().getPlatformManagerConfig(kMorgan800cc));
   EXPECT_NO_THROW(ConfigLib().getPlatformManagerConfig(kJanga800bic));
   EXPECT_NO_THROW(ConfigLib().getPlatformManagerConfig(kTahan800bc));
-  EXPECT_NO_THROW(ConfigLib().getSensorServiceConfig(kMeru800ba));
+  EXPECT_NO_THROW(ConfigLib().getSensorServiceConfig(kGlath05a_64o));
   EXPECT_THROW(
       ConfigLib().getPlatformManagerConfig(kNonExistentPlatform),
       std::out_of_range);
@@ -66,7 +66,7 @@ TEST(ConfigLibTest, Basic) {
   EXPECT_NO_THROW(ConfigLib().getWeutilConfig(kJanga800bic));
   EXPECT_NO_THROW(ConfigLib().getWeutilConfig(kTahan800bc));
   EXPECT_NO_THROW(ConfigLib().getWeutilConfig(kMontblanc));
-  EXPECT_NO_THROW(ConfigLib().getSensorServiceConfig(kMeru800ba));
+  EXPECT_NO_THROW(ConfigLib().getSensorServiceConfig(kGlath05a_64o));
   EXPECT_THROW(
       ConfigLib().getWeutilConfig(kNonExistentPlatform), std::out_of_range);
 
@@ -76,14 +76,14 @@ TEST(ConfigLibTest, Basic) {
   EXPECT_NO_THROW(ConfigLib().getFwUtilConfig(kMeru800bia));
   EXPECT_NO_THROW(ConfigLib().getFwUtilConfig(kJanga800bic));
   EXPECT_NO_THROW(ConfigLib().getFwUtilConfig(kTahan800bc));
-  EXPECT_NO_THROW(ConfigLib().getSensorServiceConfig(kMeru800ba));
+  EXPECT_NO_THROW(ConfigLib().getSensorServiceConfig(kGlath05a_64o));
   EXPECT_THROW(
       ConfigLib().getFwUtilConfig(kNonExistentPlatform), std::out_of_range);
 
   // LedManager Configs
   EXPECT_NO_THROW(ConfigLib().getLedManagerConfig(kDarwin));
   EXPECT_NO_THROW(ConfigLib().getLedManagerConfig(kMorgan800cc));
-  EXPECT_NO_THROW(ConfigLib().getLedManagerConfig(kMeru800ba));
+  EXPECT_NO_THROW(ConfigLib().getLedManagerConfig(kGlath05a_64o));
   EXPECT_THROW(
       ConfigLib().getLedManagerConfig(kNonExistentPlatform), std::out_of_range);
 }

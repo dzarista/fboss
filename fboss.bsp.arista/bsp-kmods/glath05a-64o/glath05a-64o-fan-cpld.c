@@ -26,7 +26,7 @@
 #include <linux/watchdog.h>
 #include <linux/version.h>
 
-#define DRIVER_NAME "meru800ba-fan-cpld"
+#define DRIVER_NAME "glath05a-64o-fan-cpld"
 
 #define LED_NAME_MAX_SZ 20
 #define FAN_LED_COUNT 2
@@ -949,7 +949,7 @@ static void cpld_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id cpld_id[] = {
-		{ "meru800ba_fan_cpld", PALI2_CPLD },
+		{ "glath05a-64o_fan_cpld", PALI2_CPLD },
 						{} };
 MODULE_DEVICE_TABLE(i2c, cpld_id);
 

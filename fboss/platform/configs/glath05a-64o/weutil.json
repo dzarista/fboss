@@ -6,7 +6,7 @@
       "offset": 15360
     },
     "SMB": {
-      "path": "/run/devmap/eeproms/MERU800BA_SMB_EEPROM",
+      "path": "/run/devmap/eeproms/GLATH05A-64O_SMB_EEPROM",
       "offset": 15360
     }
   }

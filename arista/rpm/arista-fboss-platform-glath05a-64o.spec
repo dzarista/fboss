@@ -1,13 +1,13 @@
-Name: arista-fboss-platform-meru800ba
+Name: arista-fboss-platform-glath05a-64o
 Version: 1
 Release: 1%{?dist}
-Summary: Arista FBOSS OSS Meru800ba Platform Utilities
+Summary: Arista FBOSS OSS Glath05a-64o Platform Utilities
 Requires: arista-fboss-core
 
 License: GPLv2
 URL: https://github.com/aristanetworks/arista-fboss
 
-%define _fboss_meru800ba_dir %{_fboss_dir}/arista/platform/meru800ba
+%define _fboss_glath05a_64o_dir %{_fboss_dir}/arista/platform/glath05a-64o
 %define _fboss_config_dir %{_fboss_dir}/fboss/platform/configs
 
 %define _fboss_target_share %{buildroot}/opt/fboss/share
@@ -15,7 +15,7 @@ URL: https://github.com/aristanetworks/arista-fboss
 
 %description
 This package provides platform-specific utilities to run Meta FBOSS OSS on Arista
-Meru800ba (QuicksilverPFb) switches.
+Glath05a_64o (QuicksilverPFb) switches.
 
 %install
 mkdir -p %{_fboss_target_share}
