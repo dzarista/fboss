@@ -204,7 +204,7 @@ class QuicksilverPFbSMB( SMBUnit ):
                           upperCriticalVal=15.0, lowerCriticalVal=9.0
                        ) ),
          SensorConfig( "ISL_OPTICS_A_VOUT_3V3", "in3_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
+                       compute="1.2*@/1000.0",
                        thresholds=Thresholds(
                           upperCriticalVal=4.125, lowerCriticalVal=2.475
                        ) )
@@ -223,7 +223,7 @@ class QuicksilverPFbSMB( SMBUnit ):
                           upperCriticalVal=15.0, lowerCriticalVal=9.0
                        ) ),
          SensorConfig( "ISL_OPTICS_B_VOUT_3V3", "in3_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
+                       compute="1.2@/1000.0",
                        thresholds=Thresholds(
                           upperCriticalVal=4.125, lowerCriticalVal=2.475
                        ) )
