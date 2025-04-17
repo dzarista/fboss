@@ -58,7 +58,10 @@ usage() {
    echo
    echo "  run_sw_tests: Run software breath tests inside container (requires prior successful build)"
    echo
-   echo "  bsp_mapping_gen: Generate bsp mapping configs based on CSV files under fboss/lib/bsp/bspmapping/input/"
+   echo "  bsp_mapping_gen: Generate bsp mapping config based on CSV files under fboss/lib/bsp/bspmapping/input/"
+   echo
+   echo "  platform_mapping_gen: Generate platform mapping config based on CSV files under arista/platform/<platform>/config"
+   echo "    e.g. ./fbossctl platform_mapping_gen meru800bia"
    echo
    echo "  clean: Cleanup the FBOSS build environment"
    echo
@@ -184,6 +187,7 @@ setup() {
    cp -f "${FBOSS_REPO_DIR}"/arista/build-utils/package.sh "${FBOSS_HOST_DIR}"
    cp -f "${FBOSS_REPO_DIR}"/arista/core/scripts/run_sw_tests.sh "${FBOSS_HOST_DIR}"
    cp -f "${FBOSS_REPO_DIR}"/arista/util/bsp-mapping-gen/bspMappingGen.sh "${FBOSS_HOST_DIR}"
+   cp -f "${FBOSS_REPO_DIR}"/arista/util/platform-mapping-gen/platformMappginGen.sh "${FBOSS_HOST_DIR}"
 }
 
 run_cmd_container() {
@@ -253,6 +257,11 @@ do_bsp_mapping_gen() {
     run_cmd_container bash bspMappingGen.sh
 }
 
+do_platform_mapping_gen() {
+    setup
+    run_cmd_container bash platformMappginGen.sh $1
+}
+
 if [[ $# -lt 1 ]]; then
     usage
     exit 1
@@ -282,6 +291,9 @@ case "${command}" in
       ;;
    bsp_mapping_gen)
       do_bsp_mapping_gen
+      ;;
+   platform_mapping_gen)
+      do_platform_mapping_gen $1
       ;;
    *)
       usage

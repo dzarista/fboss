@@ -24,7 +24,8 @@ cp "$BSPMAPPING_GEN" /tmp/fbcode_builder_getdeps-ZvarZFBOSSZfboss.gitZbuildZfbco
 cd /var/FBOSS/fboss.git
 ./fboss/lib/bsp/bspmapping/run-helper.py
 
-cp -rf /tmp/generated_configs $FBOSS_DIR/fboss.git/tmp/
+mkdir -p $FBOSS_DIR/fboss.git/tmp/generated_bsp_mappings
+cp -rf /tmp/generated_configs $FBOSS_DIR/fboss.git/tmp/generated_bsp_mappings
 
 echo "Mapping files generated successfully"
-echo "See configs located under tmp/generated_configs"
+echo "See configs located under tmp/generated_bsp_mappings"

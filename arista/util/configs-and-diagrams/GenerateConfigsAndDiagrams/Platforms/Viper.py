@@ -220,7 +220,7 @@ class ViperSMB( SMBUnit ):
                            upperCriticalVal=14.4, lowerCriticalVal=9.6
                        ) ),
          SensorConfig( "VRM3_VOUT_OPTICS_3V3", "in3_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
+                       compute="1.2*@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=3.96, lowerCriticalVal=2.64
                        ) ),
@@ -345,6 +345,3 @@ class Viper( PlatformConfig ):
 
       for pmConfig in self.pmUnitConfigs:
          pmConfig.populateSymlinkToDevicePaths()
-
-class ViperB0( Viper ):
-    codename = 'meru800biab'
