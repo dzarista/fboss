@@ -3,6 +3,7 @@
 
 import os
 import re
+import pathlib
 
 def checkFilenameFormat(fileName, platformName):
    """
@@ -107,7 +108,8 @@ def processSubdirectoriesFromList(parentDirectory, subdirectoryNames):
       print(f"Error accessing directory '{parentDirectory}': {e}")
 
 if __name__ == "__main__":
-   subtreeRoot = "/arista-fboss-apr-16/arista-fboss/fboss.bsp.arista"
+   scriptDir = pathlib.Path(__file__).resolve().parent
+   subtreeRoot = os.path.join(scriptDir, "..", "..", "fboss.bsp.arista")
    platformList = ["meru800bia", "meru800bfa"]
 
    processSubdirectoriesFromList(subtreeRoot, platformList)
