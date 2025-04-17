@@ -1,11 +1,18 @@
 # Copyright (c) 2025 Arista Networks, Inc.  All rights reserved.
 # Arista Networks, Inc. Confidential and Proprietary.
 
+"""
+Unit test to verify nomenclature for firmware image files.
+The test examines all the firmware images in the latest firmware package
+for the platforms listed in platformList to verify the firmware image file names
+match the format P_platform_F_target_V_version.
+"""
+
 import os
 import re
 import pathlib
 
-def checkFilenameFormat(fileName, platformName):
+def checkFilenameFormat( fileName, platformName ):
    """
    Checks if a filename matches the format:
    P_<platformName>_F_*_V_*.*
@@ -18,10 +25,10 @@ def checkFilenameFormat(fileName, platformName):
       bool: True if the filename matches the format, False otherwise.
    """
    pattern = rf"^P_{re.escape(platformName)}_F_.+_V_.+\..+$"
-   match = re.match(pattern, fileName)
-   return bool(match)
+   match = re.match( pattern, fileName )
+   return bool( match )
 
-def getPackagePath(parentDirectory):
+def getPackagePath( parentDirectory ):
    """
    Finds the subdirectory named 'package_n' with the largest integer 'n'
    within the given parent directory and returns its full path.
@@ -38,28 +45,22 @@ def getPackagePath(parentDirectory):
    largestN = -1
    packageNPath = None
 
-   try:
-      for item in os.listdir(parentDirectory):
-         item_path = os.path.join(parentDirectory, item)
-         if os.path.isdir(item_path) and item.startswith("package_"):
-            try:
-               nValue = int(item.split("_")[1])
-               if nValue > largestN:
-                  largestN = nValue
-                  packageNPath = item_path
-            except ValueError:
-               # Ignore items that start with "package_" but don't have a valid integer suffix
-               pass
-   except FileNotFoundError:
-      print(f"Error: Parent directory '{parentDirectory}' not found.")
-      return None
-   except OSError as e:
-      print(f"Error accessing directory '{parentDirectory}': {e}")
-      return None
+   for item in os.listdir( parentDirectory ):
+      item_path = os.path.join( parentDirectory, item )
+      if os.path.isdir( item_path ) and item.startswith( "package_" ):
+         try:
+            nValue = int( item.split( "_" )[ 1 ] )
+            if nValue > largestN:
+               largestN = nValue
+               packageNPath = item_path
+         except ValueError as e:
+            # Subdirectory starts with "package_",
+            # but doesn't have a valid integer suffix
+            raise Exception( f"Encountered unexpected directory - {item}" ) from e
 
    return packageNPath
 
-def processSubdirectoriesFromList(parentDirectory, subdirectoryNames):
+def processSubdirectoriesFromList( parentDirectory, subdirectoryNames ):
    """
    Iteratively visits each subdirectory in the provided list (which are
    assumed to be within the parent directory) and verify the firmware image
@@ -70,46 +71,36 @@ def processSubdirectoriesFromList(parentDirectory, subdirectoryNames):
                               the subdirectories.
       subdirectoryNames (list): A list of subdirectory names (strings).
    """
-   try:
-      if not os.path.isdir(parentDirectory):
-         print(f"Error: Parent directory '{parentDirectory}' not found or is not a directory.")
-         return
+   if not os.path.isdir( parentDirectory ):
+      raise Exception( f"Error: Parent directory '{parentDirectory}' "
+                       "not found or is not a directory." )
 
-      print(f"Processing subdirectories from the list within: {parentDirectory}")
+   for subdirName in subdirectoryNames:
+      intermediatePath = os.path.join( parentDirectory, subdirName, "firmware" )
+      subdirectoryPath = getPackagePath( intermediatePath )
+      if subdirectoryPath is None:
+         continue
 
-      for subdirName in subdirectoryNames:
-         intermediatePath = os.path.join(parentDirectory, subdirName, "firmware")
-         subdirectoryPath = getPackagePath(intermediatePath)
-         if subdirectoryPath is None:
-            continue
+      if os.path.isdir( subdirectoryPath ):
+         print( f"\n{subdirName} firmware images:" )
+         filesInSubdir = os.listdir( subdirectoryPath )
+         onlyFiles = [ item for item in filesInSubdir
+                      if os.path.isfile( os.path.join( subdirectoryPath, item ) ) ]
 
-         if os.path.isdir(subdirectoryPath):
-            print(f"\nFiles in subdirectory: {subdirName}")
-            try:
-               filesInSubdir = os.listdir(subdirectoryPath)
-               onlyFiles = [item for item in filesInSubdir if os.path.isfile(os.path.join(subdirectoryPath, item))]
-
-               if onlyFiles:
-                  for fileName in onlyFiles:
-                     print(f"  - {fileName}")
-                     if fileName == "README.md":
-                        continue;
-                     if not checkFilenameFormat(fileName, subdirName):
-                        raise Exception( f"File name ({fileName}) not following the naming convention" )
-               else:
-                  print("  No files found in this subdirectory.")
-
-            except OSError as e:
-               print(f"Error accessing subdirectory '{subdirName}': {e}")
-         else:
-            print(f"Warning: Subdirectory '{subdirName}' not found or is not a directory within '{parentDirectory}'.")
-
-   except OSError as e:
-      print(f"Error accessing directory '{parentDirectory}': {e}")
+         for fileName in onlyFiles:
+            if fileName == "README.md":
+               continue
+            print( f"  - {fileName}" )
+            if not checkFilenameFormat( fileName, subdirName ):
+               raise Exception( f"File name ({fileName}) "
+                                 "not following the naming convention" )
+      else:
+         raise Exception( f"Warning: Subdirectory '{subdirName}' not found or "
+                          "is not a directory within '{parentDirectory}'." )
 
 if __name__ == "__main__":
-   scriptDir = pathlib.Path(__file__).resolve().parent
-   subtreeRoot = os.path.join(scriptDir, "..", "..", "fboss.bsp.arista")
-   platformList = ["meru800bia", "meru800bfa"]
+   scriptDir = pathlib.Path( __file__ ).resolve().parent
+   subtreeRoot = os.path.join( scriptDir, "..", "..", "fboss.bsp.arista" )
+   platformList = [ "meru800bia", "meru800bfa" ]
 
-   processSubdirectoriesFromList(subtreeRoot, platformList)
+   processSubdirectoriesFromList( subtreeRoot, platformList )
