@@ -62,8 +62,8 @@ def getPackagePath(parentDirectory):
 def processSubdirectoriesFromList(parentDirectory, subdirectoryNames):
    """
    Iteratively visits each subdirectory in the provided list (which are
-   assumed to be within the parent directory) and prints the names of
-   all files found within them.
+   assumed to be within the parent directory) and verify the firmware image
+   naming convention in the latest firmware package within the subdirectory.
 
    Args:
       parentDirectory (str): The path to the directory containing
