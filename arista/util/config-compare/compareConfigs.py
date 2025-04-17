@@ -22,7 +22,7 @@ def load_json(file_path):
         print(f"Error loading {file_path}: {e}", file=sys.stderr)
         return None
 
-def get_json_files(base_path, platform_filter=None, config_filter=None):
+def get_json_files(base_path, workspace_path=DEFAULT_LOCAL_REPO, platform_filter=None, config_filter=None):
     configs_path = Path(base_path) / CONFIG_DIR
     if not configs_path.exists():
         print(f"Directory not found: {configs_path}", file=sys.stderr)
@@ -37,7 +37,7 @@ def get_json_files(base_path, platform_filter=None, config_filter=None):
         root_path = Path(root)
         try:
             platform_dir = root_path.relative_to(configs_path).parts[0].lower()
-            arista_platforms_path = Path(DEFAULT_LOCAL_REPO) / "arista/platform"
+            arista_platforms_path = Path(workspace_path) / "arista/platform"
             if not (arista_platforms_path / platform_dir).is_dir():
                continue
             if platform_filter and ((platform_is_prefix and not platform_dir.startswith(platform_filter.lower())) or
@@ -167,7 +167,7 @@ def main():
 
     local_repo_path = args.workspace if args.workspace else DEFAULT_LOCAL_REPO
 
-    local_files = get_json_files(local_repo_path, args.platform, args.config)
+    local_files = get_json_files(local_repo_path, local_repo_path, args.platform, args.config)
 
     if args.platform or args.config:
         filters = []
@@ -182,7 +182,7 @@ def main():
         subprocess.run(["git", "clone", UPSTREAM_REPO_URL, upstream_temp_dir], check=True,
                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-        upstream_files = get_json_files(upstream_temp_dir, args.platform, args.config)
+        upstream_files = get_json_files(upstream_temp_dir, local_repo_path, args.platform, args.config)
         common_files = set(local_files) & set(upstream_files)
 
         if not common_files:
