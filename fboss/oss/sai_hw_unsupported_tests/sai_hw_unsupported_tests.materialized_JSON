@@ -2244,7 +2244,7 @@
           "test_name_regex": "HwAsicDefaultProgrammingTest.*$"
         }
     ],
-    "chenab/1.15.3/1.15.3/chenab": [
+    "chenab/1.15.7/1.15.7/chenab": [
         {
           "test_name_regex": "roundtrip.trunk_2_preprod_2_trunk.*HwTest_PROFILE_400G_8_PAM4_RS544X2N_COPPER"
         },
@@ -2265,33 +2265,6 @@
         },
         {
           "test_name_regex": "roundtrip.preprod_2_trunk_2_preprod.*AgentPacketSendTest.PortTxEnableTest"
-        },
-        {
-          "test_name_regex": "HwFlowletAclCounterTest.*$"
-        },
-        {
-          "test_name_regex": "HwFlowletSwitching.*$"
-        },
-        {
-          "test_name_regex": "HwEcmpFlowletSwitching.*$"
-        },
-        {
-          "test_name_regex": "HwLoadBalancerTestV6Flowlet.*$"
-        },
-        {
-          "test_name_regex": "HwLoadBalancerTestV6EcmpToFlowlet.*$"
-        },
-        {
-          "test_name_regex": "AgentFlowletSwitchingTest.*$"
-        },
-        {
-          "test_name_regex": "HwTeFlowTest.*$"
-        },
-        {
-          "test_name_regex": "HwTeFlowTrafficTest.*$"
-        },
-        {
-          "test_name_regex": "HwUdfAcl.*$"
         },
         {
           "test_name_regex": "HwLabelEdgeRouteTest.*"

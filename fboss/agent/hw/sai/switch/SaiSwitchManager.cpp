@@ -234,7 +234,6 @@ SaiSwitchManager::SaiSwitchManager(
     std::optional<int64_t> switchId)
     : managerTable_(managerTable), platform_(platform) {
   int64_t swId = switchId.value_or(0);
-  switchPreInitSequence(platform->getAsic());
   if (bootType == BootType::WARM_BOOT) {
     // Extract switch adapter key and create switch only with the mandatory
     // init attribute (warm boot path)
@@ -312,7 +311,7 @@ SaiSwitchManager::SaiSwitchManager(
   // switch create.
   CHECK(firmwareObjectList.size() == 0 || firmwareObjectList.size() == 1);
   if (firmwareObjectList.size() == 1) {
-    firmwareSaiId = *firmwareObjectList.begin();
+    firmwareSaiId_ = *firmwareObjectList.begin();
 
     auto firmwareVersion = getFirmwareVersion();
     CHECK(firmwareVersion.has_value());
@@ -321,7 +320,7 @@ SaiSwitchManager::SaiSwitchManager(
     platform_->getHwSwitch()->getSwitchStats()->isolationFirmwareVersion(
         firmwareVersionInt);
 
-    XLOG(DBG2) << "Firmware OID: " << firmwareSaiId.value()
+    XLOG(DBG2) << "Firmware OID: " << firmwareSaiId_.value()
                << " Firmware Version: " << firmwareVersion.value()
                << " Firmware Version Int: " << firmwareVersionInt;
   }
@@ -528,12 +527,14 @@ void SaiSwitchManager::addOrUpdateEcmpLoadBalancer(
           v4EcmpHashFields.transportFields()->insert(entry->cref());
         });
 
-    ecmpV4Hash_ =
+    auto hash =
         managerTable_->hashManager().getOrCreate(v4EcmpHashFields, udfGroupIds);
 
     // Set the new ecmp v4 hash attribute on switch obj
     setLoadBalancer<SaiSwitchTraits::Attributes::EcmpHashV4>(
-        ecmpV4Hash_, programmedLoadBalancer);
+        hash, programmedLoadBalancer);
+
+    ecmpV4Hash_ = std::move(hash);
   }
   if (newLb->getIPv6Fields().begin() != newLb->getIPv6Fields().end()) {
     // v6 ECMP
@@ -554,12 +555,14 @@ void SaiSwitchManager::addOrUpdateEcmpLoadBalancer(
         [&v6EcmpHashFields](const auto& entry) {
           v6EcmpHashFields.transportFields()->insert(entry->cref());
         });
-    ecmpV6Hash_ =
+    auto hash =
         managerTable_->hashManager().getOrCreate(v6EcmpHashFields, udfGroupIds);
 
     // Set the new ecmp v6 hash attribute on switch obj
     setLoadBalancer<SaiSwitchTraits::Attributes::EcmpHashV6>(
-        ecmpV6Hash_, programmedLoadBalancer);
+        hash, programmedLoadBalancer);
+
+    ecmpV6Hash_ = std::move(hash);
   }
 }
 
@@ -1293,6 +1296,21 @@ void SaiSwitchManager::setRemoteL2VoqMaxExpectedLatency(
 #endif
 }
 
+std::optional<FirmwareFuncStatus> SaiSwitchManager::getFirmwareFuncStatus()
+    const {
+#if defined(BRCM_SAI_SDK_DNX_GTE_12_0)
+  if (firmwareSaiId_.has_value()) {
+    auto funcStatus = SaiApiTable::getInstance()->firmwareApi().getAttribute(
+        firmwareSaiId_.value(),
+        SaiFirmwareTraits::Attributes::FunctionalStatus{});
+    return saiFirmwareFuncStatusToFirmwareFuncStatus(
+        static_cast<sai_firmware_func_status_t>(funcStatus));
+  }
+#endif
+
+  return std::nullopt;
+}
+
 void SaiSwitchManager::setVoqOutOfBoundsLatency(int voqOutOfBoundsLatency) {
 #if defined(BRCM_SAI_SDK_DNX_GTE_11_0)
   switch_->setOptionalAttribute(
@@ -1308,9 +1326,9 @@ void SaiSwitchManager::setVoqOutOfBoundsLatency(int voqOutOfBoundsLatency) {
 
 std::optional<std::string> SaiSwitchManager::getFirmwareVersion() const {
 #if defined(BRCM_SAI_SDK_DNX_GTE_12_0)
-  if (firmwareSaiId.has_value()) {
+  if (firmwareSaiId_.has_value()) {
     auto version = SaiApiTable::getInstance()->firmwareApi().getAttribute(
-        firmwareSaiId.value(), SaiFirmwareTraits::Attributes::Version{});
+        firmwareSaiId_.value(), SaiFirmwareTraits::Attributes::Version{});
     return std::string(version.begin(), version.end());
   }
 #endif
@@ -1320,9 +1338,9 @@ std::optional<std::string> SaiSwitchManager::getFirmwareVersion() const {
 
 std::optional<FirmwareOpStatus> SaiSwitchManager::getFirmwareOpStatus() const {
 #if defined(BRCM_SAI_SDK_DNX_GTE_12_0)
-  if (firmwareSaiId.has_value()) {
+  if (firmwareSaiId_.has_value()) {
     auto opStatus = SaiApiTable::getInstance()->firmwareApi().getAttribute(
-        firmwareSaiId.value(), SaiFirmwareTraits::Attributes::OpStatus{});
+        firmwareSaiId_.value(), SaiFirmwareTraits::Attributes::OpStatus{});
     return saiFirmwareOpStatusToFirmwareOpStatus(
         static_cast<sai_firmware_op_status_t>(opStatus));
   }

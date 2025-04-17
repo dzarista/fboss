@@ -110,8 +110,7 @@ std::vector<sai_int32_t> SaiAclTableManager::getActionTypeList(
       actionTypeList.push_back(SAI_ACL_ACTION_TYPE_SET_USER_TRAP_ID);
     }
 #if SAI_API_VERSION >= SAI_VERSION(1, 14, 0)
-    if (platform_->getAsic()->isSupported(HwAsic::Feature::ARS) &&
-        FLAGS_flowletSwitchingEnable) {
+    if (platform_->getAsic()->isSupported(HwAsic::Feature::ARS)) {
       if (isChenab) {
         actionTypeList.push_back(SAI_ACL_ACTION_TYPE_SET_ARS_OBJECT);
       }
@@ -151,6 +150,14 @@ std::
   SaiAclTableTraits::Attributes::Stage tableStage = aclStage;
 
   auto actionTypeList = getActionTypeList(addedAclTable);
+
+  // Log action type list to help debug warmboot test failure
+  // TODO(maxgg): Remove when no longer needed
+  std::stringstream actionTypeStr;
+  for (sai_int32_t actionType : actionTypeList) {
+    actionTypeStr << actionType << ", ";
+  }
+  XLOG(DBG2) << "actionTypeList: " << actionTypeStr.str();
 
   auto qualifierSet = getQualifierSet(aclStage, addedAclTable);
   auto qualifierExistsFn = [=](cfg::AclTableQualifier qualifier) {

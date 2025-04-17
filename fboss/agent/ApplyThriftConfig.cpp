@@ -1210,6 +1210,7 @@ void ThriftConfigApplier::processUpdatedDsfNodes() {
     sysPort->setShelDestinationEnabled(
         cfg_->switchSettings()->selfHealingEcmpLagConfig().has_value());
     sysPort->resetPortQueues(getVoqConfig(localInbandPortId));
+    sysPort->setPortType(cfg::PortType::RECYCLE_PORT);
     if (auto dataPlaneTrafficPolicy = cfg_->dataPlaneTrafficPolicy()) {
       if (auto portIdToQosPolicy =
               dataPlaneTrafficPolicy->portIdToQosPolicy()) {
@@ -1765,6 +1766,7 @@ shared_ptr<SystemPortMap> ThriftConfigApplier::updateSystemPorts(
           cfg_->switchSettings()->selfHealingEcmpLagConfig().has_value() &&
           port.second->getPortType() == cfg::PortType::RECYCLE_PORT &&
           port.second->getScope() == cfg::Scope::GLOBAL);
+      sysPort->setPortType(port.second->getPortType());
       sysPorts->addSystemPort(std::move(sysPort));
     }
   }
@@ -4338,6 +4340,8 @@ ThriftConfigApplier::createFlowletSwitchingConfig(
       *config.dynamicPhysicalQueueExponent());
   newFlowletSwitchingConfig->setMaxLinks(*config.maxLinks());
   newFlowletSwitchingConfig->setSwitchingMode(*config.switchingMode());
+  newFlowletSwitchingConfig->setBackupSwitchingMode(
+      *config.backupSwitchingMode());
   return newFlowletSwitchingConfig;
 }
 

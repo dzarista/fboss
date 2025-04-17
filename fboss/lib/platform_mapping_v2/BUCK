@@ -32,7 +32,6 @@ python_library(
         ":si_settings",
         ":static_mapping",
         "//fboss/agent:platform_config-py-deprecated",
-        "//fboss/agent:switch_config-py-deprecated",
         "//fboss/lib/phy:phy-py-deprecated",
     ],
 )
@@ -46,7 +45,7 @@ thrift_library(
         "py-deprecated",
         "py3-deprecated",
         "python",
-        "py-asyncio",
+        "py-deprecated-asyncio",
         "cpp2",
     ],
     py3_namespace = "neteng.fboss",

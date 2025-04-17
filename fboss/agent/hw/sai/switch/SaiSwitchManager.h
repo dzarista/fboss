@@ -17,7 +17,6 @@
 #include "fboss/agent/hw/sai/store/SaiStore.h"
 #include "fboss/agent/hw/sai/switch/SaiHashManager.h"
 #include "fboss/agent/hw/sai/switch/SaiQosMapManager.h"
-#include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include "fboss/agent/types.h"
 
 #include <folly/MacAddress.h>
@@ -124,6 +123,11 @@ class SaiSwitchManager {
 
   std::optional<std::string> getFirmwareVersion() const;
   std::optional<FirmwareOpStatus> getFirmwareOpStatus() const;
+  std::optional<FirmwareFuncStatus> getFirmwareFuncStatus() const;
+
+  bool isFirmwareEnabled() const {
+    return firmwareSaiId_.has_value();
+  }
 
  private:
   void programEcmpLoadBalancerParams(
@@ -178,7 +182,7 @@ class SaiSwitchManager {
   HwSwitchDropStats switchDropStats_;
   HwSwitchWatermarkStats switchWatermarkStats_;
 
-  std::optional<FirmwareSaiId> firmwareSaiId;
+  std::optional<FirmwareSaiId> firmwareSaiId_;
 };
 
 void fillHwSwitchDramStats(
@@ -194,5 +198,4 @@ void fillHwSwitchErrorStats(
     const folly::F14FastMap<sai_stat_id_t, uint64_t>& counterId2Value,
     HwSwitchDropStats& switchDropStats);
 void publishSwitchWatermarks(HwSwitchWatermarkStats& watermarkStats);
-void switchPreInitSequence(HwAsic* asic);
 } // namespace facebook::fboss

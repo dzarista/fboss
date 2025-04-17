@@ -19,6 +19,10 @@ DEFINE_bool(
     skip_stop_pfc_test_traffic,
     false,
     "Skip stopping traffic after traffic test!");
+DEFINE_int32(
+    num_packets_to_trigger_pfc,
+    0,
+    "Overrides the number of packets to send");
 
 namespace {
 
@@ -113,9 +117,9 @@ void validateBufferPoolWatermarkCounters(
     facebook::fboss::AgentEnsemble* ensemble,
     const int /* pri */,
     const std::vector<facebook::fboss::PortID>& portIds) {
-  uint64_t globalHeadroomWatermark{};
-  uint64_t globalSharedWatermark{};
   WITH_RETRIES({
+    uint64_t globalHeadroomWatermark{};
+    uint64_t globalSharedWatermark{};
     ensemble->getSw()->updateStats();
     for (const auto& [switchIdx, stats] :
          ensemble->getSw()->getHwSwitchStatsExpensive()) {
@@ -171,7 +175,7 @@ void validateIngressPriorityGroupWatermarkCounters(
       auto regex = folly::sformat(
           "buffer_watermark_pg_({}).{}{}.p100.60", watermarkKeys, portName, pg);
       auto counters = facebook::fb303::fbData->getRegexCounters(regex);
-      CHECK_EQ(counters.size(), numKeys);
+      EXPECT_EVENTUALLY_EQ(counters.size(), numKeys);
       for (const auto& ctr : counters) {
         XLOG(DBG0) << ctr.first << " : " << ctr.second;
         EXPECT_EVENTUALLY_GT(ctr.second, 0);
@@ -394,13 +398,18 @@ class AgentTrafficPfcTest : public AgentHwTest {
       const std::optional<uint8_t> queue,
       const std::vector<PortID>& portIds,
       const std::vector<folly::IPAddressV6>& ips) {
-    auto vlanId = utility::firstVlanIDWithPorts(getProgrammedState());
+    auto vlanId = getVlanIDForTx();
     auto intfMac = getIntfMac();
     auto srcMac = utility::MacAddressGenerator().get(intfMac.u64NBO() + 1);
     // pri = 7 => dscp 56
     int dscp = priority * 8;
     int numPacketsPerFlow = getAgentEnsemble()->getMinPktsForLineRate(
         masterLogicalInterfacePortIds()[0]);
+    if (FLAGS_num_packets_to_trigger_pfc > 0) {
+      numPacketsPerFlow = FLAGS_num_packets_to_trigger_pfc;
+    }
+
+    XLOG(INFO) << "Sending " << numPacketsPerFlow << " packets per flow";
     // Some asics (e.g. Yuba) won't let traffic build up evenly if all packets
     // were sent to one port before another. It's better to alternate the ports.
     for (int i = 0; i < numPacketsPerFlow; i++) {

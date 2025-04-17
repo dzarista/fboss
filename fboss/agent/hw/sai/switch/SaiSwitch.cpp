@@ -2085,20 +2085,21 @@ void SaiSwitch::updateRsInfo(
 const std::map<PortID, FabricEndpoint>& SaiSwitch::getFabricConnectivity()
     const {
   std::lock_guard<std::mutex> lock(saiSwitchMutex_);
-  return getFabricConnectivityLocked();
+  return getFabricConnectivityLocked(lock);
 }
 
-const std::map<PortID, FabricEndpoint>& SaiSwitch::getFabricConnectivityLocked()
-    const {
+const std::map<PortID, FabricEndpoint>& SaiSwitch::getFabricConnectivityLocked(
+    const std::lock_guard<std::mutex>& lock) const {
   return fabricConnectivityManager_->getConnectivityInfo();
 }
 
 std::vector<PortID> SaiSwitch::getSwitchReachability(SwitchID switchId) const {
   std::lock_guard<std::mutex> lock(saiSwitchMutex_);
-  return getSwitchReachabilityLocked(switchId);
+  return getSwitchReachabilityLocked(lock, switchId);
 }
 
 std::vector<PortID> SaiSwitch::getSwitchReachabilityLocked(
+    const std::lock_guard<std::mutex>& lock,
     SwitchID switchId) const {
   return managerTable_->portManager().getFabricReachabilityForSwitch(switchId);
 }
@@ -2466,6 +2467,13 @@ void SaiSwitch::txReadyStatusChangeOrFwIsolateCallbackBottomHalf(
 
   callback_->linkActiveStateChangedOrFwIsolated(
       port2IsActive, fwIsolated, numActiveFabricPortsAtFwIsolate);
+
+  // Forcing a switch reachability get from SAI/SDK once port
+  // active state change handling is complete to ensure the
+  // switch reachability data is consistent with port active
+  // state which is still an issue in S486672.
+  // TODO: Remove this once root cause of mismatch is identified.
+  setSwitchReachabilityChangePending();
 #endif
 }
 
@@ -2547,15 +2555,23 @@ void SaiSwitch::setSwitchReachabilityChangePending() {
 
 std::map<SwitchID, std::set<PortID>> SaiSwitch::getSwitchReachabilityChange() {
   std::map<SwitchID, std::set<PortID>> reachabilityInfo{};
-
   auto& switchApi = SaiApiTable::getInstance()->switchApi();
 
+  int interfaceNodeCount{0};
+  int reachableSwitchCount{0};
   // There is only one DSF Node map for the given SwitchID.
   // Thus, the 'outer for loop' runs only once and reachabilityInfo values are
   // never overwritten in below loops.
   for (const auto& [_, dsfNodes] :
        std::as_const(*getProgrammedState()->getDsfNodes())) {
     for (const auto& [switchId, node] : std::as_const(*dsfNodes)) {
+      if (*node->toThrift().type() != cfg::DsfNodeType::INTERFACE_NODE) {
+        // Switch reachability is only to interface nodes destinations
+        reachabilityInfo[SwitchID(switchId)] = std::set<PortID>();
+        continue;
+      }
+      // Keep track of the number of interface nodes
+      interfaceNodeCount++;
       auto maxFabricPorts =
           getMaxNumberOfFabricPorts(*node->toThrift().asicType());
       std::vector<sai_object_id_t> output(maxFabricPorts + 1);
@@ -2568,11 +2584,18 @@ std::map<SwitchID, std::set<PortID>> SaiSwitch::getSwitchReachabilityChange() {
           saiSwitchId_,
           SaiSwitchTraits::Attributes::FabricRemoteReachablePortList{output});
       CHECK_EQ(switchIdAndFabricPortSaiIds.at(0), switchId);
-      reachabilityInfo[SwitchID(switchId)] =
+      auto reachablePortIds =
           getFabricReachabilityPortIds(switchIdAndFabricPortSaiIds);
+      if (reachablePortIds.size()) {
+        reachableSwitchCount++;
+      }
+      reachabilityInfo[SwitchID(switchId)] = std::move(reachablePortIds);
     }
   }
-
+  XLOG(DBG2) << "Got switch reachability from SDK, " << reachableSwitchCount
+             << " switches reachable, "
+             << (interfaceNodeCount - reachableSwitchCount)
+             << " switches unreachable!";
   return reachabilityInfo;
 }
 
@@ -4640,4 +4663,31 @@ bool SaiSwitch::processVlanUntaggedPackets() const {
       (getSwitchType() == cfg::SwitchType::VOQ ||
        getSwitchType() == cfg::SwitchType::FABRIC);
 }
+
+std::vector<FirmwareInfo> SaiSwitch::getAllFirmwareInfo() const {
+  // Firmware is not supported/configured on all Platforms.
+  // The platforms that support Firmware, support only single
+  // Firmware today.
+  std::lock_guard<std::mutex> lock(saiSwitchMutex_);
+  if (managerTable_->switchManager().isFirmwareEnabled()) {
+    FirmwareInfo firmwareInfo;
+
+    auto version = managerTable_->switchManager().getFirmwareVersion();
+    CHECK(version.has_value());
+    firmwareInfo.version() = version.value();
+
+    auto opStatus = managerTable_->switchManager().getFirmwareOpStatus();
+    CHECK(opStatus.has_value());
+    firmwareInfo.opStatus() = opStatus.value();
+
+    auto funcStatus = managerTable_->switchManager().getFirmwareFuncStatus();
+    CHECK(funcStatus.has_value());
+    firmwareInfo.funcStatus() = funcStatus.value();
+
+    return {firmwareInfo};
+  }
+
+  return {};
+}
+
 } // namespace facebook::fboss

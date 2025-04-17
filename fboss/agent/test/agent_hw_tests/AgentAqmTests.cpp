@@ -4,6 +4,8 @@
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <optional>
+#include <utility>
 #include <vector>
 
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
@@ -13,6 +15,7 @@
 #include "fboss/agent/packet/TCPHeader.h"
 #include "fboss/agent/test/AgentHwTest.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
+#include "fboss/agent/test/ResourceLibUtil.h"
 #include "fboss/agent/test/utils/AqmTestUtils.h"
 #include "fboss/agent/test/utils/AsicUtils.h"
 #include "fboss/agent/test/utils/ConfigUtils.h"
@@ -34,6 +37,25 @@ struct AqmTestStats {
   uint64_t outEcnCounter;
   uint64_t outPackets;
 };
+
+/*
+ * Ensure that the number of dropped packets is as expected. Allow for
+ * an error to account for more / less drops while its worked out.
+ */
+void verifyWredDroppedPacketCount(
+    const AqmTestStats& after,
+    const AqmTestStats& before,
+    int expectedDroppedPkts) {
+  const int acceptableErrorPct{10};
+  int64_t deltaWredDroppedPackets =
+      static_cast<int64_t>(after.wredDroppedPackets) -
+      before.wredDroppedPackets;
+  XLOG(DBG0) << "Delta WRED dropped pkts: " << deltaWredDroppedPackets;
+
+  int allowedDeviation = acceptableErrorPct * expectedDroppedPkts / 100;
+  EXPECT_NEAR(deltaWredDroppedPackets, expectedDroppedPkts, allowedDeviation);
+}
+
 } // namespace
 
 namespace facebook::fboss {
@@ -92,7 +114,7 @@ class AgentAqmTest : public AgentHwTest {
     dscpVal = static_cast<uint8_t>(dscpVal << 2);
     dscpVal |= ecnVal;
 
-    auto vlanId = utility::firstVlanIDWithPorts(getProgrammedState());
+    auto vlanId = getVlanIDForTx();
     auto intfMac = getIntfMac();
     auto srcMac = utility::MacAddressGenerator().get(intfMac.u64NBO() + 1);
     auto txPacket = utility::makeTCPTxPacket(
@@ -403,14 +425,17 @@ class AgentAqmTest : public AgentHwTest {
     // The ECN/WRED threshold are rounded down for TAJO as opposed to being
     // rounded up to the next cell size for Broadcom.
     bool roundUp = asic->getAsicType() != cfg::AsicType::ASIC_TYPE_EBRO;
+    int roundedBufferThreshold{
+        utility::getRoundedBufferThreshold(asic, thresholdBytes, roundUp)};
+    int effectiveBytesPerPacket{static_cast<int>(
+        utility::getEffectiveBytesPerPacket(asic, kTxPacketLen))};
 
     if (expectedMarkedOrDroppedPacketCount == 0 && maxQueueFillLevel > 0) {
       // The expectedMarkedOrDroppedPacketCount is not set, instead, it needs
       // to be computed based on the maxQueueFillLevel specified as param!
       expectedMarkedOrDroppedPacketCount =
-          (maxQueueFillLevel -
-           utility::getRoundedBufferThreshold(asic, thresholdBytes, roundUp)) /
-          utility::getEffectiveBytesPerPacket(asic, kTxPacketLen);
+          (maxQueueFillLevel - roundedBufferThreshold) /
+          effectiveBytesPerPacket;
     }
 
     // Send enough packets such that the queue gets filled up to the
@@ -418,9 +443,7 @@ class AgentAqmTest : public AgentHwTest {
     // additional packets to get marked / dropped.
     auto ceilFn = [](int a, int b) -> int { return a / b + (a % b != 0); };
     int numPacketsToSend =
-        ceilFn(
-            utility::getRoundedBufferThreshold(asic, thresholdBytes, roundUp),
-            utility::getEffectiveBytesPerPacket(asic, kTxPacketLen)) +
+        ceilFn(roundedBufferThreshold, effectiveBytesPerPacket) +
         expectedMarkedOrDroppedPacketCount;
 
     auto setup = [&]() {
@@ -444,11 +467,8 @@ class AgentAqmTest : public AgentHwTest {
     };
 
     auto verify = [&]() {
-      XLOG(DBG3) << "Rounded threshold: "
-                 << utility::getRoundedBufferThreshold(
-                        asic, thresholdBytes, roundUp)
-                 << ", effective bytes per pkt: "
-                 << utility::getEffectiveBytesPerPacket(asic, kTxPacketLen)
+      XLOG(DBG3) << "Rounded threshold: " << roundedBufferThreshold
+                 << ", effective bytes per pkt: " << effectiveBytesPerPacket
                  << ", kTxPacketLen: " << kTxPacketLen
                  << ", pkts to send: " << numPacketsToSend
                  << ", expected marked/dropped pkts: "
@@ -461,11 +481,14 @@ class AgentAqmTest : public AgentHwTest {
             ecnCodePoint,
             numPacketsToSend,
             kPayloadLength,
-            /*ttl=*/255,
+            255 /*ttl*/,
             masterLogicalInterfacePortIds()[1]);
       };
 
-      // Send traffic with queue buildup and get the stats at the start!
+      // Send traffic with queue buildup and get the stats at the start.
+      // Update the stats to initialize them before sending packets to build up
+      // the queue.
+      getAgentEnsemble()->getSw()->updateStats();
       HwPortStats beforePortStats = utility::sendPacketsWithQueueBuildup(
           sendPackets,
           getAgentEnsemble(),
@@ -534,6 +557,14 @@ class AgentAqmTest : public AgentHwTest {
     };
 
     verifyAcrossWarmBoots(setup, verify);
+  }
+
+  void runWredThresholdTest() {
+    validateAqmThresholds(
+        kNotECT,
+        utility::kQueueConfigAqmsWredThresholdMinMax /*thresholdBytes*/,
+        50 /*expectedMarkedOrDroppedPacketCount*/,
+        std::move(verifyWredDroppedPacketCount));
   }
 
   void runPerQueueWredDropStatsTest() {
@@ -689,6 +720,10 @@ TEST_F(AgentAqmTest, verifyWred) {
 
 TEST_F(AgentAqmWredDropTest, verifyWredDrop) {
   runWredDropTest();
+}
+
+TEST_F(AgentAqmTest, verifyWredThreshold) {
+  runWredThresholdTest();
 }
 
 TEST_F(AgentAqmTest, verifyPerQueueWredDropStats) {

@@ -19,6 +19,7 @@
 #include "fboss/agent/platforms/sai/SaiBcmDarwinPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiBcmElbertPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiBcmFujiPlatformPort.h"
+#include "fboss/agent/platforms/sai/SaiBcmIcecube800bcPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiBcmMinipackPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiBcmMontblancPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiBcmPlatformPort.h"
@@ -260,7 +261,7 @@ std::string SaiPlatform::getHwAsicConfig(
    * be thrown to fallback to bcm or asic config.
    */
   auto chipConfigType = config()->thrift.platform()->chip()->getType();
-  if (chipConfigType != facebook::fboss::cfg::ChipConfig::asicConfig) {
+  if (chipConfigType != facebook::fboss::cfg::ChipConfig::Type::asicConfig) {
     throw FbossError("No asic config v2 found in agent config");
   }
   auto asicConfig = config()->thrift.platform()->chip()->get_asicConfig();
@@ -389,6 +390,8 @@ void SaiPlatform::initPorts() {
       saiPort = std::make_unique<SaiYangraPlatformPort>(portId, this);
     } else if (platformMode == PlatformType::PLATFORM_MINIPACK3N) {
       saiPort = std::make_unique<SaiMinipack3NPlatformPort>(portId, this);
+    } else if (platformMode == PlatformType::PLATFORM_ICECUBE800BC) {
+      saiPort = std::make_unique<SaiBcmIcecube800bcPlatformPort>(portId, this);
     } else {
       saiPort = std::make_unique<SaiFakePlatformPort>(portId, this);
     }
@@ -751,10 +754,10 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
     fabricLLFC = std::vector<uint32_t>({kRamon3LlfcThreshold});
   }
   if (isDualStage3Q2QMode()) {
-    maxSystemPortId = 32515;
-    maxLocalSystemPortId = 5;
-    maxSystemPorts = 21766;
-    maxVoqs = 64536;
+    maxSystemPortId = 32694;
+    maxLocalSystemPortId = 184;
+    maxSystemPorts = 22136;
+    maxVoqs = 65284;
   } else {
     maxSystemPortId = 6143;
     maxLocalSystemPortId = -1;
@@ -776,7 +779,7 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
 #endif
   }
 
-  std::optional<SaiSwitchTraits::Attributes::PfcTcDldTimerInterval>
+  std::optional<SaiSwitchTraits::Attributes::PfcTcDldTimerGranularityInterval>
       pfcWatchdogTimerGranularyMap;
 #if defined(BRCM_SAI_SDK_XGS) && defined(BRCM_SAI_SDK_GTE_11_0)
   // We need to set the watchdog granularity to an appropriate value, otherwise
@@ -793,7 +796,8 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
     mapToValueList.at(pri) = mapping;
   }
   pfcWatchdogTimerGranularyMap =
-      SaiSwitchTraits::Attributes::PfcTcDldTimerInterval{mapToValueList};
+      SaiSwitchTraits::Attributes::PfcTcDldTimerGranularityInterval{
+          mapToValueList};
 #endif
 
   return {

@@ -24,6 +24,7 @@
 #include "fboss/agent/SwSwitchWarmBootHelper.h"
 #include "fboss/agent/SwitchStats.h"
 #include "fboss/agent/TxPacket.h"
+#include "fboss/agent/TxPacketUtils.h"
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/agent/hw/test/HwSwitchEnsembleRouteUpdateWrapper.h"
@@ -1008,5 +1009,11 @@ void HwSwitchEnsemble::sendPacketAsync(
 
 std::unique_ptr<TxPacket> HwSwitchEnsemble::allocatePacket(uint32_t size) {
   return getHwSwitch()->allocatePacket(size);
+}
+
+std::optional<VlanID> HwSwitchEnsemble::getVlanIDForTx() const {
+  auto intf = utility::firstInterfaceWithPorts(getProgrammedState());
+  return utility::getVlanIDForTx(
+      intf, getProgrammedState(), scopeResolver_.get(), getHwAsicTable());
 }
 } // namespace facebook::fboss
