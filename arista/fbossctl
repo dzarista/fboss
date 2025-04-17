@@ -262,6 +262,30 @@ do_platform_mapping_gen() {
     run_cmd_container bash platformMappginGen.sh $1
 }
 
+do_unit_tests() {
+    # Unit test directory
+    UNIT_TEST_DIR="$(dirname "$(realpath "$0")")/unit-tests"
+
+    echo "Running all tests in $UNIT_TEST_DIR..."
+
+    # Loop through all test files
+    for unit_test in "$UNIT_TEST_DIR"/*.py; do
+        # Check if there are no .py files
+        [ -e "$unit_test" ] || { echo "No test files found."; exit 0; }
+
+        echo "➡️ Running: $unit_test"
+        python3 "$unit_test"
+
+        # Check exit status
+        if [ $? -ne 0 ]; then
+            echo "❌ Error running $unit_test"
+            exit 1
+        else
+            echo "✅ Finished $unit_test"
+        fi
+    done
+}
+
 if [[ $# -lt 1 ]]; then
     usage
     exit 1
@@ -294,6 +318,9 @@ case "${command}" in
       ;;
    platform_mapping_gen)
       do_platform_mapping_gen $1
+      ;;
+   run_unit_tests)
+      do_unit_tests
       ;;
    *)
       usage
