@@ -1,0 +1,25 @@
+on: 
+  # Allow on pull request
+  pull_request:
+  # Allow manually triggering the workflow
+  workflow_dispatch:
+
+name: Run unit tests
+
+jobs:
+  run_unit_tests:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check-out latest code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ssh-key: ${{ secrets.GIT_PRIVATE_KEY }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Run Bash script
+        run: |
+          ./arista/fbossctl run_unit_tests
+        shell: bash
