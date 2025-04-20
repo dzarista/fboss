@@ -5,22 +5,15 @@ Summary: Arista showtech support
 
 License: GPLv2
 URL: https://github.com/aristanetworks/arista-fboss
-Source: %{expand:%%(pwd)}
 
-%define _showtech_build_dir tmp_build_dir/showtech
-%define _destdir %{root}/%{buildroot}/usr/bin
+%define _showtech_build_dir %{_fboss_dir}/fboss.bsp.arista/showtech
+%define _destdir %{buildroot}/usr/bin
 
 %description
 This package provide utils to collect support information for Arista switch devices
 
-%prep
-# clean out old files
-set -x
-find . -mindepth 1 -delete
-cp -af %{SOURCEURL0}/%{_showtech_build_dir}/* .
-
 %install
-make install DESTDIR=%{_destdir}
+make -C %{_showtech_build_dir} install DESTDIR=%{_destdir}
 
 %files
 %{_bindir}/platform-showtech

@@ -1,46 +1,91 @@
 #!/bin/bash
+usage() {
+   echo "Usage: $0 "
+   echo "  [ --scratch-dir <Scratch directory> ] "
+   echo "  [ --sai-sdk-dir <Sai/Sdk directory> ] "
+   echo "  [ --export-dir  <RPM export dir> ] "
+   echo "  [ --compress ] [ --help ] "
+}
 
-set -e
-
-arch=$1
-kernel=$2
-DESTDIR=${DESTDIR:-"/src/dest"}
-
+cd "$(dirname "$0")"
+# Spec files location
 fboss_spec_dir=arista/rpm
-built_rpms_dir="/tmp/rpmbuild/RPMS/x86_64"
-fboss_ptest_data_dir="${DESTDIR}/usr/share/ptest-data/Fboss"
-rpm_dest="$fboss_ptest_data_dir/RPMS/$arch/$kernel"
+# Default values
+scratch_dir=/tmp/tmp_build_dir
+sai_sdk_dir=/src/dest/result
+export_dir=/src/dest/
+no_compression=1
 
-mkdir -p /tmp/rpmbuild/{BUILD,RPMS,SOURCES,SPECS,SRPMS,BUILDROOT}
-mkdir -p $rpm_dest
-mkdir -p /tmp/fboss.git
-# Copy arista dir from arista-fboss for rpmbuild to find
-cp -r arista /tmp/fboss.git
-# Copy darwin fruid to FBOSS_DATA/th3 as a workaround until setup.py is fixed
-cp arista/platform/darwin/config/fruid/fruid.json /tmp/tmp_build_dir/fboss_bins-*/share/th3
-# Copy known unsupported sai hwtest list. It is not packaged by package-fboss.py
-find /tmp/tmp_build_dir -name fboss_bins* -exec mkdir -p {}/share/_sai_hw_unsupported_tests \;
-cp -r fboss/oss/sai_hw_unsupported_tests/* /tmp/tmp_build_dir/fboss_bins-*/share/_sai_hw_unsupported_tests/
+args=()
+while [[ $# -gt 0 ]]; do
+   case $1 in
+      --scratch-dir)
+         scratch_dir="$2"
+         shift; shift
+         ;;
+      --sai-sdk-dir)
+         sai_sdk_dir="$2"
+         shift; shift
+         ;;
+      --export-dir)
+         export_dir="$2"
+         shift; shift
+         ;;
+      --compress)
+         unset no_compression
+         shift
+         ;;
+      --help)
+         usage; exit 0
+         shift
+         ;;
+      -*|--*)
+         echo "Unknown option $1"; exit 1
+         ;;
+      *)
+         args+=("$1")
+         shift
+         ;;
+   esac
+done
 
-# Avoid packaging kmods for kernel versions 4.18 and 5.12
-if [ "$kernel" == "4.18" ] || [ "$kernel" == "5.12" ]; then
-   filter="-not -name *arista_bsp_kmods.spec"
+set -ex
+
+# Clear old fboss_bins-* dir and package
+rm -rf "$scratch_dir"/fboss_bins-1*
+fboss/oss/scripts/package-fboss.py --scratch-path "$scratch_dir"
+fboss_out_dir=$(find "$scratch_dir" -maxdepth 1 -name fboss_bins-1*)
+
+# Store the commit we built for it to be available in /opt/fboss/arista-fboss-version
+if [[ -z "$SRC_0" ]]; then
+   fboss_commit=$(git -c safe.directory=$PWD rev-parse HEAD)
+   echo "arista-fboss@$fboss_commit" > $fboss_output_dir/arista-fboss-version
+else
+   echo "$SRC_0" > $fboss_out_dir/arista-fboss-version
 fi
-# Find RPM spec files
-RPMS=($(find ~+/$fboss_spec_dir -type f -name *.spec $filter))
+
+# Get RPM specs from either the command line or all from arista/rpm
+if [[ ${#args[@]} -lt 1 ]]; then
+   rpms=$fboss_spec_dir/*
+else
+   rpms="${args[@]/#/$fboss_spec_dir/}"
+fi
 
 # Build RPMs
-pushd /tmp
-for rpm in "${RPMS[@]}"; do
-    rpmbuild -v --define '_topdir /tmp/rpmbuild' -bb "${rpm}" --root /tmp --define 'root /tmp'
-    built_rpm=$(find "${built_rpms_dir}" -type f -name "$(basename ${rpm%.*})-*")
-    cp -f "${built_rpm}" "${rpm_dest}"
+export QA_SKIP_RPATHS=1 # Needed to skip rpath check
+for rpm in $rpms; do
+   rpmbuild -v --define '_topdir /tmp/rpmbuild' --define "_fboss_dir $PWD" \
+      --define "_sai_sdk_dir $sai_sdk_dir" --define "_scratch_dir $scratch_dir" \
+      --define "_tmppath /tmp" ${no_compression+--define "_binary_payload w0.gzdio"} \
+      --undefine __brp_mangle_shebangs -bb $rpm
 done
-echo "FBOSS RPMs are copied to $rpm_dest"
-popd
+
+# Move built RPMS
+mkdir -p "$export_dir"/RPMS
+mv /tmp/rpmbuild/RPMS/x86_64/* "$export_dir"/RPMS/
 
 # Copy platform mappings
-cp -rf /tmp/tmp_build_dir/PlatformMappings ${fboss_ptest_data_dir}/
+cp -rf "$scratch_dir"/PlatformMappings "$export_dir"
 
 # Copy swi modules
-cp -rf swi-modules ${fboss_ptest_data_dir}/
+cp -rf swi-modules "$export_dir"
