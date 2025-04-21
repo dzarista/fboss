@@ -14,5 +14,5 @@ x-rits:
   bip-packages: ["Fboss"]
   branch-project-mapping:
     - git-branch: "main"
-      p4-project: "eos-trunk"
+      p4-project: "fboss"
   required-for-merge: {}
