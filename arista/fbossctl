@@ -120,6 +120,7 @@ maybe_setup_build_env() {
    cd "${FBOSS_HOST_DIR}"
 
    # Clone SAI and SDK repositories
+   git lfs install
    git clone "ssh://$USER@gerrit.corp.arista.io:29418/fboss-bcm-sai"
    git clone "ssh://$USER@gerrit.corp.arista.io:29418/fboss-bcm-sdk"
 
