@@ -11,3 +11,13 @@ arista/build-utils/tmp_build_dir/
 gen-py/
 arista/util/live-image/build_dir/
 tmp/
+arista/**/*.o
+arista/psu-upgrade/psu-upgrade
+fboss.bsp.arista/**/*.cmd
+fboss.bsp.arista/**/*.o
+fboss.bsp.arista/**/*.ko
+fboss.bsp.arista/**/*.mod
+fboss.bsp.arista/**/*.mod.c
+fboss.bsp.arista/**/*.order
+fboss.bsp.arista/**/*.symvers
+fboss.bsp.arista/showtech/platform-showtech
