@@ -12,7 +12,7 @@ cd "$(dirname "$0")"
 fboss_spec_dir=arista/rpm
 # Default values
 scratch_dir=/tmp/tmp_build_dir
-sai_sdk_dir=/src/dest/result
+sai_sdk_dir=/result
 export_dir=/src/dest/
 no_compression=1
 

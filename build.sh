@@ -13,9 +13,9 @@ usage() {
 
 cd "$(dirname "$0")"
 # Default values
-sai_sdk_dir=/src/dest/result
+sai_sdk_dir=/result
 scratch_dir=/tmp/tmp_build_dir
-kernel_dir=/tmp/kernel-6.4
+kernel_dir=/kernel-6.4
 
 while [[ $# -gt 0 ]]; do
    case $1 in
@@ -162,7 +162,6 @@ thrift_files=(
    fboss/platform/rackmon/if/rackmonsvc.thrift
    fboss/platform/sensor_service/if/sensor_service.thrift
 )
-echo $thrift_dir/thrift1
 for thrift_file in ${thrift_files[@]}; do
    $thrift_dir/thrift1 -r --gen py -o $scratch_dir -I $repo_prefix-fboss.git -I $repo_prefix-fbthrift.git $thrift_file
 done

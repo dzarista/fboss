@@ -2,7 +2,7 @@ images:
   kernel-6.4:
     units:
     - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
-      build: "arista/fbossctl kernel_pull 6.4 $DESTDIR/kernel-6.4"
+      build: arista/fbossctl kernel_pull 6.4 $DESTDIR/kernel-6.4
 
   build-floor/dnx_6.4-el9:
     units:
@@ -16,7 +16,7 @@ images:
       - floor: .%build-floor/dnx_6.4-el9
         build: |
           export PTESTDIR=$DESTDIR/usr/share/ptest-data/Fboss
-          ./build.sh ${fboss_args[@]} --arch dnx --sai-sdk-dir /result --kernel-dir /kernel-6.4
+          ./build.sh --arch dnx --sai-sdk-dir /result --kernel-dir /kernel-6.4
           ./package.sh --sai-sdk-dir /result --export-dir $PTESTDIR --compress
           mkdir -p $PTESTDIR/RPMS/dnx/6.4
           mv $PTESTDIR/RPMS/*.rpm $PTESTDIR/RPMS/dnx/6.4
@@ -33,24 +33,16 @@ images:
       - floor: .%build-floor/xgs_6.4-el9
         build: |
           export PTESTDIR=$DESTDIR/usr/share/ptest-data/Fboss
-          ./build.sh ${fboss_args[@]} --arch xgs --sai-sdk-dir /result --kernel-dir /kernel-6.4
+          ./build.sh --arch xgs --sai-sdk-dir /result --kernel-dir /kernel-6.4
           ./package.sh --sai-sdk-dir /result --export-dir $PTESTDIR --compress
           mkdir -p $PTESTDIR/RPMS/xgs/6.4
           mv $PTESTDIR/RPMS/*.rpm $PTESTDIR/RPMS/xgs/6.4
-
-  internal/test_floor:
-    units:
-      - image: code.arista.io/infra/barney/barnzilla%base
-      - image: code.arista.io/infra/barney/barnzilla%rpms/coreutils
-      - image: code.arista.io/infra/barney/barnzilla%rpms/bash
-      - image: code.arista.io/infra/barney/barnzilla%rpms/util-linux
-      - image: code.arista.io/infra/barney/barnzilla%rpms/findutils
 
   test/package_dnx_6.4-el9:
     description: |
       Test that build artifacts exist.
     units:
-      - image: .%internal/test_floor
+      - image: code.arista.io/os/fboss-centos%fboss-centos-image-el9
       - image: .%package_dnx_6.4-el9
     finalizers:
       - [ 'sh', '-c', 'test -e /usr/share/ptest-data/Fboss/RPMS/dnx/6.4/arista-fboss-core-1-1.el9.x86_64.rpm' ]
@@ -69,7 +61,7 @@ images:
     description: |
       Test that build artifacts exist.
     units:
-      - image: .%internal/test_floor
+      - image: code.arista.io/os/fboss-centos%fboss-centos-image-el9
       - image: .%package_xgs_6.4-el9
     finalizers:
       - [ 'sh', '-c', 'test -e /usr/share/ptest-data/Fboss/RPMS/xgs/6.4/arista-fboss-core-1-1.el9.x86_64.rpm' ]
