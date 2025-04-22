@@ -22,13 +22,13 @@ mkdir -p %{_fboss_target_share}
 cp -rf %{_sai_sdk_dir}/db %{_fboss_target_share}/
 
 mkdir -p %{_fboss_target_var}
-install %{_fboss_meru800ba_dir}/config/fruid/fruid.json %{_fboss_target_var}
+install %{_fboss_glath05a_64o_dir}/config/fruid/fruid.json %{_fboss_target_var}
 
 mkdir -p %{_fboss_target_share}/platform_configs
-cp -rf %{_fboss_config_dir}/meru800ba/* %{_fboss_target_share}/platform_configs/
+cp -rf %{_fboss_config_dir}/glath05a-64o/* %{_fboss_target_share}/platform_configs/
 
 # mkdir -p %{_fboss_target_share}/firmware
-# cp -rf %{_fboss_meru800ba_dir}/firmware/* %{_fboss_target_share}/firmware/
+# cp -rf %{_fboss_glath05a_64o_dir}/firmware/* %{_fboss_target_share}/firmware/
 
 %files
 /var/facebook/fboss/fruid.json
