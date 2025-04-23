@@ -112,9 +112,8 @@ fi
 touch ".git"
 
 # Pin fboss and its dependencies to known stable commit hash
-rm -rf build/deps/github_hashes/facebook
-rm -rf build/deps/github_hashes/facebookincubator
-tar -xvf fboss/oss/stable_commits/latest_stable_hashes.tar.gz --no-same-owner
+rm -rf build/deps/github_hashes
+tar -xvf fboss/oss/stable_commits/latest_stable_hashes.tar.gz
 
 # Provide brcm sai static library
 fboss/oss/scripts/build-helper.py $sai_sdk_dir/libraries/libsai_impl.a \
@@ -130,18 +129,11 @@ export IS_OSS=1
 export IS_OSS_FBOSS_CENTOS9=1
 unset DESTDIR
 
-# Fetch fbthrift and folly and update the C++ standard to v20. C++20 is
-# required for building coroutine support into folly and fbthrift.
-repo_prefix=$scratch_dir/repos/github.com-facebook
-for fboss_dep in folly fbthrift; do
-   ./build/fbcode_builder/getdeps.py --scratch-path $scratch_dir fetch $fboss_dep
-   sed -i 's/STANDARD 17/STANDARD 20/g' $repo_prefix-$fboss_dep.git/CMakeLists.txt
-done
-
-# Build fboss
+echo "==== Building fboss ===="
 rm -rf $scratch_dir/repos/github.com-facebook-fboss.git
 time ./build/fbcode_builder/getdeps.py build --allow-system-packages --num-jobs 40 \
-   --scratch-path $scratch_dir fboss --extra-cmake-defines="{\"CMAKE_BUILD_TYPE\": \"$build_type\"}"
+   --scratch-path $scratch_dir fboss \
+   --extra-cmake-defines='{"CMAKE_BUILD_TYPE":"'$build_type'", "CMAKE_CXX_STANDARD":"20"}'
 
 echo "==== Building bsp-kmods ===="
 make -C $kernel_dir M=~+/fboss.bsp.arista/bsp-kmods modules
@@ -154,6 +146,7 @@ make -C arista/psu-upgrade
 
 echo "==== Generating python thrift libraries ===="
 thrift_dir=$scratch_dir/installed/fbthrift/bin
+repo_prefix=$scratch_dir/repos/github.com-facebook
 thrift_files=( 
    fboss/agent/if/ctrl.thrift
    fboss/agent/if/hw_ctrl.thrift
@@ -165,7 +158,6 @@ thrift_files=(
 for thrift_file in ${thrift_files[@]}; do
    $thrift_dir/thrift1 -r --gen py -o $scratch_dir -I $repo_prefix-fboss.git -I $repo_prefix-fbthrift.git $thrift_file
 done
-find $scratch_dir/gen-py/ -type f  -exec sed -i '1s|^#!/usr/bin/env python$|#!/usr/bin/env python3|' {} +
 
 echo "==== Extracting platform mappings ===="
 src_mapping_dir="fboss/agent/platforms/common"
