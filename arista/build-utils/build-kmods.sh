@@ -6,7 +6,8 @@ UTIL_DIR=$(dirname "$(realpath "$0")")
 KMODS_DIR=$(realpath "$UTIL_DIR/../../fboss.bsp.arista/bsp-kmods")
 RPM_DIR=$(realpath "$UTIL_DIR/../rpm")
 
-BUILD_DIR="$UTIL_DIR/tmp_build_dir"
+BUILD_DIR="$UTIL_DIR/tmp_build_dir/fboss.bsp.arista"
+mkdir -p $BUILD_DIR
 KERNEL=$1
 
 usage() {
@@ -48,4 +49,5 @@ echo "Building bsp-kmods..."
 make -C $BUILD_DIR/$KERNEL_SRC M=$BUILD_DIR/bsp-kmods modules
 
 echo "Packaging bsp-kmods into RPM"
-rpmbuild -bb "$RPM_DIR/arista_bsp_kmods.spec" --define 'root /' --define "_topdir $BUILD_DIR/$KERNEL_SRC"
+rpmbuild -bb "$RPM_DIR/arista_bsp_kmods.spec" --define "_topdir $BUILD_DIR/$KERNEL_SRC" \
+         --define "_fboss_dir $BUILD_DIR/.."

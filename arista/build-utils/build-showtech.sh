@@ -6,7 +6,8 @@ UTIL_DIR=$(dirname "$(realpath "$0")")
 SHOWTECH_DIR=$(realpath "$UTIL_DIR/../../fboss.bsp.arista/showtech")
 RPM_DIR=$(realpath "$UTIL_DIR/../rpm")
 
-BUILD_DIR="$UTIL_DIR/tmp_build_dir"
+BUILD_DIR="$UTIL_DIR/tmp_build_dir/fboss.bsp.arista"
+mkdir -p $BUILD_DIR
 
 usage() {
     echo "Usage: $0"
@@ -30,4 +31,5 @@ echo "Building showtech..."
 make -C $BUILD_DIR/showtech
 
 echo "Packaging showtech into RPM"
-rpmbuild -bb "$RPM_DIR/showtech-arista.spec" --define 'root /' --define "_topdir $BUILD_DIR"
+rpmbuild -bb "$RPM_DIR/showtech-arista.spec" --define "_topdir $BUILD_DIR" \
+         --define "_fboss_dir $BUILD_DIR/.."
