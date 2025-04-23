@@ -1,19 +1,19 @@
-# Firmware Package #1
+# Firmware Package #2
 
 This directory contains the firmware programmable binaries for the
 Meru800bfa platform. The table below shows the programmables:
 
 | Programmable Name                                                       | Description          |
 |-------------------------------------------------------------------------|----------------------|
-| meru800bia_meru800bfa_bios_vAboot-norcal13-13.1.4-lcc-64m-40551478.rom  | Bootloader for x86   |
-| meru800bia-meru800bfa_scm-cpld_v4.16.astp                               | SCM CPLD JTAG image  |
-| meru800bfa_smb-cpld_v4.13.astp                                          | SMB CPLD JTAG image  |
-| meru800bfa_smb-fpga0_v1.21.abit                                         | SMB FPGA0 SPI image  |
-| meru800bfa_smb-fpga1_v1.21.abit                                         | SMB FPGA1 SPI image  |
-| meru800bfa_smb-fpga2_v1.27.abit                                         | SMB FPGA2 SPI image  |
-| meru800bfa_smb-fpga3_v1.24.abit                                         | SMB FPGA3 SPI image  |
-| meru800bfa_fan-cpld_v1.10.astp                                          | Fan CPLDs JTAG image |
-| meru800bfa_bcm53134image-p4_v1.2.bin                                    | Bcm53134 p4 image    |
+| P_meru800bfa_F_bios_V_Aboot-norcal13-13.1.4-lcc-64m-40551478.rom        | Bootloader for x86   |
+| P_meru800bfa_F_scm-cpld_V_4.16.astp                                     | SCM CPLD JTAG image  |
+| P_meru800bfa_F_smb-cpld_V_4.13.astp                                     | SMB CPLD JTAG image  |
+| P_meru800bfa_F_smb-fpga0_V_1.21.abit                                    | SMB FPGA0 SPI image  |
+| P_meru800bfa_F_smb-fpga1_V_1.21.abit                                    | SMB FPGA1 SPI image  |
+| P_meru800bfa_F_smb-fpga2_V_1.27.abit                                    | SMB FPGA2 SPI image  |
+| P_meru800bfa_F_smb-fpga3_V_1.24.abit                                    | SMB FPGA3 SPI image  |
+| P_meru800bfa_F_fan-cpld_V_1.10.astp                                     | Fan CPLDs JTAG image |
+| P_meru800bfa_F_bcm53134image-p4_V_1.2.bin                               | Bcm53134 p4 image    |
 
 
 # Changelogs
@@ -25,13 +25,13 @@ directory.
 ## Changes From Last Package
 | Programmable Name                                                       | Description                                                            |
 |-------------------------------------------------------------------------|------------------------------------------------------------------------|
-| meru800bia_meru800bfa_bios_vAboot-norcal13-13.1.4-lcc-64m-40551478.rom  | Fix Fairywren extra reset on boot.                                     |
-| meru800bfa_smb-cpld_v4.13.astp                                          | Fix SCD PCIe getting stuck intermittently.                             |
-| meru800bfa_smb-fpga0_v1.21.abit                                         | No software-visible change vs 1.19.                                    |
-| meru800bfa_smb-fpga1_v1.21.abit                                         | No software-visible change vs 1.19.                                    |
-| meru800bfa_smb-fpga2_v1.27.abit                                         | No software-visible change vs 1.26.                                    |
-| meru800bfa_smb-fpga3_v1.24.abit                                         | No software-visible change vs 1.23.                                    |
-| meru800bfa_fan-cpld_v1.10.astp                                          | No software-visible change vs 1.9.                                     |
+| P_meru800bfa_F_bios_V_Aboot-norcal13-13.1.4-lcc-64m-40551478.rom        | Fix Fairywren extra reset on boot.                                     |
+| P_meru800bfa_F_smb-cpld_V_4.13.astp                                     | Fix SCD PCIe getting stuck intermittently.                             |
+| P_meru800bfa_F_smb-fpga0_V_1.21.abit                                    | No software-visible change vs 1.19.                                    |
+| P_meru800bfa_F_smb-fpga1_V_1.21.abit                                    | No software-visible change vs 1.19.                                    |
+| P_meru800bfa_F_smb-fpga2_V_1.27.abit                                    | No software-visible change vs 1.26.                                    |
+| P_meru800bfa_F_smb-fpga3_V_1.24.abit                                    | No software-visible change vs 1.23.                                    |
+| P_meru800bfa_F_fan-cpld_V_1.10.astp                                     | No software-visible change vs 1.9.                                     |
 
 ## BIOS
 
