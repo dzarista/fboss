@@ -846,6 +846,8 @@ class Rackhawk( PlatformConfig ):
    def __init__( self ):
       super().__init__( self.codename, rootPmUnitName='SMB' )
 
+      self.setChassisEepromDevicePath = False
+
       pmUnits = [
             RackhawkSwitch( self.hasPem, self.hasWdt ),
             FANUnit(),
@@ -895,3 +897,8 @@ class RackhawkORv3( Rackhawk ):
    hasPem = False
    hasWdt = False
    eepromOffset = 15360
+   
+   def __init__( self ):
+      super().__init__()
+
+      self.setChassisEepromDevicePath = True
