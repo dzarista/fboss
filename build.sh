@@ -1,0 +1,179 @@
+#!/bin/bash
+set -e
+
+usage() {
+   echo "Usage: $0 --arch <dnx|xgs> "
+   echo "          [ --kernel-dir <Kernel directory> ] "
+   echo "          [ --scratch-dir <Scratch directory> ] "
+   echo "          [ --sai-sdk-dir <Sai/Sdk directory> ] "
+   echo "          [ --clean ] [ --known-good-hash ] "
+   echo "          [ --fboss-bins-only ] [ --with-debug-symbols ] "
+   echo "          [ --rebuild-fboss ] [ --help ] "
+}
+
+cd "$(dirname "$0")"
+# Default values
+sai_sdk_dir=/result
+scratch_dir=/tmp/tmp_build_dir
+kernel_dir=/kernel-6.4
+
+while [[ $# -gt 0 ]]; do
+   case $1 in
+      --scratch-dir)
+         scratch_dir="$2"
+         shift; shift
+         ;;
+      --sai-sdk-dir)
+         sai_sdk_dir="$2"
+         shift; shift
+         ;;
+      --rebuild-fboss)
+         clean_fboss=1
+         shift
+         ;;
+      --clean)
+         clean_fboss=1
+         clean_and_exit=1
+         shift
+         ;;
+      --fboss-bins-only)
+         fboss_bins_only=1
+         shift
+         ;;
+      --known-good-hash)
+         known_good_hash=1
+         shift
+         ;;
+      --with-debug-symbols)
+         debug_symbols=1
+         shift
+         ;;
+      --arch)
+         if [[ "$2" == "dnx" || "$2" == "xgs" ]]; then
+            arch="$2"
+         else
+            echo "Invalid architecture. Choose between: xgs dnx"; exit 1
+         fi
+         shift; shift
+         ;;
+      --kernel-dir)
+         kernel_dir="$2"
+         shift; shift
+         ;;
+      --help)
+         usage; exit 0
+         shift
+         ;;
+      *)
+         echo "Unknown option "$1""; exit 1
+         ;;
+  esac
+done
+
+# Clean FBOSS
+if ! [[ -z $clean_fboss ]]; then
+   echo "==== Clean up FBOSS build artifacts ===="
+   make -C $kernel_dir M=~+/fboss.bsp.arista/bsp-kmods clean
+   make -C fboss.bsp.arista/showtech clean
+   make -C arista/psu-upgrade clean
+   rm -rf $scratch_dir
+   if ! [[ -z $clean_and_exit ]]; then exit 0; fi
+fi
+
+if [ -z "$arch" ]; then
+   echo "Choose an architecture with --arch"; usage; exit 1
+fi
+
+echo "==== Running build with arch=$arch and kernel from $kernel_dir ===="
+set -x
+
+# In case we only want to rebuild fboss, run cmake from build dir and exit
+if ! [ -z $fboss_bins_only ]; then
+   $scratch_dir/build/fboss/run_cmake.py --install
+   exit 0
+fi
+
+# Override the default sai versions and type for xgs
+if [ $arch == "xgs" ]; then
+   ocp_sai_version="1.13.2"
+   export SAI_SDK_VERSION="SAI_VERSION_10_2_0_0_ODP"
+fi
+
+if [ -z $known_good_hash ]; then
+   export ARISTA_LOCAL_BUILD=1
+fi
+
+build_type="Debug"
+if [ -z $debug_symbols ]; then
+   build_type="MinSizeRel"   
+fi
+
+# workaround for barney
+touch ".git"
+
+# Pin fboss and its dependencies to known stable commit hash
+rm -rf build/deps/github_hashes/facebook
+rm -rf build/deps/github_hashes/facebookincubator
+tar -xvf fboss/oss/stable_commits/latest_stable_hashes.tar.gz --no-same-owner
+
+# Provide brcm sai static library
+fboss/oss/scripts/build-helper.py $sai_sdk_dir/libraries/libsai_impl.a \
+   $sai_sdk_dir/include/ /tmp/sai_impl_output $ocp_sai_version
+
+# Setup environment for FBOSS build
+export SAI_ONLY=1
+export SAI_BRCM_IMPL=1 # Needed only for BRCM SAI
+export GETDEPS_USE_WGET=1
+export ARISTA_LOCAL_BUILD=1 # Needed to build with local repo instead
+export BUILD_FBOSS_CLI=1
+export IS_OSS=1
+export IS_OSS_FBOSS_CENTOS9=1
+unset DESTDIR
+
+# Fetch fbthrift and folly and update the C++ standard to v20. C++20 is
+# required for building coroutine support into folly and fbthrift.
+repo_prefix=$scratch_dir/repos/github.com-facebook
+for fboss_dep in folly fbthrift; do
+   ./build/fbcode_builder/getdeps.py --scratch-path $scratch_dir fetch $fboss_dep
+   sed -i 's/STANDARD 17/STANDARD 20/g' $repo_prefix-$fboss_dep.git/CMakeLists.txt
+done
+
+# Build fboss
+rm -rf $scratch_dir/repos/github.com-facebook-fboss.git
+time ./build/fbcode_builder/getdeps.py build --allow-system-packages --num-jobs 40 \
+   --scratch-path $scratch_dir fboss --extra-cmake-defines="{\"CMAKE_BUILD_TYPE\": \"$build_type\"}"
+
+echo "==== Building bsp-kmods ===="
+make -C $kernel_dir M=~+/fboss.bsp.arista/bsp-kmods modules
+
+echo "==== Building showtech ===="
+make -C fboss.bsp.arista/showtech
+
+echo "==== Building psu-upgrade ===="
+make -C arista/psu-upgrade
+
+echo "==== Generating python thrift libraries ===="
+thrift_dir=$scratch_dir/installed/fbthrift/bin
+thrift_files=( 
+   fboss/agent/if/ctrl.thrift
+   fboss/agent/if/hw_ctrl.thrift
+   fboss/qsfp_service/if/qsfp.thrift
+   fboss/platform/fan_service/if/fan_service.thrift
+   fboss/platform/rackmon/if/rackmonsvc.thrift
+   fboss/platform/sensor_service/if/sensor_service.thrift
+)
+for thrift_file in ${thrift_files[@]}; do
+   $thrift_dir/thrift1 -r --gen py -o $scratch_dir -I $repo_prefix-fboss.git -I $repo_prefix-fbthrift.git $thrift_file
+done
+find $scratch_dir/gen-py/ -type f  -exec sed -i '1s|^#!/usr/bin/env python$|#!/usr/bin/env python3|' {} +
+
+echo "==== Extracting platform mappings ===="
+src_mapping_dir="fboss/agent/platforms/common"
+src_mapping_files=(
+    $src_mapping_dir/meru800bia/Meru800biaPlatformMapping.cpp
+    $src_mapping_dir/meru800bfa/Meru800bfaP2PlatformMapping.h
+    $src_mapping_dir/meru800bfa/Meru800bfaProdPlatformMapping.h
+    $src_mapping_dir/meru800bfa/Meru800bfaP1PlatformMapping.cpp
+    $src_mapping_dir/darwin/DarwinPlatformMapping.cpp
+)
+arista/build-utils/ExtractMappings.py -d $scratch_dir/PlatformMappings ${src_mapping_files[@]}

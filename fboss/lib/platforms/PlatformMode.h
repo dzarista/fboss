@@ -98,6 +98,8 @@ inline std::string toString(PlatformType mode) {
       return "MINIPACK3N";
     case PlatformType::PLATFORM_ICECUBE800BC:
       return "ICECUBE";
+    case PlatformType::PLATFORM_MERU800BA:
+      return "MERU800BA";
   }
   throw std::runtime_error("Unknown mode");
   return "Unknown";
