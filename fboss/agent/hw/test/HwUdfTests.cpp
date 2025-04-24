@@ -12,6 +12,7 @@
 #include "fboss/agent/hw/test/HwTestAclUtils.h"
 #include "fboss/agent/hw/test/HwTestCoppUtils.h"
 #include "fboss/agent/hw/test/HwTestUdfUtils.h"
+#include "fboss/agent/test/utils/UdfTestUtils.h"
 
 namespace facebook::fboss {
 
@@ -34,9 +35,9 @@ class HwUdfTest : public HwTest {
     cfg::UdfConfig udfConfig;
     if (addConfig) {
       if (udfHashEnabled && udfAclEnabled) {
-        udfConfig = utility::addUdfHashAclConfig();
+        udfConfig = utility::addUdfHashAclConfig(getAsicType());
       } else if (udfHashEnabled) {
-        udfConfig = utility::addUdfHashConfig();
+        udfConfig = utility::addUdfHashConfig(getAsicType());
       } else {
         udfConfig = utility::addUdfAclConfig();
       }
@@ -63,7 +64,7 @@ TEST_F(HwUdfTest, UdfCanaryOn) {
   };
   auto setupPostWB = [=, this]() {
     auto newCfg{initialConfig()};
-    newCfg.udfConfig() = utility::addUdfHashConfig();
+    newCfg.udfConfig() = utility::addUdfHashConfig(getAsicType());
     utility::addLoadBalancerToConfig(
         newCfg,
         getHwSwitch()->getPlatform()->getAsic(),
@@ -77,7 +78,7 @@ TEST_F(HwUdfTest, UdfCanaryOn) {
 TEST_F(HwUdfTest, UdfCanaryOff) {
   auto setup = [=, this]() {
     auto newCfg{initialConfig()};
-    newCfg.udfConfig() = utility::addUdfHashConfig();
+    newCfg.udfConfig() = utility::addUdfHashConfig(getAsicType());
     utility::addLoadBalancerToConfig(
         newCfg,
         getHwSwitch()->getPlatform()->getAsic(),

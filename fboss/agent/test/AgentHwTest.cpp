@@ -55,7 +55,14 @@ void AgentHwTest::SetUp() {
   dumpConfigWithOverriddenGflags(config.get());
 
   AgentEnsembleSwitchConfigFn initialConfigFn =
-      [this](const AgentEnsemble& ensemble) { return initialConfig(ensemble); };
+      [this](const AgentEnsemble& ensemble) {
+        try {
+          return initialConfig(ensemble);
+
+        } catch (const std::exception& e) {
+          XLOG(FATAL) << "Failed to create initial config: " << e.what();
+        }
+      };
   agentEnsemble_ = createAgentEnsemble(
       initialConfigFn,
       FLAGS_disable_link_toggler /*disableLinkStateToggler*/,
@@ -479,6 +486,7 @@ HwSwitchDropStats AgentHwTest::getAggregatedSwitchDropStats() {
       FILL_DROP_COUNTERS(queueResolution);
       FILL_DROP_COUNTERS(ingressPacketPipelineReject);
       FILL_DROP_COUNTERS(corruptedCellPacketIntegrity);
+      FILL_DROP_COUNTERS(tc0RateLimit);
     }
     hwSwitchDropStats = aggHwSwitchDropStats;
     return true;

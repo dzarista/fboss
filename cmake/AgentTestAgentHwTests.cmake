@@ -108,6 +108,7 @@ target_link_libraries(agent_hw_test_src
   invariant_test_utils
   prod_config_factory
   port_test_utils
+  udf_test_utils
   state
   stats
   route_scale_gen
@@ -122,6 +123,7 @@ target_link_libraries(agent_hw_test_src
   port_stats_test_utils
   utils
   sflow_shim_utils
+  udf_test_utils
   pktutil
   mirror_test_utils
   dsf_config_utils

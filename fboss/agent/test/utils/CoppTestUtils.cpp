@@ -1182,20 +1182,6 @@ std::vector<std::pair<cfg::AclEntry, cfg::MatchAction>> defaultCpuAcls(
                : defaultCpuAclsForBcm(hwAsic, config);
 }
 
-void addTrafficCounter(
-    cfg::SwitchConfig* config,
-    const std::string& counterName,
-    std::optional<std::vector<cfg::CounterType>> counterTypes) {
-  auto counter = cfg::TrafficCounter();
-  *counter.name() = counterName;
-  if (counterTypes.has_value()) {
-    *counter.types() = counterTypes.value();
-  } else {
-    *counter.types() = {cfg::CounterType::PACKETS};
-  }
-  config->trafficCounters()->push_back(counter);
-}
-
 std::vector<cfg::PacketRxReasonToQueue> getCoppRxReasonToQueuesForSai(
     const HwAsic* hwAsic) {
   auto coppHighPriQueueId = utility::getCoppHighPriQueueId(hwAsic);
@@ -1321,15 +1307,11 @@ cfg::MatchAction getToQueueActionForSai(
       userDefinedTrap.queueId() = queueId;
       action.userDefinedTrap() = userDefinedTrap;
     }
-    if (hwAsic->isSupported(
-            HwAsic::Feature::SAI_SET_TC_FOR_USER_DEFINED_TRAP)) {
-      // TODO-Chenab: remove this once required sdk support to be able to set
-      // "setTC" action is available with user defined trap.
-      // assume tc i maps to queue i for all i on sai switches
-      cfg::SetTcAction setTc;
-      setTc.tcValue() = queueId;
-      action.setTc() = setTc;
-    }
+    // "setTC" action is available with user defined trap.
+    // assume tc i maps to queue i for all i on sai switches
+    cfg::SetTcAction setTc;
+    setTc.tcValue() = queueId;
+    action.setTc() = setTc;
   } else {
     cfg::QueueMatchAction queueAction;
     queueAction.queueId() = queueId;
@@ -1337,6 +1319,11 @@ cfg::MatchAction getToQueueActionForSai(
   }
   if (toCpuAction) {
     action.toCpuAction() = toCpuAction.value();
+    if (!hwAsic->isSupported(
+            HwAsic::Feature::SAI_SET_TC_WITH_USER_DEFINED_TRAP_CPU_ACTION)) {
+      // with user defined trap and cpu action specified, reset the set TC
+      action.setTc().reset();
+    }
   }
   return action;
 }
@@ -1539,20 +1526,8 @@ void sendAndVerifyPkts(
     uint8_t trafficClass) {
   auto sendPkts = [&] {
     auto intf = utility::firstInterfaceWithPorts(swState);
-    std::optional<VlanID> vlanId;
-    if constexpr (std::is_same_v<SwitchT, SwSwitch>) {
-      vlanId = switchPtr->getVlanIDForTx(intf);
-    } else {
-      vlanId = getVlanIDFromVlanOrIntf(intf);
-      auto asic = static_cast<HwSwitch*>(switchPtr)->getPlatform()->getAsic();
-      if (asic->isSupported(HwAsic::Feature::CPU_TX_PACKET_REQUIRES_VLAN_TAG)) {
-        HwSwitchMatcher matcher(
-            std::unordered_set<SwitchID>{switchPtr->getSwitchID()});
-        auto settings =
-            swState->getSwitchSettings()->getNode(matcher.matcherString());
-        vlanId = getDefaultTxVlanId(settings);
-      }
-    }
+    std::optional<VlanID> vlanId =
+        utility::getSwitchVlanIDForTx(switchPtr, intf);
 
     auto intfMac = intf->getMac();
     utility::sendTcpPkts(

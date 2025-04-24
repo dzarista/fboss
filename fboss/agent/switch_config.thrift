@@ -174,6 +174,8 @@ enum PortProfileID {
   PROFILE_50G_2_NRZ_RS528_OPTICAL = 48,
   PROFILE_100G_1_PAM4_NOFEC_COPPER = 49,
   PROFILE_800G_8_PAM4_RS544X2N_COPPER = 50,
+  PROFILE_400G_2_PAM4_RS544X2N_OPTICAL = 51,
+  PROFILE_800G_4_PAM4_RS544X2N_OPTICAL = 52,
 }
 
 enum Scope {
@@ -770,6 +772,11 @@ enum FlowletAction {
   DISABLE = 2,
 }
 
+// Support for Set Hash Algorithm action
+struct SetEcmpHashAction {
+  1: SwitchingMode switchingMode;
+}
+
 struct MatchAction {
   1: optional QueueMatchAction sendToQueue;
   2: optional PacketCounterMatchAction packetCounter_DEPRECATED;
@@ -783,6 +790,7 @@ struct MatchAction {
   10: optional SetTcAction setTc;
   11: optional UserDefinedTrapAction userDefinedTrap;
   12: optional FlowletAction flowletAction;
+  13: optional SetEcmpHashAction ecmpHashAction;
 }
 
 struct MatchToAction {

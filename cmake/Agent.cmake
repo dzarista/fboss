@@ -195,6 +195,18 @@ target_link_libraries(fboss_types
   Folly::folly
 )
 
+add_library(fib_helpers
+  fboss/agent/FibHelpers.cpp
+)
+
+target_link_libraries(fib_helpers
+  fboss_types
+  standalone_rib
+  fib_updater
+  state
+  Folly::folly
+)
+
 add_library(core
   fboss/agent/AclNexthopHandler.cpp
   fboss/agent/ApplyThriftConfig.cpp
@@ -209,7 +221,6 @@ add_library(core
   fboss/agent/DsfUpdateValidator.cpp
   fboss/agent/FabricConnectivityManager.cpp
   fboss/agent/EncapIndexAllocator.cpp
-  fboss/agent/FibHelpers.cpp
   fboss/agent/FsdbAdaptedSubManager.cpp
   fboss/agent/HwAsicTable.cpp
   fboss/agent/HwSwitch.cpp
@@ -316,6 +327,7 @@ set(core_libs
   state_utils
   exponential_back_off
   fboss_config_utils
+  fib_helpers
   phy_cpp2
   phy_utils
   snapshot_manager

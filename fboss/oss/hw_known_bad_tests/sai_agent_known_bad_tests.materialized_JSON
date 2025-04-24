@@ -122,6 +122,9 @@
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
+          "test_name_regex": "AgentAqmTest.verifyEcnTrafficNoDrop$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
@@ -144,9 +147,6 @@
         },
         {
           "test_name_regex": "AgentWideEcmpTest.WideUcmpUnderflow$"
-        },
-        {
-          "test_name_regex": "warm_boot.AgentCoppTest/0.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
@@ -727,6 +727,9 @@
           "test_name_regex": "AgentMirroringScaleTest/[67].MaxMirroringTest$"
         },
         {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
+        },
+        {
           "test_name_regex": "AgentMacOverFlowTest.*$"
         },
         {
@@ -912,6 +915,9 @@
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
+          "test_name_regex": "AgentAqmTest.verifyEcnTrafficNoDrop$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
@@ -934,9 +940,6 @@
         },
         {
           "test_name_regex": "AgentWideEcmpTest.WideUcmpUnderflow$"
-        },
-        {
-          "test_name_regex": "warm_boot.AgentCoppTest/0.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
@@ -1129,6 +1132,9 @@
         },
         {
           "test_name_regex": "AgentMirroringScaleTest/[67].MaxMirroringTest$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
           "test_name_regex": "AgentQueuePerHostTest/[0123].VerifyHostToQueueMappingClassIDsAfterResolve.*$"
@@ -1529,6 +1535,12 @@
           "test_name_regex": "AgentIngressBufferPoolTest.validateIngressPoolParamChange$"
         },
         {
+          "test_name_regex": "AgentTrafficPfcTest.verifyBufferPoolWatermarks$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
+        },
+        {
           "test_name_regex": "AgentMacOverFlowTest.*$"
         },
         {
@@ -1663,6 +1675,9 @@
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
+          "test_name_regex": "AgentAqmTest.verifyEcnTrafficNoDrop$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
@@ -1685,9 +1700,6 @@
         },
         {
           "test_name_regex": "AgentWideEcmpTest.WideUcmpUnderflow$"
-        },
-        {
-          "test_name_regex": "warm_boot.AgentCoppTest/0.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
@@ -1933,6 +1945,12 @@
           "test_name_regex": "AgentIngressBufferPoolTest.validateIngressPoolParamChange$"
         },
         {
+          "test_name_regex": "AgentTrafficPfcTest.verifyBufferPoolWatermarks$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
+        },
+        {
           "test_name_regex": "AgentMacOverFlowTest.*$"
         },
         {
@@ -2035,6 +2053,12 @@
         },
         {
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
+        },
+        {
+          "test_name_regex": "AgentTrafficPfcTest.verifyBufferPoolWatermarks$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
@@ -2477,6 +2501,12 @@
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
+          "test_name_regex": "AgentTrafficPfcTest.verifyBufferPoolWatermarks$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
         },
         {
@@ -2597,6 +2627,9 @@
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
+          "test_name_regex": "AgentAqmTest.verifyEcnTrafficNoDrop$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
@@ -2619,9 +2652,6 @@
         },
         {
           "test_name_regex": "AgentWideEcmpTest.WideUcmpUnderflow$"
-        },
-        {
-          "test_name_regex": "warm_boot.AgentCoppTest/0.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
@@ -2787,6 +2817,9 @@
         },
         {
           "test_name_regex": "AgentDiagShellStressTest.*$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentCoppTest/0.Ipv6LinkLocalMcastToMidPriQ$"
         },
         {
           "test_name_regex": "AgentMacOverFlowTest.*$"
@@ -3256,6 +3289,9 @@
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
+          "test_name_regex": "AgentTrafficPfcTest.verifyBufferPoolWatermarks$"
+        },
+        {
           "test_name_regex": "AgentMacOverFlowTest.*$"
         },
         {
@@ -3355,6 +3391,12 @@
         },
         {
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
+        },
+        {
+          "test_name_regex": "AgentTrafficPfcTest.verifyBufferPoolWatermarks$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
@@ -3477,6 +3519,9 @@
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
+          "test_name_regex": "AgentAqmTest.verifyEcnTrafficNoDrop$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
@@ -3499,9 +3544,6 @@
         },
         {
           "test_name_regex": "AgentWideEcmpTest.WideUcmpUnderflow$"
-        },
-        {
-          "test_name_regex": "warm_boot.AgentCoppTest/0.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
@@ -3745,6 +3787,9 @@
         },
         {
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
+        },
+        {
+          "test_name_regex": "AgentTrafficPfcTest.verifyBufferPoolWatermarks$"
         },
         {
           "test_name_regex": "AgentMacOverFlowTest.*$"
@@ -4062,6 +4107,9 @@
         },
         {
           "test_name_regex": "warm_boot.AgentTrafficPfcWatchdogTest.PfcWatchdogDetection"
+        },
+        {
+          "test_name_regex": "AgentTrafficPfcTest.verifyBufferPoolWatermarks"
         }
     ],
     "brcm/11.7.0.0_dnx_odp/11.7.0.0_dnx_odp/jericho3/multi_switch": [
@@ -4186,6 +4234,9 @@
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
+          "test_name_regex": "AgentAqmTest.verifyEcnTrafficNoDrop$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
@@ -4208,9 +4259,6 @@
         },
         {
           "test_name_regex": "AgentWideEcmpTest.WideUcmpUnderflow$"
-        },
-        {
-          "test_name_regex": "warm_boot.AgentCoppTest/0.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
@@ -4376,6 +4424,9 @@
         },
         {
           "test_name_regex": "warm_boot.AgentTrafficPfcWatchdogTest.PfcWatchdogDetection"
+        },
+        {
+          "test_name_regex": "AgentTrafficPfcTest.verifyBufferPoolWatermarks"
         }
     ],
     "brcm/11.7.0.0_dnx_odp/11.7.0.0_dnx_odp/ramon3/mono": [
@@ -4503,6 +4554,9 @@
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
+          "test_name_regex": "AgentAqmTest.verifyEcnTrafficNoDrop$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
@@ -4525,9 +4579,6 @@
         },
         {
           "test_name_regex": "AgentWideEcmpTest.WideUcmpUnderflow$"
-        },
-        {
-          "test_name_regex": "warm_boot.AgentCoppTest/0.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
@@ -4716,7 +4767,7 @@
           "test_name_regex": "AgentFabricSwitchTest.configUpdateForExpectedFabricPortConnectivity"
         }
     ],
-    "brcm/11.7.0.0_dnx_odp/12.0_ea_dnx_odp/jericho3/mono": [
+    "brcm/11.7.0.0_dnx_odp/12.2.0.0_dnx_odp/jericho3/mono": [
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
         },
@@ -5022,9 +5073,12 @@
         },
         {
           "test_name_regex": "warm_boot.AgentTrafficPfcWatchdogTest.PfcWatchdogDetection"
+        },
+        {
+          "test_name_regex": "AgentTrafficPfcTest.verifyBufferPoolWatermarks"
         }
     ],
-    "brcm/11.7.0.0_dnx_odp/12.0_ea_dnx_odp/jericho3/multi_switch": [
+    "brcm/11.7.0.0_dnx_odp/12.2.0.0_dnx_odp/jericho3/multi_switch": [
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
         },
@@ -5146,6 +5200,9 @@
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
+          "test_name_regex": "AgentAqmTest.verifyEcnTrafficNoDrop$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
@@ -5168,9 +5225,6 @@
         },
         {
           "test_name_regex": "AgentWideEcmpTest.WideUcmpUnderflow$"
-        },
-        {
-          "test_name_regex": "warm_boot.AgentCoppTest/0.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
@@ -5336,12 +5390,15 @@
         },
         {
           "test_name_regex": "warm_boot.AgentTrafficPfcWatchdogTest.PfcWatchdogDetection"
+        },
+        {
+          "test_name_regex": "AgentTrafficPfcTest.verifyBufferPoolWatermarks"
         }
     ],
-    "brcm/11.7.0.0_dnx_odp/12.0_ea_dnx_odp/ramon3/mono": [
+    "brcm/11.7.0.0_dnx_odp/12.2.0.0_dnx_odp/ramon3/mono": [
         
     ],
-    "brcm/11.7.0.0_dnx_odp/12.0_ea_dnx_odp/ramon3/multi_switch": [
+    "brcm/11.7.0.0_dnx_odp/12.2.0.0_dnx_odp/ramon3/multi_switch": [
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
         },
@@ -5463,6 +5520,9 @@
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
+          "test_name_regex": "AgentAqmTest.verifyEcnTrafficNoDrop$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
@@ -5485,9 +5545,6 @@
         },
         {
           "test_name_regex": "AgentWideEcmpTest.WideUcmpUnderflow$"
-        },
-        {
-          "test_name_regex": "warm_boot.AgentCoppTest/0.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
@@ -6116,13 +6173,10 @@
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
-          "test_name_regex": "AgentMacOverFlowTest.*$"
+          "test_name_regex": "AgentTrafficPfcTest.verifyBufferPoolWatermarks$"
         },
         {
           "test_name_regex": "AgentSendPacketToMulticastQueueTest.SendPacketOutOfPortToMCQueue$"
-        },
-        {
-          "test_name_regex": "AgentFlowlet.*$"
         }
     ],
     "brcm/11.7.0.0_odp/11.7.0.0_odp/tomahawk5/multi_switch": [
@@ -6215,6 +6269,12 @@
         },
         {
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
+        },
+        {
+          "test_name_regex": "AgentTrafficPfcTest.verifyBufferPoolWatermarks$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
@@ -6337,6 +6397,9 @@
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
+          "test_name_regex": "AgentAqmTest.verifyEcnTrafficNoDrop$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
@@ -6359,9 +6422,6 @@
         },
         {
           "test_name_regex": "AgentWideEcmpTest.WideUcmpUnderflow$"
-        },
-        {
-          "test_name_regex": "warm_boot.AgentCoppTest/0.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
@@ -6607,16 +6667,13 @@
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
-          "test_name_regex": "AgentMacOverFlowTest.*$"
+          "test_name_regex": "AgentTrafficPfcTest.verifyBufferPoolWatermarks$"
         },
         {
           "test_name_regex": "AgentSendPacketToMulticastQueueTest.SendPacketOutOfPortToMCQueue$"
-        },
-        {
-          "test_name_regex": "AgentFlowlet.*$"
         }
     ],
-    "brcm/12.0_ea_dnx_odp/12.0_ea_dnx_odp/jericho3/mono": [
+    "brcm/12.2.0.0_dnx_odp/12.2.0.0_dnx_odp/jericho3/mono": [
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
         },
@@ -6922,9 +6979,12 @@
         },
         {
           "test_name_regex": "warm_boot.AgentTrafficPfcWatchdogTest.PfcWatchdogDetection"
+        },
+        {
+          "test_name_regex": "AgentTrafficPfcTest.verifyBufferPoolWatermarks"
         }
     ],
-    "brcm/12.0_ea_dnx_odp/12.0_ea_dnx_odp/jericho3/mono/fap": [
+    "brcm/12.2.0.0_dnx_odp/12.2.0.0_dnx_odp/jericho3/mono/fap": [
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
         },
@@ -7230,9 +7290,18 @@
         },
         {
           "test_name_regex": "warm_boot.AgentTrafficPfcWatchdogTest.PfcWatchdogDetection"
+        },
+        {
+          "test_name_regex": "AgentTrafficPfcTest.verifyBufferPoolWatermarks"
+        },
+        {
+          "test_name_regex": "AgentVoqSwitchFullScaleDsfNodesTest.remoteAndLocalLoadBalance"
+        },
+        {
+          "test_name_regex": "AgentVoqSwitchFullScaleDsfNodesTest.remoteNeighborWithEcmpGroup"
         }
     ],
-    "brcm/12.0_ea_dnx_odp/12.0_ea_dnx_odp/jericho3/multi_switch": [
+    "brcm/12.2.0.0_dnx_odp/12.2.0.0_dnx_odp/jericho3/multi_switch": [
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
         },
@@ -7354,6 +7423,9 @@
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
+          "test_name_regex": "AgentAqmTest.verifyEcnTrafficNoDrop$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
@@ -7376,9 +7448,6 @@
         },
         {
           "test_name_regex": "AgentWideEcmpTest.WideUcmpUnderflow$"
-        },
-        {
-          "test_name_regex": "warm_boot.AgentCoppTest/0.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
@@ -7544,9 +7613,12 @@
         },
         {
           "test_name_regex": "warm_boot.AgentTrafficPfcWatchdogTest.PfcWatchdogDetection"
+        },
+        {
+          "test_name_regex": "AgentTrafficPfcTest.verifyBufferPoolWatermarks"
         }
     ],
-    "brcm/12.0_ea_dnx_odp/12.0_ea_dnx_odp/jericho3/multi_switch/fap": [
+    "brcm/12.2.0.0_dnx_odp/12.2.0.0_dnx_odp/jericho3/multi_switch/fap": [
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
         },
@@ -7668,6 +7740,9 @@
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
+          "test_name_regex": "AgentAqmTest.verifyEcnTrafficNoDrop$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
@@ -7690,9 +7765,6 @@
         },
         {
           "test_name_regex": "AgentWideEcmpTest.WideUcmpUnderflow$"
-        },
-        {
-          "test_name_regex": "warm_boot.AgentCoppTest/0.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
@@ -7858,18 +7930,27 @@
         },
         {
           "test_name_regex": "warm_boot.AgentTrafficPfcWatchdogTest.PfcWatchdogDetection"
+        },
+        {
+          "test_name_regex": "AgentTrafficPfcTest.verifyBufferPoolWatermarks"
+        },
+        {
+          "test_name_regex": "AgentVoqSwitchFullScaleDsfNodesTest.remoteAndLocalLoadBalance"
+        },
+        {
+          "test_name_regex": "AgentVoqSwitchFullScaleDsfNodesTest.remoteNeighborWithEcmpGroup"
         }
     ],
-    "brcm/12.0_ea_dnx_odp/12.0_ea_dnx_odp/ramon3/mono": [
+    "brcm/12.2.0.0_dnx_odp/12.2.0.0_dnx_odp/ramon3/mono": [
         
     ],
-    "brcm/12.0_ea_dnx_odp/12.0_ea_dnx_odp/ramon3/mono/fe13": [
+    "brcm/12.2.0.0_dnx_odp/12.2.0.0_dnx_odp/ramon3/mono/fe13": [
         
     ],
-    "brcm/12.0_ea_dnx_odp/12.0_ea_dnx_odp/ramon3/mono/fe2": [
+    "brcm/12.2.0.0_dnx_odp/12.2.0.0_dnx_odp/ramon3/mono/fe2": [
         
     ],
-    "brcm/12.0_ea_dnx_odp/12.0_ea_dnx_odp/ramon3/multi_switch": [
+    "brcm/12.2.0.0_dnx_odp/12.2.0.0_dnx_odp/ramon3/multi_switch": [
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
         },
@@ -7991,6 +8072,9 @@
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
+          "test_name_regex": "AgentAqmTest.verifyEcnTrafficNoDrop$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
@@ -8013,9 +8097,6 @@
         },
         {
           "test_name_regex": "AgentWideEcmpTest.WideUcmpUnderflow$"
-        },
-        {
-          "test_name_regex": "warm_boot.AgentCoppTest/0.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
@@ -8207,7 +8288,7 @@
           "test_name_regex": "AgentHwParityErrorTest.verifyParityError$"
         }
     ],
-    "brcm/12.0_ea_dnx_odp/12.0_ea_dnx_odp/ramon3/multi_switch/fe13": [
+    "brcm/12.2.0.0_dnx_odp/12.2.0.0_dnx_odp/ramon3/multi_switch/fe13": [
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
         },
@@ -8329,6 +8410,9 @@
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
+          "test_name_regex": "AgentAqmTest.verifyEcnTrafficNoDrop$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
@@ -8351,9 +8435,6 @@
         },
         {
           "test_name_regex": "AgentWideEcmpTest.WideUcmpUnderflow$"
-        },
-        {
-          "test_name_regex": "warm_boot.AgentCoppTest/0.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
@@ -8545,7 +8626,7 @@
           "test_name_regex": "AgentHwParityErrorTest.verifyParityError$"
         }
     ],
-    "brcm/12.0_ea_dnx_odp/12.0_ea_dnx_odp/ramon3/multi_switch/fe2": [
+    "brcm/12.2.0.0_dnx_odp/12.2.0.0_dnx_odp/ramon3/multi_switch/fe2": [
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
         },
@@ -8667,6 +8748,9 @@
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
+          "test_name_regex": "AgentAqmTest.verifyEcnTrafficNoDrop$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
@@ -8689,9 +8773,6 @@
         },
         {
           "test_name_regex": "AgentWideEcmpTest.WideUcmpUnderflow$"
-        },
-        {
-          "test_name_regex": "warm_boot.AgentCoppTest/0.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
@@ -9270,6 +9351,9 @@
         },
         {
           "test_name_regex": "AgentMirroringScaleTest/[67].MaxMirroringTest$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         }
     ],
     "brcm/8.2.0.0_odp/8.2.0.0_odp/tomahawk/multi_switch": [
@@ -9448,6 +9532,9 @@
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
+          "test_name_regex": "AgentAqmTest.verifyEcnTrafficNoDrop$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
@@ -9470,9 +9557,6 @@
         },
         {
           "test_name_regex": "AgentWideEcmpTest.WideUcmpUnderflow$"
-        },
-        {
-          "test_name_regex": "warm_boot.AgentCoppTest/0.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
@@ -9665,6 +9749,9 @@
         },
         {
           "test_name_regex": "AgentMirroringScaleTest/[67].MaxMirroringTest$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
           "test_name_regex": "AgentQueuePerHostTest/[0123].VerifyHostToQueueMappingClassIDsAfterResolve.*$"
@@ -10056,6 +10143,12 @@
           "test_name_regex": "AgentIngressBufferPoolTest.validateIngressPoolParamChange$"
         },
         {
+          "test_name_regex": "AgentTrafficPfcTest.verifyBufferPoolWatermarks$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
+        },
+        {
           "test_name_regex": "AgentTrafficPfcTest.verifyIngressPriorityGroupWatermarks$"
         },
         {
@@ -10184,6 +10277,9 @@
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
+          "test_name_regex": "AgentAqmTest.verifyEcnTrafficNoDrop$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
@@ -10206,9 +10302,6 @@
         },
         {
           "test_name_regex": "AgentWideEcmpTest.WideUcmpUnderflow$"
-        },
-        {
-          "test_name_regex": "warm_boot.AgentCoppTest/0.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
@@ -10454,6 +10547,12 @@
           "test_name_regex": "AgentIngressBufferPoolTest.validateIngressPoolParamChange$"
         },
         {
+          "test_name_regex": "AgentTrafficPfcTest.verifyBufferPoolWatermarks$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
+        },
+        {
           "test_name_regex": "AgentTrafficPfcTest.verifyIngressPriorityGroupWatermarks$"
         },
         {
@@ -10550,6 +10649,12 @@
         },
         {
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
+        },
+        {
+          "test_name_regex": "AgentTrafficPfcTest.verifyBufferPoolWatermarks$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
@@ -10971,6 +11076,12 @@
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
+          "test_name_regex": "AgentTrafficPfcTest.verifyBufferPoolWatermarks$"
+        },
+        {
+          "test_name_regex": "AgentCoppTest/[01].DstIpNetworkControlDscpToHighPriQ$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
         },
         {
@@ -11091,6 +11202,9 @@
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
+          "test_name_regex": "AgentAqmTest.verifyEcnTrafficNoDrop$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
@@ -11113,9 +11227,6 @@
         },
         {
           "test_name_regex": "AgentWideEcmpTest.WideUcmpUnderflow$"
-        },
-        {
-          "test_name_regex": "warm_boot.AgentCoppTest/0.*$"
         },
         {
           "test_name_regex": "AgentCoppTest/[01].Ipv6LinkLocalUcastIpNetworkControlDscpToHighPriQ$"
@@ -11281,6 +11392,9 @@
         },
         {
           "test_name_regex": "AgentDiagShellStressTest.*$"
+        },
+        {
+          "test_name_regex": "warm_boot.AgentCoppTest/0.Ipv6LinkLocalMcastToMidPriQ$"
         },
         {
           "test_name_regex": "AgentTrafficPfcTest.verifyIngressPriorityGroupWatermarks$"
@@ -11921,6 +12035,9 @@
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
+          "test_name_regex": "AgentAqmTest.verifyEcnTrafficNoDrop$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
@@ -11943,9 +12060,6 @@
         },
         {
           "test_name_regex": "AgentWideEcmpTest.WideUcmpUnderflow$"
-        },
-        {
-          "test_name_regex": "warm_boot.AgentCoppTest/0.*$"
         }
     ],
     "leaba/24.8.3001/24.8.3001/gibraltar/mono": [
@@ -12558,6 +12672,9 @@
           "test_name_regex": "AgentAqmTest.verifyWredThreshold$"
         },
         {
+          "test_name_regex": "AgentAqmTest.verifyEcnTrafficNoDrop$"
+        },
+        {
           "test_name_regex": "AgentCoppTest/[01].UnresolvedRouteNextHopToLowPriQueue$"
         },
         {
@@ -12580,9 +12697,6 @@
         },
         {
           "test_name_regex": "AgentWideEcmpTest.WideUcmpUnderflow$"
-        },
-        {
-          "test_name_regex": "warm_boot.AgentCoppTest/0.*$"
         }
     ],
     "leaba/24.8.3001/24.8.3001/graphene200/mono": [
