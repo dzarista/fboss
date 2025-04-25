@@ -32,6 +32,8 @@ fi
 systemctl stop sensor_service
 systemctl stop qsfp_service
 systemctl stop platform_manager
+systemctl stop fboss_sw_agent
+systemctl stop fboss_hw_agent@0
 
 # PCA9539 GPIO expander is connected to accelerator 1 channel 0 of Fairywren CPLD (0000:07:00.0)
 pca_bus=$(i2cdetect -l | grep '0000:07:00.0 SMBus master 1 bus 0' | awk -F' ' '{print $1}' | tr -d 'i2c-');
@@ -80,6 +82,8 @@ i2cset -f -y -m $BITMASK_PIN_6 $pca_bus $PCA_CHIP_ADDR $PCA_REG_OUTPUT_PORT_1 0x
 i2cset -f -y -m $BITMASK_PIN_1 $pca_bus $PCA_CHIP_ADDR $PCA_REG_OUTPUT_PORT_1 0xFF
 
 # Start services after FPGA upgrade
+systemctl start fboss_hw_agent@0
+systemctl start fboss_sw_agent
 systemctl start platform_manager
 systemctl start qsfp_service
 systemctl start sensor_service
