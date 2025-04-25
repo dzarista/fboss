@@ -57,7 +57,7 @@
       },
       "version": {
         "versionType": "full_command",
-        "getVersionCmd": "cat /sys/devices/virtual/dmi/id/bios_version | cut -d ':' -f 2 | cut -d '-' -f 3"
+        "getVersionCmd": "cat /sys/devices/virtual/dmi/id/bios_version"
       },
       "priority": 1
     },
