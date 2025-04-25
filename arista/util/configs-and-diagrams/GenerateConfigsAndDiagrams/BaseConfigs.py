@@ -1466,6 +1466,9 @@ class SCMFairywren( SCMUnit ):
       self.scmFpga = PciDeviceConfig( "SCM_FPGA", "0x3475", "0x0001", "0x3475",
                                       "0x0008", symlinkDeviceName="MERU_SCM_CPLD" )
       self.scmFpga.addInfoRomConfigs( "0x100" )
+      self.scmFpga.addMiscCtrlConfigs( [
+         MiscConfig( name="SCM_ADC", deviceName="adc", offset="0x7300" ),
+      ] )
       self.addPciDeviceConfigs( [ self.scmFpga ] )
 
       self.scmFpga.addI2cAdapterConfigs( 2, "SCM_I2C_MASTER{}", "0x8000" )

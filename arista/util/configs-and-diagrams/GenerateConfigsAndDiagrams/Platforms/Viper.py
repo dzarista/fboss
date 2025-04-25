@@ -10,6 +10,7 @@ from ..BaseConfigs import (
    I2cDeviceConfig,
    InitRegSettings,
    LedConfig,
+   MiscConfig,
    PciDeviceConfig,
    PlatformConfig,
    PSUUnit,
@@ -290,7 +291,9 @@ class ViperSMB( SMBUnit ):
                                  )
 
       smbFpga.addInfoRomConfigs( "0x100" )
-
+      smbFpga.addMiscCtrlConfigs( [
+         MiscConfig( name="SMB_ADC", deviceName="adc", offset="0x7300" )
+      ] )
       smbFpga.addLedCtrlConfigs( [
          LedConfig( ledName="SYSTEM_STATUS_LED", offset="0x6050" ),
          LedConfig( ledName="FAN_STATUS_LED", offset="0x6060" ),
