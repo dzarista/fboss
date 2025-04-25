@@ -1,4 +1,4 @@
-# Firmware Package #1
+# Firmware Package #2
 
 This directory contains the firmware programmable binaries for the
 Meru800bia platform. The table below shows the programmables:
