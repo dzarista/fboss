@@ -100,7 +100,7 @@ if [ $arch == "xgs" ]; then
 fi
 
 if [ -z $known_good_hash ]; then
-   export ARISTA_LOCAL_BUILD=1
+   src_dir_arg=(--src-dir $PWD)
 fi
 
 build_type="Debug"
@@ -113,7 +113,7 @@ touch ".git"
 
 # Pin fboss and its dependencies to known stable commit hash
 rm -rf build/deps/github_hashes
-tar -xvf fboss/oss/stable_commits/latest_stable_hashes.tar.gz
+tar -xvf fboss/oss/stable_commits/latest_stable_hashes.tar.gz --no-same-owner
 
 # Provide brcm sai static library
 fboss/oss/scripts/build-helper.py $sai_sdk_dir/libraries/libsai_impl.a \
@@ -123,17 +123,14 @@ fboss/oss/scripts/build-helper.py $sai_sdk_dir/libraries/libsai_impl.a \
 export SAI_ONLY=1
 export SAI_BRCM_IMPL=1 # Needed only for BRCM SAI
 export GETDEPS_USE_WGET=1
-export ARISTA_LOCAL_BUILD=1 # Needed to build with local repo instead
 export BUILD_FBOSS_CLI=1
 export IS_OSS=1
-export IS_OSS_FBOSS_CENTOS9=1
 unset DESTDIR
 
 echo "==== Building fboss ===="
-rm -rf $scratch_dir/repos/github.com-facebook-fboss.git
 time ./build/fbcode_builder/getdeps.py build --allow-system-packages --num-jobs 40 \
-   --scratch-path $scratch_dir fboss \
-   --extra-cmake-defines='{"CMAKE_BUILD_TYPE":"'$build_type'", "CMAKE_CXX_STANDARD":"20"}'
+   --scratch-path $scratch_dir --build-type $build_type ${src_dir_arg[@]} fboss \
+   --extra-cmake-defines='{"CMAKE_CXX_STANDARD":"20"}'
 
 echo "==== Building bsp-kmods ===="
 make -C $kernel_dir M=~+/fboss.bsp.arista/bsp-kmods modules
@@ -145,8 +142,6 @@ echo "==== Building psu-upgrade ===="
 make -C arista/psu-upgrade
 
 echo "==== Generating python thrift libraries ===="
-thrift_dir=$scratch_dir/installed/fbthrift/bin
-repo_prefix=$scratch_dir/repos/github.com-facebook
 thrift_files=( 
    fboss/agent/if/ctrl.thrift
    fboss/agent/if/hw_ctrl.thrift
@@ -156,7 +151,8 @@ thrift_files=(
    fboss/platform/sensor_service/if/sensor_service.thrift
 )
 for thrift_file in ${thrift_files[@]}; do
-   $thrift_dir/thrift1 -r --gen py -o $scratch_dir -I $repo_prefix-fboss.git -I $repo_prefix-fbthrift.git $thrift_file
+   $scratch_dir/installed/fbthrift/bin/thrift1 -r --gen py -o $scratch_dir -I $PWD \
+      -I $scratch_dir/repos/github.com-facebook-fbthrift.git $thrift_file
 done
 
 echo "==== Extracting platform mappings ===="

@@ -8,9 +8,8 @@ License: GPLv2
 URL: https://github.com/aristanetworks/arista-fboss
 
 %define _fboss_meru800biab_dir %{_fboss_dir}/arista/platform/meru800bia
-%define _fboss_build_repo_dir %{_scratch_dir}/repos/github.com-facebook-fboss.git
-%define _fboss_config_dir %{_fboss_build_repo_dir}/fboss/platform/configs
-%define _fboss_platform_dir %{_fboss_build_repo_dir}/arista/platform
+%define _fboss_config_dir %{_fboss_dir}/fboss/platform/configs
+%define _fboss_platform_dir %{_fboss_dir}/arista/platform
 
 %define _fboss_target_share %{buildroot}/opt/fboss/share
 %define _fboss_target_var %{buildroot}/var/facebook/fboss
