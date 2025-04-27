@@ -14,7 +14,7 @@ usage() {
 cd "$(dirname "$0")"
 # Default values
 sai_sdk_dir=/result
-scratch_dir=/tmp/tmp_build_dir
+scratch_dir=/var/FBOSS/tmp_build_dir
 kernel_dir=/kernel-6.4
 
 while [[ $# -gt 0 ]]; do

@@ -4,12 +4,37 @@ images:
     - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
       build: arista/fbossctl kernel_pull 6.4 $DESTDIR/kernel-6.4
 
+  fboss-dependencies:
+    units:
+    - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
+      entry:
+        mutables: [ /var/FBOSS ]
+      build: |
+        dest=$DESTDIR; scratch=/var/FBOSS/tmp_build_dir; unset DESTDIR
+        export GETDEPS_USE_WGET=1
+
+        rm -rf build/deps/github_hashes/
+        tar xvzf fboss/oss/stable_commits/latest_stable_hashes.tar.gz
+
+        for _ in {1..5}; do
+          ./build/fbcode_builder/getdeps.py build --allow-system-packages --num-jobs 40 \
+            --scratch-path $scratch --build-type MinSizeRel --only-deps fboss \
+            --extra-cmake-defines='{"CMAKE_CXX_STANDARD":"20"}' && break
+        done
+        mkdir -p $dest/$scratch; mv $scratch/* $dest/$scratch/
+        mkdir -p $dest/etc/bus-setup.d/
+        echo 'sudo chown -R $USER:$USER '$scratch >> $dest/etc/bus-setup.d/scratch-dir-setup.sh
+
   build-floor/dnx_6.4-el9:
     units:
       - image: code.arista.io/os/fboss-centos%fboss-centos-image-el9
       - image: code.arista.io/fboss/fboss-bcm-sai%sai-11.7.0-sdk-6.5.30-dnx-kernel-6.4
       - image: code.arista.io/fboss/fboss-bcm-sdk%sdk-6.5.30-dnx-kernel-6.4
       - image: .%kernel-6.4
+      - image: .%fboss-dependencies
+    entry:
+      mutables:
+        - /var/FBOSS/tmp_build_dir
 
   package_dnx_6.4-el9:
     units:
@@ -27,6 +52,10 @@ images:
       - image: code.arista.io/fboss/fboss-bcm-sai%sai-10.2.0-sdk-6.5.29-xgs-kernel-6.4
       - image: code.arista.io/fboss/fboss-bcm-sdk%sdk-6.5.29-xgs-kernel-6.4
       - image: .%kernel-6.4
+      - image: .%fboss-dependencies
+    entry:
+      mutables:
+        - /var/FBOSS/tmp_build_dir
 
   package_xgs_6.4-el9:
     units:
