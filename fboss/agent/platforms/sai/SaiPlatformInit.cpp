@@ -30,7 +30,7 @@
 #include "fboss/agent/platforms/sai/SaiMeru400biaPlatform.h"
 #include "fboss/agent/platforms/sai/SaiMeru400biuPlatform.h"
 #include "fboss/agent/platforms/sai/SaiMeru800bfaPlatform.h"
-#include "fboss/agent/platforms/sai/SaiMeru800biaPlatform.h
+#include "fboss/agent/platforms/sai/SaiMeru800biaPlatform.h"
 #include "fboss/agent/platforms/sai/SaiMeru800baPlatform.h"
 #include "fboss/agent/platforms/sai/SaiMinipack3NPlatform.h"
 #include "fboss/agent/platforms/sai/SaiMorgan800ccPlatform.h"

@@ -13,15 +13,15 @@
 
 namespace facebook::fboss {
 
-class Jericho3Asic;
+class Tomahawk5Asic;
 
-class SaiMeru800biaPlatform : public SaiBcmPlatform {
+class SaiMeru800baPlatform : public SaiBcmPlatform {
  public:
-  SaiMeru800biaPlatform(
+  SaiMeru800baPlatform(
       std::unique_ptr<PlatformProductInfo> productInfo,
       folly::MacAddress localMac,
       const std::string& platformMappingStr);
-  ~SaiMeru800biaPlatform() override;
+  ~SaiMeru800baPlatform() override;
   HwAsic* getAsic() const override;
 
   uint32_t numLanesPerCore() const override {
@@ -29,7 +29,7 @@ class SaiMeru800biaPlatform : public SaiBcmPlatform {
   }
 
   uint32_t numCellsAvailable() const override {
-    return 130665;
+    return 319960;
   }
 
   bool isSerdesApiSupported() const override {
@@ -55,16 +55,13 @@ class SaiMeru800biaPlatform : public SaiBcmPlatform {
       cfg::PortSpeed /*speed*/) const override {
     return std::nullopt;
   }
-  std::vector<sai_system_port_config_t> getInternalSystemPortConfig()
-      const override;
 
  private:
   void setupAsic(
       std::optional<int64_t> switchId,
       const cfg::SwitchInfo& switchInfo,
       std::optional<HwAsic::FabricNodeRole> fabricNodeRole) override;
-
-  std::unique_ptr<Jericho3Asic> asic_;
+  std::unique_ptr<Tomahawk5Asic> asic_;
 };
 
 } // namespace facebook::fboss
