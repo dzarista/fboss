@@ -264,7 +264,7 @@ class QuicksilverPFbSMB( SMBUnit ):
       ] )
 
       smbFpga.addXcvrCtrlConfigs( numConfigs=64, basePortNumber=1, ledsPerXcvr=2,
-                                  smbusAccelStart=3, smbusName="SMB_I2C_MASTER",
+                                  smbusAccelStart=2, smbusName="SMB_I2C_MASTER",
                                   xcvrBaseOffset="0xA000", accelBusRange=( 0, 7 ) )
 
       smbFpga.addLedCtrlConfigs( [
