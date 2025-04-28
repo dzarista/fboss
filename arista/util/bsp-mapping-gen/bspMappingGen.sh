@@ -22,7 +22,7 @@ cp "$BSPMAPPING_GEN" /tmp/fbcode_builder_getdeps-ZvarZFBOSSZfboss.gitZbuildZfbco
 
 # Meta's helper script needs to be run from the root of the FBOSS repository.
 cd /var/FBOSS/fboss.git
-./fboss/lib/bsp/bspmapping/run-helper.py
+./fboss/lib/bsp/bspmapping/run-helper.sh
 
 mkdir -p $FBOSS_DIR/fboss.git/tmp/generated_bsp_mappings
 cp -rf /tmp/generated_configs $FBOSS_DIR/fboss.git/tmp/generated_bsp_mappings
