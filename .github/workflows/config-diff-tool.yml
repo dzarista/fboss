@@ -8,6 +8,7 @@ on:
 jobs:
   job:
     runs-on: ubuntu-latest
+    if: github.event.repository.fork == false
     steps:
       - name: Check-out latest code
         uses: actions/checkout@v4
