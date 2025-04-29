@@ -108,37 +108,37 @@ class ViperSMB( SMBUnit ):
          SensorConfig( "J3_DIODE_CORE_TEMP", "temp2_input", SensorType.TEMP,
                        compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=135.0, maxAlarmVal=120.0
+                           upperCriticalVal=104.0, maxAlarmVal=99.0
                        ) ),
          SensorConfig( "J3_DIODE_FAB0_TEMP", "temp3_input", SensorType.TEMP,
                        compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=135.0, maxAlarmVal=120.0
+                           upperCriticalVal=104.0, maxAlarmVal=99.0
                        ) ),
          SensorConfig( "J3_DIODE_FAB1_TEMP", "temp4_input", SensorType.TEMP,
                        compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=135.0, maxAlarmVal=120.0
+                           upperCriticalVal=104.0, maxAlarmVal=99.0
                        ) ),
          SensorConfig( "J3_DIODE_NIF0_TEMP", "temp5_input", SensorType.TEMP,
                        compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=135.0, maxAlarmVal=120.0
+                           upperCriticalVal=104.0, maxAlarmVal=99.0
                        ) ),
          SensorConfig( "J3_DIODE_NIF1_TEMP", "temp6_input", SensorType.TEMP,
                        compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=135.0, maxAlarmVal=120.0
+                           upperCriticalVal=104.0, maxAlarmVal=99.0
                        ) ),
          SensorConfig( "J3_DIODE_HBM0_TEMP", "temp7_input", SensorType.TEMP,
                        compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=135.0, maxAlarmVal=120.0
+                           upperCriticalVal=94.0, maxAlarmVal=89.0
                        ) ),
          SensorConfig( "J3_DIODE_HBM1_TEMP", "temp8_input", SensorType.TEMP,
                        compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=135.0, maxAlarmVal=120.0
+                           upperCriticalVal=94.0, maxAlarmVal=89.0
                        ) )
       ] )
 
