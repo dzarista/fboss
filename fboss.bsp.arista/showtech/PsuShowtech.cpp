@@ -116,7 +116,10 @@ std::vector<uint8_t> readI2c(const char *i2cDevice, int chipAddr,
   std::vector<uint8_t> readBuffer;
   uint8_t lengthByte = 0;
   if (numBytesToRead == 0) {
-    lengthByte = makeI2cRdwrRequest(i2cDevice, chipAddr, regAddr, 1)[0];
+    readBuffer = makeI2cRdwrRequest(i2cDevice, chipAddr, regAddr, 1);
+    if (readBuffer.empty())
+      return {};
+    lengthByte = readBuffer[0];
     numBytesToRead = lengthByte + 1;
     readBuffer =
         makeI2cRdwrRequest(i2cDevice, chipAddr, regAddr, numBytesToRead);
@@ -217,7 +220,7 @@ void printPsuInfo() {
           std::cout << std::hex << "0x" << std::setw(4) << std::setfill('0')
                     << combinedRegInfo;
         } else {
-          std::cout << "Incorrect register data amount read" << std::endl;
+          std::cout << "Incorrect register data amount read";
         }
       } else if (valueType == ValueType::LINEAR_11) {
         if (regInfo.size() == 1) {
@@ -228,22 +231,26 @@ void printPsuInfo() {
               (static_cast<uint16_t>(regInfo[1]) << 8) | regInfo[0];
           std::cout << linear11ToDecimal(combinedRegInfo);
         } else {
-          std::cout << "Incorrect register data amount read" << std::endl;
+          std::cout << "Incorrect register data amount read";
         }
       } else if (valueType == ValueType::LINEAR_16) {
         // Special Case: VOUT = VOUT_REG * 2^(VOUT_MODE as 5 bit signed)
-        uint16_t combinedRegInfo =
-            (static_cast<uint16_t>(regInfo[1]) << 8) | regInfo[0];
-        std::vector<uint8_t> voutMode =
-            readI2c(i2cDevice, genericPsu.getChipAddr(),
-                    genericPsu.getVoutModeReg(), 1);
-        voutMode[0] = (voutMode[0] & 0x10)
-                          ? (static_cast<int8_t>(voutMode[0] | 0xE0))
-                          : voutMode[0];
+        if (regInfo.size() == 2) {
+          uint16_t combinedRegInfo =
+              (static_cast<uint16_t>(regInfo[1]) << 8) | regInfo[0];
+          std::vector<uint8_t> voutMode =
+              readI2c(i2cDevice, genericPsu.getChipAddr(),
+                      genericPsu.getVoutModeReg(), 1);
+          voutMode[0] = (voutMode[0] & 0x10)
+                            ? (static_cast<int8_t>(voutMode[0] | 0xE0))
+                            : voutMode[0];
 
-        double result = static_cast<double>(combinedRegInfo) *
-                        std::pow(2.0, static_cast<int8_t>(voutMode[0]));
-        std::cout << result;
+          double result = static_cast<double>(combinedRegInfo) *
+                          std::pow(2.0, static_cast<int8_t>(voutMode[0]));
+          std::cout << result;
+        } else {
+          std::cout << "Incorrect register data amount read";
+        }
       }
       std::cout << std::endl;
     }
