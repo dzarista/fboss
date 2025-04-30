@@ -77,7 +77,7 @@ with open( "Trace_quicksilverP_1.0_Tomahawk5ToOSFP.csv" ) as fh:
 
 nifFrontPanelSlotToAsicCoreAndSerdesCore = {}
 with open( "quicksilver_static_mapping.csv", "w", newline="" ) as fh:
-   fields = [ field.name for field in StaticMapping.getFields()]
+   fields = [ field for field in StaticMapping.getLabels()]
    mappingWriter = csv.writer(fh, lineterminator='\n', quoting=csv.QUOTE_NONE)
    mappingWriter.writerow( fields )
 
@@ -140,31 +140,19 @@ def frontPanelSlots():
    return list( range( 1, numFrontPanelPorts + 1 ) )
    
 
-# def firstPortIdOffsetByAsicCore( coreId ):
-#    # in 400g-4x2 breakout, we will have two ports per serdes octet.
-#    # Note, this only accounts for ports that are statically assigned to ASIC cores.
-#    # The QSFP port is treated differently in the frontPanelSlot iteration below.
-#    portsPerCore = { 0 : 10, 1 : 8, 2 : 8, 3 : 10 }
-#    firstPortId = 0
-#    for core in range( coreId ):
-#       firstPortId += portsPerCore[ core ]
-#    return firstPortId
-
-supportedProfilesBySpeed = {
-   SpeedGbps.EightHundred : { 
-      1 : [ '23', '25', '38', '39', '45', '47' ],
-      2 : [ '47' ],
-      3 : [ '47' ],
-      4 : [ '47' ],
-      5 : [ '23', '25', '38', '45', '47'  ],
-      6 : [ '47' ],
-      7 : [ '47' ],
-      8 : [ '47' ]
-   },
+supportedProfiles = {
+      1 : [ '23', '25', '38', '39', '45', '47', '49', '50' ],
+      2 : [ '47', '49' ],
+      3 : [ '47', '49' ],
+      4 : [ '47', '49' ],
+      5 : [ '23', '25', '38', '45', '47', '49' ],
+      6 : [ '47', '49' ],
+      7 : [ '47', '49' ],
+      8 : [ '47', '49' ]
 }
 
 with open( "quicksilver_port_profile_mapping.csv", "w" ) as fh:
-   fields = [ field.name for field in PortProfileMapping.getFields()]
+   fields = [ field for field in PortProfileMapping.getLabels()]
    mappingWriter = csv.writer(fh, lineterminator='\n', quoting=csv.QUOTE_NONE)
    mappingWriter.writerow( fields )
 
@@ -174,24 +162,14 @@ with open( "quicksilver_port_profile_mapping.csv", "w" ) as fh:
    for frontPanelSlot in frontPanelSlots():
       subPorts = list( range( 1, numSerdesPerOctet + 1 ) )
 
-      speedInGbps = SpeedGbps.EightHundred
-
       for subPort in subPorts:
          portStr = f"eth1/{frontPanelSlot}/{subPort}"
 
          serdesCoreId = nifFrontPanelSlotToAsicCoreAndSerdesCore[ frontPanelSlot ]
 
-         nifSupportedProfiles = '-'.join( supportedProfilesBySpeed[ speedInGbps ][
-            subPort ] )
+         nifSupportedProfiles = '-'.join( supportedProfiles[ subPort ] )
 
          nifLogicalPortId = nifLogicalPortIdBase + ( serdesCoreId * len( subPorts ) ) + subPort - 1
-         # Reuse attachedCorePortId since it a core local construct.
-         # attachedCorePortId = nifLogicalPortId - firstPortIdOffsetByAsicCore(
-         #       attachedCoreId )
-
-         # keep track of the assigned attachedCorePortIds by Asic core.
-         # attachedCorePortIdsByAsicCore[ attachedCoreId ].append( attachedCorePortId )
-         # assert nifLogicalPortId - nifLogicalPortIdBase < ( numNifSerdesOctets ) * 2
 
          mappingWriter.writerow( astuple(
             PortProfileMapping( 
@@ -201,8 +179,6 @@ with open( "quicksilver_port_profile_mapping.csv", "w" ) as fh:
                Supported_Port_Profiles=nifSupportedProfiles, # FBOSS Port profile supported by the port.
                Attached_CoreID="", # CoreId on ASIC that the port is attached to. Not used on XGS
                Attached_Core_PortID="", #Core local portID assigned to this port. Not used on XGS
-               # NOTE: For Fabric ports, there is no core binding, the corresponding Attached_CoreId and Attached_Core_PortID can be left empty.
-               # Virtual device ID for FE ASICs.
                Virtual_Device_ID="", # Not applicable
                Port_Type=0,
                Scope=0
@@ -211,7 +187,7 @@ with open( "quicksilver_port_profile_mapping.csv", "w" ) as fh:
          nifLogicalPortId += 1
 
 with open( "quicksilver_si_settings.csv", "w" ) as fh:
-   fields = [ field.name for field in SISettings.getFields()]
+   fields = [ field for field in SISettings.getLabels()]
    mappingWriter = csv.writer(fh, lineterminator='\n', quoting=csv.QUOTE_NONE)
    mappingWriter.writerow( fields )
    # chipId in the SI settings is 1-indexed.

@@ -1,13 +1,18 @@
 # Copyright (c) 2023 Arista Networks, Inc.  All rights reserved.
 # Arista Networks, Inc. Confidential and Proprietary.
 
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 
 @dataclass
 class DataClassWithFieldGetter:
    @classmethod
    def getFields( cls ):
       return fields( cls )
+
+   @classmethod
+   def getLabels( cls ):
+      myFields= fields( cls )
+      return [ field.metadata.get( 'label', field.name ) for field in myFields ]
 
 @dataclass
 class StaticMapping( DataClassWithFieldGetter ):
@@ -86,40 +91,39 @@ class SISettings( DataClassWithFieldGetter ):
    """
    SI settings for each logical lane.
    """
-   
-   def __init__(self,
-      # Linecard slot Id, 1 for fixed systems
-      SLOT_ID : int,
-      # ASIC id on the system slot, Viper only has one J3, so always 1
-      CHIP_ID : int,
-      # NPU
-      CHIP_TYPE : str,
-      # ASIC serdes core ID
-      CORE_ID : int,
-      # ASIC serdes core type, FE/NIF
-      CORE_TYPE : str,
-      # 0,numLanes - numLanes per core is 8 on J3, so this value goes from 0,7.
-      CORE_LANE : int,
-      # Lane speed in Mbps
-      LANE_SPEED_mbps: int, #TODO:
-      # Media type
-      MEDIA_TYPE : str,
-      # Optics Vendor
-      OPTICS_VENDOR : str,
-      # NIC Vendor
-      NIC_VENDOR : str,
-      # Cable length (in meters)
-      CABLE_LENGTH_m : float, #TODO:
-      # TX Tap Settings
-      TX_PRE3 : int,
-      TX_PRE2 : int,
-      TX_PRE1 : int,
-      TX_MAIN : int,
-      TX_POST1 : int,
-      TX_POST2 : int,
-      TX_POST3 : int,
-      # RX Settings
-      RX_CTLE_CODE : str,
-      RX_DSP_MODE : str,
-      RX_AFE_TRIM : str
-   ):
+
+   # Linecard slot Id, 1 for fixed systems
+   SLOT_ID : int
+   # ASIC id on the system slot, Viper only has one J3, so always 1
+   CHIP_ID : int
+   # NPU
+   CHIP_TYPE : str
+   # ASIC serdes core ID
+   CORE_ID : int
+   # ASIC serdes core type, FE/NIF
+   CORE_TYPE : str
+   # 0,numLanes - numLanes per core is 8 on J3, so this value goes from 0,7.
+   CORE_LANE : int
+   # Lane speed in Mbps
+   LANE_SPEED_mbps: int =  field(metadata={"label": "LANE_SPEED(mbps)"})
+   # Media type
+   MEDIA_TYPE : str
+   # Optics Vendor
+   OPTICS_VENDOR : str
+   # NIC Vendor
+   NIC_VENDOR : str
+   # Cable length (in meters)
+   CABLE_LENGTH_m : float = field(metadata={"label": "CABLE_LENGTH(m)"})
+   # TX Tap Settings
+   TX_PRE3 : int
+   TX_PRE2 : int
+   TX_PRE1 : int
+   TX_MAIN : int
+   TX_POST1 : int
+   TX_POST2 : int
+   TX_POST3 : int
+   # RX Settings
+   RX_CTLE_CODE : str
+   RX_DSP_MODE : str
+   RX_AFE_TRIM : str
+
