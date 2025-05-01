@@ -29,12 +29,15 @@ find %{_scratch_dir}/build/fboss -maxdepth 1 -type f -executable -exec cp {} %{_
 mv %{_fboss_target_share}/qsfp_test_configs/darwin_original.materialized_JSON \
    %{_fboss_target_share}/qsfp_test_configs/darwin.materialized_JSON
 
+# Darwin48v doesn't have configs of its own so copy darwin's configs
+cp %{_fboss_target_share}/qsfp_test_configs/darwin.materialized_JSON \
+   %{_fboss_target_share}/qsfp_test_configs/darwin48v.materialized_JSON
+cp %{_fboss_target_share}/hw_test_configs/darwin.agent.materialized_JSON \
+   %{_fboss_target_share}/hw_test_configs/darwin48v.agent.materialized_JSON
+
 # Install known unsupported sai hwtest list. It is not packaged by package-fboss.py
 mkdir -p %{_fboss_target_share}/_sai_hw_unsupported_tests
 cp -r %{_fboss_dir}/fboss/oss/sai_hw_unsupported_tests/* %{_fboss_target_share}/_sai_hw_unsupported_tests
-
-# BUG1135994: Replace FBOSS_DATA/th3/fruid.json with darwin fruid as a workaround until setup.py is fixed
-cp %{_fboss_dir}/arista/platform/darwin/config/fruid/fruid.json %{_fboss_target_share}/th3/
 
 # Copy python thrift libraries
 mkdir -p %{_fboss_target_lib}/fb-py-libs

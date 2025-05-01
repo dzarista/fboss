@@ -112,7 +112,9 @@ class SetupFboss:
 
     def _cleanup_old_setup(self):
         if os.path.exists(SetupFboss.FRUID_FULL_PATH):
-            os.remove(SetupFboss.FRUID_FULL_PATH)
+            ### ARISTA START ###
+            pass # os.remove(SetupFboss.FRUID_FULL_PATH)
+            ### ARISTA END ###
 
         if os.path.exists(SetupFboss.BDE_CONF_FULL_PATH):
             os.remove(SetupFboss.BDE_CONF_FULL_PATH)
