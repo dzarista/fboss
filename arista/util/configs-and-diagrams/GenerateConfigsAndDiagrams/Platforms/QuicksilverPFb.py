@@ -3,6 +3,7 @@
 
 from ..BaseConfigs import (
    FANCpld,
+   FANUnit,
    PciDeviceConfig,
    PlatformConfig,
    SCMFairywren,
@@ -309,7 +310,8 @@ class QuicksilverPFb( PlatformConfig ):
       self.addPmUnitConfigs( [
          QuicksilverPFbSCM(),
          QuicksilverPFbSMB(),
-         PSUUnit()
+         PSUUnit( initRegSettings=InitRegSettings( [ ( 16, -128 ) ] ) ),
+         FANUnit()
       ] )
 
       self.addI2cAdaptersFromCpu( [ "SMBus I801 adapter at 1000" ] )

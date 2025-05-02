@@ -26,6 +26,10 @@
     "PSU_SLOT": {
       "numOutgoingI2cBuses": 1,
       "pmUnitName": "PSU"
+    },
+    "FAN_SLOT": {
+      "numOutgoingI2cBuses": 0,
+      "pmUnitName": "FAN"
     }
   },
   "pmUnitConfigs": {
@@ -2034,9 +2038,21 @@
           "busName": "INCOMING@0",
           "address": "0x58",
           "kernelDeviceName": "pmbus",
-          "pmUnitScopedName": "PSU_PMBUS"
+          "pmUnitScopedName": "PSU_PMBUS",
+          "initRegSettings": [
+            {
+              "regOffset": 16,
+              "ioBuf": [-128]
+            }
+          ]
         }
       ],
+      "outgoingSlotConfigs": {},
+      "pciDeviceConfigs": []
+    },
+    "FAN": {
+      "pluggedInSlotType": "FAN_SLOT",
+      "i2cDeviceConfigs": [],
       "outgoingSlotConfigs": {},
       "pciDeviceConfigs": []
     }
