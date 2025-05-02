@@ -1,0 +1,11 @@
+[Unit]
+Description=Start qsfp_service
+Wants=platform_manager.service
+After=platform_manager.service
+
+[Service]
+ExecStart=/opt/fboss/bin/run_qsfp_service.sh
+LimitNOFILE=10240
+
+[Install]
+WantedBy=multi-user.target

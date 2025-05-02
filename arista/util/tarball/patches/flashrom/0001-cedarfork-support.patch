@@ -1,0 +1,39 @@
+add Cedar Fork PCH (Snow Ridge, Ice Lake-D) support
+===================================================
+Adds PCI IDs for Cedar Fork PCH and as a C620. However, Cedar Fork supports only hardware-sequencing
+while C620 supports software sequencing. So the patch also enforces hardware sequencing for C620. 
+
+diff -Naru ../original/flashrom-v1.2.1/chipset_enable.c flashrom-v1.2.1/chipset_enable.c
+--- ../original/flashrom-v1.2.1/chipset_enable.c	2022-09-29 10:05:24.000000000 -0700
++++ flashrom-v1.2.1/chipset_enable.c	2023-11-09 20:03:19.542995257 -0800
+@@ -1815,6 +1815,7 @@
+ 	{0x8086, 0x0f1f, B_FS,   NT,  "Intel", "Bay Trail",			enable_flash_silvermont},
+ 	{0x8086, 0x122e, B_P,    OK,  "Intel", "PIIX",				enable_flash_piix4},
+ 	{0x8086, 0x1234, B_P,    NT,  "Intel", "MPIIX",				enable_flash_piix4},
++        {0x8086, 0x18e0, B_S,    NT,  "Intel", "Cedar Fork",			enable_flash_c620},
+ 	{0x8086, 0x1c44, B_FS,   DEP, "Intel", "Z68",				enable_flash_pch6},
+ 	{0x8086, 0x1c46, B_FS,   DEP, "Intel", "P67",				enable_flash_pch6},
+ 	{0x8086, 0x1c47, B_FS,   NT,  "Intel", "UM67",				enable_flash_pch6},
+diff -Naru ../original/flashrom-v1.2.1/ich_descriptors.c flashrom-v1.2.1/ich_descriptors.c
+--- ../original/flashrom-v1.2.1/ich_descriptors.c	2019-10-05 16:26:25.000000000 -0700
++++ flashrom-v1.2.1/ich_descriptors.c	2023-11-09 20:03:34.677186072 -0800
+@@ -916,6 +916,8 @@
+ 			return CHIPSET_ICH10;
+ 		else if (content->ISL <= 16)
+ 			return CHIPSET_5_SERIES_IBEX_PEAK;
++		else if (content->ISL <= 143)
++			return CHIPSET_C620_SERIES_LEWISBURG;
+ 		else if (content->FLMAP2 == 0) {
+ 			if (content->ISL != 19)
+ 				msg_pwarn("Peculiar firmware descriptor, assuming Apollo Lake compatibility.\n");
+diff -Naru ../original/flashrom-v1.2.1/ichspi.c flashrom-v1.2.1/ichspi.c
+--- ../original/flashrom-v1.2.1/ichspi.c	2022-10-30 02:43:35.000000000 -0700
++++ flashrom-v1.2.1/ichspi.c	2023-11-09 20:03:46.048022859 -0800
+@@ -2004,6 +2004,7 @@
+ 
+ 		if (ich_spi_mode == ich_auto &&
+ 		    (ich_gen == CHIPSET_100_SERIES_SUNRISE_POINT ||
++                     ich_gen == CHIPSET_C620_SERIES_LEWISBURG ||
+ 		     ich_gen == CHIPSET_300_SERIES_CANNON_POINT)) {
+ 			msg_pdbg("Enabling hardware sequencing by default for 100+ series PCH.\n");
+ 			ich_spi_mode = ich_hwseq;

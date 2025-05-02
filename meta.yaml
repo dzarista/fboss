@@ -1,0 +1,18 @@
+reponame: code.arista.io/fboss/in-eos
+description: |
+  Untangle FBOSS EOS SWI building
+users:
+  maintainers:
+    - FbossTest-dev@arista.com
+x-bar:
+  version: production
+  target-branch-re: "^(.+-trunk|main|engprod-parent|master|eft|.+-(?:maint|rel|bringup))$"
+epoch: 1
+x-rits:
+  instance: production
+  # Create RITS MUTs with these member packages:
+  bip-packages: ["Fboss"]
+  branch-project-mapping:
+    - git-branch: "main"
+      p4-project: "fboss"
+  required-for-merge: {}
