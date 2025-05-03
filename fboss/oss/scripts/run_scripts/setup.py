@@ -195,6 +195,18 @@ class SetupFboss:
                 )
                 new_kmod = True
 
+        if not os.path.exists(SetupFboss.KERNEL_NGBDE_KO_FULL_PATH):
+            subprocess.run(
+                [
+                    "ln",
+                    "-s",
+                    SetupFboss.SRC_KERNEL_NGBDE_KO_FULL_PATH,
+                    "-t",
+                    SetupFboss.KMOD_FULL_PATH,
+                ]
+            )
+            new_kmod = True
+
         if new_kmod:
             subprocess.run(["depmod", "-a"])
 
