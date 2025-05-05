@@ -91,15 +91,53 @@ UnicastRoute toUnicastRoute(
 } // namespace util
 
 RouteNextHopEntry::RouteNextHopEntry(
+    Action action,
+    AdminDistance distance,
+    std::optional<RouteCounterID> counterID,
+    std::optional<AclLookupClass> classID,
+    std::optional<cfg::SwitchingMode> overrideEcmpSwitchingMode) {
+  auto data = getRouteNextHopEntryThrift(
+      action,
+      distance,
+      NextHopSet(),
+      counterID,
+      classID,
+      overrideEcmpSwitchingMode);
+  this->fromThrift(std::move(data));
+}
+
+RouteNextHopEntry::RouteNextHopEntry(
+    NextHop nhop,
+    AdminDistance distance,
+    std::optional<RouteCounterID> counterID,
+    std::optional<AclLookupClass> classID,
+    std::optional<cfg::SwitchingMode> overrideEcmpSwitchingMode) {
+  auto data = getRouteNextHopEntryThrift(
+      Action::NEXTHOPS,
+      distance,
+      NextHopSet({nhop}),
+      counterID,
+      classID,
+      overrideEcmpSwitchingMode);
+  this->fromThrift(std::move(data));
+}
+
+RouteNextHopEntry::RouteNextHopEntry(
     NextHopSet nhopSet,
     AdminDistance distance,
     std::optional<RouteCounterID> counterID,
-    std::optional<AclLookupClass> classID) {
+    std::optional<AclLookupClass> classID,
+    std::optional<cfg::SwitchingMode> overrideEcmpSwitchingMode) {
   if (nhopSet.empty()) {
     throw FbossError("Empty nexthop set is passed to the RouteNextHopEntry");
   }
   auto data = getRouteNextHopEntryThrift(
-      Action::NEXTHOPS, distance, nhopSet, counterID, classID);
+      Action::NEXTHOPS,
+      distance,
+      nhopSet,
+      counterID,
+      classID,
+      overrideEcmpSwitchingMode);
   this->fromThrift(std::move(data));
 }
 
@@ -127,6 +165,7 @@ std::string RouteNextHopEntry::str_DEPRACATED() const {
       ";admin=", static_cast<int32_t>(getAdminDistance()));
   auto counterID = getCounterID();
   auto classID = getClassID();
+  auto overrideEcmpMode = getOverrideEcmpSwitchingMode();
   result += folly::to<std::string>(
       ";counterID=", counterID.has_value() ? *counterID : "none");
   result += folly::to<std::string>(
@@ -134,6 +173,12 @@ std::string RouteNextHopEntry::str_DEPRACATED() const {
       classID.has_value()
           ? apache::thrift::util::enumNameSafe(AclLookupClass(*classID))
           : "none");
+  result += folly::to<std::string>(
+      ";overrideEcmpMode=",
+      overrideEcmpMode.has_value() ? apache::thrift::util::enumNameSafe(
+                                         cfg::SwitchingMode(*overrideEcmpMode))
+                                   : "none");
+
   return result;
 }
 
@@ -149,7 +194,8 @@ bool operator==(const RouteNextHopEntry& a, const RouteNextHopEntry& b) {
       a.getNextHopSet() == b.getNextHopSet() and
       a.getAdminDistance() == b.getAdminDistance() and
       a.getCounterID() == b.getCounterID() and
-      a.getClassID() == b.getClassID());
+      a.getClassID() == b.getClassID() and
+      a.getOverrideEcmpSwitchingMode() == b.getOverrideEcmpSwitchingMode());
 }
 
 bool operator<(const RouteNextHopEntry& a, const RouteNextHopEntry& b) {
@@ -668,7 +714,8 @@ state::RouteNextHopEntry RouteNextHopEntry::getRouteNextHopEntryThrift(
     AdminDistance distance,
     NextHopSet nhopSet,
     std::optional<RouteCounterID> counterID,
-    std::optional<AclLookupClass> classID) {
+    std::optional<AclLookupClass> classID,
+    std::optional<cfg::SwitchingMode> overrideEcmpSwitchingMode) {
   state::RouteNextHopEntry entry{};
   entry.adminDistance() = distance;
   entry.action() = action;
@@ -677,6 +724,9 @@ state::RouteNextHopEntry RouteNextHopEntry::getRouteNextHopEntryThrift(
   }
   if (classID) {
     entry.classID() = *classID;
+  }
+  if (overrideEcmpSwitchingMode) {
+    entry.overrideEcmpSwitchingMode() = *overrideEcmpSwitchingMode;
   }
   if (!nhopSet.empty()) {
     entry.nexthops() = util::fromRouteNextHopSet(std::move(nhopSet));

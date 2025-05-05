@@ -269,6 +269,14 @@ void __gTxReadyStatusChangeNotification(
   __gSaiIdToSwitch.begin()->second->txReadyStatusChangeCallbackTopHalf(
       SwitchSaiId{switch_id});
 }
+
+void __gSwitchAsicSdkHealthNotificationCallBack(
+    sai_object_id_t /*switch_id*/,
+    sai_switch_asic_sdk_health_severity_t /*severity*/,
+    sai_timespec_t /*timestamp*/,
+    sai_switch_asic_sdk_health_category_t /*category*/,
+    sai_switch_health_data_t /*data*/,
+    const sai_u8_list_t /*description*/) {}
 #endif
 
 PortSaiId SaiSwitch::getCPUPortSaiId() const {
@@ -2376,13 +2384,6 @@ void SaiSwitch::linkStateChangedCallbackBottomHalf(
         managerTable_->neighborManager().handleLinkDown(
             SaiPortDescriptor(swPortId));
       }
-      /*
-       * Enable AFE adaptive mode (S249471) on TAJO platforms when a port
-       * flaps
-       */
-      if (asicType_ == cfg::AsicType::ASIC_TYPE_EBRO) {
-        managerTable_->portManager().enableAfeAdaptiveMode(swPortId);
-      }
     }
     swPortId2Status[swPortId] = up;
   }
@@ -3389,6 +3390,13 @@ void SaiSwitch::unregisterCallbacksLocked(
 #endif
   }
 
+  if (platform_->getAsic()->isSupported(
+          HwAsic::Feature::SWITCH_ASIC_SDK_HEALTH_NOTIFY)) {
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+    switchApi.unregisterSwitchAsicSdkHealthEventCallback(saiSwitchId_);
+#endif
+  }
+
   if (platform_->getAsic()->isSupported(HwAsic::Feature::BRIDGE_PORT_8021Q)) {
     switchApi.unregisterFdbEventCallback(saiSwitchId_);
   }
@@ -3755,6 +3763,14 @@ void SaiSwitch::switchRunStateChangedImplLocked(
         switchApi.registerTamEventCallback(saiSwitchId_, __gTamEventCallback);
 #endif
       }
+      if (platform_->getAsic()->isSupported(
+              HwAsic::Feature::SWITCH_ASIC_SDK_HEALTH_NOTIFY)) {
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+        auto& switchApi = SaiApiTable::getInstance()->switchApi();
+        switchApi.registerSwitchAsicSdkHealthEventCallback(
+            saiSwitchId_, __gSwitchAsicSdkHealthNotificationCallBack);
+#endif
+      }
 
       if (platform_->getAsic()->isSupported(
               HwAsic::Feature::LINK_ACTIVE_INACTIVE_NOTIFY)) {
@@ -3857,6 +3873,8 @@ void SaiSwitch::fdbEventCallback(
     }
     fdbEventNotificationDataTmp.push_back(FdbEventNotificationData(
         data[i].event_type, data[i].fdb_entry, bridgePortSaiId, fdbMetaData));
+    XLOG(DBG2) << "Received FDB event: " << fdbEventToString(data[i].event_type)
+               << " for bridge port: " << bridgePortSaiId;
   }
   fdbEventBottomHalfEventBase_.runInFbossEventBaseThread(
       [this,
@@ -4526,12 +4544,13 @@ void SaiSwitch::pfcDeadlockNotificationCallback(
     XLOG_EVERY_MS(WARNING, 5000)
         << "PFC deadlock notification callback invoked for qid: " << qId
         << ", on port: " << portId << ", with event: " << deadlockEvent;
+    std::lock_guard<std::mutex> locked(saiSwitchMutex_);
     switch (deadlockEvent) {
       case SAI_QUEUE_PFC_DEADLOCK_EVENT_TYPE_DETECTED:
-        callback_->pfcWatchdogStateChanged(portId, true);
+        managerTable_->portManager().incrementPfcDeadlockCounter(portId);
         break;
       case SAI_QUEUE_PFC_DEADLOCK_EVENT_TYPE_RECOVERED:
-        callback_->pfcWatchdogStateChanged(portId, false);
+        managerTable_->portManager().incrementPfcRecoveryCounter(portId);
         break;
       default:
         XLOG(ERR) << "Unknown event " << deadlockEvent

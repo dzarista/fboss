@@ -8,7 +8,7 @@
  *
  */
 
-#include "fboss/agent/EcmpGroupConsolidator.h"
+#include "fboss/agent/EcmpResourceManager.h"
 
 #include "fboss/agent/FibHelpers.h"
 #include "fboss/agent/state/Route.h"
@@ -17,25 +17,21 @@
 #include <gflags/gflags.h>
 #include <limits>
 
-DEFINE_bool(
-    consolidate_ecmp_groups,
-    false,
-    "Consolidate ECMP groups when approaching HW limits");
-
 namespace facebook::fboss {
 
-std::shared_ptr<SwitchState> EcmpGroupConsolidator::consolidate(
+std::vector<StateDelta> EcmpResourceManager::consolidate(
     const StateDelta& delta) {
-  if (!FLAGS_consolidate_ecmp_groups) {
-    return delta.newState();
-  }
+  std::vector<StateDelta> deltas;
+  CHECK(!preUpdateState_.has_value());
+  preUpdateState_ = PreUpdateState(mergedGroups_, nextHopGroup2Id_);
   processRouteUpdates<folly::IPAddressV4>(delta);
   processRouteUpdates<folly::IPAddressV6>(delta);
-  return delta.newState();
+  deltas.emplace_back(StateDelta(delta.oldState(), delta.newState()));
+  return deltas;
 }
 
 template <typename AddrT>
-void EcmpGroupConsolidator::routeAdded(
+void EcmpResourceManager::routeAdded(
     RouterID rid,
     const std::shared_ptr<Route<AddrT>>& added) {
   CHECK_EQ(rid, RouterID(0));
@@ -46,7 +42,7 @@ void EcmpGroupConsolidator::routeAdded(
       nextHopGroup2Id_.insert({nhopSet, findNextAvailableId()});
   if (inserted) {
     std::tie(grpInfo, inserted) =
-        nextHopGroupIdToInfo_.refOrEmplace(idItr->second, idItr->second);
+        nextHopGroupIdToInfo_.refOrEmplace(idItr->second, idItr->second, idItr);
     CHECK(inserted);
   } else {
     grpInfo = nextHopGroupIdToInfo_.ref(idItr->second);
@@ -60,7 +56,7 @@ void EcmpGroupConsolidator::routeAdded(
 }
 
 template <typename AddrT>
-void EcmpGroupConsolidator::routeDeleted(
+void EcmpResourceManager::routeDeleted(
     RouterID rid,
     const std::shared_ptr<Route<AddrT>>& removed) {
   CHECK_EQ(rid, RouterID(0));
@@ -82,7 +78,7 @@ void EcmpGroupConsolidator::routeDeleted(
 }
 
 template <typename AddrT>
-void EcmpGroupConsolidator::processRouteUpdates(const StateDelta& delta) {
+void EcmpResourceManager::processRouteUpdates(const StateDelta& delta) {
   forEachChangedRoute<AddrT>(
       delta,
       [this](RouterID rid, const auto& oldRoute, const auto& newRoute) {
@@ -117,12 +113,17 @@ void EcmpGroupConsolidator::processRouteUpdates(const StateDelta& delta) {
       });
 }
 
-EcmpGroupConsolidator::NextHopGroupId
-EcmpGroupConsolidator::findNextAvailableId() const {
+EcmpResourceManager::NextHopGroupId EcmpResourceManager::findNextAvailableId()
+    const {
   std::unordered_set<NextHopGroupId> allocatedIds;
-  for (const auto& [_, id] : nextHopGroup2Id_) {
-    allocatedIds.insert(id);
-  }
+  auto fillAllocatedIds = [&allocatedIds](const auto& nhopGroup2Id) {
+    for (const auto& [_, id] : nhopGroup2Id) {
+      allocatedIds.insert(id);
+    }
+  };
+  CHECK(preUpdateState_.has_value());
+  fillAllocatedIds(nextHopGroup2Id_);
+  fillAllocatedIds(preUpdateState_->nextHopGroup2Id);
   for (auto start = kMinNextHopGroupId;
        start < std::numeric_limits<NextHopGroupId>::max();
        ++start) {
@@ -133,12 +134,27 @@ EcmpGroupConsolidator::findNextAvailableId() const {
   throw FbossError("Unable to find id to allocate for new next hop group");
 }
 
-size_t EcmpGroupConsolidator::getRouteUsageCount(
-    NextHopGroupId nhopGrpId) const {
+size_t EcmpResourceManager::getRouteUsageCount(NextHopGroupId nhopGrpId) const {
   auto grpInfo = nextHopGroupIdToInfo_.ref(nhopGrpId);
   if (grpInfo) {
     return grpInfo->getRouteUsageCount();
   }
   throw FbossError("Unable to find nhop group ID: ", nhopGrpId);
+}
+void EcmpResourceManager::updateDone(const StateDelta& /*delta*/) {
+  preUpdateState_.reset();
+}
+
+void EcmpResourceManager::updateFailed(const StateDelta& delta) {
+  CHECK(preUpdateState_.has_value());
+  nextHopGroup2Id_ = preUpdateState_->nextHopGroup2Id;
+  mergedGroups_ = preUpdateState_->mergedGroups;
+  /* clear state which needs to be resored from previous state*/
+  prefixToGroupInfo_.clear();
+  nextHopGroupIdToInfo_.clear();
+  candidateMergeGroups_.clear();
+  preUpdateState_.reset();
+  /* restore state from previous state*/
+  consolidate(StateDelta(std::make_shared<SwitchState>(), delta.oldState()));
 }
 } // namespace facebook::fboss

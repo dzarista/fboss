@@ -734,6 +734,20 @@ struct SaiSwitchTraits {
         std::vector<sai_map_t>,
         AttributePfcTcDldTimerGranularityInterval,
         SaiListDefault<sai_map_list_t>>;
+    struct AttributeNumberOfPipes {
+      std::optional<sai_attr_id_t> operator()();
+    };
+    using NumberOfPipes = SaiExtensionAttribute<
+        sai_uint32_t,
+        AttributeNumberOfPipes,
+        SaiIntDefault<sai_uint32_t>>;
+    struct AttributePipelineObjectList {
+      std::optional<sai_attr_id_t> operator()();
+    };
+    using PipelineObjectList = SaiExtensionAttribute<
+        std::vector<sai_object_id_t>,
+        AttributePipelineObjectList,
+        SaiObjectIdListDefault>;
   };
   using AdapterKey = SwitchSaiId;
   using AdapterHostKey = std::monostate;
@@ -991,6 +1005,8 @@ SAI_ATTRIBUTE_NAME(Switch, SdkRegDumpLogPath)
 SAI_ATTRIBUTE_NAME(Switch, FirmwareObjectList)
 SAI_ATTRIBUTE_NAME(Switch, TcRateLimitList)
 SAI_ATTRIBUTE_NAME(Switch, PfcTcDldTimerGranularityInterval)
+SAI_ATTRIBUTE_NAME(Switch, NumberOfPipes)
+SAI_ATTRIBUTE_NAME(Switch, PipelineObjectList)
 
 template <>
 struct SaiObjectHasStats<SaiSwitchTraits> : public std::true_type {};
@@ -1063,6 +1079,16 @@ class SwitchApi : public SaiApi<SwitchApi> {
 #if defined(BRCM_SAI_SDK_DNX_GTE_12_0)
   void unregisterVendorSwitchEventNotifyCallback(const SwitchSaiId& id) const {
     registerVendorSwitchEventNotifyCallback(id, nullptr);
+  }
+#endif
+
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+  void registerSwitchAsicSdkHealthEventCallback(
+      const SwitchSaiId& id,
+      sai_switch_asic_sdk_health_event_notification_fn function) const;
+
+  void unregisterSwitchAsicSdkHealthEventCallback(SwitchSaiId id) const {
+    registerSwitchAsicSdkHealthEventCallback(id, nullptr);
   }
 #endif
 

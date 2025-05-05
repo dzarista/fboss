@@ -11,6 +11,7 @@
 #include "fboss/agent/hw/test/HwTestFlowletSwitchingUtils.h"
 
 #include <gtest/gtest.h>
+#include "fboss/agent/AsicUtils.h"
 #include "fboss/agent/hw/sai/api/SaiApiTable.h"
 #include "fboss/agent/hw/sai/switch/SaiArsManager.h"
 #include "fboss/agent/hw/sai/switch/SaiArsProfileManager.h"
@@ -21,7 +22,6 @@
 #include "fboss/agent/hw/sai/switch/SaiSwitchManager.h"
 #include "fboss/agent/hw/sai/switch/SaiVirtualRouterManager.h"
 #include "fboss/agent/test/TestEnsembleIf.h"
-#include "fboss/agent/test/utils/AsicUtils.h"
 
 #include "folly/testing/TestUtil.h"
 
@@ -94,16 +94,20 @@ void verifyArs(
       saiSwitch->managerTable()->arsManager().cfgSwitchingModeToSai(
           *cfg.switchingMode());
   EXPECT_EQ(switchingMode, mode);
-  auto idleTime =
-      arsApi.getAttribute(arsSaiId, SaiArsTraits::Attributes::IdleTime());
-  EXPECT_EQ(*cfg.inactivityIntervalUsecs(), idleTime);
-  auto maxFlows =
-      arsApi.getAttribute(arsSaiId, SaiArsTraits::Attributes::MaxFlows());
-  EXPECT_EQ(*cfg.flowletTableSize(), maxFlows);
+  if (hw->getPlatform()->getAsic()->getAsicType() !=
+      cfg::AsicType::ASIC_TYPE_CHENAB) {
+    auto idleTime =
+        arsApi.getAttribute(arsSaiId, SaiArsTraits::Attributes::IdleTime());
+    EXPECT_EQ(*cfg.inactivityIntervalUsecs(), idleTime);
+    auto maxFlows =
+        arsApi.getAttribute(arsSaiId, SaiArsTraits::Attributes::MaxFlows());
+    EXPECT_EQ(*cfg.flowletTableSize(), maxFlows);
+  }
 #endif
 }
 
 void verifyPortArsAttributes(
+    const HwSwitch* hw,
     PortSaiId portSaiId,
     const cfg::PortFlowletConfig& cfg,
     bool enable) {
@@ -112,15 +116,18 @@ void verifyPortArsAttributes(
   auto arsEnable =
       portApi.getAttribute(portSaiId, SaiPortTraits::Attributes::ArsEnable());
   EXPECT_EQ(enable, arsEnable);
-  auto portLoadScalingFactor = portApi.getAttribute(
-      portSaiId, SaiPortTraits::Attributes::ArsPortLoadScalingFactor());
-  EXPECT_EQ(*cfg.scalingFactor(), portLoadScalingFactor);
-  auto portLoadPastWeight = portApi.getAttribute(
-      portSaiId, SaiPortTraits::Attributes::ArsPortLoadPastWeight());
-  EXPECT_EQ(*cfg.loadWeight(), portLoadPastWeight);
-  auto portLoadFutureWeight = portApi.getAttribute(
-      portSaiId, SaiPortTraits::Attributes::ArsPortLoadFutureWeight());
-  EXPECT_EQ(*cfg.queueWeight(), portLoadFutureWeight);
+  if (hw->getPlatform()->getAsic()->getAsicType() !=
+      cfg::AsicType::ASIC_TYPE_CHENAB) {
+    auto portLoadScalingFactor = portApi.getAttribute(
+        portSaiId, SaiPortTraits::Attributes::ArsPortLoadScalingFactor());
+    EXPECT_EQ(*cfg.scalingFactor(), portLoadScalingFactor);
+    auto portLoadPastWeight = portApi.getAttribute(
+        portSaiId, SaiPortTraits::Attributes::ArsPortLoadPastWeight());
+    EXPECT_EQ(*cfg.loadWeight(), portLoadPastWeight);
+    auto portLoadFutureWeight = portApi.getAttribute(
+        portSaiId, SaiPortTraits::Attributes::ArsPortLoadFutureWeight());
+    EXPECT_EQ(*cfg.queueWeight(), portLoadFutureWeight);
+  }
 #endif
 }
 
@@ -183,6 +190,7 @@ bool verifyEcmpForFlowletSwitching(
 bool verifyEcmpForNonFlowlet(
     const HwSwitch* hw,
     const folly::CIDRNetwork& ip,
+    const cfg::FlowletSwitchingConfig& /* unused */,
     const bool flowletEnable) {
   bool isVerified = true;
 
@@ -211,7 +219,7 @@ bool validatePortFlowletQuality(
   auto portHandle = portManager.getPortHandle(portId);
   auto saiPortId = portHandle->port->adapterKey();
 
-  verifyPortArsAttributes(static_cast<PortSaiId>(saiPortId), cfg, enable);
+  verifyPortArsAttributes(hw, static_cast<PortSaiId>(saiPortId), cfg, enable);
   return true;
 }
 
@@ -240,7 +248,7 @@ void runCint(TestEnsembleIf* ensemble, const std::string& cintStr) {
 }
 
 void setEcmpMemberStatus(const TestEnsembleIf* ensemble) {
-  auto asic = utility::checkSameAndGetAsic(ensemble->getL3Asics());
+  auto asic = checkSameAndGetAsic(ensemble->getL3Asics());
   if (asic->getAsicVendor() != HwAsic::AsicVendor::ASIC_VENDOR_BCM) {
     return;
   }

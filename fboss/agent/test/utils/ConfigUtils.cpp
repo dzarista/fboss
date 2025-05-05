@@ -12,11 +12,11 @@
 #include <memory>
 
 #include "fboss/agent/AgentFeatures.h"
+#include "fboss/agent/AsicUtils.h"
 #include "fboss/agent/FbossError.h"
 #include "fboss/agent/SwSwitch.h"
 #include "fboss/agent/test/TestEnsembleIf.h"
 #include "fboss/agent/test/utils/AclTestUtils.h"
-#include "fboss/agent/test/utils/AsicUtils.h"
 #include "fboss/agent/test/utils/PortTestUtils.h"
 #include "fboss/agent/test/utils/VoqTestUtils.h"
 #include "fboss/lib/config/PlatformConfigUtils.h"
@@ -1293,6 +1293,9 @@ UplinkDownlinkPair getAllUplinkDownlinkPorts(
   }
 
   auto begin = masterPorts.begin();
+  CHECK_GE(masterPorts.size(), ecmpWidth)
+      << "Not enough ports with subnet in config. Need  " << ecmpWidth
+      << " ports, but found only " << masterPorts.size();
   auto mid = masterPorts.begin() + ecmpWidth;
   auto end = masterPorts.end();
   return std::pair(PortList(begin, mid), PortList(mid, end));

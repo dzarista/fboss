@@ -466,7 +466,6 @@ cpp_library(
         "//fboss/agent/hw:hardware_stats-cpp2-types",
         "//fboss/agent/hw/switch_asics:switch_asics",
         "//fboss/agent/state:state",
-        "//fboss/agent/test/utils:asic_test_utils",
         "//fboss/agent/test/utils:qos_test_utils",
         "//fboss/qsfp_service/lib:qsfp-service-client",
         "//folly/gen:base",
@@ -508,7 +507,6 @@ cpp_library(
         ":agent_ensemble_test",
         "//fboss/agent:switch_config-cpp2-types",
         "//fboss/agent/hw/test:config_factory",
-        "//fboss/agent/test/utils:asic_test_utils",
         "//folly:synchronized",
         "//folly/gen:base",
         "//folly/logging:logging",
@@ -552,7 +550,6 @@ cpp_library(
     srcs = [
         "MultiNodeTest.cpp",
     ],
-    link_whole = True,
     exported_deps = [
         ":agent_test",
         "//common/network:util",
@@ -580,7 +577,6 @@ cpp_library(
         "MultiNodeLoadBalancerTests.cpp",
         "MultiNodeOpenrTests.cpp",
     ],
-    link_whole = True,
     # Need symbols from bcm, sai layers.
     undefined_symbols = True,
     exported_deps = [
@@ -617,7 +613,6 @@ cpp_library(
     srcs = [
         "MultiNodeMacsecTests.cpp",
     ],
-    link_whole = True,
     # Need symbols from bcm, sai layers.
     undefined_symbols = True,
     exported_deps = [
@@ -951,12 +946,12 @@ cpp_unittest(
 )
 
 cpp_unittest(
-    name = "ecmp_consolidator_test",
+    name = "ecmp_resource_manager_test",
     srcs = [
-        "EcmpGroupConsolidatorTests.cpp",
+        "EcmpResourceManagerTests.cpp",
     ],
     deps = [
-        "//fboss/agent:ecmp_consolidator",
+        "//fboss/agent:ecmp_resource_manager",
         "//fboss/agent:fboss-types",
         "//fboss/agent/state:state",
         "//folly:network_address",

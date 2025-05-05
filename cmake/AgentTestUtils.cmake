@@ -246,6 +246,7 @@ add_library(trap_packet_utils
 target_link_libraries(trap_packet_utils
   fboss_types
   Folly::folly
+  acl_test_utils
   platform_config_cpp2
   switch_config_cpp2
   switch_state_cpp2
@@ -298,6 +299,7 @@ target_link_libraries(packet_snooper
   fboss_types
   packet
   packet_factory
+  pkt_test_utils
   Folly::folly
 )
 

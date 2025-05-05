@@ -760,12 +760,17 @@ TEST_F(HwArsSprayTest, ValidateMaxEcmpIdFlowletUpdate) {
     resolveNextHopsAddRoute(
         {masterLogicalPortIds()[1], masterLogicalPortIds()[4]}, kAddr1);
 
-    // check to ensure we have created more than 128 ECMP objects
-    auto ecmpDetails = getHwSwitch()->getAllEcmpDetails();
-    CHECK_GT(ecmpDetails.size(), kNumEcmp() * 2);
+    // getAllEcmpDetails not implemented yet in SAI
+    if (!getHwSwitchEnsemble()->isSai()) {
+      // check to ensure we have created more than 128 ECMP objects
+      auto ecmpDetails = getHwSwitch()->getAllEcmpDetails();
+      CHECK_GT(ecmpDetails.size(), kNumEcmp() * 2);
+    }
     // verify the ECMP Id more than Max dlb Ecmp Id
     // not enabled with flowlet config and flowset available is zero.
-    utility::verifyEcmpForNonFlowlet(getHwSwitch(), kAddr1Prefix, false);
+    auto cfg = initialConfig();
+    utility::verifyEcmpForNonFlowlet(
+        getHwSwitch(), kAddr1Prefix, *cfg.flowletSwitchingConfig(), false);
   };
 
   auto verify = [&]() {
@@ -783,7 +788,9 @@ TEST_F(HwArsSprayTest, ValidateMaxEcmpIdFlowletUpdate) {
           {RoutePrefixV6{
               folly::IPAddressV6(folly::sformat("{}:{:x}::", kAddr4, i)), 64}});
     }
-    utility::verifyEcmpForNonFlowlet(getHwSwitch(), kAddr1Prefix, true);
+    auto cfg = initialConfig();
+    utility::verifyEcmpForNonFlowlet(
+        getHwSwitch(), kAddr1Prefix, *cfg.flowletSwitchingConfig(), true);
   };
   verifyAcrossWarmBoots(setup, verify);
 }
