@@ -20,6 +20,7 @@
 #include <tuple>
 #include <unistd.h>
 #include <vector>
+#include <algorithm>
 
 namespace showtech {
 
@@ -39,40 +40,81 @@ double linear11ToDecimal(uint16_t linear11) {
   return value;
 }
 
+PowerSupply::PowerSupply(int bus, int chipAddr, int voutModeReg)
+           : m_bus{bus}
+           , m_chipAddr{chipAddr}
+           , m_voutModeReg{voutModeReg} {}
+
+// Removes registers such that order by register addresses is maintained
+void PowerSupply::_removeRegisters(const std::vector<Register>& toRemove) {
+  auto shouldRemoveRegister = [&](const Register& reg) {
+      return std::find(toRemove.begin(), toRemove.end(), reg) != toRemove.end();
+  };
+  auto it = std::remove_if(m_registers.begin(), m_registers.end(), 
+                           shouldRemoveRegister);
+  m_registers.erase(it, m_registers.end());
+}
+
+// Registers are inserted at the index that will maintain the
+// list order by the register addresses
+void PowerSupply::_addRegisters(const std::vector<Register>& toAdd) {
+  // compare by register address
+  auto compare = [](const Register& r1, const Register& r2) {
+    return std::get<1>(r1) < std::get<1>(r2);};
+  for (auto addReg : toAdd) {
+    auto it = std::lower_bound(m_registers.begin(), m_registers.end(), 
+                               addReg, compare);
+    m_registers.insert(it, addReg);
+  }
+}
+
 // PMBUS Register formats can be found in aid/11144 (Delta), aid/6989 (Arista)
-Generic::Generic()
-    : commonRegisters{{
-          std::make_tuple("MFR_ID", 0x99, 0, ValueType::ASCII),
-          std::make_tuple("MFR_MODEL", 0x9A, 0, ValueType::ASCII),
-          std::make_tuple("MFR_REVISION", 0x9B, 0, ValueType::ASCII),
-          std::make_tuple("MFR_LOCATION", 0x9C, 0, ValueType::ASCII),
-          std::make_tuple("MFR_DATE", 0x9D, 0, ValueType::ASCII),
-          std::make_tuple("MFR_SERIAL", 0x9E, 0, ValueType::ASCII),
-          std::make_tuple("MFR_POUT_MAX", 0xA7, 2, ValueType::LINEAR_11),
-          std::make_tuple("PRI_MCU_FW_VERSION", 0xE0, 0, ValueType::ASCII),
-          std::make_tuple("SEC_MCU_FW_VERSION", 0xE1, 0, ValueType::ASCII),
-          std::make_tuple("STATUS_BYTE", 0x78, 1, ValueType::HEX),
-          std::make_tuple("STATUS_WORD", 0x79, 2, ValueType::HEX),
-          std::make_tuple("STATUS_VOUT", 0x7A, 1, ValueType::HEX),
-          std::make_tuple("STATUS_IOUT", 0x7B, 1, ValueType::HEX),
-          std::make_tuple("STATUS_INPUT", 0x7C, 1, ValueType::HEX),
-          std::make_tuple("STATUS_TEMPERATURE", 0x7D, 1, ValueType::HEX),
-          std::make_tuple("STATUS_CML", 0x7E, 1, ValueType::HEX),
-          std::make_tuple("STATUS_FANS_1_2", 0x81, 1, ValueType::HEX),
-          std::make_tuple("READ_VIN", 0x88, 2, ValueType::LINEAR_11),
-          std::make_tuple("READ_IIN", 0x89, 2, ValueType::LINEAR_11),
-          std::make_tuple("READ_VOUT", 0x8B, 2, ValueType::LINEAR_16),
-          std::make_tuple("READ_IOUT", 0x8C, 2, ValueType::LINEAR_11),
-          std::make_tuple("READ_TEMPERATURE_1", 0x8D, 2, ValueType::LINEAR_11),
-          std::make_tuple("READ_TEMPERATURE_2", 0x8E, 2, ValueType::LINEAR_11),
-          std::make_tuple("READ_TEMPERATURE_3", 0x8F, 2, ValueType::LINEAR_11),
-          std::make_tuple("READ_FAN SPEED_1", 0x90, 2, ValueType::LINEAR_11),
-          std::make_tuple("READ_FAN SPEED_2", 0x91, 2, ValueType::LINEAR_11),
-          std::make_tuple("READ_POUT", 0x96, 2, ValueType::LINEAR_11),
-          std::make_tuple("READ_PIN", 0x97, 2, ValueType::LINEAR_11),
-          std::make_tuple("PMBUS_REVISION", 0x98, 1, ValueType::LINEAR_11),
-      }},
-      voutModeReg(0x20), chipAddr(0x58) {}
+GenericPsu::GenericPsu(int bus, int chipAddr, int voutModeReg)
+    : PowerSupply {bus, chipAddr, voutModeReg}
+{
+  m_registers = {
+    std::make_tuple("MFR_ID", 0x99, 0, ValueType::ASCII),
+    std::make_tuple("MFR_MODEL", 0x9A, 0, ValueType::ASCII),
+    std::make_tuple("MFR_REVISION", 0x9B, 0, ValueType::ASCII),
+    std::make_tuple("MFR_LOCATION", 0x9C, 0, ValueType::ASCII),
+    std::make_tuple("MFR_DATE", 0x9D, 0, ValueType::ASCII),
+    std::make_tuple("MFR_SERIAL", 0x9E, 0, ValueType::ASCII),
+    std::make_tuple("MFR_POUT_MAX", 0xA7, 2, ValueType::LINEAR_11),
+    std::make_tuple("PRI_MCU_FW_VERSION", 0xE0, 0, ValueType::ASCII),
+    std::make_tuple("SEC_MCU_FW_VERSION", 0xE1, 0, ValueType::ASCII),
+    std::make_tuple("STATUS_BYTE", 0x78, 1, ValueType::HEX),
+    std::make_tuple("STATUS_WORD", 0x79, 2, ValueType::HEX),
+    std::make_tuple("STATUS_VOUT", 0x7A, 1, ValueType::HEX),
+    std::make_tuple("STATUS_IOUT", 0x7B, 1, ValueType::HEX),
+    std::make_tuple("STATUS_INPUT", 0x7C, 1, ValueType::HEX),
+    std::make_tuple("STATUS_TEMPERATURE", 0x7D, 1, ValueType::HEX),
+    std::make_tuple("STATUS_CML", 0x7E, 1, ValueType::HEX),
+    std::make_tuple("STATUS_FANS_1_2", 0x81, 1, ValueType::HEX),
+    std::make_tuple("READ_VIN", 0x88, 2, ValueType::LINEAR_11),
+    std::make_tuple("READ_IIN", 0x89, 2, ValueType::LINEAR_11),
+    std::make_tuple("READ_VOUT", 0x8B, 2, ValueType::LINEAR_16),
+    std::make_tuple("READ_IOUT", 0x8C, 2, ValueType::LINEAR_11),
+    std::make_tuple("READ_TEMPERATURE_1", 0x8D, 2, ValueType::LINEAR_11),
+    std::make_tuple("READ_TEMPERATURE_2", 0x8E, 2, ValueType::LINEAR_11),
+    std::make_tuple("READ_TEMPERATURE_3", 0x8F, 2, ValueType::LINEAR_11),
+    std::make_tuple("READ_FAN SPEED_1", 0x90, 2, ValueType::LINEAR_11),
+    std::make_tuple("READ_FAN SPEED_2", 0x91, 2, ValueType::LINEAR_11),
+    std::make_tuple("READ_POUT", 0x96, 2, ValueType::LINEAR_11),
+    std::make_tuple("READ_PIN", 0x97, 2, ValueType::LINEAR_11),
+    std::make_tuple("PMBUS_REVISION", 0x98, 1, ValueType::LINEAR_11),
+  };
+}
+
+LiteonPsu::LiteonPsu(int bus, int chipAddr, int voutModeReg)
+  : GenericPsu {bus, chipAddr, voutModeReg}
+{
+  std::vector<Register> registersRemove {{
+    std::make_tuple("PRI_MCU_FW_VERSION", 0xE0, 0, ValueType::ASCII),
+    std::make_tuple("SEC_MCU_FW_VERSION", 0xE1, 0, ValueType::ASCII),
+  }};
+
+  _removeRegisters(registersRemove);
+}
 
 std::vector<uint8_t> makeI2cRdwrRequest(const char *i2cDevice, int chipAddr,
                                         uint8_t regAddr, int numBytesToRead) {
@@ -191,18 +233,31 @@ std::vector<std::pair<std::string, std::string>> getPsuI2cBuses() {
   return psuI2cBusNums;
 }
 
+// Read the PSU MFR_ID register and create the appropriate PSU profile
+std::unique_ptr<PowerSupply> createPsu(const char *i2cDevice, int busNum, 
+                                       int chipAddr) {
+  std::vector<uint8_t> mfrIdRegInfo = readI2c(i2cDevice, chipAddr, 0x99, 0);
+  std::string mfrId(mfrIdRegInfo.begin(), mfrIdRegInfo.end());
+  if (mfrId == "Liteon Power") {
+    return std::make_unique<LiteonPsu>(busNum, chipAddr);
+  } else {
+    return std::make_unique<GenericPsu>(busNum, chipAddr);
+  }
+}
+
 void printPsuInfo() {
   std::vector<std::pair<std::string, std::string>> psuI2cBusNums =
       getPsuI2cBuses();
-  for (const auto &psu : psuI2cBusNums) {
-    std::cout << "POWER SUPPLY SLOT " << psu.first << " DETAILS" << std::endl;
-    std::string device = "/dev/i2c-" + psu.second;
+  for (const auto &psuBus : psuI2cBusNums) {
+    std::cout << "POWER SUPPLY SLOT " << psuBus.first << " DETAILS" << std::endl;
+    std::string device = "/dev/i2c-" + psuBus.second;
     const char *i2cDevice = device.c_str();
-    Generic genericPsu;
+    int chipAddr = 0x58;
+    auto psu = createPsu(i2cDevice, std::stoi(psuBus.second), chipAddr);
 
-    for (const auto &reg : genericPsu.getAllRegisters()) {
+    for (const auto &reg : psu->getAllRegisters()) {
       std::vector<uint8_t> regInfo =
-          readI2c(i2cDevice, genericPsu.getChipAddr(), std::get<1>(reg),
+          readI2c(i2cDevice, psu->getChipAddr(), std::get<1>(reg),
                   std::get<2>(reg));
       std::cout << std::get<0>(reg) << ": ";
       ValueType valueType = std::get<3>(reg);
@@ -239,8 +294,7 @@ void printPsuInfo() {
           uint16_t combinedRegInfo =
               (static_cast<uint16_t>(regInfo[1]) << 8) | regInfo[0];
           std::vector<uint8_t> voutMode =
-              readI2c(i2cDevice, genericPsu.getChipAddr(),
-                      genericPsu.getVoutModeReg(), 1);
+              readI2c(i2cDevice, psu->getChipAddr(), psu->getVoutModeReg(), 1);
           voutMode[0] = (voutMode[0] & 0x10)
                             ? (static_cast<int8_t>(voutMode[0] | 0xE0))
                             : voutMode[0];
