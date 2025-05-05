@@ -172,14 +172,7 @@
             "localSystemPortOffset": 10,
             "globalSystemPortOffset": 10,
             "inbandPortId": 1,
-            "firmwareNameToFirmwareInfo": {
-              "isolationFW": {
-                  "coreToUse": 5,
-                  "path": "/tmp/db/jericho3ai_a0/fi-2.4.0.1-GA.elf",
-                  "logPath": "/tmp/edk.log",
-                  "firmwareLoadType": 0
-              }
-            }
+            "firmwareNameToFirmwareInfo": {}
         }
       },
       "vendorMacOuis": [
@@ -291,7 +284,7 @@
             "custom_feature_use_new_access.BCM8889X": "1",
             "custom_feature_use_new_access.BCM8889X_ADAPTER": "1",
             "custom_feature_vsqd_lossless_reject_enable": "1",
-            "dpp_db_path": "/tmp/db",
+            "dpp_db_path": "/opt/fboss/share/db",
             "dram_temperature_monitor_enable.BCM8889X_ADAPTER": "0",
             "dtm_flow_mapping_mode_region_65.BCM8889X": "3",
             "dtm_flow_mapping_mode_region_66.BCM8889X": "3",

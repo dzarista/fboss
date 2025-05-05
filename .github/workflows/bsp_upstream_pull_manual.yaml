@@ -1,0 +1,40 @@
+on:
+  workflow_dispatch:
+
+name: BSP upstream pull - Manual
+
+jobs:
+  run_sample_script:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Check-out latest code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ssh-key: ${{ secrets.GIT_PRIVATE_KEY }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Run Bash script
+        env:
+          GH_TOKEN: ${{ secrets.SRV_FBOSS_ARISTA_ROBOT_TOKEN }}
+          SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.SRV_ACCOUNT_SSH_PRV_KEY }}
+        run: |
+          echo "$SERVICE_ACCOUNT_PRIVATE_KEY" > private.key
+          sudo chmod 600 private.key
+          ./arista-ci-scripts/bsp_upstream_pull.sh
+      - name: Send status email
+        if: success() || failure()
+        run: |
+          mail_to="fbosstest-dev@arista.com"
+          subject=$(cat status_email_subject.txt)
+          body_text_file="status_email_content.txt"
+          attachment_path="upstream_pull_status.txt"
+          if [ -f "$body_text_file" ] && [ -f "$attachment_path" ]; then
+            ./arista-ci-scripts/mailer.py --mail_to="$mail_to" --subject="$subject" --body_text_file="$body_text_file" --attachment_path="$attachment_path" --sender_mail_id="${{ secrets.GMAIL_USERNAME }}" --sender_mail_password="${{ secrets.GMAIL_PASSWORD }}"
+          else
+            echo "Git subtree is up to date with fboss.bsp.arista"
+          fi
+        shell: bash
