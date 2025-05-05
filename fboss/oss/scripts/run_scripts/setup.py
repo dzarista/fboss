@@ -152,36 +152,14 @@ class SetupFboss:
             shutil.copy(self.src_fruid_full_path, SetupFboss.FRUID_FULL_PATH)
 
         if not os.path.exists(SetupFboss.BDE_CONF_FULL_PATH):
-            tmp = os.path.join("/tmp", "target")
+            os.path.join("/tmp", "target")
             shutil.copy(self.src_bde_full_path, SetupFboss.BDE_CONF_FULL_PATH)
 
     def _link_kmods(self):
         new_kmod = False
-        if not os.path.exists(SetupFboss.USER_BDE_KO_FULL_PATH):
-            subprocess.run(
-                [
-                    "ln",
-                    "-s",
-                    SetupFboss.SRC_USER_BDE_KO_FULL_PATH,
-                    "-t",
-                    SetupFboss.KMOD_FULL_PATH,
-                ]
-            )
-            new_kmod = True
 
-        if not os.path.exists(SetupFboss.KERNEL_BDE_KO_FULL_PATH):
-            subprocess.run(
-                [
-                    "ln",
-                    "-s",
-                    SetupFboss.SRC_KERNEL_BDE_KO_FULL_PATH,
-                    "-t",
-                    SetupFboss.KMOD_FULL_PATH,
-                ]
-            )
-            new_kmod = True
-
-        if not os.path.exists(SetupFboss.KERNEL_NGBDE_KO_FULL_PATH):
+        if (self.useNgbde and
+            not os.path.exists(SetupFboss.KERNEL_NGBDE_KO_FULL_PATH)):
             subprocess.run(
                 [
                     "ln",
@@ -192,6 +170,30 @@ class SetupFboss:
                 ]
             )
             new_kmod = True
+        else:
+            if not os.path.exists(SetupFboss.USER_BDE_KO_FULL_PATH):
+                subprocess.run(
+                    [
+                        "ln",
+                        "-s",
+                        SetupFboss.SRC_USER_BDE_KO_FULL_PATH,
+                        "-t",
+                        SetupFboss.KMOD_FULL_PATH,
+                    ]
+                )
+                new_kmod = True
+
+            if not os.path.exists(SetupFboss.KERNEL_BDE_KO_FULL_PATH):
+                subprocess.run(
+                    [
+                        "ln",
+                        "-s",
+                        SetupFboss.SRC_KERNEL_BDE_KO_FULL_PATH,
+                        "-t",
+                        SetupFboss.KMOD_FULL_PATH,
+                    ]
+                )
+                new_kmod = True
 
         if new_kmod:
             subprocess.run(["depmod", "-a"])
@@ -199,14 +201,14 @@ class SetupFboss:
     def _load_kmods(self):
         output = subprocess.check_output(["lsmod"]).decode("utf-8").split("\n")
 
-        if not [x for x in output if SetupFboss.LSMOD_USER_BDE in x]:
-            subprocess.run(["modprobe", SetupFboss.USER_BDE])
-
         if (self.useNgbde and
             not [x for x in output if SetupFboss.LSMOD_KERNEL_NGBDE in x]):
             subprocess.run(["modprobe", SetupFboss.KERNEL_NGBDE])
-        elif not [x for x in output if SetupFboss.LSMOD_KERNEL_BDE in x]:
-            subprocess.run(["modprobe", SetupFboss.KERNEL_BDE])
+        else:
+            if not [x for x in output if SetupFboss.LSMOD_USER_BDE in x]:
+                subprocess.run(["modprobe", SetupFboss.USER_BDE])
+            if not [x for x in output if SetupFboss.LSMOD_KERNEL_BDE in x]:
+                subprocess.run(["modprobe", SetupFboss.KERNEL_BDE])
 
     def run(self, args):
         if args.reload:
