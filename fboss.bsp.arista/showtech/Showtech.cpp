@@ -84,19 +84,53 @@ void Showtech::printI2cDetect() {
 }
 
 void Showtech::printLogs() {
+
+  const std::string alt_platform_manager_log_path =
+      "/var/facebook/logs/fboss/platform_manager.log";
+  const std::string alt_sensor_service_log_path =
+      "/var/facebook/logs/fboss/sensor_service.log";
+  const std::string alt_data_corral_log_path =
+      "/var/facebook/logs/fboss/data_corral_service.log";
+  const std::string alt_fan_service_log_path =
+      "/var/facebook/logs/fboss/fan_service.log";
   std::cout << "################################\n";
   std::cout << "########## DEBUG LOGS ##########\n";
   std::cout << "################################\n\n";
 
-  std::cout << "#### SENSORS LOG ####\n";
-  std::cout << run_cmd_with_limit("journalctl -u sensor_service") << std::endl;
+  std::cout << "#### PLATFORM MANAGER LOG ####\n";
+  if (std::filesystem::exists(alt_platform_manager_log_path)) {
+    std::cout << run_cmd_with_limit("cat " + alt_platform_manager_log_path)
+              << std::endl;
+  } else {
+    std::cout << run_cmd_with_limit("journalctl -u platform_manager")
+              << std::endl;
+  }
 
-  std::cout << "#### FAN LOG ####\n";
-  std::cout << run_cmd_with_limit("journalctl -u fan_service") << std::endl;
+  std::cout << "#### SENSOR SERVICE LOG ####\n";
+  if (std::filesystem::exists(alt_sensor_service_log_path)) {
+    std::cout << run_cmd_with_limit("cat " + alt_sensor_service_log_path)
+              << std::endl;
+  } else {
+    std::cout << run_cmd_with_limit("journalctl -u sensor_service")
+              << std::endl;
+  }
+
+  std::cout << "#### FAN SERVICE LOG ####\n";
+  if (std::filesystem::exists(alt_fan_service_log_path)) {
+    std::cout << run_cmd_with_limit("cat " + alt_fan_service_log_path)
+              << std::endl;
+  } else {
+    std::cout << run_cmd_with_limit("journalctl -u fan_service") << std::endl;
+  }
 
   std::cout << "#### DATA CORRAL LOG ####\n";
-  std::cout << run_cmd_with_limit("journalctl -u data_corral_service")
-            << std::endl;
+  if (std::filesystem::exists(alt_data_corral_log_path)) {
+    std::cout << run_cmd_with_limit("cat " + alt_data_corral_log_path)
+              << std::endl;
+  } else {
+    std::cout << run_cmd_with_limit("journalctl -u data_corral_service")
+              << std::endl;
+  }
 
   std::cout << "#### QSFP LOG ####\n";
   std::cout << run_cmd_with_limit("journalctl -u qsfp_service") << std::endl;
