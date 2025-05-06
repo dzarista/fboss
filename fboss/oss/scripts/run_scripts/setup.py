@@ -95,7 +95,7 @@ class SetupFboss:
             self.src_bde_full_path = os.path.join(
                 *[os.environ["FBOSS_DATA"], SetupFboss.J3, SetupFboss.BDE_CONF]
             )
-        elif [x for x in output if "Broadcom" in x and "8860" in x]:
+        elif [x for x in output if "Broadcom" in x and "8890" in x]:
             self.src_fruid_full_path = os.path.join(
                 *[os.environ["FBOSS_DATA"], SetupFboss.J3, SetupFboss.FRUID_CONF]
             )
@@ -109,7 +109,7 @@ class SetupFboss:
             self.src_bde_full_path = os.path.join(
                 *[os.environ["FBOSS_DATA"], SetupFboss.R3, SetupFboss.BDE_CONF]
             )
-        elif [x for x in output if "Broadcom" in x and "BCM78900" in x]:
+        elif [x for x in output if "Broadcom" in x and "8900" in x]:
             self.src_fruid_full_path = os.path.join(
                 *[os.environ["FBOSS_DATA"], SetupFboss.TH5, SetupFboss.FRUID_CONF]
             )
