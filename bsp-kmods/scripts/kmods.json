@@ -19,7 +19,8 @@
         "scd_watchdog_darwin",
         "scd_info",
         "scd_leds_darwin",
-        "scd_vcpld"
+        "scd_vcpld",
+        "scd_adc"
     ],
     "sharedKmods": [
         "scd"
