@@ -125,8 +125,7 @@ void MeruShowtech::printFanInfo() {
             strip(rpm);
             std::cout << ", RPM: " << rpm << " (" << pwm_pcnt << "%)\n";
           } else {
-            std::cout << ", RPM: "
-                      << " SPEED UNKNOWN\n";
+            std::cout << ", RPM: " << " SPEED UNKNOWN\n";
           }
         } else {
           std::cout << "\n";

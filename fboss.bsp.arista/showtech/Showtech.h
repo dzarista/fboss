@@ -4,16 +4,15 @@
 #ifndef SHOWTECH_H
 #define SHOWTECH_H
 
+#include <filesystem>
 #include <set>
 #include <string>
-#include <filesystem>
 
 namespace showtech {
 class Showtech {
 public:
   Showtech(bool verbose)
-    : verbose_{verbose}
-    , ramdisk_{std::filesystem::exists("/etc/ramdisk")}{}
+      : verbose_{verbose}, ramdisk_{std::filesystem::exists("/etc/ramdisk")} {}
   virtual ~Showtech() = default;
   void printShowtech();
 
