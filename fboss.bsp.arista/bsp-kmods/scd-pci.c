@@ -42,7 +42,6 @@
 
 #define SCD_PCI_VENDOR_ID		0x3475
 #define SCD_PCI_DEVICE_ID		0x0001
-#define ROOK_SCD_PCI_SUBDEVICE_ID	0x0000
 #define DARWIN_SCD_PCI_SUBDEVICE_ID	0x0002
 #define VIPER_SCD_PCI_SUBDEVICE_ID	0x0003
 #define BLACKCOMB_SCD0_PCI_SUBDEVICE_ID	0x0004
@@ -978,7 +977,7 @@ static void scd_remove(struct pci_dev *pdev)
 		fbiob_auxbus_destroy(&priv->aux_bus);
 	if (priv->sysfs_initialized)
 		sysfs_remove_group(&pdev->dev.kobj, priv->sysfs_attr_group);
-	if (pdev->subsystem_device == ROOK_SCD_PCI_SUBDEVICE_ID) {
+	if (pci_match_id(scd_lpc_table, pdev)) {
 		sysfs_remove_group(&pdev->dev.kobj, &rook_scd_revision_attr_group);
 	}
 	if (pdev->subsystem_device == DARWIN_SCD_PCI_SUBDEVICE_ID) {
@@ -1087,7 +1086,7 @@ static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		print_reload_cause_info(priv);
 	}
 
-	if (ent->subdevice == ROOK_SCD_PCI_SUBDEVICE_ID) {
+	if (pci_match_id(scd_lpc_table, pdev)) {
 		read_revision_reg(priv);
 		err = sysfs_create_group(&pdev->dev.kobj, &rook_scd_revision_attr_group);
 		if (err) {
