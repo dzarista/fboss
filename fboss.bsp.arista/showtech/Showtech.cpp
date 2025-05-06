@@ -175,7 +175,7 @@ void Showtech::printL1Info() {
   print_fboss2_show_cmd("interface phy");
   print_fboss2_show_cmd("transceiver");
 
-  if (verbose_) {
+  if (verbose_ && !ramdisk_) {
     std::cout << "#### wedge_qsfp_util ####\n";
     std::cout << run_cmd_with_timeout("wedge_qsfp_util", 30) << std::endl;
   }

@@ -6,11 +6,14 @@
 
 #include <set>
 #include <string>
+#include <filesystem>
 
 namespace showtech {
 class Showtech {
 public:
-  Showtech(bool verbose) { verbose_ = verbose; }
+  Showtech(bool verbose)
+    : verbose_{verbose}
+    , ramdisk_{std::filesystem::exists("/etc/ramdisk")}{}
   virtual ~Showtech() = default;
   void printShowtech();
 
@@ -33,6 +36,7 @@ protected:
   virtual std::set<int> i2cBusIgnore() = 0;
 
   bool verbose_;
+  bool ramdisk_;
 };
 
 class GenericShowtech : public Showtech {

@@ -242,7 +242,9 @@ void MeruShowtech::printPlatformInfo() {
   printAllFpgaVersions();
   printFanInfo();
   printPsuShowtechInfo();
-  printCfmShowtechInfo();
+  if (!ramdisk_) {
+    printCfmShowtechInfo();
+  }
   if (verbose_) {
     printI2cInfo();
     printPwrCtrlerInfo();
