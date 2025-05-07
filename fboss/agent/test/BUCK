@@ -951,11 +951,15 @@ cpp_unittest(
 cpp_unittest(
     name = "ecmp_resource_manager_test",
     srcs = [
-        "EcmpResourceManagerTests.cpp",
+        "BaseEcmpResourceManagerTest.cpp",
+        "EcmpResourceMgrBackupGrpTests.cpp",
+        "EcmpResourceMgrGroupIdAllocationTests.cpp",
     ],
+    headers = ["BaseEcmpResourceManagerTest.h"],
     deps = [
         "//fboss/agent:ecmp_resource_manager",
         "//fboss/agent:fboss-types",
+        "//fboss/agent:fib_helpers",
         "//fboss/agent/state:state",
         "//folly:network_address",
     ],

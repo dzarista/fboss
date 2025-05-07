@@ -10,6 +10,7 @@
 #pragma once
 #include "fboss/agent/state/Route.h"
 #include "fboss/agent/state/RouteNextHopEntry.h"
+#include "fboss/agent/state/StateDelta.h"
 #include "fboss/lib/RefMap.h"
 
 #include <boost/container/flat_set.hpp>
@@ -83,6 +84,12 @@ class EcmpResourceManager {
   size_t getRouteUsageCount(NextHopGroupId nhopGrpId) const;
   void updateDone(const StateDelta& delta);
   void updateFailed(const StateDelta& delta);
+  std::optional<cfg::SwitchingMode> getBackupEcmpSwitchingMode() const {
+    return backupEcmpGroupType_;
+  }
+  uint32_t getMaxPrimaryEcmpGroups() const {
+    return maxEcmpGroups_;
+  }
 
  private:
   struct ConsolidationPenalty {
@@ -96,19 +103,44 @@ class EcmpResourceManager {
   };
   struct InputOutputState {
     InputOutputState(uint32_t _nonBackupEcmpGroupsCnt, const StateDelta& _in)
-        : nonBackupEcmpGroupsCnt(_nonBackupEcmpGroupsCnt), in(_in) {}
+        : nonBackupEcmpGroupsCnt(_nonBackupEcmpGroupsCnt) {
+      /*
+       * Note that for first StateDelta we push in.oldState() for both
+       * old and new state in the first StateDelta, since we will process
+       * and add/update/delete routes on top of the old state.
+       */
+      out.emplace_back(_in.oldState(), _in.oldState());
+    }
+    template <typename AddrT>
+    void addOrUpdateRoute(
+        RouterID rid,
+        const std::shared_ptr<Route<AddrT>>& newRoute,
+        bool ecmpDemandExceeded);
+
+    template <typename AddrT>
+    void deleteRoute(
+        RouterID rid,
+        const std::shared_ptr<Route<AddrT>>& delRoute);
     /*
-     * SwitchState to use as base state when building the
-     * next delta
+     * StateDelta to use as base state when building the
+     * next delta or updating current delta.
      */
-    std::shared_ptr<SwitchState> nextDeltaOldSwitchState() const;
+    StateDelta getCurrentStateDelta() const {
+      CHECK(!out.empty());
+      return StateDelta(out.back().oldState(), out.back().newState());
+    }
+    /*
+     * Number of ECMP groups of primary ECMP type. Once these
+     * reach the maxEcmpGroups limit, we either compress groups
+     * by combining 2 or more groups.
+     */
     uint32_t nonBackupEcmpGroupsCnt;
-    const StateDelta& in;
     std::vector<StateDelta> out;
   };
   std::set<NextHopGroupId> createOptimalMergeGroupSet();
   template <typename AddrT>
   std::shared_ptr<NextHopGroupInfo> ecmpGroupDemandExceeded(
+      RouterID rid,
       const std::shared_ptr<Route<AddrT>>& route,
       NextHops2GroupId::iterator nhops2IdItr,
       InputOutputState* inOutState);
