@@ -71,7 +71,7 @@ std::unique_ptr<WedgeManager> createJanga800bicWedgeManager(
 std::unique_ptr<WedgeManager> createTahan800bcWedgeManager(
     const std::string& platformMappingStr);
 
-std::unique_ptr<WedgeManager> createGlath05a-64oWedgeManager(
+std::unique_ptr<WedgeManager> createGlath05a_64oWedgeManager(
     const std::string& platformMappingStr);
 
 } // namespace fboss

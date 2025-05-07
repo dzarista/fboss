@@ -112272,10 +112272,10 @@ constexpr auto kJsonPlatformMappingStr = R"(
 } // namespace
 
 namespace facebook::fboss {
-Glath05a-64oPlatformMapping::Glath05a-64oPlatformMapping()
+Glath05a_64oPlatformMapping::Glath05a_64oPlatformMapping()
     : PlatformMapping(kJsonPlatformMappingStr) {}
 
-Glath05a-64oPlatformMapping::Glath05a-64oPlatformMapping(
+Glath05a_64oPlatformMapping::Glath05a_64oPlatformMapping(
     const std::string& platformMappingStr)
     : PlatformMapping(platformMappingStr) {}
 

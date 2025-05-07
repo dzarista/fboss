@@ -12,6 +12,6 @@
 
 namespace facebook::fboss {
 
-void SaiGlath05a-64oPlatform::initLEDs() {}
+void SaiGlath05a_64oPlatform::initLEDs() {}
 
 } // namespace facebook::fboss

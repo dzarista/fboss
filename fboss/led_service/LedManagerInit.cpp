@@ -57,7 +57,7 @@ std::unique_ptr<LedManager> createLedManager() {
   } else if (mode == PlatformType::PLATFORM_MINIPACK3N) {
     return std::make_unique<Minipack3NLedManager>();
   } else if (mode == PlatformType::PLATFORM_GLATH05A_64O) {
-    return std::make_unique<Glath05a-64oLedManager>();
+    return std::make_unique<Glath05a_64oLedManager>();
   }
   return nullptr;
 }

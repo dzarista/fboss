@@ -13,8 +13,8 @@ namespace facebook::fboss {
  * Glath05a-64oLedManager constructor will create the LedManager object for
  * Glath05a-64o platform
  */
-Glath05a-64oLedManager::Glath05a-64oLedManager() : BspLedManager() {
-  init<Glath05a-64oBspPlatformMapping, Glath05a-64oPlatformMapping>();
+Glath05a_64oLedManager::Glath05a_64oLedManager() : BspLedManager() {
+  init<Glath05a_64oBspPlatformMapping, Glath05a_64oPlatformMapping>();
   XLOG(INFO) << "Created Glath05a-64o BSP LED Manager";
 }
 

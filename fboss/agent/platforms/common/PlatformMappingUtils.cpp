@@ -186,8 +186,8 @@ std::unique_ptr<PlatformMapping> initPlatformMapping(PlatformType type) {
           : std::make_unique<Icecube800bcPlatformMapping>(platformMappingStr);
     case PlatformType::PLATFORM_GLATH05A_64O:
       return platformMappingStr.empty()
-          ? std::make_unique<Glath05a-64oPlatformMapping>()
-          : std::make_unique<Glath05a-64oPlatformMapping>(platformMappingStr);
+          ? std::make_unique<Glath05a_64oPlatformMapping>()
+          : std::make_unique<Glath05a_64oPlatformMapping>(platformMappingStr);
     case PlatformType::PLATFORM_FAKE_SAI: {
       std::vector<int> controllingPorts = getFakeSaiControllingPortIDs();
       return std::make_unique<FakeTestPlatformMapping>(controllingPorts);

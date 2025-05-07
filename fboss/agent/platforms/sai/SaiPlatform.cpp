@@ -394,7 +394,7 @@ void SaiPlatform::initPorts() {
     } else if (platformMode == PlatformType::PLATFORM_ICECUBE800BC) {
       saiPort = std::make_unique<SaiBcmIcecube800bcPlatformPort>(portId, this);
     } else if (platformMode == PlatformType::PLATFORM_GLATH05A_64O) {
-      saiPort = std::make_unique<SaiGlath05a-64oPlatformPort>(portId, this);
+      saiPort = std::make_unique<SaiGlath05a_64oPlatformPort>(portId, this);
     } else {
       saiPort = std::make_unique<SaiFakePlatformPort>(portId, this);
     }

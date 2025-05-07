@@ -21,14 +21,14 @@ namespace facebook::fboss {
  * by LED Service. This will subscribe to Fsdb to get Switch state update and
  * then update the LED in hardware
  */
-class Glath05a-64oLedManager : public BspLedManager {
+class Glath05a_64oLedManager : public BspLedManager {
  public:
-  Glath05a-64oLedManager();
-  virtual ~Glath05a-64oLedManager() override {}
+  Glath05a_64oLedManager();
+  virtual ~Glath05a_64oLedManager() override {}
 
   // Forbidden copy constructor and assignment operator
-  Glath05a-64oLedManager(Glath05a-64oLedManager const&) = delete;
-  Glath05a-64oLedManager& operator=(Glath05a-64oLedManager const&) = delete;
+  Glath05a_64oLedManager(Glath05a_64oLedManager const&) = delete;
+  Glath05a_64oLedManager& operator=(Glath05a_64oLedManager const&) = delete;
 };
 
 } // namespace facebook::fboss

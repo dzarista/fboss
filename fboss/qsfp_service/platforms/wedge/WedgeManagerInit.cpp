@@ -104,7 +104,7 @@ std::unique_ptr<WedgeManager> createWedgeManager() {
   } else if (mode == PlatformType::PLATFORM_TAHAN800BC) {
     return createTahan800bcWedgeManager(platformMappingStr);
   } else if (mode == PlatformType::PLATFORM_GLATH05A_64O) {
-    return createGlath05a-64oWedgeManager(platformMappingStr);
+    return createGlath05a_64oWedgeManager(platformMappingStr);
   } else if (
       mode == PlatformType::PLATFORM_FUJI ||
       mode == PlatformType::PLATFORM_MINIPACK ||
@@ -128,17 +128,17 @@ std::unique_ptr<WedgeManager> createDarwinWedgeManager(
       PlatformType::PLATFORM_DARWIN);
 }
 
-std::unique_ptr<WedgeManager> createGlath05a-64oWedgeManager(
+std::unique_ptr<WedgeManager> createGlath05a_64oWedgeManager(
   const std::string& platformMappingStr) {
 auto systemContainer =
-    BspGenericSystemContainer<Glath05a-64oBspPlatformMapping>::getInstance()
+    BspGenericSystemContainer<Glath05a_64oBspPlatformMapping>::getInstance()
         .get();
 return std::make_unique<BspWedgeManager>(
     systemContainer,
     std::make_unique<BspTransceiverApi>(systemContainer),
     platformMappingStr.empty()
-        ? std::make_unique<Glath05a-64oPlatformMapping>()
-        : std::make_unique<Glath05a-64oPlatformMapping>(platformMappingStr),
+        ? std::make_unique<Glath05a_64oPlatformMapping>()
+        : std::make_unique<Glath05a_64oPlatformMapping>(platformMappingStr),
     PlatformType::PLATFORM_GLATH05A_64O);
 }
 
