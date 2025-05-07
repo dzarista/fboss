@@ -21,7 +21,7 @@ platform_to_vendor = {
     "montblanc": "fboss",
     "morgan800cc": "cisco",
     "tahan800bc": "fboss",
-    "meru800ba": 'arista',
+    "glath05a-64o": 'arista',
 }
 
 

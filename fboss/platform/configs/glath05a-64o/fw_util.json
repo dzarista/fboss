@@ -74,7 +74,7 @@
         {
           "commandType": "jtag",
           "jtagArgs": {
-            "path": "/run/devmap/cplds/MERU800BA_SMB_CPLD/jtag_mux_sel",
+            "path": "/run/devmap/cplds/GLATH05A-64O_SMB_CPLD/jtag_mux_sel",
             "value": 0
           }
         }
@@ -93,7 +93,7 @@
       ],
       "version": {
         "versionType": "sysfs",
-        "path": "/run/devmap/cplds/MERU800BA_SMB_CPLD/fw_ver"
+        "path": "/run/devmap/cplds/GLATH05A-64O_SMB_CPLD/fw_ver"
       },
       "priority": 3
     },
@@ -109,7 +109,7 @@
         {
           "commandType": "jtag",
           "jtagArgs": {
-            "path": "/run/devmap/cplds/MERU800BA_SMB_CPLD/jtag_mux_sel",
+            "path": "/run/devmap/cplds/GLATH05A-64O_SMB_CPLD/jtag_mux_sel",
             "value": 1
           }
         }
@@ -128,7 +128,7 @@
       ],
       "version": {
         "versionType": "sysfs",
-        "path": "/run/devmap/fpgas/MERU800BA_SMB_FPGA_INFO_ROM/fw_ver"
+        "path": "/run/devmap/fpgas/GLATH05A-64O_SMB_FPGA_INFO_ROM/fw_ver"
       },
       "priority": 2
     },
@@ -144,7 +144,7 @@
         {
           "commandType": "jtag",
           "jtagArgs": {
-            "path": "/run/devmap/cplds/MERU800BA_SMB_CPLD/jtag_mux_sel",
+            "path": "/run/devmap/cplds/GLATH05A-64O_SMB_CPLD/jtag_mux_sel",
             "value": 2
           }
         }

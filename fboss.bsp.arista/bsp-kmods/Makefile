@@ -26,7 +26,7 @@ obj-y += dsf/
 obj-y += darwin/
 
 #Device drivers for QuickSilver.
-obj-y += meru800ba/
+obj-y += glath05a-64o/
 
 KDIR ?= /lib/modules/${BUILD_KERNEL}/build
 

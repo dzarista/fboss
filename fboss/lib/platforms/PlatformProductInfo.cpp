@@ -185,8 +185,8 @@ void PlatformProductInfo::initMode() {
     } else if (modelName.find("ICEPACK-TH6") == 0) {
       type_ = PlatformType::PLATFORM_ICECUBE800BC;
     } else if (
-        modelName.find("Meru800ba") == 0 || modelName.find("MERU800BA") == 0) {
-      type_ = PlatformType::PLATFORM_MERU800BA;
+        modelName.find("Glath05a-64o") == 0 || modelName.find("GLATH05A-64O") == 0) {
+      type_ = PlatformType::PLATFORM_GLATH05A_64O;
     } else {
       throw FbossError("invalid model name " + modelName);
     }
@@ -251,8 +251,8 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_YANGRA;
     } else if (FLAGS_mode == "minipack3n") {
       type_ = PlatformType::PLATFORM_MINIPACK3N;
-    } else if (FLAGS_mode == "meru800ba") {
-      type_ = PlatformType::PLATFORM_MERU800BA;
+    } else if (FLAGS_mode == "glath05a-64o") {
+      type_ = PlatformType::PLATFORM_GLATH05A_64O;
     } else {
       throw std::runtime_error("invalid mode " + FLAGS_mode);
     }

@@ -304,7 +304,7 @@ std::optional<std::string> PlatformExplorer::getPmUnitNameFromSlot(
     */
     if ((platformConfig_.platformName().value() == "meru800bfa" ||
          platformConfig_.platformName().value() == "meru800bia" ||
-         platformConfig_.platformName().value() == "meru800ba") &&
+         platformConfig_.platformName().value() == "glath05a-64o") &&
         (!(idpromConfig.busName()->starts_with("INCOMING")) &&
          *idpromConfig.address() == "0x50")) {
       try {

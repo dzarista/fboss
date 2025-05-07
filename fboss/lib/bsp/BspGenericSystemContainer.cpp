@@ -13,7 +13,7 @@
 #include "fboss/lib/bsp/montblanc/MontblancBspPlatformMapping.h"
 #include "fboss/lib/bsp/morgan800cc/Morgan800ccBspPlatformMapping.h"
 #include "fboss/lib/bsp/tahan800bc/Tahan800bcBspPlatformMapping.h"
-#include "fboss/lib/bsp/meru800ba/Meru800baBspPlatformMapping.h"
+#include "fboss/lib/bsp/glath05a-64o/Glath05a-64oBspPlatformMapping.h"
 #include "fboss/lib/bsp/darwin/DarwinBspPlatformMapping.h"
 
 DEFINE_string(
@@ -137,13 +137,13 @@ Tahan800bcSystemContainer::getInstance() {
 }
 
 
-using Meru800baSystemContainer =
-    BspGenericSystemContainer<Meru800baBspPlatformMapping>;
-folly::Singleton<Meru800baSystemContainer> _meru800baSystemContainer;
+using Glath05a_64oSystemContainer =
+    BspGenericSystemContainer<Glath05a_64oBspPlatformMapping>;
+folly::Singleton<Glath05a_64oSystemContainer> _glath05a_64oSystemContainer;
 template <>
-std::shared_ptr<Meru800baSystemContainer>
-Meru800baSystemContainer::getInstance() {
-  return _meru800baSystemContainer.try_get();
+std::shared_ptr<Glath05a_64oSystemContainer>
+Glath05a_64oSystemContainer::getInstance() {
+  return _glath05a_64oSystemContainer.try_get();
 }
 
 using DarwinSystemContainer =

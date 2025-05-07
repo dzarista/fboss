@@ -78,7 +78,7 @@ target_link_libraries(led_manager_lib
   montblanc_bsp
   meru800bia_bsp
   meru800bfa_bsp
-  meru800ba_bsp
+  glath05a-64o_bsp
   morgan800cc_bsp
   darwin_bsp
   darwin_platform_mapping

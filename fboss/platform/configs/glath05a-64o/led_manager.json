@@ -65,7 +65,7 @@
       "fruType": "PSU",
       "presenceDetection": {
         "sysfsFileHandle": {
-          "presenceFilePath": "/run/devmap/fpgas/MERU800BA_SMB_FPGA/psu1_present",
+          "presenceFilePath": "/run/devmap/fpgas/GLATH05A-64O_SMB_FPGA/psu1_present",
           "desiredValue": 1
         }
       }
@@ -75,7 +75,7 @@
       "fruType": "PSU",
       "presenceDetection": {
         "sysfsFileHandle": {
-          "presenceFilePath": "/run/devmap/fpgas/MERU800BA_SMB_FPGA/psu2_present",
+          "presenceFilePath": "/run/devmap/fpgas/GLATH05A-64O_SMB_FPGA/psu2_present",
           "desiredValue": 1
         }
       }

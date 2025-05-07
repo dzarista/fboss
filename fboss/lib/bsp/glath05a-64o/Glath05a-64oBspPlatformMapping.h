@@ -7,10 +7,10 @@
 namespace facebook {
 namespace fboss {
 
-class Meru800baBspPlatformMapping : public BspPlatformMapping {
+class Glath05a_64oBspPlatformMapping : public BspPlatformMapping {
  public:
-  Meru800baBspPlatformMapping();
-  explicit Meru800baBspPlatformMapping(const std::string& platformMappingStr);
+  Glath05a_64oBspPlatformMapping();
+  explicit Glath05a_64oBspPlatformMapping(const std::string& platformMappingStr);
 };
 
 } // namespace fboss
