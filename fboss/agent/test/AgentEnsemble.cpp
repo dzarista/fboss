@@ -2,16 +2,23 @@
 
 #include "fboss/agent/test/AgentEnsemble.h"
 
+#include <chrono>
+#include <map>
+#include <vector>
+
 #include "fboss/agent/AgentConfig.h"
 #include "fboss/agent/AgentFeatures.h"
-#include "fboss/agent/Utils.h"
-
 #include "fboss/agent/CommonInit.h"
 #include "fboss/agent/EncapIndexAllocator.h"
+#include "fboss/agent/SwSwitch.h"
 #include "fboss/agent/ThriftHandler.h"
 #include "fboss/agent/TxPacket.h"
+#include "fboss/agent/Utils.h"
+#include "fboss/agent/hw/gen-cpp2/hardware_stats_constants.h"
+#include "fboss/agent/hw/gen-cpp2/hardware_stats_types.h"
 #include "fboss/agent/hw/test/ConfigFactory.h"
 #include "fboss/agent/test/utils/PacketSendUtils.h"
+#include "fboss/agent/types.h"
 #include "fboss/lib/CommonFileUtils.h"
 #include "fboss/lib/CommonUtils.h"
 #include "fboss/lib/config/PlatformConfigUtils.h"
@@ -40,6 +47,7 @@ std::optional<facebook::fboss::cfg::StreamType> kStreamTypeOpt{std::nullopt};
 static const int kMsWaitForStatsRetry = 2000;
 constexpr auto kConfig = "config";
 constexpr auto kMultiSwitch = "multi_switch";
+constexpr auto kOverriddenAgentConfigFile = "overridden_agent.conf";
 } // namespace
 
 namespace facebook::fboss {
@@ -69,7 +77,7 @@ void AgentEnsemble::setupEnsemble(
   }
 
   auto agentConf = AgentConfig::fromFile(configFile_);
-  dumpConfigForHwAgent(agentConf.get());
+
   overrideConfigFlag(configFile_);
   createSwitch(std::move(agentConf), hwFeaturesDesired, kPlatformInitFn);
 
@@ -122,6 +130,8 @@ void AgentEnsemble::setupEnsemble(
   } else {
     initialConfig_ = *(AgentConfig::fromFile(configFile_)->thrift.sw());
   }
+
+  createAndDumpOverriddenAgentConfig();
 
   // Setup LinkStateToggler and start agent
   if (hwFeaturesDesired & HwSwitch::FeaturesDesired::LINKSCAN_DESIRED &&
@@ -341,8 +351,25 @@ void initEnsemble(
 
 std::map<PortID, HwPortStats> AgentEnsemble::getLatestPortStats(
     const std::vector<PortID>& ports) {
+  // Stats collection from SwSwitch is async, wait for stats
+  // being available before returning here.
   std::map<PortID, HwPortStats> portIdStatsMap;
-  return getSw()->getHwPortStats(ports);
+  checkWithRetry(
+      [&portIdStatsMap, &ports, this]() {
+        portIdStatsMap = getSw()->getHwPortStats(ports);
+        // Check collect timestamp is valid
+        for (const auto& [_, portStats] : portIdStatsMap) {
+          if (*portStats.timestamp__ref() ==
+              hardware_stats_constants::STAT_UNINITIALIZED()) {
+            return false;
+          }
+        }
+        return !portIdStatsMap.empty();
+      },
+      120,
+      std::chrono::milliseconds(1000),
+      " fetch port stats");
+  return portIdStatsMap;
 }
 
 std::map<SystemPortID, HwSysPortStats> AgentEnsemble::getLatestSysPortStats(
@@ -621,28 +648,44 @@ AgentEnsemble::getHwAgentTestClient(SwitchID switchId) {
       std::move(reconnectingChannel));
 }
 
-void AgentEnsemble::dumpConfigForHwAgent(AgentConfig* agentConf) {
-  if (FLAGS_multi_switch ||
-      folly::get_default(
-          *agentConf->thrift.defaultCommandLineArgs(), kMultiSwitch, "") ==
-          "true") {
-    cfg::AgentConfig newAgentConf;
-    std::map<std::string, std::string> defaultCommandLineArgs =
-        *agentConf->thrift.defaultCommandLineArgs();
-    std::vector<gflags::CommandLineFlagInfo> flags;
-    gflags::GetAllFlags(&flags);
-    for (const auto& flag : flags) {
-      // Skip writing flags if 1) default value, and 2) config itself.
-      if (!flag.is_default && flag.name != kConfig) {
-        defaultCommandLineArgs[flag.name] = flag.current_value;
-      }
-    }
+/**
+ * Creates an overridden AgentConfig object by incorporating the overridden
+ * initial configuration  and command line args, with the platform config from
+ * the test configuration in configerator. This config is dumped for hw-agents
+ * and for some warmboot tests.
+ */
+void AgentEnsemble::createAndDumpOverriddenAgentConfig() {
+  CHECK(initialConfig_ != cfg::SwitchConfig());
+  auto testConfig = AgentConfig::fromFile(configFile_);
 
-    newAgentConf.defaultCommandLineArgs() = defaultCommandLineArgs;
-    newAgentConf.sw() = *agentConf->thrift.sw();
-    newAgentConf.platform() = *agentConf->thrift.platform();
-    auto agentConfig = AgentConfig(newAgentConf);
-    utilCreateDir(AgentDirectoryUtil().agentEnsembleConfigDir());
+  // Create base agent config with command line args
+  std::map<std::string, std::string> defaultCommandLineArgs;
+  std::vector<gflags::CommandLineFlagInfo> flags;
+  gflags::GetAllFlags(&flags);
+  for (const auto& flag : flags) {
+    // Skip writing flags if 1) default value, and 2) config itself.
+    if (!flag.is_default && flag.name != kConfig) {
+      defaultCommandLineArgs.emplace(flag.name, flag.current_value);
+    }
+  }
+
+  // Build the new agent config
+  cfg::AgentConfig newAgentConf;
+  newAgentConf.defaultCommandLineArgs() = defaultCommandLineArgs;
+  newAgentConf.sw() = initialConfig_;
+  newAgentConf.platform() = *testConfig->thrift.platform();
+
+  auto agentConfig = AgentConfig(newAgentConf);
+
+  // Create directory and dump ensemble config
+  utilCreateDir(AgentDirectoryUtil().agentEnsembleConfigDir());
+  agentConfig.dumpConfig(
+      AgentDirectoryUtil().agentEnsembleConfigDir() +
+      kOverriddenAgentConfigFile);
+
+  // Handle hardware agent config for multi-switch setups
+  if (FLAGS_multi_switch ||
+      folly::get_default(defaultCommandLineArgs, kMultiSwitch, "") == "true") {
     for (const auto& [_, switchInfo] :
          *newAgentConf.sw()->switchSettings()->switchIdToSwitchInfo()) {
       agentConfig.dumpConfig(AgentDirectoryUtil().getTestHwAgentConfigFile(

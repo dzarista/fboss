@@ -12,13 +12,16 @@
 #include "fboss/agent/HwSwitchMatcher.h"
 #include "fboss/agent/SwitchIdScopeResolver.h"
 #include "fboss/agent/gen-cpp2/switch_config_types.h"
+#include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include "fboss/agent/packet/EthHdr.h"
 #include "fboss/agent/packet/IPv6Hdr.h"
 #include "fboss/agent/packet/PktFactory.h"
 #include "fboss/agent/packet/TCPHeader.h"
+#include "fboss/agent/test/AgentEnsemble.h"
 #include "fboss/agent/test/AgentHwTest.h"
 #include "fboss/agent/test/EcmpSetupHelper.h"
 #include "fboss/agent/test/ResourceLibUtil.h"
+#include "fboss/agent/test/TestEnsembleIf.h"
 #include "fboss/agent/test/utils/AqmTestUtils.h"
 #include "fboss/agent/test/utils/ConfigUtils.h"
 #include "fboss/agent/test/utils/CoppTestUtils.h"
@@ -26,6 +29,7 @@
 #include "fboss/agent/test/utils/OlympicTestUtils.h"
 #include "fboss/agent/test/utils/PortStatsTestUtils.h"
 #include "fboss/agent/test/utils/QosTestUtils.h"
+#include "fboss/agent/types.h"
 #include "fboss/lib/CommonUtils.h"
 
 namespace {
@@ -233,7 +237,7 @@ class AgentAqmTest : public AgentHwTest {
 
   void setupEcmpTraffic() {
     utility::EcmpSetupTargetedPorts6 ecmpHelper{
-        getProgrammedState(), getIntfMac()};
+        getProgrammedState(), getSw()->needL2EntryForNeighbor(), getIntfMac()};
     const auto& portDesc = PortDescriptor(masterLogicalInterfacePortIds()[0]);
     applyNewState([&ecmpHelper, &portDesc](std::shared_ptr<SwitchState> in) {
       return ecmpHelper.resolveNextHops(in, {portDesc});
@@ -504,6 +508,7 @@ class AgentAqmTest : public AgentHwTest {
       int kEcmpWidthForTest{1};
       utility::EcmpSetupAnyNPorts6 ecmpHelper6{
           getProgrammedState(),
+          getSw()->needL2EntryForNeighbor(),
           utility::MacAddressGenerator().get(getIntfMac().u64NBO() + 10)};
       resolveNeighborAndProgramRoutes(ecmpHelper6, kEcmpWidthForTest);
     };
@@ -617,7 +622,6 @@ class AgentAqmTest : public AgentHwTest {
     auto setup = [=, this]() {
       auto config{getSw()->getConfig()};
       queueEcnThresholdSetup(config, std::array{silverQueueId});
-      queueWredThresholdSetup(config, std::array{silverQueueId});
       applyNewConfig(config);
 
       // Setup traffic loop
@@ -794,6 +798,51 @@ class AgentAqmTest : public AgentHwTest {
 
     verifyAcrossWarmBoots(setup, verify);
   }
+
+  void runEcnTrafficNoDropTest() {
+    constexpr int kThresholdBytes{utility::kQueueConfigAqmsEcnThresholdMinMax};
+    std::optional<cfg::MMUScalingFactor> scalingFactor{std::nullopt};
+    checkSameAsicType(getAgentEnsemble()->getL3Asics());
+    SwitchID switchId =
+        scopeResolver().scope(masterLogicalInterfacePortIds()[0]).switchId();
+    const HwAsic* asic = hwAsicForSwitch(switchId);
+    if (asic->scalingFactorBasedDynamicThresholdSupported()) {
+      scalingFactor = cfg::MMUScalingFactor::ONE_16TH;
+    }
+
+    auto setupScalingFactor = [&](cfg::SwitchConfig& config,
+                                  const std::vector<int>& /* queueIds */,
+                                  const int /* txPktLen */) {
+      if (scalingFactor.has_value()) {
+        std::vector<cfg::PortQueue>& queues =
+            config.portQueueConfigs()["queue_config"];
+        for (auto& queue : queues) {
+          queue.scalingFactor() = scalingFactor.value();
+        }
+      }
+    };
+
+    uint32_t queueFillMaxBytes = utility::getQueueLimitBytes(
+        asic,
+        getAgentEnsemble()->getHwAgentTestClient(switchId),
+        scalingFactor);
+    if (scalingFactor.has_value()) {
+      /*
+       * For platforms with dynamic alpha based buffer limits, account for
+       * possible usage outside of the test and need to relax the limits being
+       * checked for no drops. Hence checking for queue build up to 99.9% of
+       * the possible depth.
+       */
+      queueFillMaxBytes = queueFillMaxBytes * 0.999;
+    }
+    validateAqmThresholds(
+        kECT0,
+        kThresholdBytes,
+        0,
+        std::nullopt /* verifyPacketCountFn */,
+        setupScalingFactor,
+        queueFillMaxBytes);
+  }
 };
 
 class AgentAqmWredDropTest : public AgentAqmTest {
@@ -878,7 +927,7 @@ TEST_F(AgentAqmTest, verifyEct1) {
   runTest(kECT1, true /* enableWred */, true /* enableEcn */);
 }
 
-TEST_F(AgentAqmTest, verifyEcnWithoutWredConfig) {
+TEST_F(AgentAqmEcnOnlyTest, verifyEcnWithoutWredConfig) {
   runTest(kECT1, false /* enableWred */, true /* enableEcn */);
 }
 
@@ -902,11 +951,15 @@ TEST_F(AgentAqmTest, verifyPerQueueWredDropStats) {
   runPerQueueWredDropStatsTest();
 }
 
+TEST_F(AgentAqmTest, verifyEcnTrafficNoDrop) {
+  runEcnTrafficNoDropTest();
+}
+
 TEST_F(AgentAqmTest, verifyEcnThreshold) {
   runEcnThresholdTest();
 }
 
-TEST_F(AgentAqmTest, verifyPerQueueEcnMarkedStats) {
+TEST_F(AgentAqmEcnOnlyTest, verifyPerQueueEcnMarkedStats) {
   runPerQueueEcnMarkedStatsTest();
 }
 

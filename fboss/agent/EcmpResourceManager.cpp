@@ -24,26 +24,80 @@ std::vector<StateDelta> EcmpResourceManager::consolidate(
   std::vector<StateDelta> deltas;
   CHECK(!preUpdateState_.has_value());
   preUpdateState_ = PreUpdateState(mergedGroups_, nextHopGroup2Id_);
-  processRouteUpdates<folly::IPAddressV4>(delta);
-  processRouteUpdates<folly::IPAddressV6>(delta);
+
+  uint32_t nonBackupEcmpGroupsCnt{0};
+  std::for_each(
+      nextHopGroupIdToInfo_.cbegin(),
+      nextHopGroupIdToInfo_.cend(),
+      [&nonBackupEcmpGroupsCnt](const auto& idAndInfo) {
+        // TODO - account for merged groups
+        nonBackupEcmpGroupsCnt +=
+            idAndInfo.second.lock()->isBackupEcmpGroupType() ? 0 : 1;
+      });
+  InputOutputState inOutState(nonBackupEcmpGroupsCnt, delta);
+  processRouteUpdates<folly::IPAddressV4>(delta, &inOutState);
+  processRouteUpdates<folly::IPAddressV6>(delta, &inOutState);
   deltas.emplace_back(StateDelta(delta.oldState(), delta.newState()));
   return deltas;
+}
+
+std::set<EcmpResourceManager::NextHopGroupId>
+EcmpResourceManager::createOptimalMergeGroupSet() {
+  if (!compressionPenaltyThresholdPct_) {
+    return {};
+  }
+  XLOG(FATAL) << " Merge group algorithm is a TODO";
+}
+
+std::shared_ptr<SwitchState>
+EcmpResourceManager::InputOutputState::nextDeltaOldSwitchState() const {
+  if (out.empty()) {
+    return in.oldState();
+  }
+  return out.back().newState();
+}
+
+template <typename AddrT>
+std::shared_ptr<NextHopGroupInfo> EcmpResourceManager::ecmpGroupDemandExceeded(
+    const std::shared_ptr<Route<AddrT>>& route,
+    NextHops2GroupId::iterator nhops2IdItr,
+    InputOutputState* inOutState) {
+  auto mergeSet = createOptimalMergeGroupSet();
+  CHECK(mergeSet.empty()) << "Merge algo is a TODO";
+  std::shared_ptr<NextHopGroupInfo> grpInfo;
+  bool inserted{false};
+  std::tie(grpInfo, inserted) = nextHopGroupIdToInfo_.refOrEmplace(
+      nhops2IdItr->second,
+      nhops2IdItr->second,
+      nhops2IdItr,
+      true /*isBackupEcmpGroupType*/);
+  // TODO update route and create new state delta vector
+  CHECK(inserted);
+  return grpInfo;
 }
 
 template <typename AddrT>
 void EcmpResourceManager::routeAdded(
     RouterID rid,
-    const std::shared_ptr<Route<AddrT>>& added) {
+    const std::shared_ptr<Route<AddrT>>& added,
+    InputOutputState* inOutState) {
   CHECK_EQ(rid, RouterID(0));
   CHECK(added->isResolved());
+  CHECK_LE(inOutState->nonBackupEcmpGroupsCnt, maxEcmpGroups_);
   auto nhopSet = added->getForwardInfo().getNextHopSet();
-  std::shared_ptr<NextHopGroupInfo> grpInfo;
   auto [idItr, inserted] =
       nextHopGroup2Id_.insert({nhopSet, findNextAvailableId()});
+  std::shared_ptr<NextHopGroupInfo> grpInfo;
   if (inserted) {
-    std::tie(grpInfo, inserted) =
-        nextHopGroupIdToInfo_.refOrEmplace(idItr->second, idItr->second, idItr);
-    CHECK(inserted);
+    if (inOutState->nonBackupEcmpGroupsCnt == maxEcmpGroups_) {
+      grpInfo = ecmpGroupDemandExceeded(added, idItr, inOutState);
+    } else {
+      std::tie(grpInfo, inserted) = nextHopGroupIdToInfo_.refOrEmplace(
+          idItr->second, idItr->second, idItr, false /*isBackupEcmpGroupType*/
+      );
+      ++inOutState->nonBackupEcmpGroupsCnt;
+      CHECK(inserted);
+    }
   } else {
     grpInfo = nextHopGroupIdToInfo_.ref(idItr->second);
   }
@@ -53,12 +107,14 @@ void EcmpResourceManager::routeAdded(
   CHECK(pfxInserted);
   pitr->second->incRouteUsageCount();
   CHECK_GT(pitr->second->getRouteUsageCount(), 0);
+  CHECK_LE(inOutState->nonBackupEcmpGroupsCnt, maxEcmpGroups_);
 }
 
 template <typename AddrT>
 void EcmpResourceManager::routeDeleted(
     RouterID rid,
-    const std::shared_ptr<Route<AddrT>>& removed) {
+    const std::shared_ptr<Route<AddrT>>& removed,
+    InputOutputState* /*inOutState*/) {
   CHECK_EQ(rid, RouterID(0));
   CHECK(removed->isResolved());
   NextHopGroupId groupId{kMinNextHopGroupId - 1};
@@ -78,37 +134,40 @@ void EcmpResourceManager::routeDeleted(
 }
 
 template <typename AddrT>
-void EcmpResourceManager::processRouteUpdates(const StateDelta& delta) {
+void EcmpResourceManager::processRouteUpdates(
+    const StateDelta& delta,
+    InputOutputState* inOutState) {
   forEachChangedRoute<AddrT>(
       delta,
-      [this](RouterID rid, const auto& oldRoute, const auto& newRoute) {
+      [this, inOutState](
+          RouterID rid, const auto& oldRoute, const auto& newRoute) {
         if (!oldRoute->isResolved() && !newRoute->isResolved()) {
           return;
         }
         if (oldRoute->isResolved() && !newRoute->isResolved()) {
-          routeDeleted(rid, oldRoute);
+          routeDeleted(rid, oldRoute, inOutState);
           return;
         }
         if (!oldRoute->isResolved() && newRoute->isResolved()) {
-          routeAdded(rid, newRoute);
+          routeAdded(rid, newRoute, inOutState);
           return;
         }
         // Both old and new are resolve
         CHECK(oldRoute->isResolved() && newRoute->isResolved());
         if (oldRoute->getForwardInfo().getNextHopSet() !=
             newRoute->getForwardInfo().getNextHopSet()) {
-          routeDeleted(rid, oldRoute);
-          routeAdded(rid, newRoute);
+          routeDeleted(rid, oldRoute, inOutState);
+          routeAdded(rid, newRoute, inOutState);
         }
       },
-      [this](RouterID rid, const auto& newRoute) {
+      [this, inOutState](RouterID rid, const auto& newRoute) {
         if (newRoute->isResolved()) {
-          routeAdded(rid, newRoute);
+          routeAdded(rid, newRoute, inOutState);
         }
       },
-      [this](RouterID rid, const auto& oldRoute) {
+      [this, inOutState](RouterID rid, const auto& oldRoute) {
         if (oldRoute->isResolved()) {
-          routeDeleted(rid, oldRoute);
+          routeDeleted(rid, oldRoute, inOutState);
         }
       });
 }
