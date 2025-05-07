@@ -331,7 +331,7 @@ class Viper( PlatformConfig ):
       self.addPmUnitConfigs( [
          ViperSCM(),
          ViperSMB(),
-         PSUUnit(),
+         PSUUnit( initRegSettings=InitRegSettings( [ ( 16, -128 ) ] ) ),
          FANUnit()
       ] )
 
