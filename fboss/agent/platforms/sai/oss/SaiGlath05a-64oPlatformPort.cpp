@@ -7,17 +7,17 @@
  *  of patent rights can be found in the PATENTS file in the same directory.
  *
  */
- #include "fboss/agent/platforms/sai/SaiMeru800baPlatformPort.h"
+ #include "fboss/agent/platforms/sai/SaiGlath05a-64oPlatformPort.h"
 
  namespace facebook::fboss {
  
- void SaiMeru800baPlatformPort::linkStatusChanged(
+ void SaiGlath05a-64oPlatformPort::linkStatusChanged(
      bool /* up */,
      bool /* adminUp */) {}
  
- void SaiMeru800baPlatformPort::externalState(PortLedExternalState /* lfs */) {}
+ void SaiGlath05a-64oPlatformPort::externalState(PortLedExternalState /* lfs */) {}
  
- uint32_t SaiMeru800baPlatformPort::getCurrentLedState() const {
+ uint32_t SaiGlath05a-64oPlatformPort::getCurrentLedState() const {
    return static_cast<uint32_t>(currentLedState_);
  }
  

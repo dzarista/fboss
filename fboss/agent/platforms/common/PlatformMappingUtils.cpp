@@ -33,7 +33,7 @@
 #include "fboss/agent/platforms/common/montblanc/MontblancPlatformMapping.h"
 #include "fboss/agent/platforms/common/morgan800cc/Morgan800ccPlatformMapping.h"
 #include "fboss/agent/platforms/common/tahan800bc/Tahan800bcPlatformMapping.h"
-#include "fboss/agent/platforms/common/meru800ba/Meru800baPlatformMapping.h"
+#include "fboss/agent/platforms/common/glath05a-64o/Glath05a-64oPlatformMapping.h"
 #include "fboss/agent/platforms/common/wedge100/Wedge100PlatformMapping.h"
 #include "fboss/agent/platforms/common/wedge40/Wedge40PlatformMapping.h"
 #include "fboss/agent/platforms/common/wedge400/Wedge400GrandTetonPlatformMapping.h"
@@ -184,10 +184,10 @@ std::unique_ptr<PlatformMapping> initPlatformMapping(PlatformType type) {
       return platformMappingStr.empty()
           ? std::make_unique<Icecube800bcPlatformMapping>()
           : std::make_unique<Icecube800bcPlatformMapping>(platformMappingStr);
-    case PlatformType::PLATFORM_MERU800BA:
+    case PlatformType::PLATFORM_GLATH05A_64O:
       return platformMappingStr.empty()
-          ? std::make_unique<Meru800baPlatformMapping>()
-          : std::make_unique<Meru800baPlatformMapping>(platformMappingStr);
+          ? std::make_unique<Glath05a-64oPlatformMapping>()
+          : std::make_unique<Glath05a-64oPlatformMapping>(platformMappingStr);
     case PlatformType::PLATFORM_FAKE_SAI: {
       std::vector<int> controllingPorts = getFakeSaiControllingPortIDs();
       return std::make_unique<FakeTestPlatformMapping>(controllingPorts);

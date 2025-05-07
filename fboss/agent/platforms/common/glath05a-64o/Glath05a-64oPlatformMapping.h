@@ -13,14 +13,14 @@
 
 namespace facebook::fboss {
 
-class Meru800baPlatformMapping : public PlatformMapping {
+class Glath05a-64oPlatformMapping : public PlatformMapping {
  public:
-  Meru800baPlatformMapping();
-  explicit Meru800baPlatformMapping(const std::string& platformMappingStr);
+  Glath05a-64oPlatformMapping();
+  explicit Glath05a-64oPlatformMapping(const std::string& platformMappingStr);
 
  private:
   // Forbidden copy constructor and assignment operator
-  Meru800baPlatformMapping(Meru800baPlatformMapping const&) = delete;
-  Meru800baPlatformMapping& operator=(Meru800baPlatformMapping const&) = delete;
+  Glath05a-64oPlatformMapping(Glath05a-64oPlatformMapping const&) = delete;
+  Glath05a-64oPlatformMapping& operator=(Glath05a-64oPlatformMapping const&) = delete;
 };
 } // namespace facebook::fboss

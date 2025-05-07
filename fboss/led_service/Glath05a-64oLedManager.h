@@ -15,20 +15,20 @@
 namespace facebook::fboss {
 
 /*
- * Meru800baLedManager class definiton:
+ * Glath05a-64oLedManager class definiton:
  *
  * The BspLedManager class managing all LED in the system. The object is spawned
  * by LED Service. This will subscribe to Fsdb to get Switch state update and
  * then update the LED in hardware
  */
-class Meru800baLedManager : public BspLedManager {
+class Glath05a-64oLedManager : public BspLedManager {
  public:
-  Meru800baLedManager();
-  virtual ~Meru800baLedManager() override {}
+  Glath05a-64oLedManager();
+  virtual ~Glath05a-64oLedManager() override {}
 
   // Forbidden copy constructor and assignment operator
-  Meru800baLedManager(Meru800baLedManager const&) = delete;
-  Meru800baLedManager& operator=(Meru800baLedManager const&) = delete;
+  Glath05a-64oLedManager(Glath05a-64oLedManager const&) = delete;
+  Glath05a-64oLedManager& operator=(Glath05a-64oLedManager const&) = delete;
 };
 
 } // namespace facebook::fboss

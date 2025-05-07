@@ -8,7 +8,7 @@
  *
  */
 
-#include "fboss/agent/platforms/common/meru800ba/Meru800baPlatformMapping.h"
+#include "fboss/agent/platforms/common/glath05a-64o/Glath05a-64oPlatformMapping.h"
 
 namespace {
 constexpr auto kJsonPlatformMappingStr = R"(
@@ -112272,10 +112272,10 @@ constexpr auto kJsonPlatformMappingStr = R"(
 } // namespace
 
 namespace facebook::fboss {
-Meru800baPlatformMapping::Meru800baPlatformMapping()
+Glath05a-64oPlatformMapping::Glath05a-64oPlatformMapping()
     : PlatformMapping(kJsonPlatformMappingStr) {}
 
-Meru800baPlatformMapping::Meru800baPlatformMapping(
+Glath05a-64oPlatformMapping::Glath05a-64oPlatformMapping(
     const std::string& platformMappingStr)
     : PlatformMapping(platformMappingStr) {}
 

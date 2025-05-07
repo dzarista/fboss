@@ -65,7 +65,7 @@ add_library(led_manager_lib
   fboss/led_service/Meru800bfaLedManager.cpp
   fboss/led_service/Morgan800ccLedManager.cpp
   fboss/led_service/Minipack3NLedManager.cpp
-  fboss/led_service/Meru800baLedManager.cpp
+  fboss/led_service/Glath05a-64oLedManager.cpp
 )
 
 target_link_libraries(led_manager_lib
@@ -93,7 +93,7 @@ target_link_libraries(led_manager_lib
   morgan_platform_mapping
   wedge400_platform_mapping
   yamp_platform_mapping
-  meru800ba_platform_mapping
+  glath05a-64o_platform_mapping
   product_info
   Folly::folly
   FBThrift::thriftcpp2

@@ -8,27 +8,27 @@
  *
  */
 
-#include "fboss/agent/platforms/sai/SaiMeru800baPlatform.h"
+#include "fboss/agent/platforms/sai/SaiGlath05a-64oPlatform.h"
 
 #include "fboss/agent/hw/switch_asics/Tomahawk5Asic.h"
-#include "fboss/agent/platforms/common/meru800ba/Meru800baPlatformMapping.h"
+#include "fboss/agent/platforms/common/glath05a-64o/Glath05a-64oPlatformMapping.h"
 
 #include <cstdio>
 #include <cstring>
 namespace facebook::fboss {
 
-SaiMeru800baPlatform::SaiMeru800baPlatform(
+SaiGlath05a-64oPlatform::SaiGlath05a-64oPlatform(
     std::unique_ptr<PlatformProductInfo> productInfo,
     folly::MacAddress localMac,
     const std::string& platformMappingStr)
     : SaiBcmPlatform(
           std::move(productInfo),
           platformMappingStr.empty()
-              ? std::make_unique<Meru800baPlatformMapping>()
-              : std::make_unique<Meru800baPlatformMapping>(platformMappingStr),
+              ? std::make_unique<Glath05a-64oPlatformMapping>()
+              : std::make_unique<Glath05a-64oPlatformMapping>(platformMappingStr),
           localMac) {}
 
-void SaiMeru800baPlatform::setupAsic(
+void SaiGlath05a-64oPlatform::setupAsic(
     std::optional<int64_t> switchId,
     const cfg::SwitchInfo& switchInfo,
     std::optional<HwAsic::FabricNodeRole> fabricNodeRole) {
@@ -36,10 +36,10 @@ void SaiMeru800baPlatform::setupAsic(
   asic_ = std::make_unique<Tomahawk5Asic>(switchId, switchInfo);
 }
 
-HwAsic* SaiMeru800baPlatform::getAsic() const {
+HwAsic* SaiGlath05a-64oPlatform::getAsic() const {
   return asic_.get();
 }
 
-SaiMeru800baPlatform::~SaiMeru800baPlatform() = default;
+SaiGlath05a-64oPlatform::~SaiGlath05a-64oPlatform() = default;
 
 } // namespace facebook::fboss
