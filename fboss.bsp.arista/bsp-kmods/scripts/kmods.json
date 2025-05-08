@@ -10,7 +10,7 @@
         "dsf_fan_cpld",
         "ledtrig_timer",
         "glath05a-64o_cpld",
-        "glath05a-64o_fan_cpld",
+        "glath05a64o_fancpld",
         "rook_fan_cpld",
         "scd_leds",
         "scd_smbus",
