@@ -37,7 +37,48 @@
     "staticMplsRoutesToCPU": [],
     "staticIp2MplsRoutes": [],
     "portQueueConfigs": {},
-    "switchSettings": {}
+    "switchSettings": {
+      "l2LearningMode": 0,
+      "qcmEnable": false,
+      "ptpTcEnable": false,
+      "l2AgeTimerSeconds": 300,
+      "maxRouteCounterIDs": 0,
+        "blockNeighbors": [
+          
+        ],
+        "macAddrsToBlock": [
+          
+        ],
+        "switchType": 0,
+        "exactMatchTableConfigs": [
+          
+        ],
+        "switchIdToSwitchType_DEPRECATED": {
+          
+        },
+        "switchDrainState": 0,
+        "switchIdToSwitchInfo": {
+            "0": {
+                "switchType": 0,
+                "asicType": 13,
+                "switchIndex": 0,
+                "portIdRange": {
+                    "minimum": 0,
+                    "maximum": 2047
+                },
+                "firmwareNameToFirmwareInfo": {
+                    
+                }
+            }
+        },
+        "vendorMacOuis": [
+          
+        ],
+        "metaMacOuis": [
+          
+        ]
+      }
+    }
   },
   "platform": {
     "chip": {
