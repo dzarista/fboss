@@ -1,19 +1,20 @@
 {
-  "defaultCommandLineArgs": {},
+  "defaultCommandLineArgs": {
+    "check_wb_handles": "true",
+    "counter_refresh_interval": "0",
+    "disable_neighbor_updates": "true",
+    "enable_replayer": "true",
+    "log_variable_name": "true",
+    "sai_configure_six_tap": "true"
+  },
   "sw": {
     "version": 0,
-    "ports": [
-      
-    ],
-    "vlans": [
-      
-    ],
-    "vlanPorts": [
-      
-    ],
+    "ports": [],
+    "vlans": [],
+    "vlanPorts": [],
     "defaultVlan": 0,
     "interfaces": [],
-    "arpTimeoutSeconds": 60,
+    "arpTimeoutSeconds": 600,
     "arpRefreshSeconds": 20,
     "arpAgerInterval": 5,
     "proactiveArp": false,
@@ -38,11 +39,11 @@
     "staticIp2MplsRoutes": [],
     "portQueueConfigs": {},
     "switchSettings": {
-      "l2LearningMode": 0,
-      "qcmEnable": false,
-      "ptpTcEnable": false,
-      "l2AgeTimerSeconds": 300,
-      "maxRouteCounterIDs": 0,
+        "l2LearningMode": 0,
+        "qcmEnable": false,
+        "ptpTcEnable": false,
+        "l2AgeTimerSeconds": 300,
+        "maxRouteCounterIDs": 0,
         "blockNeighbors": [
           
         ],
@@ -78,7 +79,6 @@
           
         ]
       }
-    }
   },
   "platform": {
     "chip": {
