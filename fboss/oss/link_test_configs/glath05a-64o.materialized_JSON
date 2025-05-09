@@ -1,0 +1,52 @@
+{
+  "defaultCommandLineArgs": {},
+  "sw": {
+    "version": 0,
+    "ports": [
+      
+    ],
+    "vlans": [
+      
+    ],
+    "vlanPorts": [
+      
+    ],
+    "defaultVlan": 0,
+    "interfaces": [],
+    "arpTimeoutSeconds": 60,
+    "arpRefreshSeconds": 20,
+    "arpAgerInterval": 5,
+    "proactiveArp": false,
+    "staticRoutesWithNhops": [],
+    "staticRoutesToNull": [],
+    "staticRoutesToCPU": [],
+    "acls": [],
+    "maxNeighborProbes": 300,
+    "staleEntryInterval": 10,
+    "aggregatePorts": [],
+    "clientIdToAdminDistance": {},
+    "sFlowCollectors": [],
+    "cpuQueues": [],
+    "loadBalancers": [],
+    "mirrors": [],
+    "trafficCounters": [],
+    "qosPolicies": [],
+    "defaultPortQueues": [],
+    "staticMplsRoutesWithNhops": [],
+    "staticMplsRoutesToNull": [],
+    "staticMplsRoutesToCPU": [],
+    "staticIp2MplsRoutes": [],
+    "portQueueConfigs": {},
+    "switchSettings": {}
+  },
+  "platform": {
+    "chip": {
+      "asicConfig": {
+        "common": {
+          "config": {}
+        },
+        "npuEntries": {}
+      }
+    }
+  }
+}
