@@ -44,7 +44,7 @@ class QuicksilverPFbSMB( SMBUnit ):
    def __init__( self ):
       super().__init__( self.prefixSymlink )
 
-      smbFanCpld = FANCpld( "0x60", "glath05a-64o_fan_cpld", "FAN_CPLD",
+      smbFanCpld = FANCpld( "0x60", "glath05a64o_fancpld", "FAN_CPLD",
                             incomingBusIndex=2 )
       smbFanCpld.addFANRpms( 4, upperCriticalVal=14900.0, lowerCriticalVal=1100.0 )
 

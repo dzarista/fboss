@@ -120,7 +120,7 @@
         {
           "busName": "INCOMING@2",
           "address": "0x60",
-          "kernelDeviceName": "glath05a-64o_fan_cpld",
+          "kernelDeviceName": "glath05a64o_fancpld",
           "pmUnitScopedName": "FAN_CPLD"
         },
         {

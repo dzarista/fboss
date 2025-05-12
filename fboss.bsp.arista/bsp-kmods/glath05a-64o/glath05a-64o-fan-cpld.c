@@ -949,7 +949,7 @@ static void cpld_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id cpld_id[] = {
-		{ "glath05a-64o_fan_cpld", PALI2_CPLD },
+		{ "glath05a64o_fancpld", PALI2_CPLD },
 						{} };
 MODULE_DEVICE_TABLE(i2c, cpld_id);
 
