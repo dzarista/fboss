@@ -11,7 +11,6 @@ project=$2
 limit=$3
 
 # --- Generate Suite Report Files in Container ---
-echo "--- Generating suite reports on $container_hostname ---"
 ssh "$remote_user@$container_hostname" "
   rm -rf '$remote_reports_dir'
   mkdir -p '$remote_reports_dir'

@@ -24,6 +24,18 @@ def string_to_int_empty_as_zero(val):
       return 0
    return int(val)
 
+def split_by_indices(text, indices):
+   if not indices:
+      return [text]
+
+   indices = sorted(list(set(indices)))
+   splits = []
+   last_split = 0
+   for index in indices:
+      splits.append(text[last_split:index])
+      last_split = index
+   splits.append(text[last_split:])
+   return [s.strip() for s in splits if s]
 
 class TestRun:
    def __init__(self, has_run, suite, package, test, aggregate, test_type,
@@ -67,13 +79,13 @@ class SuiteReport:
    def from_json(cls, json_data):
       if isinstance(json_data, dict):
          suite_rp = cls(
-               json_data["full_name"],
-               json_data["runs"],
-               json_data["passed"],
-               json_data["failed"],
-               json_data["pass%"],
-               json_data["residual_pass%"],
-               json_data["coverage"],
+            json_data["full_name"],
+            json_data["runs"],
+            json_data["passed"],
+            json_data["failed"],
+            json_data["pass%"],
+            json_data["residual_pass%"],
+            json_data["coverage"],
          )
          for child_data in json_data["children"]:
             child_node = cls.from_json(child_data)
@@ -99,8 +111,7 @@ class LineWrapRawTextHelpFormatter(argparse.RawDescriptionHelpFormatter):
 
 fboss_suite_rp_ssid = "1rxbJpzKbnVXoMFdHTLBD-GX1pi-NZGJA5LROdPwJ054"
 parser = argparse.ArgumentParser(
-   description="Update FBOSS Ship Report Spreedsheet at\n\n"
-   f"  https://docs.google.com/spreadsheets/d/{fboss_suite_rp_ssid}/edit \n\n"
+   description="Update FBOSS Ship Report Spreedsheet at go/fboss-shipreport \n\n"
    "By default suite report and test runs are limited to pass 7 days\n\n"
    "To use your own spreadsheet:\n"
    "  1. Create a spreadsheet with new worksheets, and make the\n"
@@ -147,7 +158,25 @@ parser.add_argument(
 )
 args = parser.parse_args()
 
+# --- Get project latest build info ---
+print(f"--- Getting latest build info for {args.project} ---")
+try:
+   command = ["a", "build", "ls", "-p", args.project, "-m" "1"]
+   result = subprocess.run(command, capture_output=True, check=True)
+   stdout_string = result.stdout.decode('utf-8')
+   lines = stdout_string.split("\n")
+
+   split_indices = [i for i, char in enumerate(lines[1]) if char == " "]
+   keys = split_by_indices(lines[0], split_indices)
+   vals = split_by_indices(lines[2], split_indices)
+
+   pj_build_info = {k: v for k, v in zip(keys, vals)}
+except subprocess.CalledProcessError as e:
+   print(f"Error: error while getting project build info: {e}", file=sys.stderr)
+   sys.exit(1)
+
 # --- Generate suite report json and csv files ---
+print(f"--- Generating suite reports on {args.HOST} ---")
 script_path = "./generate_fboss_suite_reports.sh"
 try:
    command = [script_path, args.HOST, args.project, args.limit]
@@ -208,16 +237,26 @@ for suite, suite_rp in suite_reports:
    sheet_row.set("Residual Pass%", float(suite_rp.residual_pass_rate) / 100)
    sheet_row.set("Coverage", float(suite_rp.coverage) / 100)
 
+# set Build Info row (last row)
+sheet_row = ship_rp_sheet.getRow("Lastest Build")
+build_info_str = "build id: {}\nproject: {}\nstart time: {}\nduration: {}" \
+                 "\nresult: {}".format(pj_build_info['id'],
+                                       pj_build_info['project'],
+                                       pj_build_info['start time'],
+                                       pj_build_info['duration'],
+                                       pj_build_info['result'])
+sheet_row.set("Full Name", build_info_str)
+
 ship_rp_sheet.commitChanges()
-ship_rp_sheet.sort("Pass%", ascending=False)
+ship_rp_sheet.sort("Pass%", ascending=False, endRowOffset=-2)
 print(f"Succesfully updated \"{ship_rp_sheet.name()}\" sheet")
 
 # --- write to test run sheet ---
 test_run_sheet.setKeyCol("Test Name")
 all_rows = test_run_sheet.getRows()
 
-# set Last Updated row
-now_est = datetime.datetime.now(pytz.timezone('US/Eastern'))
+# set Last Updated row (second row)
+now_est = datetime.datetime.now(pytz.timezone('US/Pacific'))
 formatted_now = now_est.strftime('%Y-%m-%d %H:%M:%S %Z%z')
 last_updated_str = f"Last updated: {formatted_now}"
 if all_rows:
