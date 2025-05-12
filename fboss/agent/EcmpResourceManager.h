@@ -102,15 +102,7 @@ class EcmpResourceManager {
     std::map<RouteNextHopSet, NextHopGroupId> nextHopGroup2Id;
   };
   struct InputOutputState {
-    InputOutputState(uint32_t _nonBackupEcmpGroupsCnt, const StateDelta& _in)
-        : nonBackupEcmpGroupsCnt(_nonBackupEcmpGroupsCnt) {
-      /*
-       * Note that for first StateDelta we push in.oldState() for both
-       * old and new state in the first StateDelta, since we will process
-       * and add/update/delete routes on top of the old state.
-       */
-      out.emplace_back(_in.oldState(), _in.oldState());
-    }
+    InputOutputState(uint32_t _nonBackupEcmpGroupsCnt, const StateDelta& _in);
     template <typename AddrT>
     void addOrUpdateRoute(
         RouterID rid,
@@ -149,14 +141,32 @@ class EcmpResourceManager {
       const StateDelta& delta,
       InputOutputState* inOutState);
   template <typename AddrT>
+  void routeUpdated(
+      RouterID rid,
+      const std::shared_ptr<Route<AddrT>>& oldRoute,
+      const std::shared_ptr<Route<AddrT>>& newRoute,
+      InputOutputState* inOutState) {
+    routeAddedOrUpdated(rid, oldRoute, newRoute, inOutState);
+  }
+  template <typename AddrT>
   void routeAdded(
       RouterID rid,
+      const std::shared_ptr<Route<AddrT>>& newRoute,
+      InputOutputState* inOutState) {
+    routeAddedOrUpdated(
+        rid, std::shared_ptr<Route<AddrT>>(), newRoute, inOutState);
+  }
+  template <typename AddrT>
+  void routeAddedOrUpdated(
+      RouterID rid,
+      const std::shared_ptr<Route<AddrT>>& oldRoute,
       const std::shared_ptr<Route<AddrT>>& added,
       InputOutputState* inOutState);
   template <typename AddrT>
   void routeDeleted(
       RouterID rid,
       const std::shared_ptr<Route<AddrT>>& removed,
+      bool isUpdate,
       InputOutputState* inOutState);
   static uint32_t constexpr kMinNextHopGroupId = 1;
   NextHopGroupId findNextAvailableId() const;

@@ -10,17 +10,20 @@
 
 #include "fboss/agent/test/BaseEcmpResourceManagerTest.h"
 #include "fboss/agent/FibHelpers.h"
+#include "fboss/agent/test/TestUtils.h"
 
 namespace facebook::fboss {
 
 RouteNextHopSet makeNextHops(int n) {
   CHECK_LT(n, 255);
   RouteNextHopSet h;
+  const InterfaceID kRandomInterfaceId{1};
   for (int i = 0; i < n; i++) {
     std::stringstream ss;
     ss << std::hex << i + 1;
     auto ipStr = "100::" + ss.str();
-    h.emplace(UnresolvedNextHop(folly::IPAddress(ipStr), UCMP_DEFAULT_WEIGHT));
+    h.emplace(ResolvedNextHop(
+        folly::IPAddress(ipStr), kRandomInterfaceId, UCMP_DEFAULT_WEIGHT));
   }
   return h;
 }
@@ -69,7 +72,7 @@ void BaseEcmpResourceManagerTest::assertDeltasForOverflow(
     if (route->isResolved() &&
         !route->getForwardInfo().getOverrideEcmpSwitchingMode().has_value()) {
       auto pitr = primaryEcmpTypeGroups2RefCnt.find(
-          route->getForwardInfo().getNextHopSet());
+          route->getForwardInfo().normalizedNextHops());
       if (pitr != primaryEcmpTypeGroups2RefCnt.end()) {
         ++pitr->second;
         XLOG(DBG4) << "Processed route: " << route->str()
@@ -77,7 +80,7 @@ void BaseEcmpResourceManagerTest::assertDeltasForOverflow(
                    << primaryEcmpTypeGroups2RefCnt.size();
       } else {
         primaryEcmpTypeGroups2RefCnt.insert(
-            {route->getForwardInfo().getNextHopSet(), 1});
+            {route->getForwardInfo().normalizedNextHops(), 1});
         XLOG(DBG4) << "Processed route: " << route->str()
                    << " primary ECMP groups count incremented: "
                    << primaryEcmpTypeGroups2RefCnt.size();
@@ -96,7 +99,7 @@ void BaseEcmpResourceManagerTest::assertDeltasForOverflow(
       return;
     }
     auto pitr = primaryEcmpTypeGroups2RefCnt.find(
-        oldRoute->getForwardInfo().getNextHopSet());
+        oldRoute->getForwardInfo().normalizedNextHops());
     ASSERT_NE(pitr, primaryEcmpTypeGroups2RefCnt.end());
     EXPECT_GE(pitr->second, 1);
     --pitr->second;
@@ -114,13 +117,13 @@ void BaseEcmpResourceManagerTest::assertDeltasForOverflow(
       return;
     }
     auto pitr = primaryEcmpTypeGroups2RefCnt.find(
-        newRoute->getForwardInfo().getNextHopSet());
+        newRoute->getForwardInfo().normalizedNextHops());
     if (pitr != primaryEcmpTypeGroups2RefCnt.end()) {
       ++pitr->second;
     } else {
       bool inserted{false};
       std::tie(pitr, inserted) = primaryEcmpTypeGroups2RefCnt.insert(
-          {newRoute->getForwardInfo().getNextHopSet(), 1});
+          {newRoute->getForwardInfo().normalizedNextHops(), 1});
       EXPECT_TRUE(inserted);
       XLOG(DBG2) << " Primary ECMP group count incremented to: "
                  << primaryEcmpTypeGroups2RefCnt.size()
@@ -221,5 +224,18 @@ BaseEcmpResourceManagerTest::getNhopId(const RouteNextHopSet& nhops) const {
     nhopId = nitr->second;
   }
   return nhopId;
+}
+
+TEST_F(BaseEcmpResourceManagerTest, noFibsDelta) {
+  auto oldState = state_;
+  auto newState = oldState->clone();
+  newState->getPorts()->modify(&newState);
+  registerPort(newState, PortID(1), "portOne", hwMatcher());
+  auto deltas = consolidate(newState);
+  EXPECT_EQ(deltas.size(), 1);
+  EXPECT_EQ(deltas.begin()->oldState(), oldState);
+  EXPECT_EQ(deltas.begin()->newState(), newState);
+  EXPECT_NE(
+      deltas.begin()->newState()->getPorts()->getPortIf("portOne"), nullptr);
 }
 } // namespace facebook::fboss
