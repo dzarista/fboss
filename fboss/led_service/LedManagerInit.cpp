@@ -7,6 +7,7 @@
 #include "fboss/led_service/Meru800bfaLedManager.h"
 #include "fboss/led_service/Meru800biaLedManager.h"
 #include "fboss/led_service/Minipack3NLedManager.h"
+#include "fboss/led_service/Glath05a-64oLedManager.h"
 #include "fboss/led_service/MinipackLedManager.h"
 #include "fboss/led_service/MontblancLedManager.h"
 #include "fboss/led_service/Morgan800ccLedManager.h"
@@ -55,6 +56,8 @@ std::unique_ptr<LedManager> createLedManager() {
     return std::make_unique<Morgan800ccLedManager>();
   } else if (mode == PlatformType::PLATFORM_MINIPACK3N) {
     return std::make_unique<Minipack3NLedManager>();
+  } else if (mode == PlatformType::PLATFORM_GLATH05A_64O) {
+    return std::make_unique<Glath05a_64oLedManager>();
   }
   return nullptr;
 }

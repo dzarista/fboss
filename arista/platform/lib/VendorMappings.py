@@ -1,13 +1,18 @@
 # Copyright (c) 2023 Arista Networks, Inc.  All rights reserved.
 # Arista Networks, Inc. Confidential and Proprietary.
 
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 
 @dataclass
 class DataClassWithFieldGetter:
    @classmethod
    def getFields( cls ):
       return fields( cls )
+
+   @classmethod
+   def getLabels( cls ):
+      myFields= fields( cls )
+      return [ field.metadata.get( 'label', field.name ) for field in myFields ]
 
 @dataclass
 class StaticMapping( DataClassWithFieldGetter ):
@@ -78,11 +83,15 @@ class PortProfileMapping( DataClassWithFieldGetter ):
    # Virtual device ID for FE ASICs.
    Virtual_Device_ID : int
 
+   Port_Type : int
+   Scope : int
+
 @dataclass
 class SISettings( DataClassWithFieldGetter ):
    """
    SI settings for each logical lane.
    """
+
    # Linecard slot Id, 1 for fixed systems
    SLOT_ID : int
    # ASIC id on the system slot, Viper only has one J3, so always 1
@@ -96,7 +105,7 @@ class SISettings( DataClassWithFieldGetter ):
    # 0,numLanes - numLanes per core is 8 on J3, so this value goes from 0,7.
    CORE_LANE : int
    # Lane speed in Mbps
-   LANE_SPEED_mbps: int
+   LANE_SPEED_mbps: int =  field(metadata={"label": "LANE_SPEED(mbps)"})
    # Media type
    MEDIA_TYPE : str
    # Optics Vendor
@@ -104,7 +113,7 @@ class SISettings( DataClassWithFieldGetter ):
    # NIC Vendor
    NIC_VENDOR : str
    # Cable length (in meters)
-   CABLE_LENGTH_m : float
+   CABLE_LENGTH_m : float = field(metadata={"label": "CABLE_LENGTH(m)"})
    # TX Tap Settings
    TX_PRE3 : int
    TX_PRE2 : int
@@ -117,3 +126,4 @@ class SISettings( DataClassWithFieldGetter ):
    RX_CTLE_CODE : str
    RX_DSP_MODE : str
    RX_AFE_TRIM : str
+
