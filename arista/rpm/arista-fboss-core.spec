@@ -34,6 +34,8 @@ cp %{_fboss_target_share}/qsfp_test_configs/darwin.materialized_JSON \
    %{_fboss_target_share}/qsfp_test_configs/darwin48v.materialized_JSON
 cp %{_fboss_target_share}/hw_test_configs/darwin.agent.materialized_JSON \
    %{_fboss_target_share}/hw_test_configs/darwin48v.agent.materialized_JSON
+cp %{_fboss_target_share}/link_test_configs/darwin.materialized_JSON \
+   %{_fboss_target_share}/link_test_configs/darwin48v.materialized_JSON
 
 # Install known unsupported sai hwtest list. It is not packaged by package-fboss.py
 mkdir -p %{_fboss_target_share}/_sai_hw_unsupported_tests
