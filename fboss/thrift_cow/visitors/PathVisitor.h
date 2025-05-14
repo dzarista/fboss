@@ -106,16 +106,7 @@ struct SetEncodedPathVisitorOperator : public BasePathVisitorOperator {
 
  protected:
   void visit(facebook::fboss::thrift_cow::Serializable& node) override {
-    try {
-      node.fromEncoded(protocol_, val_);
-    } catch (const thrift_cow::NodeException& e) {
-      if (e.reason() !=
-          thrift_cow::NodeException::Reason::SET_IMMUTABLE_PRIMITIVE_NODE) {
-        throw;
-      }
-    } catch (const std::exception&) {
-      throw;
-    }
+    node.fromEncoded(protocol_, val_);
   }
 
  private:
@@ -165,17 +156,21 @@ enum class PathVisitMode {
 };
 
 struct PathVisitOptions {
-  static PathVisitOptions visitFull() {
-    return PathVisitOptions(PathVisitMode::FULL);
+  static PathVisitOptions visitFull(bool skipImmutablePrimitiveNode = false) {
+    return PathVisitOptions(PathVisitMode::FULL, skipImmutablePrimitiveNode);
   }
 
-  static PathVisitOptions visitLeaf() {
-    return PathVisitOptions(PathVisitMode::LEAF);
+  static PathVisitOptions visitLeaf(bool skipImmutablePrimitiveNode = false) {
+    return PathVisitOptions(PathVisitMode::LEAF, skipImmutablePrimitiveNode);
   }
 
-  explicit PathVisitOptions(PathVisitMode mode) : mode(mode) {}
+  explicit PathVisitOptions(
+      PathVisitMode mode,
+      bool skipImmutablePrimitiveNode = false)
+      : mode(mode), skipImmutablePrimitiveNode(skipImmutablePrimitiveNode) {}
 
   PathVisitMode mode;
+  bool skipImmutablePrimitiveNode;
 };
 
 namespace pv_detail {
@@ -877,6 +872,13 @@ struct PathVisitorImpl {
   template <typename Node, typename Op>
   static ThriftTraverseResult
   visit(Node& node, const VisitImplParams<Op>& params, PathIter cursor) {
+    if constexpr (is_cow_type_v<Node>) {
+      if constexpr (!std::is_same_v<typename Node::CowType, HybridNodeType>) {
+        if (params.options.skipImmutablePrimitiveNode && node.immutable) {
+          return ThriftTraverseResult::OK;
+        }
+      }
+    }
     if (params.options.mode == PathVisitMode::FULL || cursor == params.end) {
       try {
         // unfortunately its tough to get full const correctness for primitive

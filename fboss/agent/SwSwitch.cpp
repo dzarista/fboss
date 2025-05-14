@@ -23,6 +23,7 @@
 #include "fboss/agent/LinkConnectivityProcessor.h"
 #include "fboss/agent/Utils.h"
 
+#include "fboss/agent/EcmpResourceManager.h"
 #include "fboss/agent/HwAsicTable.h"
 #include "fboss/agent/IPv4Handler.h"
 #include "fboss/agent/IPv6Handler.h"
@@ -1755,6 +1756,13 @@ std::shared_ptr<SwitchState> SwSwitch::applyUpdate(
     return oldState;
   }
 
+  if (ecmpResourceManager_) {
+    auto deltas = ecmpResourceManager_->consolidate(delta);
+    // TODO allow for > 1 deltas once switch handlers, HwSwitch are
+    // able to handle these.
+    CHECK_EQ(deltas.size(), 1);
+    delta = std::move(*deltas.begin());
+  }
   if (!resourceAccountant_->isValidUpdate(delta)) {
     stats()->resourceAccountantRejectedUpdates();
     // Notify resource account to revert back to previous state
@@ -3722,7 +3730,12 @@ std::map<PortID, HwPortStats> SwSwitch::getHwPortStats(
     auto hwswitchStatsMap = hwSwitchStats_.rlock();
     auto hwswitchStats = hwswitchStatsMap->find(switchIndex);
     if (hwswitchStats != hwswitchStatsMap->end()) {
-      auto portName = getState()->getPorts()->getNodeIf(portId)->getName();
+      auto port = getState()->getPorts()->getNodeIf(portId);
+      if (!port) {
+        XLOG(ERR) << "Port node doesn't exist for portId: " << portId;
+        continue;
+      }
+      auto portName = port->getName();
       auto statsMap = hwswitchStats->second.hwPortStats();
       auto entry = statsMap->find(portName);
       if (entry != statsMap->end()) {

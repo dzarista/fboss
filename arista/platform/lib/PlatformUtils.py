@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 PortMedium = Enum( 'PortMedium', 'OPTICAL COPPER' )
 SpeedGbps = Enum( 'SpeedGbps',
-      'TwentyFive Fifty FiftyThree Hundred HundredAndSix FourHundred' )
+      'TwentyFive Fifty FiftyThree Hundred HundredAndSix FourHundred EightHundred' )
 
 def speedInMbps( speed: SpeedGbps ) -> int:
    if speed == SpeedGbps.TwentyFive:
@@ -20,6 +20,8 @@ def speedInMbps( speed: SpeedGbps ) -> int:
       return 106250
    elif speed == SpeedGbps.FourHundred:
       return 400000
+   elif speed == SpeedGbps.EightHundred:
+      return 800000
    else:
       assert False, f"Invalid speed {speed}"
 

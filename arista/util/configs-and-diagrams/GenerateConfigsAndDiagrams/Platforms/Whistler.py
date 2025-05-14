@@ -578,7 +578,7 @@ class Whistler( PlatformConfig ):
       self.addPmUnitConfigs( [
          WhistlerSCM(),
          WhistlerSMB(),
-         PSUUnit(),
+         PSUUnit( initRegSettings=InitRegSettings( [ ( 16, -128 ) ] ) ),
          FANUnit()
       ] )
 

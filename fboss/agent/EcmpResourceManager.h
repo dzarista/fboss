@@ -10,6 +10,7 @@
 #pragma once
 #include "fboss/agent/state/Route.h"
 #include "fboss/agent/state/RouteNextHopEntry.h"
+#include "fboss/agent/state/StateDelta.h"
 #include "fboss/lib/RefMap.h"
 
 #include <boost/container/flat_set.hpp>
@@ -74,6 +75,8 @@ class EcmpResourceManager {
   }
   using NextHopGroupId = uint32_t;
   using NextHopGroupIds = boost::container::flat_set<NextHopGroupId>;
+  using NextHops2GroupId = std::map<RouteNextHopSet, NextHopGroupId>;
+
   std::vector<StateDelta> consolidate(const StateDelta& delta);
   const auto& getNhopsToId() const {
     return nextHopGroup2Id_;
@@ -81,6 +84,12 @@ class EcmpResourceManager {
   size_t getRouteUsageCount(NextHopGroupId nhopGrpId) const;
   void updateDone(const StateDelta& delta);
   void updateFailed(const StateDelta& delta);
+  std::optional<cfg::SwitchingMode> getBackupEcmpSwitchingMode() const {
+    return backupEcmpGroupType_;
+  }
+  uint32_t getMaxPrimaryEcmpGroups() const {
+    return maxEcmpGroups_;
+  }
 
  private:
   struct ConsolidationPenalty {
@@ -92,15 +101,76 @@ class EcmpResourceManager {
     std::map<NextHopGroupIds, ConsolidationPenalty> mergedGroups;
     std::map<RouteNextHopSet, NextHopGroupId> nextHopGroup2Id;
   };
+  struct InputOutputState {
+    InputOutputState(uint32_t _nonBackupEcmpGroupsCnt, const StateDelta& _in);
+    template <typename AddrT>
+    void addOrUpdateRoute(
+        RouterID rid,
+        const std::shared_ptr<Route<AddrT>>& newRoute,
+        bool ecmpDemandExceeded);
+
+    template <typename AddrT>
+    void deleteRoute(
+        RouterID rid,
+        const std::shared_ptr<Route<AddrT>>& delRoute);
+    /*
+     * StateDelta to use as base state when building the
+     * next delta or updating current delta.
+     */
+    StateDelta getCurrentStateDelta() const {
+      CHECK(!out.empty());
+      return StateDelta(out.back().oldState(), out.back().newState());
+    }
+    /*
+     * Number of ECMP groups of primary ECMP type. Once these
+     * reach the maxEcmpGroups limit, we either compress groups
+     * by combining 2 or more groups.
+     */
+    uint32_t nonBackupEcmpGroupsCnt;
+    std::vector<StateDelta> out;
+  };
+  std::set<NextHopGroupId> createOptimalMergeGroupSet();
   template <typename AddrT>
-  void processRouteUpdates(const StateDelta& delta);
+  std::shared_ptr<NextHopGroupInfo> ecmpGroupDemandExceeded(
+      RouterID rid,
+      const std::shared_ptr<Route<AddrT>>& route,
+      NextHops2GroupId::iterator nhops2IdItr,
+      InputOutputState* inOutState);
   template <typename AddrT>
-  void routeAdded(RouterID rid, const std::shared_ptr<Route<AddrT>>& added);
+  void processRouteUpdates(
+      const StateDelta& delta,
+      InputOutputState* inOutState);
   template <typename AddrT>
-  void routeDeleted(RouterID rid, const std::shared_ptr<Route<AddrT>>& removed);
+  void routeUpdated(
+      RouterID rid,
+      const std::shared_ptr<Route<AddrT>>& oldRoute,
+      const std::shared_ptr<Route<AddrT>>& newRoute,
+      InputOutputState* inOutState) {
+    routeAddedOrUpdated(rid, oldRoute, newRoute, inOutState);
+  }
+  template <typename AddrT>
+  void routeAdded(
+      RouterID rid,
+      const std::shared_ptr<Route<AddrT>>& newRoute,
+      InputOutputState* inOutState) {
+    routeAddedOrUpdated(
+        rid, std::shared_ptr<Route<AddrT>>(), newRoute, inOutState);
+  }
+  template <typename AddrT>
+  void routeAddedOrUpdated(
+      RouterID rid,
+      const std::shared_ptr<Route<AddrT>>& oldRoute,
+      const std::shared_ptr<Route<AddrT>>& added,
+      InputOutputState* inOutState);
+  template <typename AddrT>
+  void routeDeleted(
+      RouterID rid,
+      const std::shared_ptr<Route<AddrT>>& removed,
+      bool isUpdate,
+      InputOutputState* inOutState);
   static uint32_t constexpr kMinNextHopGroupId = 1;
   NextHopGroupId findNextAvailableId() const;
-  std::map<RouteNextHopSet, NextHopGroupId> nextHopGroup2Id_;
+  NextHops2GroupId nextHopGroup2Id_;
   StdRefMap<NextHopGroupId, NextHopGroupInfo> nextHopGroupIdToInfo_;
   std::unordered_map<folly::CIDRNetwork, std::shared_ptr<NextHopGroupInfo>>
       prefixToGroupInfo_;

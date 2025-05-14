@@ -132,6 +132,7 @@ target_link_libraries(agent_hw_test_src
   fib_updater
   ecmp_test_utils
   scale_test_utils
+  neighbor_test_utils
 )
 
 function(BUILD_SAI_AGENT_HW_TEST SAI_IMPL_NAME SAI_IMPL_ARG)

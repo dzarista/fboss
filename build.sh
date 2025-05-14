@@ -8,7 +8,7 @@ usage() {
    echo "          [ --sai-sdk-dir <Sai/Sdk directory> ] "
    echo "          [ --clean ] [ --known-good-hash ] "
    echo "          [ --fboss-bins-only ] [ --with-debug-symbols ] "
-   echo "          [ --rebuild-fboss ] [ --help ] "
+   echo "          [ --rebuild-fboss ] [ --cmake-target ][ --help ] "
 }
 
 cd "$(dirname "$0")"
@@ -60,6 +60,10 @@ while [[ $# -gt 0 ]]; do
          kernel_dir="$2"
          shift; shift
          ;;
+      --cmake-target)
+         cmake_target="$2"
+         shift; shift
+         ;;
       --help)
          usage; exit 0
          shift
@@ -76,7 +80,7 @@ if ! [[ -z $clean_fboss ]]; then
    make -C $kernel_dir M=~+/fboss.bsp.arista/bsp-kmods clean
    make -C fboss.bsp.arista/showtech clean
    make -C arista/psu-upgrade clean
-   rm -rf $scratch_dir
+   rm -rf $scratch_dir/*
    if ! [[ -z $clean_and_exit ]]; then exit 0; fi
 fi
 
@@ -148,7 +152,7 @@ unset DESTDIR
 echo "==== Building fboss ===="
 time ./build/fbcode_builder/getdeps.py build --allow-system-packages --num-jobs 40 \
    --scratch-path $scratch_dir --build-type $build_type ${src_dir_arg[@]} fboss \
-   --extra-cmake-defines='{"CMAKE_CXX_STANDARD":"20"}'
+   --extra-cmake-defines='{"CMAKE_CXX_STANDARD":"20"}' ${cmake_target+--cmake-target $cmake_target}
 
 echo "==== Building bsp-kmods ===="
 make -C $kernel_dir M=~+/fboss.bsp.arista/bsp-kmods modules

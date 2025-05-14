@@ -271,12 +271,20 @@ void __gTxReadyStatusChangeNotification(
 }
 
 void __gSwitchAsicSdkHealthNotificationCallBack(
-    sai_object_id_t /*switch_id*/,
-    sai_switch_asic_sdk_health_severity_t /*severity*/,
-    sai_timespec_t /*timestamp*/,
-    sai_switch_asic_sdk_health_category_t /*category*/,
-    sai_switch_health_data_t /*data*/,
-    const sai_u8_list_t /*description*/) {}
+    sai_object_id_t switch_id,
+    sai_switch_asic_sdk_health_severity_t severity,
+    sai_timespec_t timestamp,
+    sai_switch_asic_sdk_health_category_t category,
+    sai_switch_health_data_t data,
+    const sai_u8_list_t description) {
+  auto switchIter = __gSaiIdToSwitch.find(switch_id);
+  CHECK(switchIter != __gSaiIdToSwitch.end());
+  SaiHealthNotification notification(
+      fromSaiTimeSpec(timestamp), severity, category, data, description);
+  switchIter->second->switchAsicSdkHealthNotificationTopHalf(
+      std::move(notification));
+  ;
+}
 #endif
 
 PortSaiId SaiSwitch::getCPUPortSaiId() const {
@@ -378,6 +386,18 @@ void SaiSwitch::unregisterCallbacks() noexcept {
     switchReachabilityChangeProcessThread_->join();
     // switch reachability change processing is completely shut-off
   }
+
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+  if (runState_ >= SwitchRunState::CONFIGURED &&
+      platform_->getAsic()->isSupported(
+          HwAsic::Feature::SWITCH_ASIC_SDK_HEALTH_NOTIFY)) {
+    switchAsicSdkHealthNotificationBHEventBase_
+        .runInFbossEventBaseThreadAndWait([this]() {
+          switchAsicSdkHealthNotificationBHEventBase_.terminateLoopSoon();
+        });
+    switchAsicSdkHealthNotificationBHThread_->join();
+  }
+#endif
 
   if (runState_ >= SwitchRunState::INITIALIZED) {
     fdbEventBottomHalfEventBase_.runInFbossEventBaseThreadAndWait(
@@ -2182,9 +2202,12 @@ void SaiSwitch::gracefulExitLocked(const std::lock_guard<std::mutex>& lock) {
   SaiSwitchTraits::Attributes::SwitchRestartWarm restartWarm{true};
   SaiApiTable::getInstance()->switchApi().setAttribute(
       saiSwitchId_, restartWarm);
+
+#ifndef CREDO_SDK_0_9_0
   SaiSwitchTraits::Attributes::SwitchPreShutdown preShutdown{true};
   SaiApiTable::getInstance()->switchApi().setAttribute(
       saiSwitchId_, preShutdown);
+#endif
   if (platform_->getAsic()->isSupported(HwAsic::Feature::P4_WARMBOOT)) {
 #if defined(TAJO_P4_WB_SDK)
     SaiSwitchTraits::Attributes::RestartIssu restartIssu{true};
@@ -3050,6 +3073,22 @@ void SaiSwitch::initSwitchReachabilityChangeLocked(
   setSwitchReachabilityChangePending();
 }
 
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+void SaiSwitch::initSwitchAsicSdkHealthNotificationLocked(
+    const std::lock_guard<std::mutex>& /* lock */) {
+  CHECK(platform_->getAsic()->isSupported(
+      HwAsic::Feature::SWITCH_ASIC_SDK_HEALTH_NOTIFY));
+  switchAsicSdkHealthNotificationBHThread_ =
+      std::make_unique<std::thread>([this]() {
+        initThread("fbossSaiSwitchAsicSdkHealthNotification");
+        switchAsicSdkHealthNotificationBHEventBase_.loopForever();
+      });
+  auto& switchApi = SaiApiTable::getInstance()->switchApi();
+  switchApi.registerSwitchAsicSdkHealthEventCallback(
+      saiSwitchId_, __gSwitchAsicSdkHealthNotificationCallBack);
+}
+#endif
+
 bool SaiSwitch::isMissingSrcPortAllowed(HostifTrapSaiId hostifTrapSaiId) {
   static std::set<facebook::fboss::cfg::PacketRxReason> kAllowedRxReasons = {
       facebook::fboss::cfg::PacketRxReason::TTL_1};
@@ -3766,9 +3805,7 @@ void SaiSwitch::switchRunStateChangedImplLocked(
       if (platform_->getAsic()->isSupported(
               HwAsic::Feature::SWITCH_ASIC_SDK_HEALTH_NOTIFY)) {
 #if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
-        auto& switchApi = SaiApiTable::getInstance()->switchApi();
-        switchApi.registerSwitchAsicSdkHealthEventCallback(
-            saiSwitchId_, __gSwitchAsicSdkHealthNotificationCallBack);
+        initSwitchAsicSdkHealthNotificationLocked(lock);
 #endif
       }
 
@@ -4112,7 +4149,23 @@ std::string SaiSwitch::listObjectsLocked(
     auto json = toFollyDynamicLocked(lock);
     std::unique_ptr<folly::dynamic> adapterKeysJson;
     std::unique_ptr<folly::dynamic> adapterKeys2AdapterHostKeysJson;
-    if (platform_->getAsic()->isSupported(HwAsic::Feature::OBJECT_KEY_CACHE)) {
+
+    /* We're making a change to ensure that the listObjectsLocked functionality
+     * remains unchanged for Credo 0.7.2, We added
+     * HwAsic::Feature::OBJECT_KEY_CACHE support for Credo Asic But for 0.7.2,
+     * we want to avoid loading the adapterKeysJson file, and keep the
+     * functionality as it was before.
+     */
+    bool useAdapterKeysJson =
+        platform_->getAsic()->isSupported(HwAsic::Feature::OBJECT_KEY_CACHE);
+#ifndef CREDO_SDK_0_9_0
+    if (getPlatform()->getAsic()->getAsicType() ==
+        cfg::AsicType::ASIC_TYPE_ELBERT_8DD) {
+      useAdapterKeysJson = false;
+    }
+#endif
+
+    if (useAdapterKeysJson) {
       adapterKeysJson = std::make_unique<folly::dynamic>(json[kAdapterKeys]);
     }
     adapterKeys2AdapterHostKeysJson =
@@ -4754,5 +4807,33 @@ std::vector<FirmwareInfo> SaiSwitch::getAllFirmwareInfo() const {
 
   return {};
 }
+
+#if SAI_API_VERSION >= SAI_VERSION(1, 13, 0)
+void SaiSwitch::switchAsicSdkHealthNotificationTopHalf(
+    SaiHealthNotification saiHealthNotification) {
+  switchAsicSdkHealthNotificationBHEventBase_.runInFbossEventBaseThread(
+      [this, notification = std::move(saiHealthNotification)]() {
+        switchAsicSdkHealthNotificationBottomHalf(std::move(notification));
+      });
+}
+
+void SaiSwitch::switchAsicSdkHealthNotificationBottomHalf(
+    SaiHealthNotification saiHealthNotification) {
+  switch (saiHealthNotification.getSeverity()) {
+    case SAI_SWITCH_ASIC_SDK_HEALTH_SEVERITY_FATAL:
+      XLOGF(FATAL, "{}", saiHealthNotification);
+      break;
+
+    case SAI_SWITCH_ASIC_SDK_HEALTH_SEVERITY_WARNING:
+      XLOGF(WARNING, "{}", saiHealthNotification);
+      break;
+
+    case SAI_SWITCH_ASIC_SDK_HEALTH_SEVERITY_NOTICE:
+      XLOGF(INFO, "{}", saiHealthNotification);
+      break;
+  }
+  /* TODO(pshaikh) : process saiHealthNotification to set parity error */
+}
+#endif
 
 } // namespace facebook::fboss

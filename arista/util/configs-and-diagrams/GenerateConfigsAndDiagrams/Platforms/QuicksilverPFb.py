@@ -3,6 +3,7 @@
 
 from ..BaseConfigs import (
    FANCpld,
+   FANUnit,
    PciDeviceConfig,
    PlatformConfig,
    SCMFairywren,
@@ -43,7 +44,7 @@ class QuicksilverPFbSMB( SMBUnit ):
    def __init__( self ):
       super().__init__( self.prefixSymlink )
 
-      smbFanCpld = FANCpld( "0x60", "glath05a-64o_fan_cpld", "FAN_CPLD",
+      smbFanCpld = FANCpld( "0x60", "glath05a64o_fancpld", "FAN_CPLD",
                             incomingBusIndex=2 )
       smbFanCpld.addFANRpms( 4, upperCriticalVal=14900.0, lowerCriticalVal=1100.0 )
 
@@ -263,7 +264,7 @@ class QuicksilverPFbSMB( SMBUnit ):
       ] )
 
       smbFpga.addXcvrCtrlConfigs( numConfigs=64, basePortNumber=1, ledsPerXcvr=2,
-                                  smbusAccelStart=3, smbusName="SMB_I2C_MASTER",
+                                  smbusAccelStart=2, smbusName="SMB_I2C_MASTER",
                                   xcvrBaseOffset="0xA000", accelBusRange=( 0, 7 ) )
 
       smbFpga.addLedCtrlConfigs( [
@@ -309,7 +310,8 @@ class QuicksilverPFb( PlatformConfig ):
       self.addPmUnitConfigs( [
          QuicksilverPFbSCM(),
          QuicksilverPFbSMB(),
-         PSUUnit()
+         PSUUnit( initRegSettings=InitRegSettings( [ ( 16, -128 ) ] ) ),
+         FANUnit()
       ] )
 
       self.addI2cAdaptersFromCpu( [ "SMBus I801 adapter at 1000" ] )

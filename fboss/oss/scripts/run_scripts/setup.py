@@ -29,18 +29,27 @@ class SetupFboss:
 
     USER_BDE = "linux-user-bde"
     KERNEL_BDE = "linux-kernel-bde"
+    KERNEL_NGBDE = "linux_ngbde"
+
     USER_BDE_KO = USER_BDE + ".ko"
     KERNEL_BDE_KO = KERNEL_BDE + ".ko"
+    KERNEL_NGBDE_KO = KERNEL_NGBDE + ".ko"
+
     KMOD_FULL_PATH = os.path.join("/lib/modules/" + platform.uname().release)
     USER_BDE_KO_FULL_PATH = os.path.join(KMOD_FULL_PATH, USER_BDE_KO)
     KERNEL_BDE_KO_FULL_PATH = os.path.join(KMOD_FULL_PATH, KERNEL_BDE_KO)
+    KERNEL_NGBDE_KO_FULL_PATH = os.path.join(KMOD_FULL_PATH, KERNEL_NGBDE_KO)
 
     # Unfortunately, lsmod prints _ (underscore) for - (dash)
     LSMOD_USER_BDE = "linux_user_bde"
     LSMOD_KERNEL_BDE = "linux_kernel_bde"
+    LSMOD_KERNEL_NGBDE = "linux_ngbde"
 
     SRC_USER_BDE_KO_FULL_PATH = os.path.join(os.environ["FBOSS_KMODS"], USER_BDE_KO)
     SRC_KERNEL_BDE_KO_FULL_PATH = os.path.join(os.environ["FBOSS_KMODS"], KERNEL_BDE_KO)
+    SRC_KERNEL_NGBDE_KO_FULL_PATH = os.path.join(os.environ["FBOSS_KMODS"], KERNEL_NGBDE_KO)
+
+    useNgbde = False
 
     TH = "th"
     TH3 = "th3"
@@ -49,6 +58,7 @@ class SetupFboss:
     J3 = "j3"
     J3B = "j3b"
     R3 = "r3"
+    TH5 = "th5"
     ### ARISTA END ###
 
     def __init__(self):
@@ -85,7 +95,7 @@ class SetupFboss:
             self.src_bde_full_path = os.path.join(
                 *[os.environ["FBOSS_DATA"], SetupFboss.J3, SetupFboss.BDE_CONF]
             )
-        elif [x for x in output if "Broadcom" in x and "8860" in x]:
+        elif [x for x in output if "Broadcom" in x and "8890" in x]:
             self.src_fruid_full_path = os.path.join(
                 *[os.environ["FBOSS_DATA"], SetupFboss.J3, SetupFboss.FRUID_CONF]
             )
@@ -99,16 +109,16 @@ class SetupFboss:
             self.src_bde_full_path = os.path.join(
                 *[os.environ["FBOSS_DATA"], SetupFboss.R3, SetupFboss.BDE_CONF]
             )
-        else:
-            # Standalone Fairywren
+        elif [x for x in output if "Broadcom" in x and "8900" in x]:
             self.src_fruid_full_path = os.path.join(
-                *[os.environ["FBOSS_DATA"], SetupFboss.J3, SetupFboss.FRUID_CONF]
+                *[os.environ["FBOSS_DATA"], SetupFboss.TH5, SetupFboss.FRUID_CONF]
             )
             self.src_bde_full_path = os.path.join(
-                *[os.environ["FBOSS_DATA"], SetupFboss.J3, SetupFboss.BDE_CONF]
+                *[os.environ["FBOSS_DATA"], SetupFboss.TH5, SetupFboss.BDE_CONF]
             )
     ### ARISTA END ###
 
+        self.useNgbde = "linux_ngbde" in open(self.src_bde_full_path).read()
 
     def _cleanup_old_setup(self):
         if os.path.exists(SetupFboss.FRUID_FULL_PATH):
@@ -119,14 +129,20 @@ class SetupFboss:
         if os.path.exists(SetupFboss.BDE_CONF_FULL_PATH):
             os.remove(SetupFboss.BDE_CONF_FULL_PATH)
 
-        subprocess.run(["modprobe", "-r", SetupFboss.USER_BDE])
-        subprocess.run(["modprobe", "-r", SetupFboss.KERNEL_BDE])
+        if self.useNgbde:
+            subprocess.run(["modprobe", "-r", SetupFboss.KERNEL_NGBDE])
+        else:
+            subprocess.run(["modprobe", "-r", SetupFboss.KERNEL_BDE])
+            subprocess.run(["modprobe", "-r", SetupFboss.USER_BDE])
 
         if os.path.exists(SetupFboss.USER_BDE_KO_FULL_PATH):
             os.remove(SetupFboss.USER_BDE_KO_FULL_PATH)
 
         if os.path.exists(SetupFboss.KERNEL_BDE_KO_FULL_PATH):
             os.remove(SetupFboss.KERNEL_BDE_KO_FULL_PATH)
+
+        if os.path.exists(SetupFboss.KERNEL_NGBDE_KO_FULL_PATH):
+            os.remove(SetupFboss.KERNEL_NGBDE_KO_FULL_PATH)
 
     def _copy_configs(self):
         if not os.path.exists(SetupFboss.FRUID_FULL_PATH):
@@ -136,33 +152,48 @@ class SetupFboss:
             shutil.copy(self.src_fruid_full_path, SetupFboss.FRUID_FULL_PATH)
 
         if not os.path.exists(SetupFboss.BDE_CONF_FULL_PATH):
+            os.path.join("/tmp", "target")
             shutil.copy(self.src_bde_full_path, SetupFboss.BDE_CONF_FULL_PATH)
 
     def _link_kmods(self):
         new_kmod = False
-        if not os.path.exists(SetupFboss.USER_BDE_KO_FULL_PATH):
-            subprocess.run(
-                [
-                    "ln",
-                    "-s",
-                    SetupFboss.SRC_USER_BDE_KO_FULL_PATH,
-                    "-t",
-                    SetupFboss.KMOD_FULL_PATH,
-                ]
-            )
-            new_kmod = True
 
-        if not os.path.exists(SetupFboss.KERNEL_BDE_KO_FULL_PATH):
+        if (self.useNgbde and
+            not os.path.exists(SetupFboss.KERNEL_NGBDE_KO_FULL_PATH)):
             subprocess.run(
                 [
                     "ln",
                     "-s",
-                    SetupFboss.SRC_KERNEL_BDE_KO_FULL_PATH,
+                    SetupFboss.SRC_KERNEL_NGBDE_KO_FULL_PATH,
                     "-t",
                     SetupFboss.KMOD_FULL_PATH,
                 ]
             )
             new_kmod = True
+        else:
+            if not os.path.exists(SetupFboss.USER_BDE_KO_FULL_PATH):
+                subprocess.run(
+                    [
+                        "ln",
+                        "-s",
+                        SetupFboss.SRC_USER_BDE_KO_FULL_PATH,
+                        "-t",
+                        SetupFboss.KMOD_FULL_PATH,
+                    ]
+                )
+                new_kmod = True
+
+            if not os.path.exists(SetupFboss.KERNEL_BDE_KO_FULL_PATH):
+                subprocess.run(
+                    [
+                        "ln",
+                        "-s",
+                        SetupFboss.SRC_KERNEL_BDE_KO_FULL_PATH,
+                        "-t",
+                        SetupFboss.KMOD_FULL_PATH,
+                    ]
+                )
+                new_kmod = True
 
         if new_kmod:
             subprocess.run(["depmod", "-a"])
@@ -170,10 +201,14 @@ class SetupFboss:
     def _load_kmods(self):
         output = subprocess.check_output(["lsmod"]).decode("utf-8").split("\n")
 
-        if not [x for x in output if SetupFboss.LSMOD_USER_BDE in x]:
-            subprocess.run(["modprobe", SetupFboss.USER_BDE])
-        if not [x for x in output if SetupFboss.LSMOD_KERNEL_BDE in x]:
-            subprocess.run(["modprobe", SetupFboss.KERNEL_BDE])
+        if (self.useNgbde and
+            not [x for x in output if SetupFboss.LSMOD_KERNEL_NGBDE in x]):
+            subprocess.run(["modprobe", SetupFboss.KERNEL_NGBDE])
+        else:
+            if not [x for x in output if SetupFboss.LSMOD_USER_BDE in x]:
+                subprocess.run(["modprobe", SetupFboss.USER_BDE])
+            if not [x for x in output if SetupFboss.LSMOD_KERNEL_BDE in x]:
+                subprocess.run(["modprobe", SetupFboss.KERNEL_BDE])
 
     def run(self, args):
         if args.reload:

@@ -254,6 +254,7 @@ class ConfigTest(unittest.TestCase):
             "montblanc": "fboss",
             "morgan800cc": "cisco",
             "tahan800bc": "fboss",
+            "minipack3n": "fboss",
         }
 
         base_package = f"{__package__}.fboss_config_files.configs"

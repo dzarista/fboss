@@ -296,6 +296,10 @@ class AgentEnsemble : public TestEnsembleIf {
     return configFile_;
   }
 
+  bool needL2EntryForNeighbor() const override {
+    return getSw()->needL2EntryForNeighbor();
+  }
+
   std::optional<VlanID> getVlanIDForTx() const override;
 
   std::vector<FirmwareInfo> getAllFirmwareInfo(
@@ -354,6 +358,14 @@ class AgentEnsemble : public TestEnsembleIf {
       PortID port,
       uint64_t desiredBps,
       int secondsToWaitPerIteration = 2);
+
+  /**
+   * Creates an overridden AgentConfig object by incorporating the overridden
+   * initial configuration  and command line args, with the platform config from
+   * the test configuration in configerator. This config is dumped for hw-agents
+   * and for some warmboot tests.
+   */
+  void createAndDumpOverriddenAgentConfig();
 
   cfg::SwitchConfig initialConfig_;
   std::unique_ptr<std::thread> asyncInitThread_{nullptr};
