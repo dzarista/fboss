@@ -145,7 +145,7 @@ elif [ $# -gt 1 ]; then
 fi
 
 PRODUCT=$(dmidecode -t 2 | grep "Product" | awk '{print $3}')
-if [[ "${PRODUCT}" =~ MERU800B(I|F)A ]] && [[ "${PRODUCT}" =~ GLATH05A ]]; then
+if [[ "${PRODUCT}" =~ MERU800B(I|F)A ]] || [[ "${PRODUCT}" =~ GLATH05A ]]; then
    platform="fairywren"
    CPLD="/run/devmap/fpgas/MERU_SCM_CPLD"
    USB_HUB="1-2"
