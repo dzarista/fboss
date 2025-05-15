@@ -1,15 +1,15 @@
 # Firmware Package #0
 
 This directory contains the firmware programmable binaries for the
-glath05a platform. The table below shows the programmables:
+glath05a-64o platform. The table below shows the programmables:
 
 | Programmable Name                                                            | Description          |
 |------------------------------------------------------------------------------|----------------------|
-| P_glath05a_F_bios_V_Aboot-norcal13-13.1.4-lcc-64m-40551478.rom               | Bootloader for x86   |
-| P_glath05a_F_scm_cpld_V_4.16.astp                                            | SCM CPLD JTAG image  |
-| P_glath05a_F_smb_cpld_V_3.1.astp                                             | SMB CPLD JTAG image   |
-| P_glath05a_F_smb_fpga_V_3.1.astp                                             | SMB FPGA JTAG image   |
-| P_glath05a_F_fan_cpld_V_1.7.astp                                             | Fan CPLDs JTAG image |
+| P_glath05a-64o_F_bios_V_Aboot-norcal13-13.1.4-lcc-64m-40551478.rom               | Bootloader for x86   |
+| P_glath05a-64o_F_scm_cpld_V_4.16.astp                                            | SCM CPLD JTAG image  |
+| P_glath05a-64o_F_smb_cpld_V_3.1.astp                                             | SMB CPLD JTAG image   |
+| P_glath05a-64o_F_smb_fpga_V_3.1.astp                                             | SMB FPGA JTAG image   |
+| P_glath05a-64o_F_fan_cpld_V_1.7.astp                                             | Fan CPLDs JTAG image |
 
 
 # Changelogs

@@ -9,7 +9,6 @@ URL: https://github.com/aristanetworks/arista-fboss
 
 %define _fboss_meru800bfa_dir %{_fboss_dir}/arista/platform/meru800bfa
 %define _fboss_config_dir %{_fboss_dir}/fboss/platform/configs
-%define _fboss_platform_dir %{_fboss_dir}/arista/platform
 %define _fboss_fw_dir %{_fboss_dir}/fboss.bsp.arista/meru800bfa/firmware
 
 %define _fboss_target_share %{buildroot}/opt/fboss/share
@@ -35,7 +34,7 @@ mkdir -p %{_fboss_target_share}/firmware
 mkdir -p %{_fboss_target_share}/firmware/oldreleases
 %define _latest_fw_package %(find %{_fboss_fw_dir} -maxdepth 1 -type d -name 'package_*' | sort -V | tail -n 1 | xargs realpath)
 cp -rf %{_latest_fw_package}/* %{_fboss_target_share}/firmware/
-cp -rf %{_fboss_meru800bfa_dir}/firmware/oldreleases/* %{_fboss_target_share}/firmware/oldreleases/
+cp -rf %{_fboss_fw_dir}/firmware_downgrade/* %{_fboss_target_share}/firmware/oldreleases/
 
 %files
 /var/facebook/fboss/fruid.json
