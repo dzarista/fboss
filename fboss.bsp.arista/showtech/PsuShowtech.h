@@ -53,5 +53,15 @@ public:
   LiteonPsu(int bus, int chipAddr=0x58, int voutModeReg=0x20);
 };
 
+class AristaPsu : public GenericPsu {
+public:
+  AristaPsu(int bus, int chipAddr=0x58, int voutModeReg=0x20);
+};
+
+class Delta1600WPsu : public GenericPsu {
+public:
+  Delta1600WPsu(int bus, int chipAddr=0x58, int voutModeReg=0x20);
+};
+
 } // namespace showtech
 #endif // SHOWTECH_PSUSHOWTECH_H

@@ -105,13 +105,36 @@ GenericPsu::GenericPsu(int bus, int chipAddr, int voutModeReg)
   };
 }
 
+AristaPsu::AristaPsu(int bus, int chipAddr, int voutModeReg)
+  : GenericPsu {bus, chipAddr, voutModeReg}
+{
+  std::vector<Register> registersAdd {
+    std::make_tuple("VENDOR_MFR_ID", 0xC9, 0, ValueType::ASCII),
+    std::make_tuple("VENDOR_MFR_MODEL", 0xCA, 0, ValueType::ASCII),
+    std::make_tuple("VENDOR_MFR_REVISION", 0xCB, 0, ValueType::ASCII),
+  };
+
+  _addRegisters(registersAdd);
+}
+
+Delta1600WPsu::Delta1600WPsu(int bus, int chipAddr, int voutModeReg)
+  : GenericPsu {bus, chipAddr, voutModeReg}
+{
+  std::vector<Register> registersRemove {
+    std::make_tuple("PRI_MCU_FW_VERSION", 0xE0, 0, ValueType::ASCII),
+    std::make_tuple("SEC_MCU_FW_VERSION", 0xE1, 0, ValueType::ASCII),
+  };
+
+  _removeRegisters(registersRemove);
+}
+
 LiteonPsu::LiteonPsu(int bus, int chipAddr, int voutModeReg)
   : GenericPsu {bus, chipAddr, voutModeReg}
 {
-  std::vector<Register> registersRemove {{
+  std::vector<Register> registersRemove {
     std::make_tuple("PRI_MCU_FW_VERSION", 0xE0, 0, ValueType::ASCII),
     std::make_tuple("SEC_MCU_FW_VERSION", 0xE1, 0, ValueType::ASCII),
-  }};
+  };
 
   _removeRegisters(registersRemove);
 }
@@ -233,16 +256,29 @@ std::vector<std::pair<std::string, std::string>> getPsuI2cBuses() {
   return psuI2cBusNums;
 }
 
-// Read the PSU MFR_ID register and create the appropriate PSU profile
+// Read the PSU MFR_MODEL register and create the appropriate PSU profile
 std::unique_ptr<PowerSupply> createPsu(const char *i2cDevice, int busNum, 
                                        int chipAddr) {
-  std::vector<uint8_t> mfrIdRegInfo = readI2c(i2cDevice, chipAddr, 0x99, 0);
-  std::string mfrId(mfrIdRegInfo.begin(), mfrIdRegInfo.end());
-  if (mfrId == "Liteon Power") {
+  std::vector<uint8_t> mfrModelRegInfo = readI2c(i2cDevice, chipAddr, 0x9a, 0);
+  std::string mfrModel(mfrModelRegInfo.begin(), mfrModelRegInfo.end());
+  
+  // PWR-2422-HV-RED (Liteon Power)
+  if (mfrModel == "PS-2242-9A")
     return std::make_unique<LiteonPsu>(busNum, chipAddr);
-  } else {
+  
+  // PWR-1611-DC-RED (Delta) and PWR-1611-AC-RED (Delta)
+  if (mfrModel == "DPS-1600AB-14 A" || mfrModel == "DPS-1600CB P")
+    return std::make_unique<Delta1600WPsu>(busNum, chipAddr);
+  
+  // PWR-2421-HV-RED (Delta)
+  if (mfrModel == "ECD15020056")
     return std::make_unique<GenericPsu>(busNum, chipAddr);
-  }
+
+  // PWR-2411-MC-RED (Arista)
+  if (mfrModel == "PWR-00591")
+    return std::make_unique<AristaPsu>(busNum, chipAddr);
+
+  return std::make_unique<GenericPsu>(busNum, chipAddr);
 }
 
 void printPsuInfo() {
