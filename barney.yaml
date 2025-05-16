@@ -14,7 +14,7 @@ images:
         export GETDEPS_USE_WGET=1
 
         rm -rf build/deps/github_hashes/
-        tar xvzf fboss/oss/stable_commits/latest_stable_hashes.tar.gz
+        tar xvzf fboss/oss/stable_commits/latest_stable_hashes.tar.gz --no-same-owner
 
         for _ in {1..5}; do
           ./build/fbcode_builder/getdeps.py build --allow-system-packages --num-jobs 40 \
