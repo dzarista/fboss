@@ -480,6 +480,25 @@ SwSwitch::SwSwitch(
       hwSwitchThriftClientTable_(new HwSwitchThriftClientTable(
           FLAGS_hwagent_base_thrift_port,
           getSwitchInfoFromConfig(config))) {
+  if (FLAGS_enable_ecmp_resource_manager) {
+    auto l3Asics = hwAsicTable_->getL3Asics();
+    if (l3Asics.size()) {
+      auto asic = checkSameAndGetAsic(l3Asics);
+      // TODO look at flowlet settings and figure out the max
+      // ECMP groups value to use.
+      auto maxEcmpGroups = FLAGS_flowletSwitchingEnable
+          ? asic->getMaxDlbEcmpGroups()
+          : asic->getMaxEcmpGroups();
+      if (maxEcmpGroups.has_value()) {
+        auto maxEcmps = std::floor(
+            *maxEcmpGroups *
+            static_cast<double>(FLAGS_ecmp_resource_percentage) / 100.0);
+        XLOG(DBG2) << " Creating ecmp resource manager with max ECMP groups: "
+                   << maxEcmps;
+        ecmpResourceManager_ = std::make_unique<EcmpResourceManager>(maxEcmps);
+      }
+    }
+  }
   // Create the platform-specific state directories if they
   // don't exist already.
   utilCreateDir(agentDirUtil_->getVolatileStateDir());
@@ -1254,6 +1273,15 @@ void SwSwitch::init(
   initialState->publish();
   auto emptyState = std::make_shared<SwitchState>();
   emptyState->publish();
+  if (ecmpResourceManager_) {
+    std::vector<StateDelta> deltas;
+    deltas =
+        ecmpResourceManager_->consolidate(StateDelta(emptyState, initialState));
+    // TODO allow for > 1 deltas once switch handlers, HwSwitch are
+    // able to handle these.
+    CHECK_EQ(deltas.size(), 1);
+    initialState = deltas.back().newState();
+  }
   const auto initialStateDelta = StateDelta(emptyState, initialState);
 
   // Notify resource accountant of the initial state.
@@ -1266,6 +1294,9 @@ void SwSwitch::init(
   }
   multiHwSwitchHandler_->stateChanged(
       initialStateDelta, false, hwWriteBehavior);
+  if (ecmpResourceManager_) {
+    ecmpResourceManager_->updateDone();
+  }
   // For cold boot there will be discripancy between applied state and state
   // that exists in hardware. this discrepancy is until config is applied, after
   // that the two states are in sync. tolerating this discrepancy for now
@@ -1659,18 +1690,10 @@ void SwSwitch::handlePendingUpdates() {
   auto newAppliedState = newDesiredState;
   // Now apply the update and notify subscribers
   if (newDesiredState != oldAppliedState) {
-    if (ecmpResourceManager_) {
-      auto deltas = ecmpResourceManager_->consolidate(
-          StateDelta(oldAppliedState, newDesiredState));
-      // TODO allow for > 1 deltas once switch handlers, HwSwitch are
-      // able to handle these.
-      CHECK_EQ(deltas.size(), 1);
-      newDesiredState = deltas.back().newState();
-    }
     auto isTransaction = updates.begin()->hwFailureProtected() &&
         multiHwSwitchHandler_->transactionsSupported();
     // There was some change during these state updates
-    newAppliedState =
+    std::tie(newAppliedState, newDesiredState) =
         applyUpdate(oldAppliedState, newDesiredState, isTransaction);
     if (newDesiredState != newAppliedState) {
       if (ecmpResourceManager_) {
@@ -1757,31 +1780,45 @@ void SwSwitch::setStateInternal(std::shared_ptr<SwitchState> newAppliedState) {
   appliedStateDontUseDirectly_.swap(newAppliedState);
 }
 
-std::shared_ptr<SwitchState> SwSwitch::applyUpdate(
+std::pair<std::shared_ptr<SwitchState>, std::shared_ptr<SwitchState>>
+SwSwitch::applyUpdate(
     const shared_ptr<SwitchState>& oldState,
     const shared_ptr<SwitchState>& newState,
     bool isTransaction) {
   // Check that we are starting from what has been already applied
   DCHECK_EQ(oldState, getAppliedState());
-
+  auto newDesiredState = newState;
   auto start = std::chrono::steady_clock::now();
   XLOG(DBG2) << "Updating state: old_gen=" << oldState->getGeneration()
-             << " new_gen=" << newState->getGeneration();
-  DCHECK_GT(newState->getGeneration(), oldState->getGeneration());
-
-  StateDelta delta(oldState, newState);
+             << " new_gen=" << newDesiredState->getGeneration();
+  DCHECK_GT(newDesiredState->getGeneration(), oldState->getGeneration());
 
   // If we are already exiting, abort the update
   if (isExiting()) {
     XLOG(DBG2) << " Agent exiting before all updates could be applied";
-    return oldState;
+    return std::make_pair(oldState, newDesiredState);
+  }
+  if (ecmpResourceManager_) {
+    std::vector<StateDelta> deltas;
+    try {
+      deltas = ecmpResourceManager_->consolidate(
+          StateDelta(oldState, newDesiredState));
+    } catch (const FbossError& e) {
+      XLOG(DBG2) << " Ecmp resource manager rejected update: " << e.what();
+      return std::make_pair(oldState, newDesiredState);
+    }
+    // TODO allow for > 1 deltas once switch handlers, HwSwitch are
+    // able to handle these.
+    CHECK_EQ(deltas.size(), 1);
+    newDesiredState = deltas.back().newState();
   }
 
+  StateDelta delta(oldState, newDesiredState);
   if (!resourceAccountant_->isValidUpdate(delta)) {
     stats()->resourceAccountantRejectedUpdates();
     // Notify resource account to revert back to previous state
-    resourceAccountant_->stateChanged(StateDelta(newState, oldState));
-    return oldState;
+    resourceAccountant_->stateChanged(StateDelta(newDesiredState, oldState));
+    return std::make_pair(oldState, newDesiredState);
   }
 
   std::shared_ptr<SwitchState> newAppliedState;
@@ -1813,7 +1850,7 @@ std::shared_ptr<SwitchState> SwSwitch::applyUpdate(
       getMonolithicHwSwitchHandler()->exitFatal();
     }
 
-    dumpBadStateUpdate(oldState, newState);
+    dumpBadStateUpdate(oldState, newDesiredState);
     XLOG(FATAL) << "encountered a fatal error: " << folly::exceptionStr(ex);
   }
 
@@ -1823,7 +1860,8 @@ std::shared_ptr<SwitchState> SwSwitch::applyUpdate(
   notifyStateObservers(StateDelta(oldState, newAppliedState));
 
   // Notifies resource accountant of new applied state.
-  resourceAccountant_->stateChanged(StateDelta(newState, newAppliedState));
+  resourceAccountant_->stateChanged(
+      StateDelta(newDesiredState, newAppliedState));
 
   auto end = std::chrono::steady_clock::now();
   auto duration =
@@ -1831,7 +1869,7 @@ std::shared_ptr<SwitchState> SwSwitch::applyUpdate(
   stats()->stateUpdate(duration);
 
   XLOG(DBG0) << "Update state took " << duration.count() << "us";
-  return newAppliedState;
+  return std::make_pair(newAppliedState, newDesiredState);
 }
 
 void SwSwitch::dumpBadStateUpdate(
@@ -3248,25 +3286,6 @@ void SwSwitch::applyConfigImpl(
    */
 
   routeUpdater.program();
-  if (FLAGS_enable_ecmp_resource_manager) {
-    updateEventBase_.runInFbossEventBaseThreadAndWait([this] {
-      auto l3Asics = hwAsicTable_->getL3Asics();
-      if (!l3Asics.size()) {
-        return;
-      }
-      auto asic = checkSameAndGetAsic(l3Asics);
-      auto maxEcmpGroups = asic->getMaxEcmpGroups();
-      if (!maxEcmpGroups.has_value()) {
-        return;
-      }
-      if (!ecmpResourceManager_) {
-        ecmpResourceManager_ =
-            std::make_unique<EcmpResourceManager>(*maxEcmpGroups);
-      } else {
-        // Compare flowlet settings change
-      }
-    });
-  }
   runFsdbSyncFunction([&oldConfig, &newConfig](auto& syncer) {
     syncer->cfgUpdated(oldConfig, newConfig);
   });
