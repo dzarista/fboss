@@ -218,14 +218,14 @@ class Sheet( object ):
 
    # Sort the existing Google Sheet
    # Must commitChanges() prior to sort(), if needed
-   def sort( self, colName, ascending=True, frozenRows=1 ):
+   def sort( self, colName, ascending=True, frozenRows=1, endRowOffset=0 ):
       colIdx = self.columns_.index( colName ) if self.columns_ is not None else None
       sortCmd = {
          "sortRange": {
             "range": {
                "sheetId": self.id_,
                "startRowIndex": frozenRows,
-               "endRowIndex": self.numRows_,
+               "endRowIndex": self.numRows_ + endRowOffset,
                "startColumnIndex": 0,
                "endColumnIndex": len( self.columns_ )
             },
