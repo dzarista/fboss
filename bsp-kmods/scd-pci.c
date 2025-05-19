@@ -62,7 +62,7 @@
 
 #define FPGA_VER_REG 0x100
 #define FPGA_VER_OFFSET 16
-#define FPGA_VER_BITLEN 16
+#define FPGA_VER_NUM_BITS 16
 
 #define FPGA_SUB_VER_REG 0x100
 #define FPGA_SUB_VER_OFFSET 0
@@ -115,6 +115,8 @@ struct scd_dev_priv {
 	u32 cdev_initialized:1;
 	u32 sysfs_initialized:1;
 
+	u32 version_reg;
+
 	/* Container of all the child auxiliary devices. */
 	struct fbiob_aux_bus aux_bus;
 
@@ -159,6 +161,40 @@ MODULE_PARM_DESC(lpc_irq, "interrupt of LPC SCD");
 /* Lock to protect CPLD scratchpad register. Each register bit acts as a flag -
    hence the register might be updated at different places */
 static DEFINE_MUTEX(scratchpad_mutex);
+
+/* Variables to cache FPGA major and minor revisions */
+static u16 fpga_major_rev;
+static u8 fpga_minor_rev;
+
+/* fpga_major_rev_show() and fpga_minor_rev_show() reads the version register value
+   cached in pci private data structure instead of directly accessing the registers.
+   The revision register is managed by scd_info driver and scd driver reads the
+   register only once during probe. */
+static ssize_t fpga_major_rev_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct scd_dev_priv *priv = dev_get_drvdata(dev);
+	u32 version_reg = priv->version_reg;
+	u16 major_rev;
+	u32 major_rev_mask;
+
+	major_rev_mask = GENMASK(FPGA_VER_NUM_BITS - 1, 0);
+	major_rev = (u16)((version_reg >> FPGA_VER_OFFSET) & major_rev_mask);
+	return sprintf(buf, "%u\n", major_rev);
+}
+
+static ssize_t fpga_minor_rev_show(struct device *dev,
+				   struct device_attribute *attr, char *buf)
+{
+	struct scd_dev_priv *priv = dev_get_drvdata(dev);
+	u32 version_reg = priv->version_reg;
+	u8 minor_rev;
+	u32 minor_rev_mask;
+
+	minor_rev_mask = GENMASK(FPGA_SUB_VER_NUM_BITS - 1, 0);
+	minor_rev = (u8)((version_reg >> FPGA_SUB_VER_OFFSET) & minor_rev_mask);
+	return sprintf(buf, "%u\n", minor_rev);
+}
 
 static
 u32 scd_read_register(struct pci_dev *pdev, struct scd_reg *reg)
@@ -516,6 +552,38 @@ static void release_reload_cause_resources(struct scd_dev_priv *priv)
 	}
 }
 
+static void read_revision_reg(struct scd_dev_priv *priv)
+{
+	struct resource *res;
+	void __iomem *mem;
+
+	res = devm_request_mem_region(
+		&(priv->pdev->dev),
+		priv->csr_bus_addr + FPGA_VER_REG,
+		REG_BLK_SIZE,
+		SCD_MODULE_NAME);
+	if (!res) {
+		dev_err(&(priv->pdev->dev), "error requesting PCI memory region - "
+			"cannot print FPGA version\n");
+		return;
+	}
+	mem = devm_ioremap(
+		&(priv->pdev->dev),
+		priv->csr_bus_addr + FPGA_VER_REG,
+		REG_BLK_SIZE);
+	if (!mem) {
+		dev_err(&(priv->pdev->dev), "error remaping FPGA version register - "
+			"cannot print FPGA version\n");
+		return;
+	}
+	priv->version_reg = ioread32(mem);
+	devm_iounmap(&(priv->pdev->dev), mem);
+	devm_release_mem_region(
+		&(priv->pdev->dev),
+		priv->csr_bus_addr + FPGA_VER_REG,
+		REG_BLK_SIZE);
+}
+
 /*
  * Below macros define a set of sysfs files, and each file is mapped to
  * a specific bit field in SCD/CPU_CPLD registers.
@@ -646,6 +714,20 @@ static void release_reload_cause_resources(struct scd_dev_priv *priv)
 	REGBIT_FILE(quicksilver, psu1_input_ok, 0x5000, 10, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
 	REGBIT_FILE(quicksilver, psu2_input_ok, 0x5000, 11, 1, FMODE_RO, regbit_sysfs_show, NULL)
 
+/* ROOK_SCD_REVISION_REGBIT_FPGA_FILES is not a part of any regbit_sysfs_tables
+   since they use fpga_major_rev_show() and fpga_minor_rev_show()
+   instead of regbit_sysfs_show(). */
+#define ROOK_SCD_REVISION_REGBIT_FPGA_FILES							\
+	REGBIT_FILE(rook, fpga_ver, 0x100, 16, 16, FMODE_RO, fpga_major_rev_show, NULL)		\
+	REGBIT_FILE(rook, fpga_sub_ver, 0x100, 0, 8, FMODE_RO, fpga_minor_rev_show, NULL)
+
+/* DARWIN_SCD_REVISION_REGBIT_FPGA_FILES is not a part of any regbit_sysfs_tables
+   since they use fpga_major_rev_show() and fpga_minor_rev_show()
+   instead of regbit_sysfs_show(). */
+#define DARWIN_SCD_REVISION_REGBIT_FPGA_FILES							\
+	REGBIT_FILE(darwin, fpga_ver, 0x100, 16, 16, FMODE_RO, fpga_major_rev_show, NULL)	\
+	REGBIT_FILE(darwin, fpga_sub_ver, 0x100, 0, 8, FMODE_RO, fpga_minor_rev_show, NULL)
+
 #define REGBIT_FILE(_prefix, _name, _reg, _bitops, _bitlen, _mode, _show, _store)	\
 	{										\
 		.prefix = #_prefix,							\
@@ -728,6 +810,8 @@ FAIRYWREN_REGBIT_FPGA_FILES
 VIPER_REGBIT_FPGA_FILES
 BLACKCOMB0_REGBIT_FPGA_FILES
 QUICKSILVER_REGBIT_FPGA_FILES
+ROOK_SCD_REVISION_REGBIT_FPGA_FILES
+DARWIN_SCD_REVISION_REGBIT_FPGA_FILES
 #undef REGBIT_FILE
 
 #define REGBIT_FILE(_prefix, _name, _reg, _bitops, _bitlen, _mode, _show, _store)	\
@@ -797,6 +881,24 @@ static struct attribute *quicksilver_scd_attrs[] = {
 
 static struct attribute_group quicksilver_scd_attr_group = {
 	.attrs = quicksilver_scd_attrs,
+};
+
+static struct attribute *rook_scd_revision_attrs[] = {
+	ROOK_SCD_REVISION_REGBIT_FPGA_FILES
+	NULL,
+};
+
+static struct attribute_group rook_scd_revision_attr_group = {
+	.attrs = rook_scd_revision_attrs,
+};
+
+static struct attribute *darwin_scd_revision_attrs[] = {
+	DARWIN_SCD_REVISION_REGBIT_FPGA_FILES
+	NULL,
+};
+
+static struct attribute_group darwin_scd_revision_attr_group = {
+	.attrs = darwin_scd_revision_attrs,
 };
 #undef REGBIT_FILE
 
@@ -911,6 +1013,12 @@ static void scd_remove(struct pci_dev *pdev)
 		fbiob_auxbus_destroy(&priv->aux_bus);
 	if (priv->sysfs_initialized)
 		sysfs_remove_group(&pdev->dev.kobj, priv->sysfs_attr_group);
+	if (pci_match_id(scd_lpc_table, pdev)) {
+		sysfs_remove_group(&pdev->dev.kobj, &rook_scd_revision_attr_group);
+	}
+	if (pdev->subsystem_device == DARWIN_SCD_PCI_SUBDEVICE_ID) {
+		sysfs_remove_group(&pdev->dev.kobj, &darwin_scd_revision_attr_group);
+	}
 
 	scd_sysfs_regs_destroy(priv);
 
@@ -1012,6 +1120,22 @@ static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	if (ent->subdevice == FAIRYWREN_SCD_PCI_SUBDEVICE_ID) {
 		print_reload_cause_info(priv);
+	}
+
+	if (pci_match_id(scd_lpc_table, pdev)) {
+		read_revision_reg(priv);
+		err = sysfs_create_group(&pdev->dev.kobj, &rook_scd_revision_attr_group);
+		if (err) {
+			dev_err(&pdev->dev, "sysfs_create_group() error %d for rook scd revision reg\n", err);
+		}
+	}
+
+	if (ent->subdevice == DARWIN_SCD_PCI_SUBDEVICE_ID) {
+		read_revision_reg(priv);
+		err = sysfs_create_group(&pdev->dev.kobj, &darwin_scd_revision_attr_group);
+		if (err) {
+			dev_err(&pdev->dev, "sysfs_create_group() error %d for darwin scd revision reg\n", err);
+		}
 	}
 
 	if (priv->sysfs_attr_group->attrs[0]) {
