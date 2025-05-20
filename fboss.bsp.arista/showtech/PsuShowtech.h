@@ -26,12 +26,12 @@ class PowerSupply {
 public:
   using Register = std::tuple<std::string, int, int, ValueType>;
 
-  PowerSupply(int bus, int chipAddr=0x58, int voutModeReg=0x20);
+  PowerSupply(int bus, int chipAddr = 0x58, int voutModeReg = 0x20);
 
-  int getBus() const {return m_bus;}
-  int getVoutModeReg() const {return m_voutModeReg;}
-  int getChipAddr() const {return m_chipAddr;}
-  const std::vector<Register>& getAllRegisters() const {return m_registers;}
+  int getBus() const { return m_bus; }
+  int getVoutModeReg() const { return m_voutModeReg; }
+  int getChipAddr() const { return m_chipAddr; }
+  const std::vector<Register> &getAllRegisters() const { return m_registers; }
 
 protected:
   int m_bus{};
@@ -39,28 +39,28 @@ protected:
   int m_voutModeReg{};
   std::vector<Register> m_registers{};
 
-  void _removeRegisters(const std::vector<Register>& toRemove);
-  void _addRegisters(const std::vector<Register>& toAdd);
+  void _removeRegisters(const std::vector<Register> &toRemove);
+  void _addRegisters(const std::vector<Register> &toAdd);
 };
 
 class GenericPsu : public PowerSupply {
 public:
-  GenericPsu(int bus, int chipAddr=0x58, int voutModeReg=0x20);
+  GenericPsu(int bus, int chipAddr = 0x58, int voutModeReg = 0x20);
 };
 
 class LiteonPsu : public GenericPsu {
 public:
-  LiteonPsu(int bus, int chipAddr=0x58, int voutModeReg=0x20);
+  LiteonPsu(int bus, int chipAddr = 0x58, int voutModeReg = 0x20);
 };
 
 class AristaPsu : public GenericPsu {
 public:
-  AristaPsu(int bus, int chipAddr=0x58, int voutModeReg=0x20);
+  AristaPsu(int bus, int chipAddr = 0x58, int voutModeReg = 0x20);
 };
 
 class Delta1600WPsu : public GenericPsu {
 public:
-  Delta1600WPsu(int bus, int chipAddr=0x58, int voutModeReg=0x20);
+  Delta1600WPsu(int bus, int chipAddr = 0x58, int voutModeReg = 0x20);
 };
 
 } // namespace showtech
