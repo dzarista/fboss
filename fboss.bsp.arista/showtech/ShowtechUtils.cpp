@@ -142,7 +142,7 @@ std::string I2cDevice::getI2cBusForScd(std::string pciAddr, int master,
 
 std::string I2cDevice::i2cDump() {
   std::string cmd = "i2cdump -f -y " + i2cBus + " " + "0x" + addr + " b";
-  return cmd + "\n" + run_cmd_no_check(cmd);
+  return cmd + "\n" + run_cmd_with_timeout(cmd, 15);
 }
 
 std::string I2cHwmonDevice::getHwmonPath() {

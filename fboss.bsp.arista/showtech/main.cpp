@@ -21,12 +21,12 @@ std::unique_ptr<Showtech> get_platform_showtech(bool verbose) {
                    ::tolower);
     if (platform == "darwin" || platform == "darwin48v") {
       return std::make_unique<DarwinShowtech>(verbose, platform);
-    } else if (
-      platform == "meru800bia" ||
-      platform == "meru800biab" ||
-      platform == "meru800bfa" ||
-      platform == "glath05a-64o") {
-      return std::make_unique<MeruShowtech>(verbose);
+    } else if (platform == "meru800bia" || platform == "meru800biab") {
+      return std::make_unique<Meru800BiaShowtech>(verbose);
+    } else if (platform == "meru800bfa") {
+      return std::make_unique<Meru800BfaShowtech>(verbose);
+    } else if (platform == "glath05a-64o") {
+      return std::make_unique<Glath05a_64oShowtech>(verbose);
     }
   }
   return std::make_unique<GenericShowtech>(verbose);
