@@ -26,6 +26,7 @@ protected:
   void printI2cDetect();
   void printL1Info();
   void printLogs();
+  void printSensors();
 
   // Each platform overrides platform-specific info here.
   virtual void printPlatformInfo() = 0;
@@ -37,7 +38,7 @@ protected:
 class GenericShowtech : public Showtech {
 public:
   GenericShowtech(bool verbose) : Showtech(verbose) {}
-  void printPlatformInfo() override{};
+  void printPlatformInfo() override {};
   std::set<int> i2cBusIgnore() override { return {}; }
 };
 } // namespace showtech

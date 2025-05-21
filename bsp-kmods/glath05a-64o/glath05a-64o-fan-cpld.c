@@ -26,7 +26,7 @@
 #include <linux/watchdog.h>
 #include <linux/version.h>
 
-#define DRIVER_NAME "meru800ba-fan-cpld"
+#define DRIVER_NAME "glath05a-64o-fan-cpld"
 
 #define LED_NAME_MAX_SZ 20
 #define FAN_LED_COUNT 2
@@ -66,7 +66,7 @@
 #define FAN_INT_ID (1 << 2)
 
 #define FAN_MAX_PWM 255
-#define FAN_DFT_PWM 77	/* default 30% duty cycle */
+#define FAN_DFT_PWM 179	/* default 70% duty cycle */
 
 static bool safe_mode;
 module_param(safe_mode, bool, S_IRUSR | S_IWUSR);
@@ -76,7 +76,7 @@ static unsigned long poll_interval;
 module_param(poll_interval, ulong, S_IRUSR);
 MODULE_PARM_DESC(poll_interval, "interval between two polling in ms");
 
-static struct workqueue_struct *dsf_fan_cpld_workqueue;
+static struct workqueue_struct *quicksilver_fan_cpld_workqueue;
 
 enum cpld_type {
 	PALI2_CPLD = 0,
@@ -197,7 +197,7 @@ static s32 cpld_write_byte(struct cpld_data *cpld, u8 reg, u8 byte)
 static void cpld_work_start(struct cpld_data *cpld)
 {
 	if (poll_interval) {
-		queue_delayed_work(dsf_fan_cpld_workqueue, &cpld->dwork,
+		queue_delayed_work(quicksilver_fan_cpld_workqueue, &cpld->dwork,
 				   msecs_to_jiffies(poll_interval));
 	}
 }
@@ -877,7 +877,7 @@ static int cpld_init(struct cpld_data *cpld)
 	if (err)
 		return err;
 
-	dev_info(dev_from_cpld(cpld), "DSF Fan CPLD version %02x.%02x\n",
+	dev_info(dev_from_cpld(cpld), "quicksilver Fan CPLD version %02x.%02x\n",
 		 cpld->major, cpld->minor);
 
 	err = cpld_read_byte(cpld, FAN_PRESENT_REG, &cpld->present);
@@ -949,7 +949,7 @@ static void cpld_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id cpld_id[] = {
-		{ "meru800ba_fan_cpld", PALI2_CPLD },
+		{ "glath05a64o_fancpld", PALI2_CPLD },
 						{} };
 MODULE_DEVICE_TABLE(i2c, cpld_id);
 
@@ -1031,37 +1031,37 @@ static struct i2c_driver cpld_driver = {
    .remove = cpld_remove,
 };
 
-static int __init dsf_fan_cpld_init(void)
+static int __init quicksilver_fan_cpld_init(void)
 {
 	int err;
 
-	dsf_fan_cpld_workqueue = create_singlethread_workqueue(DRIVER_NAME);
-	if (IS_ERR_OR_NULL(dsf_fan_cpld_workqueue)) {
+	quicksilver_fan_cpld_workqueue = create_singlethread_workqueue(DRIVER_NAME);
+	if (IS_ERR_OR_NULL(quicksilver_fan_cpld_workqueue)) {
 		pr_err("failed to initialize workqueue\n");
-		return PTR_ERR(dsf_fan_cpld_workqueue);
+		return PTR_ERR(quicksilver_fan_cpld_workqueue);
 	}
 
 	err = i2c_add_driver(&cpld_driver);
 	if (err < 0) {
-		destroy_workqueue(dsf_fan_cpld_workqueue);
-		dsf_fan_cpld_workqueue = NULL;
+		destroy_workqueue(quicksilver_fan_cpld_workqueue);
+		quicksilver_fan_cpld_workqueue = NULL;
 		return err;
 	}
 
 	return 0;
 }
 
-static void __exit dsf_fan_cpld_exit(void)
+static void __exit quicksilver_fan_cpld_exit(void)
 {
 	i2c_del_driver(&cpld_driver);
-	destroy_workqueue(dsf_fan_cpld_workqueue);
-	dsf_fan_cpld_workqueue = NULL;
+	destroy_workqueue(quicksilver_fan_cpld_workqueue);
+	quicksilver_fan_cpld_workqueue = NULL;
 }
 
-module_init(dsf_fan_cpld_init);
-module_exit(dsf_fan_cpld_exit);
+module_init(quicksilver_fan_cpld_init);
+module_exit(quicksilver_fan_cpld_exit);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Arista Networks");
-MODULE_DESCRIPTION("DSF Fan Cpld Driver");
+MODULE_DESCRIPTION("quicksilver Fan Cpld Driver");
 MODULE_VERSION(BSP_VERSION);

@@ -171,6 +171,12 @@ void Showtech::printL1Info() {
   }
 }
 
+void Showtech::printSensors() {
+  std::cout << "################################\n";
+  std::cout << "######### SENSORS DUMP #########\n";
+  std::cout << "################################\n\n";
+  std::cout << run_cmd_with_timeout("sensors", 30) << std::endl;
+}
 void Showtech::printShowtech() {
   printVersion();
   printCpuDetails();
@@ -178,6 +184,7 @@ void Showtech::printShowtech() {
   printPlatformInfo();
   printLspci();
   printL1Info();
+  printSensors();
   if (verbose_) {
     printI2cDetect();
     printLogs();
