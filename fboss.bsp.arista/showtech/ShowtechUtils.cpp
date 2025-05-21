@@ -104,6 +104,27 @@ std::string i2c_dump(int bus, int addr, char type) {
   return cmd + "\n" + run_cmd_no_check(cmd);
 }
 
+int getI2cBusForScd(std::string pciAddr, int master, int bus) {
+  std::string output;
+  std::stringstream i2c_bus_regex;
+  std::smatch i2c_bus_match;
+
+  if (run_cmd("/usr/sbin/i2cdetect -l", output)) {
+    return -1;
+  }
+
+  i2c_bus_regex << "i2c-(\\d+).*SCD " << pciAddr << " SMBus master " << master
+                << " bus " << bus;
+  if (regex_search(output.cbegin(), output.cend(), i2c_bus_match,
+                   std::regex(i2c_bus_regex.str()))) {
+    if (i2c_bus_match.size() == 2) {
+      return std::stoi(i2c_bus_match[1]);
+    }
+  }
+
+  return -1;
+}
+
 std::string Device::readSysfsAttr(std::string attr) {
   return run_cmd_no_check("head -n 1 " + sysfsPath + attr);
 }

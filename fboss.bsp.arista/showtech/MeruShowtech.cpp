@@ -82,6 +82,39 @@ Meru800BfaShowtech::Meru800BfaShowtech(bool verbose) : MeruShowtech(verbose) {
                                                          "62", "dsf-fan-cpld"));
 }
 
+std::set<int> Meru800BfaShowtech::i2cBusIgnore() {
+  std::set<int> busesToCheck = {
+      1,
+      getI2cBusForScd(cpuCpld->addr, 0, 0),
+      getI2cBusForScd(cpuCpld->addr, 0, 2),
+      getI2cBusForScd(cpuCpld->addr, 0, 3),
+      getI2cBusForScd(cpuCpld->addr, 0, 4),
+      getI2cBusForScd(cpuCpld->addr, 1, 0),
+      getI2cBusForScd(cpuCpld->addr, 1, 1),
+      getI2cBusForScd(cpuCpld->addr, 1, 2),
+      getI2cBusForScd(cpuCpld->addr, 1, 3),
+      getI2cBusForScd(switchcardScds[0]->addr, 4, 0),
+      getI2cBusForScd(switchcardScds[0]->addr, 4, 1),
+      getI2cBusForScd(switchcardScds[1]->addr, 4, 0),
+      getI2cBusForScd(switchcardScds[1]->addr, 4, 1),
+      getI2cBusForScd(switchcardScds[2]->addr, 4, 0),
+      getI2cBusForScd(switchcardScds[2]->addr, 4, 1),
+      getI2cBusForScd(switchcardScds[2]->addr, 4, 3),
+      getI2cBusForScd(switchcardScds[3]->addr, 4, 0),
+      getI2cBusForScd(switchcardScds[3]->addr, 4, 1),
+  };
+
+  std::set<int> busesToIgnore;
+  int maxI2cBus = get_max_i2c_bus();
+  for (int i = 0; i <= maxI2cBus; i++) {
+    if (busesToCheck.find(i) == busesToCheck.end()) {
+      busesToIgnore.insert(i);
+    }
+  }
+
+  return busesToIgnore;
+}
+
 Glath05a_64oShowtech::Glath05a_64oShowtech(bool verbose)
     : MeruShowtech(verbose) {
   cpuCpld = std::make_unique<PciScdDevice>("0000:07:00.0",

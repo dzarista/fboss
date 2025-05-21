@@ -49,6 +49,10 @@ public:
 class Meru800BfaShowtech : public MeruShowtech {
 public:
   Meru800BfaShowtech(bool verbose);
+  std::set<int> i2cBusIgnore() override;
+
+private:
+  std::set<int> i2cBusesToIgnore;
 };
 
 class Glath05a_64oShowtech : public MeruShowtech {
