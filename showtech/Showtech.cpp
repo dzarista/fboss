@@ -77,7 +77,8 @@ void Showtech::printI2cDetect() {
   for (bus = 0; bus <= get_max_i2c_bus(); ++bus) {
     if (bus_to_ignore.find(bus) == bus_to_ignore.end()) {
       cmd = "i2cdetect -y " + std::to_string(bus);
-      std::cout << cmd << std::endl << run_cmd_no_check(cmd) << std::endl;
+      std::cout << cmd << std::endl
+                << run_cmd_with_timeout(cmd, 30) << std::endl;
     }
   }
 }
@@ -149,6 +150,15 @@ void Showtech::printLogs() {
 
   std::cout << "#### LINUX MESSAGES LOG ####\n";
   std::cout << run_cmd_with_limit("cat /var/log/messages") << std::endl;
+
+  std::cout << "#### NVME SSD SMART LOG ####\n";
+  std::cout << run_cmd_no_check("nvme smart-log /dev/nvme0n1") << std::endl;
+
+  std::cout << "#### NVME SSD ERROR LOG ####\n";
+  std::cout << run_cmd_no_check("nvme error-log /dev/nvme0n1") << std::endl;
+
+  std::cout << "#### NVME SSD ID CTRL LOG ####\n";
+  std::cout << run_cmd_no_check("nvme id-ctrl /dev/nvme0n1") << std::endl;
 }
 
 void Showtech::printL1Info() {
@@ -165,9 +175,9 @@ void Showtech::printL1Info() {
   print_fboss2_show_cmd("interface phy");
   print_fboss2_show_cmd("transceiver");
 
-  if (verbose_) {
+  if (verbose_ && !ramdisk_) {
     std::cout << "#### wedge_qsfp_util ####\n";
-    std::cout << run_cmd_no_check("wedge_qsfp_util") << std::endl;
+    std::cout << run_cmd_with_timeout("wedge_qsfp_util", 30) << std::endl;
   }
 }
 

@@ -12,19 +12,19 @@ namespace showtech {
 int run_cmd(std::string cmd, std::string &output) {
   std::array<char, 128> buffer;
   std::string result;
-  std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd.c_str(), "r"),
-                                                pclose);
+  FILE *pipe = popen(cmd.c_str(), "r");
 
   if (!pipe) {
     return -1;
   }
 
-  while (std::fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+  while (std::fgets(buffer.data(), buffer.size(), pipe) != nullptr) {
     result += buffer.data();
   }
   output = result;
+  int exit_status = pclose(pipe);
 
-  return 0;
+  return exit_status;
 }
 
 std::string run_cmd_no_check(std::string cmd) {
@@ -59,6 +59,21 @@ std::string run_cmd_with_limit(std::string cmd, int max_lines) {
          " lines truncated ===\n\n" + last_part;
 }
 
+std::string run_cmd_with_timeout(std::string cmd, int timeout_s) {
+  std::string output;
+  std::string cmd_with_timeout;
+
+  cmd_with_timeout = "timeout " + std::to_string(timeout_s) + " " + cmd;
+
+  int status = run_cmd(cmd_with_timeout, output);
+  if (WEXITSTATUS(status) == 124) {
+    output += "\nError: " + cmd + " timed out after " +
+              std::to_string(timeout_s) + " seconds";
+  }
+
+  return output;
+}
+
 void print_fboss2_show_cmd(std::string cmd) {
   if (!std::filesystem::exists("/etc/ramdisk")) {
     std::cout << "#### fboss2 show " << cmd << " ####\n";
@@ -87,6 +102,27 @@ std::string i2c_dump(int bus, int addr, char type) {
   std::string cmd = "i2cdump -f -y " + std::to_string(bus) + " " +
                     std::to_string(addr) + " " + type;
   return cmd + "\n" + run_cmd_no_check(cmd);
+}
+
+int getI2cBusForScd(std::string pciAddr, int master, int bus) {
+  std::string output;
+  std::stringstream i2c_bus_regex;
+  std::smatch i2c_bus_match;
+
+  if (run_cmd("/usr/sbin/i2cdetect -l", output)) {
+    return -1;
+  }
+
+  i2c_bus_regex << "i2c-(\\d+).*SCD " << pciAddr << " SMBus master " << master
+                << " bus " << bus;
+  if (regex_search(output.cbegin(), output.cend(), i2c_bus_match,
+                   std::regex(i2c_bus_regex.str()))) {
+    if (i2c_bus_match.size() == 2) {
+      return std::stoi(i2c_bus_match[1]);
+    }
+  }
+
+  return -1;
 }
 
 std::string Device::readSysfsAttr(std::string attr) {
@@ -127,7 +163,7 @@ std::string I2cDevice::getI2cBusForScd(std::string pciAddr, int master,
 
 std::string I2cDevice::i2cDump() {
   std::string cmd = "i2cdump -f -y " + i2cBus + " " + "0x" + addr + " b";
-  return cmd + "\n" + run_cmd_no_check(cmd);
+  return cmd + "\n" + run_cmd_with_timeout(cmd, 15);
 }
 
 std::string I2cHwmonDevice::getHwmonPath() {

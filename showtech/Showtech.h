@@ -4,17 +4,19 @@
 #ifndef SHOWTECH_H
 #define SHOWTECH_H
 
+#include <filesystem>
 #include <set>
 #include <string>
 
 namespace showtech {
 class Showtech {
 public:
-  Showtech(bool verbose) { verbose_ = verbose; }
+  Showtech(bool verbose)
+      : verbose_{verbose}, ramdisk_{std::filesystem::exists("/etc/ramdisk")} {}
   virtual ~Showtech() = default;
   void printShowtech();
 
-  std::string version = "1.4";
+  std::string version = "1.5";
 
 protected:
   // These should be common between platforms.
@@ -33,6 +35,7 @@ protected:
   virtual std::set<int> i2cBusIgnore() = 0;
 
   bool verbose_;
+  bool ramdisk_;
 };
 
 class GenericShowtech : public Showtech {

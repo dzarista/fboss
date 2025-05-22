@@ -4,6 +4,7 @@
 #include "MeruShowtech.h"
 #include "CfmShowtech.h"
 #include "PsuShowtech.h"
+#include "ShowtechUtils.h"
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
@@ -15,6 +16,131 @@
 #include <unistd.h>
 
 namespace showtech {
+
+Meru800BiaShowtech::Meru800BiaShowtech(bool verbose) : MeruShowtech(verbose) {
+  cpuCpld = std::make_unique<PciScdDevice>("0000:07:00.0",
+                                           "fpgas/MERU_SCM_CPLD_INFO_ROM");
+  switchcardScds.push_back(std::make_unique<PciScdDevice>(
+      "0000:01:00.0", "MERU800BIA_SMB_FPGA_INFO_ROM"));
+  switchcardCpld =
+      std::make_unique<I2cDevice>(cpuCpld->addr, 1, 0, "23", "scd-vcpld");
+  powerCtrlers.emplace_back(std::make_unique<I2cDevice>(switchcardScds[0]->addr,
+                                                        0, 0, "45", "isl68137"),
+                            1);
+  powerCtrlers.emplace_back(std::make_unique<I2cDevice>(switchcardScds[0]->addr,
+                                                        0, 0, "54", "isl68137"),
+                            3);
+  powerCtrlers.emplace_back(std::make_unique<I2cDevice>(switchcardScds[0]->addr,
+                                                        0, 0, "55", "isl68137"),
+                            1);
+  fanCplds.emplace_back(std::make_unique<I2cHwmonDevice>(cpuCpld->addr, 1, 3,
+                                                         "60", "dsf-fan-cpld"));
+}
+
+Meru800BfaShowtech::Meru800BfaShowtech(bool verbose) : MeruShowtech(verbose) {
+  cpuCpld = std::make_unique<PciScdDevice>("0000:07:00.0",
+                                           "fpgas/MERU_SCM_CPLD_INFO_ROM");
+  switchcardScds.emplace_back(std::make_unique<PciScdDevice>(
+      "0000:02:00.0", "MERU800BIA_SMB_FPGA0_INFO_ROM"));
+  switchcardScds.emplace_back(std::make_unique<PciScdDevice>(
+      "0000:01:00.0", "MERU800BIA_SMB_FPGA1_INFO_ROM"));
+  switchcardScds.emplace_back(std::make_unique<PciScdDevice>(
+      "0000:03:00.0", "MERU800BIA_SMB_FPGA2_INFO_ROM"));
+  switchcardScds.emplace_back(std::make_unique<PciScdDevice>(
+      "0000:04:00.0", "MERU800BIA_SMB_FPGA3_INFO_ROM"));
+  switchcardCpld =
+      std::make_unique<I2cDevice>(cpuCpld->addr, 1, 0, "23", "decker-cpld");
+  powerCtrlers.emplace_back(
+      std::make_unique<I2cDevice>(cpuCpld->addr, 1, 1, "50", "bp4a_isl68137"),
+      3);
+  powerCtrlers.emplace_back(
+      std::make_unique<I2cDevice>(cpuCpld->addr, 1, 1, "51", "bp4a_isl68137"),
+      3);
+  powerCtrlers.emplace_back(
+      std::make_unique<I2cDevice>(cpuCpld->addr, 1, 1, "52", "bp4a_isl68137"),
+      3);
+  powerCtrlers.emplace_back(
+      std::make_unique<I2cDevice>(cpuCpld->addr, 1, 1, "53", "bp4a_isl68137"),
+      3);
+  powerCtrlers.emplace_back(
+      std::make_unique<I2cDevice>(cpuCpld->addr, 1, 1, "5a", "isl68137"), 1);
+  powerCtrlers.emplace_back(
+      std::make_unique<I2cDevice>(cpuCpld->addr, 1, 1, "5b", "isl68137"), 1);
+  powerCtrlers.emplace_back(
+      std::make_unique<I2cDevice>(cpuCpld->addr, 1, 1, "5c", "isl68137"), 1);
+  powerCtrlers.emplace_back(
+      std::make_unique<I2cDevice>(cpuCpld->addr, 1, 1, "5d", "isl68137"), 1);
+  powerCtrlers.emplace_back(
+      std::make_unique<I2cDevice>(cpuCpld->addr, 1, 1, "60", "isl68137"), 1);
+  powerCtrlers.emplace_back(
+      std::make_unique<I2cDevice>(cpuCpld->addr, 1, 1, "61", "isl68137"), 1);
+  fanCplds.emplace_back(std::make_unique<I2cHwmonDevice>(cpuCpld->addr, 1, 3,
+                                                         "60", "dsf-fan-cpld"));
+  fanCplds.emplace_back(std::make_unique<I2cHwmonDevice>(cpuCpld->addr, 1, 3,
+                                                         "61", "dsf-fan-cpld"));
+  fanCplds.emplace_back(std::make_unique<I2cHwmonDevice>(cpuCpld->addr, 1, 3,
+                                                         "62", "dsf-fan-cpld"));
+}
+
+std::set<int> Meru800BfaShowtech::i2cBusIgnore() {
+  std::set<int> busesToCheck = {
+      1,
+      getI2cBusForScd(cpuCpld->addr, 0, 0),
+      getI2cBusForScd(cpuCpld->addr, 0, 2),
+      getI2cBusForScd(cpuCpld->addr, 0, 3),
+      getI2cBusForScd(cpuCpld->addr, 0, 4),
+      getI2cBusForScd(cpuCpld->addr, 1, 0),
+      getI2cBusForScd(cpuCpld->addr, 1, 1),
+      getI2cBusForScd(cpuCpld->addr, 1, 2),
+      getI2cBusForScd(cpuCpld->addr, 1, 3),
+      getI2cBusForScd(switchcardScds[0]->addr, 4, 0),
+      getI2cBusForScd(switchcardScds[0]->addr, 4, 1),
+      getI2cBusForScd(switchcardScds[1]->addr, 4, 0),
+      getI2cBusForScd(switchcardScds[1]->addr, 4, 1),
+      getI2cBusForScd(switchcardScds[2]->addr, 4, 0),
+      getI2cBusForScd(switchcardScds[2]->addr, 4, 1),
+      getI2cBusForScd(switchcardScds[2]->addr, 4, 3),
+      getI2cBusForScd(switchcardScds[3]->addr, 4, 0),
+      getI2cBusForScd(switchcardScds[3]->addr, 4, 1),
+  };
+
+  std::set<int> busesToIgnore;
+  int maxI2cBus = get_max_i2c_bus();
+  for (int i = 0; i <= maxI2cBus; i++) {
+    if (busesToCheck.find(i) == busesToCheck.end()) {
+      busesToIgnore.insert(i);
+    }
+  }
+
+  return busesToIgnore;
+}
+
+Glath05a_64oShowtech::Glath05a_64oShowtech(bool verbose)
+    : MeruShowtech(verbose) {
+  cpuCpld = std::make_unique<PciScdDevice>("0000:07:00.0",
+                                           "fpgas/MERU_SCM_CPLD_INFO_ROM");
+  switchcardScds.emplace_back(
+      std::make_unique<PciScdDevice>("0000:01:00.0", "GLATH05A_64O_INFO_ROM"));
+  switchcardCpld = std::make_unique<I2cDevice>(cpuCpld->addr, 1, 0, "23",
+                                               "glath05a-64o-cpld");
+  powerCtrlers.emplace_back(std::make_unique<I2cDevice>(switchcardScds[0]->addr,
+                                                        1, 0, "45", "isl68137"),
+                            1);
+  powerCtrlers.emplace_back(std::make_unique<I2cDevice>(switchcardScds[0]->addr,
+                                                        1, 1, "46", "isl68137"),
+                            2);
+  powerCtrlers.emplace_back(std::make_unique<I2cDevice>(switchcardScds[0]->addr,
+                                                        1, 2, "47", "isl68137"),
+                            2);
+  powerCtrlers.emplace_back(std::make_unique<I2cDevice>(switchcardScds[0]->addr,
+                                                        1, 3, "4d", "isl68137"),
+                            1);
+  powerCtrlers.emplace_back(std::make_unique<I2cDevice>(switchcardScds[0]->addr,
+                                                        1, 4, "4c", "isl68137"),
+                            1);
+  fanCplds.emplace_back(std::make_unique<I2cHwmonDevice>(
+      cpuCpld->addr, 1, 3, "60", "glath05a-64o-fan-cpld"));
+}
 
 void MeruShowtech::printFpgaVersion(std::string name,
                                     std::string major_rev_path,
@@ -125,8 +251,7 @@ void MeruShowtech::printFanInfo() {
             strip(rpm);
             std::cout << ", RPM: " << rpm << " (" << pwm_pcnt << "%)\n";
           } else {
-            std::cout << ", RPM: "
-                      << " SPEED UNKNOWN\n";
+            std::cout << ", RPM: " << " SPEED UNKNOWN\n";
           }
         } else {
           std::cout << "\n";
@@ -139,87 +264,31 @@ void MeruShowtech::printFanInfo() {
 }
 
 void MeruShowtech::printI2cInfo() {
-  std::string i2c_dev_str;
-  std::filesystem::path symlink;
-  std::smatch i2c_dev_match;
-  std::regex i2c_dev_regex("(\\d+)-([0-9a-f]+)");
-  int i2c_bus, i2c_addr;
-
   std::cout << "##########################\n";
   std::cout << "##### I2C DEBUG INFO #####\n";
   std::cout << "##########################\n\n";
 
-  std::string cpldPath = "/run/devmap/cplds/";
-  if (std::filesystem::exists(cpldPath)) {
-    for (const auto &entry : std::filesystem::directory_iterator(cpldPath)) {
-      if (std::filesystem::is_symlink(entry.path())) {
-        symlink = std::filesystem::read_symlink(entry.path());
-        i2c_dev_str = symlink.filename().string();
-        if (regex_search(i2c_dev_str.cbegin(), i2c_dev_str.cend(),
-                         i2c_dev_match, i2c_dev_regex)) {
-          /*
-          match[0] = Full match,
-          match[1] = First capture group,
-          match[2] = Second capture group
-          e.g for i2c_device AB-00CD, match[0] = AB-00CD, match[1] = AB,
-          match[2] = 00CD, so match.size() must be 3
-          */
-          if (i2c_dev_match.size() == 3) {
-            i2c_bus = std::stoi(i2c_dev_match[1]);
-            i2c_addr = std::stoi(i2c_dev_match[2], 0, 16);
-            std::cout << "##### " << entry.path().filename().string()
-                      << " I2CDUMP #####\n"
-                      << i2c_dump(i2c_bus, i2c_addr) << std::endl;
-          }
-        }
-      }
-    }
-  } else {
-    std::cout << cpldPath << " does not exist" << std::endl;
+  std::cout << "SWITCHCARD CPLD I2C DUMP" << std::endl;
+  std::cout << switchcardCpld->i2cDump() << std::endl;
+
+  std::cout << "POWER CONTROLLER I2C DUMPS" << std::endl;
+  for (const auto &pwrCtrler : powerCtrlers) {
+    /* Force writes on claimed device potentially dangerous - disable for now
+
+   for ( int page = 0; page < pwrCtrler.second; page++ ) {
+     std::cout << "PAGE " << std::to_string(page) << std::endl;
+     run_cmd_with_timeout("i2cset -f -y " + (pwrCtrler.first)->i2cBus + " 0x" +
+                              (pwrCtrler.first)->addr + " 0x0 " +
+                              std::to_string(page),
+                          5);
+    */
+    std::cout << (pwrCtrler.first)->i2cDump() << std::endl;
   }
-}
 
-void MeruShowtech::printPwrCtrlerInfo() {
-  std::cout << "\n#################################\n";
-  std::cout << "##### PWR CTRLER DEBUG INFO #####\n";
-  std::cout << "#################################\n\n";
-
-  auto printI2cInfo = [](std::string dirPath) {
-    std::string i2c_dev_str;
-    std::filesystem::path symlink;
-    std::smatch i2c_dev_match;
-    std::regex i2c_dev_regex("(\\d+)-([0-9a-f]+)");
-    int i2c_bus, i2c_addr;
-    if (std::filesystem::exists(dirPath)) {
-      for (const auto &entry : std::filesystem::directory_iterator(dirPath)) {
-        if (std::filesystem::is_symlink(entry.path())) {
-          symlink = std::filesystem::read_symlink(entry.path());
-          i2c_dev_str = symlink.filename().string();
-          if (regex_search(i2c_dev_str.cbegin(), i2c_dev_str.cend(),
-                           i2c_dev_match, i2c_dev_regex)) {
-            /*
-            match[0] = Full match,
-            match[1] = First capture group,
-            match[2] = Second capture group
-            e.g for i2c_device AB-00CD, match[0] = AB-00CD, match[1] = AB,
-            match[2] = 00CD, so match.size() must be 3
-            */
-            if (i2c_dev_match.size() == 3) {
-              i2c_bus = std::stoi(i2c_dev_match[1]);
-              i2c_addr = std::stoi(i2c_dev_match[2], 0, 16);
-              std::cout << "##### " << entry.path().filename().string()
-                        << " I2CDUMP #####\n"
-                        << i2c_dump(i2c_bus, i2c_addr) << std::endl
-                        << i2c_dump(i2c_bus, i2c_addr, 'w') << std::endl;
-            }
-          }
-        }
-      }
-    }
-  };
-
-  printI2cInfo("/sys/bus/i2c/drivers/isl68137");
-  printI2cInfo("/sys/bus/i2c/drivers/bp4a_isl68137");
+  std::cout << "FAN I2C DUMPS" << std::endl;
+  for (const auto &fanCpld : fanCplds) {
+    std::cout << fanCpld->i2cDump() << std::endl;
+  }
 }
 
 void MeruShowtech::printPsuShowtechInfo() {
@@ -242,10 +311,11 @@ void MeruShowtech::printPlatformInfo() {
   printAllFpgaVersions();
   printFanInfo();
   printPsuShowtechInfo();
-  printCfmShowtechInfo();
+  if (!ramdisk_) {
+    printCfmShowtechInfo();
+  }
   if (verbose_) {
     printI2cInfo();
-    printPwrCtrlerInfo();
   }
 }
 
