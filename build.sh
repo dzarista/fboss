@@ -185,5 +185,6 @@ src_mapping_files=(
     $src_mapping_dir/meru800bfa/Meru800bfaProdPlatformMapping.h
     $src_mapping_dir/meru800bfa/Meru800bfaP1PlatformMapping.cpp
     $src_mapping_dir/darwin/DarwinPlatformMapping.cpp
+    $src_mapping_dir/glath05a-64o/Glath05a-64oPlatformMapping.cpp
 )
 arista/build-utils/ExtractMappings.py -d $scratch_dir/PlatformMappings ${src_mapping_files[@]}
