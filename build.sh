@@ -135,7 +135,7 @@ if [[ $(cat $scratch_dir/.sai_hash) = `sai_checksum` ]] && [[ -f $scratch_dir/.l
    [[ -f build/fbcode_builder/manifests/sai_impl ]] && [[ -d `sai_install_dir` ]]; then
    cp $scratch_dir/.libsai.copy build/fbcode_builder/manifests/libsai
 else
-   fboss/oss/scripts/build-helper.py $sai_sdk_dir/libraries/libsai_impl.a \
+   fboss/oss/scripts/arista-build-helper.py $sai_sdk_dir/libraries/libsai_impl.a \
       $sai_sdk_dir/include/ /tmp/sai_impl_output $ocp_sai_version
    mkdir -p $scratch_dir; echo "`sai_checksum`" > $scratch_dir/.sai_hash
    cp build/fbcode_builder/manifests/libsai $scratch_dir/.libsai.copy
