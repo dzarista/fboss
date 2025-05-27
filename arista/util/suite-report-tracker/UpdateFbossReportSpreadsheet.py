@@ -1,28 +1,13 @@
 import sys
 import argparse
 import textwrap as _textwrap
-import csv
 import json
 import subprocess
 import SpreadsheetLibV5
-import datetime
 import pytz
+from datetime import datetime, timedelta
+from SuiteReport import SuiteReport
 
-
-def string_to_bool(s):
-   s = s.lower()
-   if s == "true":
-      return True
-   elif s == "false":
-      return False
-   else:
-      raise ValueError("Invalid boolean string")
-
-
-def string_to_int_empty_as_zero(val):
-   if val == "":
-      return 0
-   return int(val)
 
 def split_by_indices(text, indices):
    if not indices:
@@ -37,70 +22,145 @@ def split_by_indices(text, indices):
    splits.append(text[last_split:])
    return [s.strip() for s in splits if s]
 
-class TestRun:
-   def __init__(self, has_run, suite, package, test, aggregate, test_type,
-                passes, fails, NAs, timeouts, last_result, last_date,
-                last_build_version, variants):
-      self.has_run = string_to_bool(has_run)
-      self.suite = suite
-      self.package = package
-      self.test_name = test
-      self.test_type = test_type
-      self.aggregate = string_to_bool(aggregate)
-      self.last_result = last_result
-      self.last_date = last_date
-      self.last_build_version = last_build_version
-      self.variants = variants
-      self.passes = string_to_int_empty_as_zero(passes)
-      self.fails = string_to_int_empty_as_zero(fails)
-      self.NAs = string_to_int_empty_as_zero(NAs)
-      self.timeouts = string_to_int_empty_as_zero(timeouts)
-      self.runs = self.passes + self.fails + self.timeouts
-      self.pass_rate = self.passes / self.runs if self.runs else 0
+# Get latest build info from
+#   a build ls -p <project> -m 1
+def get_latest_build_info(project):
+   print(f"--- Getting latest build info for {project} ---")
+   command = ["a", "build", "ls", "-p", project, "-m" "1"]
+   result = subprocess.run(command, capture_output=True, check=True)
+   stdout_string = result.stdout.decode('utf-8')
+   lines = stdout_string.split("\n")
+
+   split_indices = [i for i, char in enumerate(lines[1]) if char == " "]
+   keys = split_by_indices(lines[0], split_indices)
+   vals = split_by_indices(lines[2], split_indices)
+
+   return {k: v for k, v in zip(keys, vals)}
+
+# Generate ship report json and csv with
+#   generate_fboss_suite_reports.sh
+def generate_suite_reports(host, project):
+   print(f"--- Generating suite reports on {host} ---")
+   script_path = "./generate_fboss_suite_reports.sh"
+   try:
+      command = [script_path, host, project]
+      subprocess.run(command, check=True)
+      print("Sucessfully generated suite reports")
+   except subprocess.CalledProcessError as e:
+      print(f"Error: error while generating suite reports: {e}", file=sys.stderr)
+      sys.exit(1)
+   except FileNotFoundError:
+      print(f"Error: Script not found at {script_path}", file=sys.stderr)
+      sys.exit(1)
 
 
-class SuiteReport:
-   def __init__(self, fullname, runs, passed, failed, pass_rate,
-                residual_pass_rate, coverage, children=None):
-      # These fields are populated by 'a suite report --json' json file
-      self.fullname = fullname
-      self.runs = runs
-      self.passed = passed
-      self.failed = failed
-      self.pass_rate = pass_rate
-      self.residual_pass_rate = residual_pass_rate
-      self.coverage = coverage
-      self.children = [] if children is None else children
+# Update the "fboss ship reports (7d)" worksheet
+# Sheet Column Format:
+#   Suite, Full Name, Runs, Passes, Fails, Pass%, Residual Pass%, Coverage
+def update_7d_suite_report_sheet(sheet, suite_reports_7d, build_info):
+   sheet.setKeyCol("Suite")
 
-      # Tests are populated by 'a suite report --cr' csv file
-      self.test_runs = []
+   for suite_rp_7d in suite_reports_7d:
+      sheet_row = sheet.getRow(suite_rp_7d.custom_name)
+      if not sheet_row:
+         sheet_row = sheet.addRow(suite_rp_7d.custom_name)
 
-   @classmethod
-   def from_json(cls, json_data):
-      if isinstance(json_data, dict):
-         suite_rp = cls(
-            json_data["full_name"],
-            json_data["runs"],
-            json_data["passed"],
-            json_data["failed"],
-            json_data["pass%"],
-            json_data["residual_pass%"],
-            json_data["coverage"],
-         )
-         for child_data in json_data["children"]:
-            child_node = cls.from_json(child_data)
-            suite_rp.children.append(child_node)
-         return suite_rp
-      else:
-         raise ValueError("Unexpected JSON data format")
+      sheet_row.set("Full Name", suite_rp_7d.fullname)
+      sheet_row.set("Runs", int(suite_rp_7d.runs))
+      sheet_row.set("Passes", int(suite_rp_7d.passed))
+      sheet_row.set("Fails", int(suite_rp_7d.failed))
+      sheet_row.set("Pass%", float(suite_rp_7d.pass_rate) / 100)
+      sheet_row.set("Residual Pass%", float(suite_rp_7d.residual_pass_rate) / 100)
+      sheet_row.set("Coverage", float(suite_rp_7d.coverage) / 100)
 
-   def add_tests_from_csv(self, csv_file):
-      with open(csv_file, "r") as csvfile:
-         reader = csv.DictReader(csvfile)
-         for row in reader:
-            if not bool(string_to_bool(row["aggregate"])):
-               test_run = TestRun(**row)
-               self.test_runs.append(test_run)
+   # set Build Info row (last row)
+   sheet_row = sheet.getRow("Lastest Build")
+   build_info_str = "build id: {}\nproject: {}\nstart time: {}\nduration: {}" \
+                    "\nresult: {}".format(build_info['id'],
+                                          build_info['project'],
+                                          build_info['start time'],
+                                          build_info['duration'],
+                                          build_info['result'])
+   sheet_row.set("Full Name", build_info_str)
+
+   sheet.commitChanges()
+   sheet.sort("Pass%", ascending=False, endRowOffset=-2)
+   print(f"Succesfully updated \"{sheet.name()}\" sheet")
+
+
+# Update the "fboss ship test runs (7d)" worksheet
+# Sheet Column Format:
+#   Test Name, Pass%, Runs, Passes, Fails, Timeouts
+def update_7d_test_run_sheet(sheet, suite_reports_7d):
+   sheet.setKeyCol("Test Name")
+   all_rows = sheet.getRows()
+
+   # set Last Updated row (second row)
+   now_pst = datetime.now(pytz.timezone('US/Pacific'))
+   formatted_now = now_pst.strftime('%Y-%m-%d %H:%M:%S %Z%z')
+   last_updated_str = f"Last updated: {formatted_now}"
+   if all_rows:
+      last_updated_row = all_rows[0]
+      last_updated_row.set("Test Name", last_updated_str)
+   else:
+      last_updated_row = sheet.addRow(last_updated_str)
+
+   # clear test run rows
+   for row in all_rows[1:]:
+      sheet.deleteRow(row)
+
+   sheet.commitChanges()
+
+   for suite_rp in suite_reports_7d:
+      sheet.addRow(f"{suite_rp.custom_name} Test Runs (7d)")
+      for test_run in suite_rp.test_runs:
+         row_key = f"{suite_rp.custom_name}::{test_run.test_name}"
+
+         sheet_row = sheet.addRow(row_key)
+         sheet_row.set("Pass%", test_run.pass_rate)
+         sheet_row.set("Runs", test_run.runs)
+         sheet_row.set("Passes", test_run.passes)
+         sheet_row.set("Fails", test_run.fails)
+         sheet_row.set("Timeouts", test_run.timeouts)
+
+   sheet.commitChanges()
+   print(f"Succesfully updated \"{sheet.name()}\" sheet")
+
+
+# Update the "fboss ship pass rate history" worksheet
+# Sheet Column Format:
+#   Date, -28d, -21d, -14d, 0d
+def update_pass_rate_history_sheet(sheet, suite_reports_all):
+   sheet.setKeyCol("Date")
+   suite_reports_7d = suite_reports_all[0]
+   suite_reports_14d = suite_reports_all[1]
+   suite_reports_21d = suite_reports_all[2]
+   suite_reports_28d = suite_reports_all[3]
+
+   now_pst = datetime.now(pytz.timezone('US/Pacific'))
+   today_pst = now_pst.date()
+
+   sheet_row = sheet.getRow("Suite")
+   if not sheet_row:
+      sheet_row = sheet.addRow("Suite")
+   sheet_row.set("0d", today_pst)
+   sheet_row.set("-7d", (today_pst - timedelta(weeks=1)))
+   sheet_row.set("-14d", (today_pst - timedelta(weeks=2)))
+   sheet_row.set("-21d", (today_pst - timedelta(weeks=3)))
+   sheet.commitChanges()
+
+   for i, suite_rp in enumerate(suite_reports_7d):
+      sheet_row = sheet.getRow(suite_rp.custom_name)
+      if not sheet_row:
+         sheet_row = sheet.addRow(suite_rp.custom_name)
+
+      sheet_row.set("0d", float(suite_rp.pass_rate) / 100)
+      sheet_row.set("-7d", float(suite_reports_14d[i].pass_rate) / 100)
+      sheet_row.set("-14d", float(suite_reports_21d[i].pass_rate) / 100)
+      sheet_row.set("-21d", float(suite_reports_28d[i].pass_rate) / 100)
+
+   sheet.commitChanges()
+   print(f"Succesfully updated \"{sheet.name()}\" sheet")
 
 
 class LineWrapRawTextHelpFormatter(argparse.RawDescriptionHelpFormatter):
@@ -137,10 +197,11 @@ parser.add_argument(
    "-w", "--worksheets",
    action="store",
    required=False,
-   nargs=2,
-   help="Name of worksheets within spreadsheet to store data to.\n"
-   "Default: fboss ship reports, fboss ship test runs",
-   default=["fboss ship reports", "fboss ship test runs"],
+   nargs=3,
+   help="Name of worksheets within spreadsheet to store data to.\n",
+   default=["FBOSS Ship Report (7d)",
+            "FBOSS Ship Test Runs (7d)",
+            "FBOSS Ship Pass Rate History"],
 )
 parser.add_argument(
    "-p", "--project",
@@ -149,145 +210,69 @@ parser.add_argument(
    help="Project name. Default: fboss_schedule_autotest",
    default="fboss_schedule_autotest",
 )
-parser.add_argument(
-   "-m", "--limit",
-   action="store",
-   required=False,
-   help="Limit to LIMIT tests. Default: 7d",
-   default="7d",
-)
-args = parser.parse_args()
 
-# --- Get project latest build info ---
-print(f"--- Getting latest build info for {args.project} ---")
-try:
-   command = ["a", "build", "ls", "-p", args.project, "-m" "1"]
-   result = subprocess.run(command, capture_output=True, check=True)
-   stdout_string = result.stdout.decode('utf-8')
-   lines = stdout_string.split("\n")
+if __name__ == '__main__':
+   args = parser.parse_args()
 
-   split_indices = [i for i, char in enumerate(lines[1]) if char == " "]
-   keys = split_by_indices(lines[0], split_indices)
-   vals = split_by_indices(lines[2], split_indices)
+   # --- Generate suite reports ---
+   generate_suite_reports(args.HOST, args.project)
 
-   pj_build_info = {k: v for k, v in zip(keys, vals)}
-except subprocess.CalledProcessError as e:
-   print(f"Error: error while getting project build info: {e}", file=sys.stderr)
-   sys.exit(1)
+   # --- Parse suite report json and csv files ---
+   limits = ['7d', '14d', '21d', '28d']
+   suites = [
+      ["FbossOssViperShip"],
+      ["FbossOssViperBShip"],
+      ["FbossOssWhistlerShip"],
+      ["FbossRackhawkShip"],
+      ["FbossRackhawkShip", "rkdo"],
+      ["FbossOssShip", "qsfb"],
+   ]
+   suite_report_dir = "fboss-suite-reports"
+   suite_reports_all = []
 
-# --- Generate suite report json and csv files ---
-print(f"--- Generating suite reports on {args.HOST} ---")
-script_path = "./generate_fboss_suite_reports.sh"
-try:
-   command = [script_path, args.HOST, args.project, args.limit]
-   result = subprocess.run(command, check=True)
-   print("Sucessfully generated suite reports")
-except subprocess.CalledProcessError as e:
-   print(f"Error: error while generating suite reports: {e}", file=sys.stderr)
-   sys.exit(1)
-except FileNotFoundError:
-   print(f"Error: Script not found at {script_path}", file=sys.stderr)
-   sys.exit(1)
+   for i, limit in enumerate(limits):
+      suite_reports = []
+      for j, suite in enumerate(suites):
+         base_suite_name = suite[0]
+         suite_name = "_".join(suite)
+         json_file = f"{suite_report_dir}/{limit}/{suite_name}_report.json"
+         test_run_csv_file = f"{suite_report_dir}/{limit}/{suite_name}_test_runs.csv"
 
-# --- Parse suite report json and csv files ---
-suites = [
-   ["FbossOssViperShip"],
-   ["FbossOssViperBShip"],
-   ["FbossOssWhistlerShip"],
-   ["FbossRackhawkShip"],
-   ["FbossRackhawkShip", "rkdo"],
-   ["FbossOssShip", "qsfb"],
-]
-suite_report_dir = "fboss-suite-reports"
-suite_reports = []
+         with open(json_file) as json_data:
+            data = json.load(json_data)
+            suite_rp = SuiteReport.from_json(data[f"FbossTest/{base_suite_name}"])
+            suite_rp.set_custom_name(suite_name)
+            # we only get detailed test runs for 7d
+            if limit == '7d':
+               suite_rp.add_tests_from_csv(test_run_csv_file)
 
-for suite in suites:
-   base_suite_name = suite[0]
-   suite_name = "_".join(suite)
-   json_file = f"{suite_report_dir}/{suite_name}_report.json"
-   test_run_csv_file = f"{suite_report_dir}/{suite_name}_test_runs.csv"
+            # calculate non-overlapping pass% for every 7 days chunk
+            if i > 0:
+               new_passed = suite_rp.passed - suite_reports_all[i - 1][j].passed
+               new_failed = suite_rp.failed - suite_reports_all[i - 1][j].failed
+               suite_rp.update_passed_failed(new_passed, new_failed)
 
-   with open(json_file) as json_data:
-      data = json.load(json_data)
-      suite_rp = SuiteReport.from_json(data[f"FbossTest/{base_suite_name}"])
-      suite_rp.add_tests_from_csv(test_run_csv_file)
-      suite_reports.append((suite_name, suite_rp))
+            suite_reports.append(suite_rp)
+      suite_reports_all.append(suite_reports)
 
-# --- Updating Spreadsheet ---
-print("--- Updating Spreadsheet ---")
-service = SpreadsheetLibV5.Service()
-spd = service.getSpreadsheet(args.spreadsheet)
-ship_rp_sheet = spd.sheet(args.worksheets[0])
-assert ship_rp_sheet, f"no sheet with name {args.worksheets[0]}"
-test_run_sheet = spd.sheet(args.worksheets[1])
-assert test_run_sheet, f"no sheet with name {args.worksheets[1]}"
+   # --- Get latest build info ---
+   build_info = get_latest_build_info(args.project)
 
-# --- write to ship report sheet ---
-ship_rp_sheet.setKeyCol("Suite")
-for suite, suite_rp in suite_reports:
-   sheet_row = ship_rp_sheet.getRow(suite)
-   if not sheet_row:
-      sheet_row = ship_rp_sheet.addRow(suite)
+   print("--- Updating Spreadsheet ---")
+   service = SpreadsheetLibV5.Service()
+   spd = service.getSpreadsheet(args.spreadsheet)
+   ship_rp_sheet = spd.sheet(args.worksheets[0])
+   assert ship_rp_sheet, f"no sheet with name {args.worksheets[0]}"
+   test_run_sheet = spd.sheet(args.worksheets[1])
+   assert test_run_sheet, f"no sheet with name {args.worksheets[1]}"
+   pass_rate_hist_sheet = spd.sheet(args.worksheets[2])
+   assert pass_rate_hist_sheet, f"no sheet with name {args.worksheets[2]}"
 
-   sheet_row.set("Full Name", suite_rp.fullname)
-   sheet_row.set("Runs", int(suite_rp.runs))
-   sheet_row.set("Passes", int(suite_rp.passed))
-   sheet_row.set("Fails", int(suite_rp.failed))
-   sheet_row.set("Pass%", float(suite_rp.pass_rate) / 100)
-   sheet_row.set("Residual Pass%", float(suite_rp.residual_pass_rate) / 100)
-   sheet_row.set("Coverage", float(suite_rp.coverage) / 100)
+   update_7d_suite_report_sheet(ship_rp_sheet, suite_reports_all[0], build_info)
+   update_7d_test_run_sheet(test_run_sheet, suite_reports_all[0])
+   update_pass_rate_history_sheet(pass_rate_hist_sheet, suite_reports_all)
 
-# set Build Info row (last row)
-sheet_row = ship_rp_sheet.getRow("Lastest Build")
-build_info_str = "build id: {}\nproject: {}\nstart time: {}\nduration: {}" \
-                 "\nresult: {}".format(pj_build_info['id'],
-                                       pj_build_info['project'],
-                                       pj_build_info['start time'],
-                                       pj_build_info['duration'],
-                                       pj_build_info['result'])
-sheet_row.set("Full Name", build_info_str)
-
-ship_rp_sheet.commitChanges()
-ship_rp_sheet.sort("Pass%", ascending=False, endRowOffset=-2)
-print(f"Succesfully updated \"{ship_rp_sheet.name()}\" sheet")
-
-# --- write to test run sheet ---
-test_run_sheet.setKeyCol("Test Name")
-all_rows = test_run_sheet.getRows()
-
-# set Last Updated row (second row)
-now_est = datetime.datetime.now(pytz.timezone('US/Pacific'))
-formatted_now = now_est.strftime('%Y-%m-%d %H:%M:%S %Z%z')
-last_updated_str = f"Last updated: {formatted_now}"
-if all_rows:
-   last_updated_row = all_rows[0]
-   last_updated_row.set("Test Name", last_updated_str)
-else:
-   last_updated_row = test_run_sheet.addRow(last_updated_str)
-
-# clear test run rows
-for row in all_rows[1:]:
-   test_run_sheet.deleteRow(row)
-
-test_run_sheet.commitChanges()
-
-for suite, suite_rp in suite_reports:
-   test_run_sheet.addRow(f"{suite} Test Runs ({args.limit})")
-   for test_run in suite_rp.test_runs:
-      row_key = f"{suite}::{test_run.test_name}"
-
-      sheet_row = test_run_sheet.addRow(row_key)
-      sheet_row.set("Pass%", test_run.pass_rate)
-      sheet_row.set("Runs", test_run.runs)
-      sheet_row.set("Passes", test_run.passes)
-      sheet_row.set("Fails", test_run.fails)
-      sheet_row.set("Timeouts", test_run.timeouts)
-
-test_run_sheet.commitChanges()
-
-print(f"Succesfully updated \"{test_run_sheet.name()}\" sheet")
-
-print(
-   "Successfully updated spreadsheet at "
-   f"https://docs.google.com/spreadsheets/d/{args.spreadsheet}/edit"
-)
+   print(
+      "Successfully updated spreadsheet at "
+      f"https://docs.google.com/spreadsheets/d/{args.spreadsheet}/edit"
+   )

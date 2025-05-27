@@ -23,11 +23,15 @@ python3 UpdateFbossReportSpreadsheet.py CONTAINER_HOSTNAME
   
         Test Name, Pass%, Runs, Passes, Fails, Timeouts
 
-  4. Run the tool providing your spreadsheet ID and worksheet names
+  4. Create a pass rate worksheet with the following columns
+        
+        Date, -21d, -14d, -7d, 0d
+
+  5. Run the tool providing your spreadsheet ID and worksheet names
 
 ### Full Usage
 ```
-usage: UpdateFbossReportSpreadsheet.py [-h] [-s SPREADSHEET] [-w WORKSHEETS WORKSHEETS] [-p PROJECT] [-m LIMIT] HOST
+usage: UpdateFbossReportSpreadsheet.py [-h] [-s SPREADSHEET] [-w WORKSHEETS WORKSHEETS WORKSHEETS] [-p PROJECT] HOST
 
 positional arguments:
   HOST                  full container hostname
@@ -37,11 +41,8 @@ optional arguments:
   -s SPREADSHEET, --spreadsheet SPREADSHEET
                         Key to Google spreadsheet in
                         https://docs.google.com/spreadsheets/d/<key>/edit
-  -w WORKSHEETS WORKSHEETS, --worksheets WORKSHEETS WORKSHEETS
+  -w WORKSHEETS WORKSHEETS WORKSHEETS, --worksheets WORKSHEETS WORKSHEETS WORKSHEETS
                         Name of worksheets within spreadsheet to store data to.
-                        Default: fboss ship reports, fboss ship test runs
   -p PROJECT, --project PROJECT
                         Project name. Default: fboss_schedule_autotest
-  -m LIMIT, --limit LIMIT
-                        Limit to LIMIT tests. Default: 7d
 ```
