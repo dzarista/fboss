@@ -121,6 +121,7 @@ class SaiSwitch : public HwSwitch {
   CpuPortStats getCpuPortStats() const override;
   HwSwitchDropStats getSwitchDropStats() const override;
   HwSwitchWatermarkStats getSwitchWatermarkStats() const override;
+  HwSwitchPipelineStats getSwitchPipelineStats() const override;
 
   HwResourceStats getResourceStats() const override;
 
@@ -150,6 +151,9 @@ class SaiSwitch : public HwSwitch {
   void linkStateChangedCallbackTopHalf(
       uint32_t count,
       const sai_port_oper_status_notification_t* data);
+  void syncPortLinkState(PortID portId) override;
+  void linkStateChangedBottomHalf(const PortID& portId);
+
   void fdbEventCallback(
       uint32_t count,
       const sai_fdb_event_notification_data_t* data);

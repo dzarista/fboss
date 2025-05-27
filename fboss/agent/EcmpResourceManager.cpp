@@ -22,15 +22,35 @@ namespace facebook::fboss {
 std::vector<StateDelta> EcmpResourceManager::consolidate(
     const StateDelta& delta) {
   CHECK(!preUpdateState_.has_value());
-  if (DeltaFunctions::isEmpty(delta.getFibsDelta())) {
-    // Return orignal delta if no FIB changes
+  auto makeRet = [](const StateDelta& in) {
     std::vector<StateDelta> deltas;
-    deltas.emplace_back(delta.oldState(), delta.newState());
+    deltas.emplace_back(in.oldState(), in.newState());
     return deltas;
+  };
+  // No relevant change return early
+  if (delta.getFlowletSwitchingConfigDelta().getOld() ==
+          delta.getFlowletSwitchingConfigDelta().getNew() &&
+      DeltaFunctions::isEmpty(delta.getFibsDelta())) {
+    return makeRet(delta);
   }
-  preUpdateState_ = PreUpdateState(mergedGroups_, nextHopGroup2Id_);
+
+  preUpdateState_ =
+      PreUpdateState(mergedGroups_, nextHopGroup2Id_, backupEcmpGroupType_);
+
+  auto switchingModeChangeResult = handleFlowletSwitchConfigDelta(delta);
+  if (DeltaFunctions::isEmpty(delta.getFibsDelta())) {
+    if (switchingModeChangeResult.has_value()) {
+      return std::move(switchingModeChangeResult->out);
+    }
+    return makeRet(delta);
+  }
 
   uint32_t nonBackupEcmpGroupsCnt{0};
+  std::optional<InputOutputState> inOutState(
+      std::move(switchingModeChangeResult));
+  if (!inOutState.has_value()) {
+    inOutState = InputOutputState(nonBackupEcmpGroupsCnt, delta);
+  }
   std::for_each(
       nextHopGroupIdToInfo_.cbegin(),
       nextHopGroupIdToInfo_.cend(),
@@ -39,15 +59,14 @@ std::vector<StateDelta> EcmpResourceManager::consolidate(
         nonBackupEcmpGroupsCnt +=
             idAndInfo.second.lock()->isBackupEcmpGroupType() ? 0 : 1;
       });
-  InputOutputState inOutState(nonBackupEcmpGroupsCnt, delta);
-  return consolidateImpl(delta, &inOutState);
+  inOutState->nonBackupEcmpGroupsCnt = nonBackupEcmpGroupsCnt;
+  return consolidateImpl(delta, &(*inOutState));
 }
 
 std::vector<StateDelta> EcmpResourceManager::consolidateImpl(
     const StateDelta& delta,
     InputOutputState* inOutState) {
-  processRouteUpdates<folly::IPAddressV4>(delta, inOutState);
-  processRouteUpdates<folly::IPAddressV6>(delta, inOutState);
+  processRouteUpdates(delta, inOutState);
   reclaimEcmpGroups(inOutState);
   CHECK(!inOutState->out.empty());
   return std::move(inOutState->out);
@@ -134,7 +153,33 @@ void EcmpResourceManager::reclaimEcmpGroups(InputOutputState* inOutState) {
     }
   }
   newState->publish();
+  /*
+   * We do reclaim on a separate delta since the space is
+   * guaranteed to be freed up *only* after the previous deltas
+   * were completely applied.
+   * Consider a case where we have space for only 2 primary ECMP
+   * groups. And we have the following state (say state0)
+   * R0-> G0 (bkup)
+   * R1-> G1
+   * R2-> G2
+   * Next we get a new state (say state1)
+   * R0-> G0(bkup)
+   * R1-> G1
+   * R2-> G1
+   * With our current approach, the first delta enqueued will be
+   * StateDelta(state0, state1);
+   * This will now trigger a reclaim, getting us to state2
+   * R0 -> G0
+   * R1 -> G1
+   * R2 -> G1
+   * Had we combined state1 and state2 and just sent down
+   * a single delta StateDelta(state0, state2), we would have
+   * overflowed the ECMP limit when processing R0
+   */
   inOutState->out.emplace_back(oldState, newState);
+  inOutState->nonBackupEcmpGroupsCnt += groupIdsToReclaim.size();
+  XLOG(DBG2) << " Primary ECMP Groups after reclaim: "
+             << inOutState->nonBackupEcmpGroupsCnt;
 }
 
 std::set<EcmpResourceManager::NextHopGroupId>
@@ -181,6 +226,8 @@ EcmpResourceManager::InputOutputState::InputOutputState(
   if (_in.oldState()->getFibs() && !_in.oldState()->getFibs()->empty()) {
     newStateWithOldFibs->resetForwardingInformationBases(
         _in.oldState()->getFibs());
+    DCHECK(DeltaFunctions::isEmpty(
+        StateDelta(_in.oldState(), newStateWithOldFibs).getFibsDelta()));
   } else {
     // Cater for when old state is empty - e.g. warmboot,
     // rollback
@@ -197,8 +244,6 @@ EcmpResourceManager::InputOutputState::InputOutputState(
     newStateWithOldFibs->resetForwardingInformationBases(std::move(mfib));
   }
   newStateWithOldFibs->publish();
-  DCHECK(DeltaFunctions::isEmpty(
-      StateDelta(_in.oldState(), newStateWithOldFibs).getFibsDelta()));
   out.emplace_back(_in.oldState(), newStateWithOldFibs);
 }
 
@@ -293,6 +338,19 @@ EcmpResourceManager::updateForwardingInfoAndInsertDelta(
       nhops2IdItr->second,
       nhops2IdItr,
       true /*isBackupEcmpGroupType*/);
+  return updateForwardingInfoAndInsertDelta(
+      rid, route, grpInfo, ecmpDemandExceeded, inOutState);
+}
+
+template <typename AddrT>
+std::shared_ptr<NextHopGroupInfo>
+EcmpResourceManager::updateForwardingInfoAndInsertDelta(
+    RouterID rid,
+    const std::shared_ptr<Route<AddrT>>& route,
+    std::shared_ptr<NextHopGroupInfo>& grpInfo,
+    bool ecmpDemandExceeded,
+    InputOutputState* inOutState) {
+  CHECK(grpInfo->isBackupEcmpGroupType());
   const auto& curForwardInfo = route->getForwardInfo();
   auto newForwardInfo = RouteNextHopEntry(
       curForwardInfo.normalizedNextHops(),
@@ -307,6 +365,68 @@ EcmpResourceManager::updateForwardingInfoAndInsertDelta(
   return grpInfo;
 }
 
+std::vector<StateDelta> EcmpResourceManager::reconstructFromSwitchState(
+    const std::shared_ptr<SwitchState>& curState) {
+  if (!preUpdateState_.has_value()) {
+    preUpdateState_ = PreUpdateState();
+  }
+  /*
+   * TODO - when we goto merged groups, cur state will no longer
+   * be efficient for rebuilding state. As for merged, nhops we will
+   * endup needing to look up all combinations of individual groups
+   * and find merges. So we will need to store more state around
+   * warm boots.
+   */
+  // Clear state which needs to be resored from given state
+  nextHopGroup2Id_.clear();
+  mergedGroups_.clear();
+  prefixToGroupInfo_.clear();
+  nextHopGroupIdToInfo_.clear();
+  candidateMergeGroups_.clear();
+  /*
+   * Restore state from previous input state. To do this we simply
+   * replay the state in consolidate. Input state has a guarantee
+   * that that
+   * Num nhop groups of primary type <= maxEcmpGroups and there
+   * may or may not be groups of backupEcmpType
+   * Now there are a few sub cases for input state
+   * i. No backup ecmp nhop groups and 0 or more primary ECMP group types.
+   * This is simple, consolidate will simply run through the routes and
+   * populate internal data structures
+   * ii. Have both primary and backup ECMP route nhop groups. And primary
+   * ECMP groups == maxEcmpGroups_. As we run through the routes, we will
+   * see a mix of nhop groups, some that are of type primary and others
+   * that are of type backupEcmpGroupType. We record them as such in our
+   * data structures.  Note that in this replay routes may come in a
+   * different order than when we originally got them. However since
+   * we are not creating any new backup nhop groups (since
+   * num nhop groups of primary type <= maxEcmpGroups) our data structures
+   * should simply reflect the state in input state.
+   * iii. Have both primary and backup ECMP route nhop groups. And primary
+   * ECMP groups < maxEcmpGroups_. This is similar to ii. except that we
+   * will now be able to reclaim some of the backup nhop groups.
+   * */
+  StateDelta delta(std::make_shared<SwitchState>(), curState);
+  InputOutputState inOutState(0, delta, *preUpdateState_);
+  auto deltas = consolidateImpl(delta, &inOutState);
+  // LE 2, since reclaim always starts with a new delta
+  CHECK_LE(deltas.size(), 2);
+  StateDelta toRet(deltas.front().oldState(), deltas.back().newState());
+  deltas.clear();
+  deltas.emplace_back(std::move(toRet));
+  return deltas;
+}
+
+template <typename AddrT>
+bool EcmpResourceManager::routesEqual(
+    const std::shared_ptr<Route<AddrT>>& oldRoute,
+    const std::shared_ptr<Route<AddrT>>& newRoute) const {
+  return oldRoute->getForwardInfo().normalizedNextHops() ==
+      newRoute->getForwardInfo().normalizedNextHops() &&
+      oldRoute->getForwardInfo().getOverrideEcmpSwitchingMode() ==
+      newRoute->getForwardInfo().getOverrideEcmpSwitchingMode();
+}
+
 template <typename AddrT>
 void EcmpResourceManager::routeAddedOrUpdated(
     RouterID rid,
@@ -319,9 +439,7 @@ void EcmpResourceManager::routeAddedOrUpdated(
   CHECK_LE(inOutState->nonBackupEcmpGroupsCnt, maxEcmpGroups_);
   bool ecmpLimitReached = inOutState->nonBackupEcmpGroupsCnt == maxEcmpGroups_;
   if (oldRoute) {
-    DCHECK_NE(
-        oldRoute->getForwardInfo().normalizedNextHops(),
-        newRoute->getForwardInfo().normalizedNextHops());
+    DCHECK(!routesEqual(oldRoute, newRoute));
     routeDeleted(rid, oldRoute, true /*isUpdate*/, inOutState);
   }
   auto nhopSet = newRoute->getForwardInfo().normalizedNextHops();
@@ -329,7 +447,13 @@ void EcmpResourceManager::routeAddedOrUpdated(
       {nhopSet, findCachedOrNewIdForNhops(nhopSet, *inOutState)});
   std::shared_ptr<NextHopGroupInfo> grpInfo;
   if (inserted) {
-    if (ecmpLimitReached) {
+    bool isBackupEcmpGroupType =
+        newRoute->getForwardInfo().getOverrideEcmpSwitchingMode().has_value();
+    if (ecmpLimitReached && !isBackupEcmpGroupType) {
+      /*
+       * If ECMP limit is reached and route does not point to a backup
+       * ecmp type nhop group, then update route forwarding info
+       */
       XLOG(DBG2) << " Ecmp group demand exceeded available resources on: "
                  << (oldRoute ? "add" : "update")
                  << " route: " << newRoute->str();
@@ -341,8 +465,6 @@ void EcmpResourceManager::routeAddedOrUpdated(
                  << " primray ecmp group count unchanged: "
                  << inOutState->nonBackupEcmpGroupsCnt;
     } else {
-      bool isBackupEcmpGroupType =
-          newRoute->getForwardInfo().getOverrideEcmpSwitchingMode().has_value();
       std::tie(grpInfo, inserted) = nextHopGroupIdToInfo_.refOrEmplace(
           idItr->second, idItr->second, idItr, isBackupEcmpGroupType);
       CHECK(inserted);
@@ -493,11 +615,10 @@ void EcmpResourceManager::routeDeleted(
   }
 }
 
-template <typename AddrT>
 void EcmpResourceManager::processRouteUpdates(
     const StateDelta& delta,
     InputOutputState* inOutState) {
-  forEachChangedRoute<AddrT>(
+  processFibsDeltaInHwSwitchOrder(
       delta,
       [this, inOutState](
           RouterID rid, const auto& oldRoute, const auto& newRoute) {
@@ -514,13 +635,12 @@ void EcmpResourceManager::processRouteUpdates(
         }
         // Both old and new are resolved
         CHECK(oldRoute->isResolved() && newRoute->isResolved());
-        if (oldRoute->getForwardInfo().normalizedNextHops() !=
-            newRoute->getForwardInfo().normalizedNextHops()) {
+        if (!routesEqual(oldRoute, newRoute)) {
           routeUpdated(rid, oldRoute, newRoute, inOutState);
         } else {
-          // Nexthops did not change, but the route changed.
-          // Just queue it in the delta, no need to reevaluate
-          // ECMP resources
+          // Nexthops and override group type did not change,
+          // but the route changed. Just queue it in the delta,
+          // no need to reevaluate ECMP resources
           inOutState->addOrUpdateRoute(
               rid, newRoute, false /*ecmpDemandExceeded*/);
         }
@@ -587,16 +707,97 @@ void EcmpResourceManager::updateFailed(
   }
   XLOG(DBG2) << " Update failed";
   CHECK(preUpdateState_.has_value());
-  /* clear state which needs to be resored from previous state*/
-  nextHopGroup2Id_.clear();
-  mergedGroups_.clear();
-  prefixToGroupInfo_.clear();
-  nextHopGroupIdToInfo_.clear();
-  candidateMergeGroups_.clear();
-  /* restore state from previous state*/
-  StateDelta delta(std::make_shared<SwitchState>(), curState);
-  InputOutputState inOutState(0, delta, std::move(*preUpdateState_));
-  consolidateImpl(delta, &inOutState);
+  if (getBackupEcmpSwitchingMode() != preUpdateState_->backupEcmpGroupType) {
+    // Throw if we get a failed update involving backup switching mode
+    // change. We can make this smarter by
+    // - Reverting backupEcmpGroupType_ setting
+    // - Asserting that all prefixes in curState with overrideEcmpMode set
+    // match the old backupEcmpGroupType
+    // However this adds more code for a use case we don't need to support.
+    // BackupEcmpType can only change via a config update state delta. And
+    // if that fails, we anyways fail the application
+    throw FbossError("Update failed with backup switching mode transition");
+  }
+  reconstructFromSwitchState(curState);
   preUpdateState_.reset();
+}
+
+std::optional<EcmpResourceManager::InputOutputState>
+EcmpResourceManager::handleFlowletSwitchConfigDelta(const StateDelta& delta) {
+  if (delta.getFlowletSwitchingConfigDelta().getOld() ==
+      delta.getFlowletSwitchingConfigDelta().getNew()) {
+    return std::nullopt;
+  }
+  std::optional<cfg::SwitchingMode> newMode;
+  if (delta.newState()->getFlowletSwitchingConfig()) {
+    newMode =
+        delta.newState()->getFlowletSwitchingConfig()->getBackupSwitchingMode();
+  }
+  if (backupEcmpGroupType_.has_value() && !newMode.has_value()) {
+    throw FbossError(
+        "Cannot change backup ecmp switching mode from non-null to null");
+  }
+  if (backupEcmpGroupType_ == newMode) {
+    return std::nullopt;
+  }
+
+  XLOG(DBG2) << "Updating backup switching mode from: "
+             << (backupEcmpGroupType_.has_value()
+                     ? apache::thrift::util::enumNameSafe(*backupEcmpGroupType_)
+                     : "None")
+             << " to: " << apache::thrift::util::enumNameSafe(*newMode);
+
+  auto oldBackupEcmpMode = backupEcmpGroupType_;
+  backupEcmpGroupType_ = newMode;
+  if (!oldBackupEcmpMode.has_value()) {
+    // No backup ecmp type value for old group.
+    // Nothing to do.
+    return std::nullopt;
+  }
+  InputOutputState inOutState(0 /*nonBackupEcmpGroupsCnt*/, delta);
+  CHECK_EQ(inOutState.out.size(), 1);
+  // Make changes on to current new state (which is essentially,
+  // newState with old state's fibs). The first delta we will queue
+  // will be the oldState's FIBs route's updated to new backup group.
+  auto newState = inOutState.out.back().newState();
+  bool changed = false;
+  for (const auto& [ridAndPfx, grpInfo] : prefixToGroupInfo_) {
+    if (!grpInfo->isBackupEcmpGroupType()) {
+      continue;
+    }
+    // Got a route with backupEcmpType set. Change it.
+    changed = true;
+    const auto& [rid, pfx] = ridAndPfx;
+    auto updateRouteOverridEcmpMode = [this, &inOutState](
+                                          RouterID routerId,
+                                          const auto& routePrefix,
+                                          const auto& fib,
+                                          auto groupInfo) mutable {
+      auto route = fib->getRouteIf(routePrefix);
+      CHECK(route);
+      updateForwardingInfoAndInsertDelta(
+          routerId,
+          route,
+          groupInfo,
+          false /*ecmpDemandExceeded*/,
+          &inOutState);
+    };
+    if (pfx.first.isV6()) {
+      RoutePrefixV6 routePfx(pfx.first.asV6(), pfx.second);
+      updateRouteOverridEcmpMode(
+          rid,
+          routePfx,
+          newState->getFibs()->getNode(rid)->getFibV6(),
+          grpInfo);
+    } else {
+      RoutePrefixV4 routePfx(pfx.first.asV4(), pfx.second);
+      updateRouteOverridEcmpMode(
+          rid,
+          routePfx,
+          newState->getFibs()->getNode(rid)->getFibV4(),
+          grpInfo);
+    }
+  }
+  return changed ? std::move(inOutState) : std::optional<InputOutputState>();
 }
 } // namespace facebook::fboss

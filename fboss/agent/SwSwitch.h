@@ -285,6 +285,9 @@ class SwSwitch : public HwSwitchCallback {
 
   state::WarmbootState gracefulExitState() const;
 
+  state::SwitchState updateOverrideEcmpSwitchingMode(
+      state::WarmbootState* warmbootState) const;
+
   /*
    * Get a pointer to the current switch state.
    *
@@ -774,6 +777,9 @@ class SwSwitch : public HwSwitchCallback {
   LookupClassRouteUpdater* getLookupClassRouteUpdater() {
     return lookupClassRouteUpdater_.get();
   }
+  const EcmpResourceManager* getEcmpResourceManager() const {
+    return ecmpResourceManager_.get();
+  }
 
   /*
    * RIB and switch state need to be kept in sync,
@@ -1089,6 +1095,10 @@ class SwSwitch : public HwSwitchCallback {
 
   std::shared_ptr<SwitchState> stateChanged(
       const StateDelta& delta,
+      bool transaction) const;
+
+  std::shared_ptr<SwitchState> stateChanged(
+      const std::vector<StateDelta>& delta,
       bool transaction) const;
 
   template <typename FsdbFunc>

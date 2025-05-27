@@ -78,6 +78,8 @@ class EcmpResourceManager {
   using NextHops2GroupId = std::map<RouteNextHopSet, NextHopGroupId>;
 
   std::vector<StateDelta> consolidate(const StateDelta& delta);
+  std::vector<StateDelta> reconstructFromSwitchState(
+      const std::shared_ptr<SwitchState>& curState);
   const auto& getNhopsToId() const {
     return nextHopGroup2Id_;
   }
@@ -92,6 +94,11 @@ class EcmpResourceManager {
   }
 
  private:
+  template <typename AddrT>
+  bool routesEqual(
+      const std::shared_ptr<Route<AddrT>>& oldRoute,
+      const std::shared_ptr<Route<AddrT>>& newRoute) const;
+
   struct ConsolidationPenalty {
     int maxPenalty() const;
     int avgPenalty() const;
@@ -100,6 +107,7 @@ class EcmpResourceManager {
   struct PreUpdateState {
     std::map<NextHopGroupIds, ConsolidationPenalty> mergedGroups;
     std::map<RouteNextHopSet, NextHopGroupId> nextHopGroup2Id;
+    std::optional<cfg::SwitchingMode> backupEcmpGroupType;
   };
   struct InputOutputState {
     InputOutputState(
@@ -133,6 +141,8 @@ class EcmpResourceManager {
     std::vector<StateDelta> out;
     PreUpdateState groupIdCache;
   };
+  std::optional<InputOutputState> handleFlowletSwitchConfigDelta(
+      const StateDelta& delta);
   std::vector<StateDelta> consolidateImpl(
       const StateDelta& delta,
       InputOutputState* inOutState);
@@ -146,12 +156,18 @@ class EcmpResourceManager {
       bool ecmpDemandExceeded,
       InputOutputState* inOutState);
   template <typename AddrT>
+  std::shared_ptr<NextHopGroupInfo> updateForwardingInfoAndInsertDelta(
+      RouterID rid,
+      const std::shared_ptr<Route<AddrT>>& route,
+      std::shared_ptr<NextHopGroupInfo>& grpInfo,
+      bool ecmpDemandExceeded,
+      InputOutputState* inOutState);
+  template <typename AddrT>
   std::shared_ptr<NextHopGroupInfo> ecmpGroupDemandExceeded(
       RouterID rid,
       const std::shared_ptr<Route<AddrT>>& route,
       NextHops2GroupId::iterator nhops2IdItr,
       InputOutputState* inOutState);
-  template <typename AddrT>
   void processRouteUpdates(
       const StateDelta& delta,
       InputOutputState* inOutState);
