@@ -6,13 +6,13 @@ Meru800bfa platform. The table below shows the programmables:
 | Programmable Name                                                       | Description          |
 |-------------------------------------------------------------------------|----------------------|
 | P_meru800bfa_F_bios_V_Aboot-norcal13-13.1.4-lcc-64m-40551478.rom        | Bootloader for x86   |
-| P_meru800bfa_F_scm-cpld_V_4.16.astp                                     | SCM CPLD JTAG image  |
-| P_meru800bfa_F_smb-cpld_V_4.13.astp                                     | SMB CPLD JTAG image  |
-| P_meru800bfa_F_smb-fpga0_V_1.22.abit                                    | SMB FPGA0 SPI image  |
-| P_meru800bfa_F_smb-fpga1_V_1.22.abit                                    | SMB FPGA1 SPI image  |
-| P_meru800bfa_F_smb-fpga2_V_1.28.abit                                    | SMB FPGA2 SPI image  |
-| P_meru800bfa_F_smb-fpga3_V_1.25.abit                                    | SMB FPGA3 SPI image  |
-| P_meru800bfa_F_fan-cpld_V_1.10.astp                                     | Fan CPLDs JTAG image |
+| P_meru800bfa_F_scm_cpld_V_4.16.astp                                     | SCM CPLD JTAG image  |
+| P_meru800bfa_F_smb_cpld_V_4.13.astp                                     | SMB CPLD JTAG image  |
+| P_meru800bfa_F_smb_fpga0_V_1.22.abit                                    | SMB FPGA0 SPI image  |
+| P_meru800bfa_F_smb_fpga1_V_1.22.abit                                    | SMB FPGA1 SPI image  |
+| P_meru800bfa_F_smb_fpga2_V_1.28.abit                                    | SMB FPGA2 SPI image  |
+| P_meru800bfa_F_smb_fpga3_V_1.25.abit                                    | SMB FPGA3 SPI image  |
+| P_meru800bfa_F_fan_cpld_V_1.10.astp                                     | Fan CPLDs JTAG image |
 | P_meru800bfa_F_bcm53134image-p4_V_1.2.bin                               | Bcm53134 p4 image    |
 
 
