@@ -3,7 +3,7 @@ set -x
 #### This script creates a pull request in https://github.com/facebookexternal/fboss.bsp.arista
 #### with the changes made to the Git subtree in https://github.com/aristanetworks/arista-fboss
 
-repo_name=git@github.com:arajeev-ARISTA/fboss.bsp.arista.git
+repo_name=git@github.com:facebookexternal/fboss.bsp.arista.git
 upstream_pr_branch_name="bsp_upstream_pr_${PR_BRANCH}"
 pr_title="push subtree changes to fboss.bsp.arista"
 pr_description="Upstream pull request with the changes to Git subtree from the branch ${PR_BRANCH}."
