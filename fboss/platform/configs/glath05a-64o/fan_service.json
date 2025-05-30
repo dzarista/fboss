@@ -4,7 +4,7 @@
   "pwmBoostOnNoQsfpAfterInSec": 0,
   "pwmBoostValue": 90,
   "pwmTransitionValue": 75,
-  "pwmLowerThreshold": 75,
+  "pwmLowerThreshold": 54,
   "pwmUpperThreshold": 100,
   "optics" : [
     {
@@ -16,9 +16,12 @@
       "aggregationType" : "OPTIC_AGGREGATION_TYPE_MAX",
       "tempToPwmMaps" : {
         "OPTIC_TYPE_800_GENERIC" : {
-          "5": 75,
-          "69": 80,
-          "70": 90,
+          "5": 54,
+          "66": 58,
+          "67": 60,
+          "68": 62,
+          "69": 75,
+          "70": 95,
           "71": 100
         }
       }
@@ -36,19 +39,19 @@
       },
       "pwmCalcType": "SENSOR_PWM_CALC_TYPE_FOUR_LINEAR_TABLE",
       "normalUpTable": {
-        "15": 75,
+        "15": 54,
         "110": 100
       },
       "normalDownTable": {
-        "15": 75,
+        "15": 54,
         "110": 100
       },
       "failUpTable": {
-        "15": 75,
+        "15": 54,
         "110": 100
       },
       "failDownTable": {
-        "15": 75,
+        "15": 54,
         "110": 100
       }
     }
