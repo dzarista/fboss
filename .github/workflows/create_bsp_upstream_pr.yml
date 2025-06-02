@@ -40,12 +40,15 @@ jobs:
 
       - name: Diff subtree (e.g. src/component)
         run: |
-          echo "Changes in subtree (src/component):"
           # We are interested only in the changes to the fboss.bsp.arista subtree
           diff -urN premerge/fboss.bsp.arista original/fboss.bsp.arista > subtree.patch || true
+          # Extract binary file diff lines into a separate file
+          grep '^Binary files ' subtree.patch > binary_only.diff || true
+          # Create a cleaned patch file with only the real text diffs
+          grep -v '^Binary files ' subtree.patch > text_only.patch || true
           # Rest of the workflow executes only if there was a change in the fboss.bsp.arista subtree.
           # This is controlled through the SKIP_STEPS environment variable
-          if [ ! -s subtree.patch ]; then
+          if [ ! -s binary_only.diff ] && [ ! -s text_only.patch ]; then
             echo "No changes to upstream. Exiting."
             echo "SKIP_STEPS=true" >> $GITHUB_ENV
             exit 0

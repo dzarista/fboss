@@ -24,10 +24,24 @@ if GIT_SSH_COMMAND="ssh -i ../../private.key -o IdentitiesOnly=yes" git ls-remot
    GIT_SSH_COMMAND="ssh -i ../../private.key -o IdentitiesOnly=yes" git push origin -d $upstream_pr_branch_name
 fi
 GIT_SSH_COMMAND="ssh -i ../../private.key -o IdentitiesOnly=yes" git checkout -b $upstream_pr_branch_name origin/main || exit 1
-cd ..
-# We know the patch file will be non-empty (controlled by the workflow yml file)
-if patch -p1 < ../subtree.patch &> patch_status.txt; then
-   cd fboss.bsp.arista
+cd ../..
+# Real text diff is found in text_only.patch. They can be applied in upstream_repo with 'patch' command
+if patch -p1 < text_only.patch &> patch_status.txt; then
+   # Binary file diff is found in binary_only.diff. 'patch' command doesn't work in the case of binary files.
+   # Hence, process them one after the other.
+   while read -r old_file modified_file; do
+      # 'new_path' is the binary file path in 'upstream_repo'
+      new_path="${old_file/#premerge/upstream_repo}"
+      # If the updated binary file is found in 'original' copy, it's the version which we want to keep - copy it to the 'upstream_repo'
+      # Otherwise it was deleted. Delete the file from the 'upstream repo'
+      if [ -e "$modified_file" ]; then
+         cp $modified_file $new_path
+      else
+         rm $new_path
+      fi
+   # binary_only.diff will have lines in the format "Binary files path_to_file1/file1 and path_to_file2/file2 differ"
+   done < <(awk '{print $3, $5}' binary_only.diff)
+   cd upstream_repo/fboss.bsp.arista
    git config --global user.name "srv-fboss-arista"
    git config --global user.email "srv-fboss-arista@arista.com"
    GIT_SSH_COMMAND="ssh -i ../../private.key -o IdentitiesOnly=yes" git add -A
@@ -37,7 +51,7 @@ if patch -p1 < ../subtree.patch &> patch_status.txt; then
    pr_link=$(gh pr create --title "$pr_title" --body "$pr_description" --head $upstream_pr_branch_name --base main --repo $repo_name --draft | grep https)
    cd ../..
    echo "Created a pull request from branch $upstream_pr_branch_name." > $output_file
-   echo "Created the draft pull request $pr_link with all the changes in BSP subtree. Please publish the pull request after updating the title and description." > $status_email_file
+   echo "Created the draft pull request $pr_link with all the changes in BSP subtree. Make sure the pull request matches with the changes to the subtree. Please publish the pull request after updating the title and description." > $status_email_file
 else
    cd ..
    echo "Couldn't create a pull request due to merge conflicts." > $status_email_file
