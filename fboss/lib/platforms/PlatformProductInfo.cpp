@@ -157,6 +157,14 @@ void PlatformProductInfo::initMode() {
         modelName.find("DCS-DL-7700R4C-38PE-B-DC-F") == 0) {
       type_ = PlatformType::PLATFORM_MERU800BIAB;
     } else if (
+        modelName.find("Meru800biac") == 0 ||
+        modelName.find("MERU800BIAC") == 0 ||
+        modelName.find("ASY-92459-109") == 0 ||
+        modelName.find("ASY-08999-09") == 0 ||
+        modelName.find("DCS-DL-7700R4C-38PE-C-AC-F") == 0 ||
+        modelName.find("DCS-DL-7700R4C-38PE-C-DC-F") == 0) {
+      type_ = PlatformType::PLATFORM_MERU800BIAC;
+    } else if (
         modelName.find("Meru800bfa") == 0 ||
         modelName.find("MERU800BFA") == 0 ||
         modelName.find("ASY-57651-102") == 0 ||
@@ -223,6 +231,8 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_MERU800BIA;
     } else if (FLAGS_mode == "meru800biab") {
       type_ = PlatformType::PLATFORM_MERU800BIAB;
+    } else if (FLAGS_mode == "meru800biac") {
+      type_ = PlatformType::PLATFORM_MERU800BIAC;
     } else if (FLAGS_mode == "meru800bfa") {
       type_ = PlatformType::PLATFORM_MERU800BFA;
     } else if (FLAGS_mode == "meru800bfa_p1") {
