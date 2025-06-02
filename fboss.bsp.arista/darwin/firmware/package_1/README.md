@@ -1,17 +1,15 @@
 # Firmware Package #1
 
-| Programmable Name                                            | Description                               |
-|--------------------------------------------------------------|-------------------------------------------|
-| darwin_bios_vAboot-norcal7-7.5.3-cb411-rook-2x4-39223411.rom | Bootloader for x86                        |
-| darwin_cpu-cpld_v0x16v25.astp                                | CPU CPLD JTAG image                       |
-| darwin_fan-cpld_v0x4v0.adata                                 | FAN CPLD image                            |
-| darwin_switch-card-cpld_v0xdv7.astp                          | SC CPLD JTAG image                        |
-| darwin_switch-card-sat-cpld_v0x5v0.astp                      | SC Satellite CPLD image                   |
-| darwin_switch-card-scd_v0xev6.abit                           | SC SCD FPGA image (SPI)                   |
-| darwin_switch-card-scd-stripped_v0xev6.abit                  | SC SCD FPGA image (SPI w/header stripped) |
-| darwin_switch-card-scd_v0xev6.axsvf                          | SC SCD FPGA image (JTAG)                  |
-| darwin_ssd-fw_vU0316A_AF240GSTIA-AW1.bin                     | SSD firmware (ATP)                        |
-| darwin_ssd-fw_v0710-000_VSFDM4CC240G-V11.bin                 | SSD firmware (Virtium)                    |
+| Programmable Name                                                 | Description                               |
+|-------------------------------------------------------------------|-------------------------------------------|
+| P_darwin_F_BIOS_V_Aboot-norcal7-7.5.3-cb411-rook-2x4-39223411.rom | Bootloader for x86                        |
+| P_darwin_F_CPU_CPLD_V_22.37.astp                                  | CPU CPLD JTAG image                       |
+| P_darwin_F_FAN_CPLD_V_4.0.adata                                   | FAN CPLD image                            |
+| P_darwin_F_SC_CPLD_V_13.7.astp                                    | SC CPLD JTAG image                        |
+| P_darwin_F_SC_SAT_CPLD_V_5.0.astp                                 | SC Satellite CPLD image                   |
+| P_darwin_F_SC_SCD_V_14.6.abit                                     | SC SCD FPGA image (SPI w/header stripped) |
+| darwin_ssd-fw_vU0316A_AF240GSTIA-AW1.bin                          | SSD firmware (ATP)                        |
+| darwin_ssd-fw_v0710-000_VSFDM4CC240G-V11.bin                      | SSD firmware (Virtium)                    |
 
 
 # Changelogs
@@ -21,9 +19,9 @@ programmable. The most recent version can be found in this
 directory.
 
 ## Changes From Last Package
-| Programmable Name                                            | Description                                         |
-|--------------------------------------------------------------|-----------------------------------------------------|
-| darwin_bios_vAboot-norcal7-7.5.3-cb411-rook-2x4-39223411.rom | Contains support for the UAPI boot loader spec (BLS)|
+| Programmable Name                                                 | Description                                         |
+|-------------------------------------------------------------------|-----------------------------------------------------|
+| P_darwin_F_BIOS_V_Aboot-norcal7-7.5.3-cb411-rook-2x4-39223411.rom | Contains support for the UAPI boot loader spec (BLS)|
 
 ## BIOS
 
