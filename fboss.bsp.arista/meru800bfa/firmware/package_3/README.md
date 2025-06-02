@@ -67,39 +67,43 @@ directory.
 
 ## SMB FPGA0
 
-| Version  | Changelog                           |
-|----------|-------------------------------------|
-| 1.14     | Initial SMB FPGA0 image.            |
-| 1.15     | No software-visible change vs 1.14. |
-| 1.19     | No software-visible change vs 1.15. |
-| 1.21     | No software-visible change vs 1.19. |
+| Version  | Changelog                                     |
+|----------|-----------------------------------------------|
+| 1.14     | Initial SMB FPGA0 image.                      |
+| 1.15     | No software-visible change vs 1.14.           |
+| 1.19     | No software-visible change vs 1.15.           |
+| 1.21     | No software-visible change vs 1.19.           |
+| 1.22     | Reduced the drive strength of PORT I2C buses. |
 
 ## SMB FPGA1
 
-| Version  | Changelog                           |
-|----------|-------------------------------------|
-| 1.14     | Initial SMB FPGA1 image.            |
-| 1.15     | No software-visible change vs 1.14. |
-| 1.19     | No software-visible change vs 1.15. |
-| 1.21     | No software-visible change vs 1.19. |
+| Version  | Changelog                                     |
+|----------|-----------------------------------------------|
+| 1.14     | Initial SMB FPGA1 image.                      |
+| 1.15     | No software-visible change vs 1.14.           |
+| 1.19     | No software-visible change vs 1.15.           |
+| 1.21     | No software-visible change vs 1.19.           |
+| 1.22     | Reduced the drive strength of PORT I2C buses. |
 
 ## SMB FPGA2
 
-| Version  | Changelog                           |
-|----------|-------------------------------------|
-| 1.15     | Initial SMB FPGA2 image.            |
-| 1.25     | Improve link quality for R0 lanes.  |
-| 1.26     | No software-visible change vs 1.25. |
-| 1.27     | No software-visible change vs 1.26. |
+| Version  | Changelog                                     |
+|----------|-----------------------------------------------|
+| 1.15     | Initial SMB FPGA2 image.                      |
+| 1.25     | Improve link quality for R0 lanes.            |
+| 1.26     | No software-visible change vs 1.25.           |
+| 1.27     | No software-visible change vs 1.26.           |
+| 1.28     | Reduced the drive strength of PORT I2C buses. |
 
 ## SMB FPGA3
 
-| Version  | Changelog                           |
-|----------|-------------------------------------|
-| 1.13     | Initial SMB FPGA3 image.            |
-| 1.22     | Improve link quality for R0 lanes.  |
-| 1.23     | No software-visible change vs 1.22. |
-| 1.24     | No software-visible change vs 1.23. |
+| Version  | Changelog                                     |
+|----------|-----------------------------------------------|
+| 1.13     | Initial SMB FPGA3 image.                      |
+| 1.22     | Improve link quality for R0 lanes.            |
+| 1.23     | No software-visible change vs 1.22.           |
+| 1.24     | No software-visible change vs 1.23.           |
+| 1.25     | Reduced the drive strength of PORT I2C buses. |
 
 ## FAN CPLD
 
