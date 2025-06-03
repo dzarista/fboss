@@ -36,7 +36,7 @@ cp "$PLATFORMMAPPING_GEN" /tmp/fbcode_builder_getdeps-ZvarZFBOSSZfboss.gitZbuild
 cd /var/FBOSS/fboss.git
 mkdir -p tmp/generated_platform_mappings/$platform
 ./fboss/lib/platform_mapping_v2/run-helper.sh \
---input-dir arista/platform/$platform/config \
+--input-dir arista/platform/$platform/config/ \
 --output-dir tmp/generated_platform_mappings/$platform \
 --platform-name $platform
 

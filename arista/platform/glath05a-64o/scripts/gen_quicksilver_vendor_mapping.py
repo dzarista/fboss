@@ -7,7 +7,7 @@ sys.path.append( "../../lib" )
 import csv
 from dataclasses import astuple
 from PlatformUtils import PortMedium, SpeedGbps, validMediaForSpeed, \
-   validNifSerdesSpeeds, speedInMbps, txTapSettingsByLaneProps
+   validNifSerdesSpeeds, speedInMbps, txTapSettingsByLaneProps, TxTapSettings
 from VendorMappings import StaticMapping, PortProfileMapping, SISettings
 
 """
@@ -186,6 +186,68 @@ with open( "quicksilver_port_profile_mapping.csv", "w" ) as fh:
          ) )
          nifLogicalPortId += 1
 
+txTapSettingsByLane = {
+   SpeedGbps.Fifty:{
+      PortMedium.COPPER:{},
+      PortMedium.OPTICAL:{}
+   },
+   SpeedGbps.Hundred:{
+      PortMedium.COPPER:{},
+      PortMedium.OPTICAL:{}
+   }
+}
+
+with open( "quicksilverLineTuningFiber100G.csv" ) as fh:
+   for line in fh:
+      if line.startswith( "ComponentId" ):
+         continue
+      ComponentId,SerdesId,Pre3Tap,Pre2Tap,Pre1Tap,MainTap,Post1Tap,Post2Tap = line.rstrip().split(",")
+
+      SerdesId = int( SerdesId )
+      Pre3Tap = int( Pre3Tap )
+      Pre2Tap = int( Pre2Tap )
+      Pre1Tap = int( Pre1Tap )
+      MainTap = int( MainTap )
+      Post1Tap = int( Post1Tap )
+      Post2Tap = int( Post2Tap )
+
+      taps = TxTapSettings(Pre3Tap, Pre2Tap, Pre1Tap, MainTap, Post1Tap, Post2Tap, 0)
+      txTapSettingsByLane[SpeedGbps.Hundred][PortMedium.OPTICAL][SerdesId] = taps
+
+with open( "quicksilverLineTuningFiber50G.csv" ) as fh:
+   for line in fh:
+      if line.startswith( "ComponentId" ):
+         continue
+      ComponentId,SerdesId,Pre3Tap,Pre2Tap,Pre1Tap,MainTap,Post1Tap,Post2Tap = line.rstrip().split(",")
+
+      SerdesId = int( SerdesId )
+      Pre3Tap = int( Pre3Tap )
+      Pre2Tap = int( Pre2Tap )
+      Pre1Tap = int( Pre1Tap )
+      MainTap = int( MainTap )
+      Post1Tap = int( Post1Tap )
+      Post2Tap = int( Post2Tap )
+
+      taps = TxTapSettings(Pre3Tap, Pre2Tap, Pre1Tap, MainTap, Post1Tap, Post2Tap, 0)
+      txTapSettingsByLane[SpeedGbps.Fifty][PortMedium.OPTICAL][SerdesId] = taps
+
+with open( "quicksilverLineTuningCopper50G.csv" ) as fh:
+   for line in fh:
+      if line.startswith( "ComponentId" ):
+         continue
+      ComponentId,SerdesId,Pre3Tap,Pre2Tap,Pre1Tap,MainTap,Post1Tap,Post2Tap = line.rstrip().split(",")
+
+      SerdesId = int( SerdesId )
+      Pre3Tap = int( Pre3Tap )
+      Pre2Tap = int( Pre2Tap )
+      Pre1Tap = int( Pre1Tap )
+      MainTap = int( MainTap )
+      Post1Tap = int( Post1Tap )
+      Post2Tap = int( Post2Tap )
+
+      taps = TxTapSettings(Pre3Tap, Pre2Tap, Pre1Tap, MainTap, Post1Tap, Post2Tap, 0)
+      txTapSettingsByLane[SpeedGbps.Fifty][PortMedium.COPPER][SerdesId] = taps
+
 with open( "quicksilver_si_settings.csv", "w" ) as fh:
    fields = [ field for field in SISettings.getLabels()]
    mappingWriter = csv.writer(fh, lineterminator='\n', quoting=csv.QUOTE_NONE)
@@ -199,7 +261,12 @@ with open( "quicksilver_si_settings.csv", "w" ) as fh:
             for logicalNifSerdes in range( numNifSerdesOctets * numSerdesPerOctet ):
                coreId = logicalNifSerdes // numSerdesPerOctet
                coreLane = logicalNifSerdes % numSerdesPerOctet
-               txTapSettings = txTapSettingsByLaneProps( speed, medium )
+
+               if txTapSettingsByLane[speed][medium]:
+                  txTapSettings = txTapSettingsByLane[speed][medium][logicalNifSerdes]
+               else:
+                  txTapSettings = txTapSettingsByLaneProps( speed, medium )
+
                mappingWriter.writerow( astuple(
                                       SISettings(1, chipId, "NPU", coreId, "TH5_NIF",
                                       coreLane, speedInMbps( speed ), medium.name,
