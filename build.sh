@@ -118,28 +118,11 @@ touch ".git"
 # Pin fboss and its dependencies to known stable commit hash
 rm -rf build/deps/github_hashes
 tar -xvf fboss/oss/stable_commits/latest_stable_hashes.tar.gz --no-same-owner
-sed -i '/dependencies/asai_impl' build/fbcode_builder/manifests/fboss
 
-sai_install_dir() { 
-   ./build/fbcode_builder/getdeps.py show-inst-dir --scratch-path $scratch_dir fboss \
-      --extra-cmake-defines='{"CMAKE_CXX_STANDARD":"20"}' --recursive  | grep sai_impl-
-}
-
-sai_checksum() { 
-   echo `find $sai_sdk_dir/include $sai_sdk_dir/libraries/ -type f -print0 | \
-      sort -z | xargs -0 xxh128sum` $arch | xxh128sum 
-}
-
-# Provide brcm sai static library
-if [[ $(cat $scratch_dir/.sai_hash) = `sai_checksum` ]] && [[ -f $scratch_dir/.libsai.copy ]] && \
-   [[ -f build/fbcode_builder/manifests/sai_impl ]] && [[ -d `sai_install_dir` ]]; then
-   cp $scratch_dir/.libsai.copy build/fbcode_builder/manifests/libsai
-else
-   fboss/oss/scripts/arista-build-helper.py $sai_sdk_dir/libraries/libsai_impl.a \
-      $sai_sdk_dir/include/ /tmp/sai_impl_output $ocp_sai_version
-   mkdir -p $scratch_dir; echo "`sai_checksum`" > $scratch_dir/.sai_hash
-   cp build/fbcode_builder/manifests/libsai $scratch_dir/.libsai.copy
-fi
+fboss/oss/scripts/arista-build-helper.py $sai_sdk_dir/libraries/libsai_impl.a \
+   $sai_sdk_dir/include/ /tmp/sai_impl_output $ocp_sai_version
+./build/fbcode_builder/getdeps.py build --scratch-path $scratch_dir sai_impl \
+   --extra-cmake-defines='{"CMAKE_CXX_STANDARD":"20"}'
 
 # Setup environment for FBOSS build
 export SAI_ONLY=1
@@ -152,7 +135,8 @@ unset DESTDIR
 echo "==== Building fboss ===="
 time ./build/fbcode_builder/getdeps.py build --allow-system-packages --num-jobs 40 \
    --scratch-path $scratch_dir --build-type $build_type ${src_dir_arg[@]} fboss \
-   --extra-cmake-defines='{"CMAKE_CXX_STANDARD":"20"}' ${cmake_target+--cmake-target $cmake_target}
+   --extra-cmake-defines='{"CMAKE_CXX_STANDARD":"20"}' ${cmake_target+--cmake-target $cmake_target} \
+   ${FBOSS_BARNEY_BUILD+--schedule-type continuous}
 
 echo "==== Building bsp-kmods ===="
 make -C $kernel_dir M=~+/fboss.bsp.arista/bsp-kmods modules
