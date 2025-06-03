@@ -24,9 +24,10 @@ if GIT_SSH_COMMAND="ssh -i ../../private.key -o IdentitiesOnly=yes" git ls-remot
    GIT_SSH_COMMAND="ssh -i ../../private.key -o IdentitiesOnly=yes" git push origin -d $upstream_pr_branch_name
 fi
 GIT_SSH_COMMAND="ssh -i ../../private.key -o IdentitiesOnly=yes" git checkout -b $upstream_pr_branch_name origin/main || exit 1
-cd ../..
+cd ..
 # Real text diff is found in text_only.patch. They can be applied in upstream_repo with 'patch' command
-if patch -p1 < text_only.patch &> patch_status.txt; then
+if patch -p1 < ../text_only.patch &> patch_status.txt; then
+   cd ..
    # Binary file diff is found in binary_only.diff. 'patch' command doesn't work in the case of binary files.
    # Hence, process them one after the other.
    while read -r old_file modified_file; do
