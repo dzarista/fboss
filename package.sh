@@ -14,7 +14,7 @@ fboss_spec_dir=arista/rpm
 scratch_dir=/var/FBOSS/tmp_build_dir
 sai_sdk_dir=/result
 export_dir=/src/dest/
-no_compression=1
+compression_level=1
 
 args=()
 while [[ $# -gt 0 ]]; do
@@ -32,7 +32,7 @@ while [[ $# -gt 0 ]]; do
          shift; shift
          ;;
       --compress)
-         unset no_compression
+         compression_level=9
          shift
          ;;
       --help)
@@ -76,7 +76,7 @@ export QA_SKIP_RPATHS=1 # Needed to skip rpath check
 for rpm in $rpms; do
    rpmbuild -v --define '_topdir /tmp/rpmbuild' --define "_fboss_dir $PWD" \
       --define "_sai_sdk_dir $sai_sdk_dir" --define "_scratch_dir $scratch_dir" \
-      --define "_tmppath /tmp" ${no_compression+--define "_binary_payload w0.gzdio"} \
+      --define "_tmppath /tmp" --define "_binary_payload w$compression_level.zstdio" \
       --undefine __brp_mangle_shebangs -bb $rpm
 done
 
