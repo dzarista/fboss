@@ -19,6 +19,13 @@
 
 namespace facebook::fboss {
 
+const NextHopGroupInfo* EcmpResourceManager::getGroupInfo(
+    RouterID rid,
+    const folly::CIDRNetwork& nw) const {
+  auto pitr = prefixToGroupInfo_.find({rid, nw});
+  return pitr == prefixToGroupInfo_.end() ? nullptr : pitr->second.get();
+}
+
 std::vector<StateDelta> EcmpResourceManager::consolidate(
     const StateDelta& delta) {
   CHECK(!preUpdateState_.has_value());
@@ -69,6 +76,13 @@ std::vector<StateDelta> EcmpResourceManager::consolidateImpl(
   processRouteUpdates(delta, inOutState);
   reclaimEcmpGroups(inOutState);
   CHECK(!inOutState->out.empty());
+  if (!inOutState->updated) {
+    /*
+     * If inOutState was not updated, just return the original delta
+     */
+    inOutState->out.clear();
+    inOutState->out.emplace_back(delta.oldState(), delta.newState());
+  }
   return std::move(inOutState->out);
 }
 
@@ -120,11 +134,12 @@ void EcmpResourceManager::reclaimEcmpGroups(InputOutputState* inOutState) {
   }
   auto oldState = inOutState->out.back().newState();
   auto newState = oldState->clone();
-  for (const auto& [ridAndPfx, grpInfo] : prefixToGroupInfo_) {
+  for (auto& [ridAndPfx, grpInfo] : prefixToGroupInfo_) {
     if (!groupIdsToReclaim.contains(grpInfo->getID())) {
       continue;
     }
 
+    grpInfo->setIsBackupEcmpGroupType(false);
     auto updateFib = [](const auto& routePfx, auto fib) {
       auto route = fib->exactMatch(routePfx)->clone();
       const auto& curForwardInfo = route->getForwardInfo();
@@ -178,6 +193,7 @@ void EcmpResourceManager::reclaimEcmpGroups(InputOutputState* inOutState) {
    */
   inOutState->out.emplace_back(oldState, newState);
   inOutState->nonBackupEcmpGroupsCnt += groupIdsToReclaim.size();
+  inOutState->updated = true;
   XLOG(DBG2) << " Primary ECMP Groups after reclaim: "
              << inOutState->nonBackupEcmpGroupsCnt;
 }
@@ -362,6 +378,7 @@ EcmpResourceManager::updateForwardingInfoAndInsertDelta(
   newRoute->setResolved(std::move(newForwardInfo));
   newRoute->publish();
   inOutState->addOrUpdateRoute(rid, newRoute, ecmpDemandExceeded);
+  inOutState->updated = true;
   return grpInfo;
 }
 
@@ -446,9 +463,9 @@ void EcmpResourceManager::routeAddedOrUpdated(
   auto [idItr, inserted] = nextHopGroup2Id_.insert(
       {nhopSet, findCachedOrNewIdForNhops(nhopSet, *inOutState)});
   std::shared_ptr<NextHopGroupInfo> grpInfo;
+  bool isBackupEcmpGroupType =
+      newRoute->getForwardInfo().getOverrideEcmpSwitchingMode().has_value();
   if (inserted) {
-    bool isBackupEcmpGroupType =
-        newRoute->getForwardInfo().getOverrideEcmpSwitchingMode().has_value();
     if (ecmpLimitReached && !isBackupEcmpGroupType) {
       /*
        * If ECMP limit is reached and route does not point to a backup
@@ -480,7 +497,7 @@ void EcmpResourceManager::routeAddedOrUpdated(
   } else {
     // Route points to a existing group
     grpInfo = nextHopGroupIdToInfo_.ref(idItr->second);
-    if (grpInfo->isBackupEcmpGroupType()) {
+    if (grpInfo->isBackupEcmpGroupType() && !isBackupEcmpGroupType) {
       auto existingGrpInfo = updateForwardingInfoAndInsertDelta(
           rid, newRoute, idItr, false /*ecmpLimitReached*/, inOutState);
       CHECK_EQ(existingGrpInfo, grpInfo);

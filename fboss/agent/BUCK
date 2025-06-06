@@ -951,7 +951,6 @@ cpp_library(
         "//scribe/client:scribe_client_no_sr",
         "//servicerouter/client/cpp2:cpp2",
         "//thrift/lib/cpp/util:enum_utils",
-        "//thrift/lib/cpp2/async:header_client_channel",
         "//thrift/lib/cpp2/async:pooled_request_channel",
         "//thrift/lib/cpp2/async:reconnecting_request_channel",
         "//thrift/lib/cpp2/async:request_channel",
@@ -1233,12 +1232,14 @@ cpp_library(
     name = "packet",
     srcs = [
         "Packet.cpp",
+        "TxPacket.cpp",
     ],
     headers = [
         "Packet.h",
         "RxPacket.h",
         "SwRxPacket.h",
         "TxPacket.h",
+        "TxPacketObserver.h",
     ],
     exported_deps = [
         ":fboss-types",
@@ -1380,6 +1381,7 @@ cpp_library(
         ":packet",
         ":stats",
         "//fboss/agent/if:multiswitch_ctrl-cpp2-services",
+        "//fboss/agent/state:state",
     ],
 )
 

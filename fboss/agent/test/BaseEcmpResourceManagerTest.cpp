@@ -17,13 +17,12 @@ namespace facebook::fboss {
 RouteNextHopSet makeNextHops(int n) {
   CHECK_LT(n, 255);
   RouteNextHopSet h;
-  const InterfaceID kRandomInterfaceId{1};
   for (int i = 0; i < n; i++) {
     std::stringstream ss;
     ss << std::hex << i + 1;
-    auto ipStr = "100::" + ss.str();
+    auto ipStr = folly::sformat("2400:db00:2110:{}::2", i);
     h.emplace(ResolvedNextHop(
-        folly::IPAddress(ipStr), kRandomInterfaceId, UCMP_DEFAULT_WEIGHT));
+        folly::IPAddress(ipStr), InterfaceID(i + 1), UCMP_DEFAULT_WEIGHT));
   }
   return h;
 }
@@ -46,21 +45,57 @@ std::shared_ptr<RouteV6> makeRoute(
   return rt;
 }
 
+cfg::SwitchConfig onePortPerIntfConfig(int numIntfs) {
+  cfg::SwitchConfig cfg;
+  cfg.ports()->resize(numIntfs);
+  cfg.vlans()->resize(numIntfs);
+  cfg.interfaces()->resize(numIntfs);
+  int idBegin = 1;
+  for (int p = 0; p < numIntfs; ++p) {
+    auto id = p + idBegin;
+    cfg.ports()[p].logicalID() = id;
+    cfg.ports()[p].name() = folly::to<std::string>("port", id);
+    cfg.ports()[p].speed() = cfg::PortSpeed::TWENTYFIVEG;
+    cfg.ports()[p].profileID() =
+        cfg::PortProfileID::PROFILE_25G_1_NRZ_CL74_COPPER;
+    cfg.vlans()[p].id() = id;
+    cfg.vlans()[p].name() = folly::to<std::string>("Vlan", id);
+    cfg.vlans()[p].intfID() = id;
+    cfg.interfaces()[p].intfID() = id;
+    cfg.interfaces()[p].routerID() = 0;
+    cfg.interfaces()[p].vlanID() = id;
+    cfg.interfaces()[p].name() = folly::to<std::string>("interface", id);
+    cfg.interfaces()[p].mac() = "00:02:00:00:00:01";
+    cfg.interfaces()[p].mtu() = 9000;
+    cfg.interfaces()[p].ipAddresses()->resize(1);
+    cfg.interfaces()[p].ipAddresses()[0] =
+        folly::sformat("2400:db00:2110:{}::1/64", p);
+  }
+  cfg::FlowletSwitchingConfig flowletConfig;
+  flowletConfig.backupSwitchingMode() = cfg::SwitchingMode::PER_PACKET_RANDOM;
+  cfg.flowletSwitchingConfig() = flowletConfig;
+  return cfg;
+}
+
 std::vector<StateDelta> BaseEcmpResourceManagerTest::consolidate(
     const std::shared_ptr<SwitchState>& state) {
   state->publish();
+  XLOG(DBG2) << " Consolidator update start";
   StateDelta delta(state_, state);
   auto deltas = consolidator_->consolidate(delta);
   consolidator_->updateDone();
   if (deltas.size()) {
     XLOG(DBG2) << " Checking deltas, num deltas: " << deltas.size();
     assertDeltasForOverflow(deltas);
-    state_ = deltas.back().newState();
-  } else {
-    state_ = state;
   }
-  state_->publish();
-  EXPECT_EQ(state_->getFibs()->getNode(RouterID(0))->getFibV4()->size(), 0);
+  XLOG(DBG2) << " Consolidator update done";
+  XLOG(DBG2) << " SwSwitch update start";
+  updateFlowletSwitchingConfig(state);
+  updateRoutes(state);
+  XLOG(DBG2) << " SwSwitch update done";
+  CHECK(state_->isPublished());
+  state_ = sw_->getState();
+  EXPECT_EQ(state_->getFibs()->getNode(RouterID(0))->getFibV4()->size(), 1);
   /*
    * Assert that EcmpResourceMgr leaves the ports state untouched
    */
@@ -76,10 +111,11 @@ std::vector<StateDelta> BaseEcmpResourceManagerTest::consolidate(
     for (const auto& [_, origRoute] : std::as_const(*cfib(state_))) {
       auto newRoute = newFib6->getRouteIf(origRoute->prefix());
       EXPECT_EQ(newRoute->isResolved(), origRoute->isResolved());
-      CHECK(origRoute->isResolved());
-      EXPECT_EQ(
-          newRoute->getForwardInfo().getOverrideEcmpSwitchingMode(),
-          origRoute->getForwardInfo().getOverrideEcmpSwitchingMode());
+      if (origRoute->isResolved()) {
+        EXPECT_EQ(
+            newRoute->getForwardInfo().getOverrideEcmpSwitchingMode(),
+            origRoute->getForwardInfo().getOverrideEcmpSwitchingMode());
+      }
     }
   }
   return deltas;
@@ -231,25 +267,22 @@ RouteV6::Prefix BaseEcmpResourceManagerTest::nextPrefix() const {
 
 void BaseEcmpResourceManagerTest::SetUp() {
   XLOG(DBG2) << "BaseEcmpResourceMgrTest SetUp";
+  FLAGS_enable_ecmp_resource_manager = true;
+  FLAGS_ecmp_resource_percentage = 100;
+  FLAGS_flowletSwitchingEnable = true;
+  FLAGS_dlbResourceCheckEnable = false;
+  auto cfg = onePortPerIntfConfig(kNumIntfs);
+  handle_ = createTestHandle(&cfg);
+  sw_ = handle_->getSw();
+  ASSERT_NE(sw_->getEcmpResourceManager(), nullptr);
+  // Taken from mock asic
+  EXPECT_EQ(sw_->getEcmpResourceManager()->getMaxPrimaryEcmpGroups(), 5);
+  // Backup ecmp group type will com from default flowlet confg
+  EXPECT_EQ(
+      *sw_->getEcmpResourceManager()->getBackupEcmpSwitchingMode(),
+      *cfg.flowletSwitchingConfig()->backupSwitchingMode());
   consolidator_ = makeResourceMgr();
-  state_ = std::make_shared<SwitchState>();
-  state_->getPorts()->modify(&state_);
-  registerPort(state_, PortID(1), "port1", hwMatcher());
-  auto switchSettings = std::make_shared<SwitchSettings>();
-  state_->getSwitchSettings()->addNode(
-      hwMatcher().matcherString(), switchSettings);
-  auto flowletSwitchingConfig = std::make_shared<FlowletSwitchingConfig>();
-  if (consolidator_->getBackupEcmpSwitchingMode()) {
-    flowletSwitchingConfig->setBackupSwitchingMode(
-        *consolidator_->getBackupEcmpSwitchingMode());
-  }
-  switchSettings->setFlowletSwitchingConfig(flowletSwitchingConfig);
-  EXPECT_EQ(state_->getFlowletSwitchingConfig(), flowletSwitchingConfig);
-  auto fibContainer =
-      std::make_shared<ForwardingInformationBaseContainer>(RouterID(0));
-  auto mfib = std::make_shared<MultiSwitchForwardingInformationBaseMap>();
-  mfib->updateForwardingInformationBaseContainer(fibContainer, hwMatcher());
-  state_->resetForwardingInformationBases(mfib);
+  state_ = sw_->getState();
   state_->publish();
   auto newState = state_->clone();
   auto fib6 = fib(newState);
@@ -274,6 +307,81 @@ BaseEcmpResourceManagerTest::getNhopGroupIds() const {
   return nhopIds;
 }
 
+void BaseEcmpResourceManagerTest::updateFlowletSwitchingConfig(
+    const std::shared_ptr<SwitchState>& newState) {
+  if (sw_->getState()->getFlowletSwitchingConfig() !=
+      newState->getFlowletSwitchingConfig()) {
+    auto curConfig = sw_->getConfig();
+    if (newState->getFlowletSwitchingConfig()) {
+      curConfig.flowletSwitchingConfig()->backupSwitchingMode() =
+          newState->getFlowletSwitchingConfig()->getBackupSwitchingMode();
+    } else {
+      curConfig.flowletSwitchingConfig().reset();
+    }
+    sw_->applyConfig("flowletSwitching change", curConfig);
+  }
+}
+
+void BaseEcmpResourceManagerTest::updateRoutes(
+    const std::shared_ptr<SwitchState>& newState) {
+  auto updater = sw_->getRouteUpdater();
+  auto constexpr kClientID(ClientID::BGPD);
+  StateDelta delta(sw_->getState(), newState);
+  processFibsDeltaInHwSwitchOrder(
+      delta,
+      [&updater](RouterID rid, const auto& /*oldRoute*/, const auto& newRoute) {
+        updater.addRoute(
+            rid,
+            newRoute->prefix().network(),
+            newRoute->prefix().mask(),
+            kClientID,
+            newRoute->getForwardInfo());
+      },
+      [&updater](RouterID rid, const auto& newRoute) {
+        updater.addRoute(
+            rid,
+            newRoute->prefix().network(),
+            newRoute->prefix().mask(),
+            kClientID,
+            newRoute->getForwardInfo());
+      },
+      [&updater](RouterID rid, const auto& oldRoute) {
+        IpPrefix pfx;
+        pfx.ip() = network::toBinaryAddress(oldRoute->prefix().network());
+        pfx.prefixLength() = oldRoute->prefix().mask();
+        updater.delRoute(rid, pfx, kClientID);
+      });
+
+  updater.program();
+  assertRibFibEquivalence();
+}
+
+void BaseEcmpResourceManagerTest::assertRibFibEquivalence() const {
+  waitForStateUpdates(sw_);
+  for (const auto& [_, route] : std::as_const(*cfib(sw_->getState()))) {
+    auto ribRoute =
+        sw_->getRib()->longestMatch(route->prefix().network(), RouterID(0));
+    ASSERT_NE(ribRoute, nullptr);
+    // TODO - check why are the pointers different even though the
+    // forwarding info matches. This is true with or w/o consolidator
+    EXPECT_EQ(ribRoute->getForwardInfo(), route->getForwardInfo());
+  }
+}
+
+std::vector<std::shared_ptr<RouteV6>>
+BaseEcmpResourceManagerTest::getPostConfigResolvedRoutes(
+    const std::shared_ptr<SwitchState>& in) const {
+  std::vector<std::shared_ptr<RouteV6>> routes;
+  for (const auto& [_, route] : std::as_const(*cfib(in))) {
+    if (!route->isResolved() || route->isConnected() ||
+        route->getForwardInfo().getNextHopSet().empty()) {
+      continue;
+    }
+    routes.emplace_back(route);
+  }
+  return routes;
+}
+
 std::optional<EcmpResourceManager::NextHopGroupId>
 BaseEcmpResourceManagerTest::getNhopId(const RouteNextHopSet& nhops) const {
   std::optional<EcmpResourceManager::NextHopGroupId> nhopId;
@@ -287,14 +395,16 @@ BaseEcmpResourceManagerTest::getNhopId(const RouteNextHopSet& nhops) const {
 TEST_F(BaseEcmpResourceManagerTest, noFibsDelta) {
   auto oldState = state_;
   auto newState = oldState->clone();
-  newState->getPorts()->modify(&newState);
-  registerPort(newState, PortID(2), "port2", hwMatcher());
+  auto ports = newState->getPorts()->modify(&newState);
+  auto port1 = ports->getPort("port1")->clone();
+  port1->setPortDrainState(cfg::PortDrainState::DRAINED);
+  ports->updateNode(port1, hwMatcher());
   auto deltas = consolidate(newState);
   EXPECT_EQ(deltas.size(), 1);
   EXPECT_EQ(deltas.begin()->oldState(), oldState);
   EXPECT_EQ(deltas.begin()->newState(), newState);
   EXPECT_NE(
-      deltas.begin()->newState()->getPorts()->getPortIf("port2"), nullptr);
+      deltas.begin()->newState()->getPorts()->getPortIf("port1"), nullptr);
 }
 
 TEST_F(BaseEcmpResourceManagerTest, addClassId) {

@@ -904,6 +904,7 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
       std::nullopt, // Firmware Object list
       std::nullopt, // tc rate limit list
       pfcWatchdogTimerGranularyMap, // PFC watchdog timer granularity
+      std::nullopt, // disable sll and hll timeout
   };
 }
 

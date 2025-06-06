@@ -59,9 +59,9 @@ class EcmpBackupGroupTypeTest : public BaseEcmpResourceManagerTest {
     auto newState = state_->clone();
     auto fib6 = fib(newState);
     auto newNhops = defaultNhopSets();
-    CHECK_EQ(fib6->size(), newNhops.size());
+    CHECK_EQ(getPostConfigResolvedRoutes(newState).size(), newNhops.size());
     auto idx = 0;
-    for (auto [_, route] : *fib6) {
+    for (const auto& route : getPostConfigResolvedRoutes(state_)) {
       auto newRoute = route->clone();
       newRoute->setResolved(
           RouteNextHopEntry(newNhops[idx++], kDefaultAdminDistance));
@@ -76,12 +76,43 @@ class EcmpBackupGroupTypeTest : public BaseEcmpResourceManagerTest {
   void assertTargetState(
       const std::shared_ptr<SwitchState>& targetState,
       const std::shared_ptr<SwitchState>& endStatePrefixes,
-      const std::set<RouteV6::Prefix>& overflowPrefixes) {
-    EXPECT_EQ(state_->getFibs()->getNode(RouterID(0))->getFibV4()->size(), 0);
+      const std::set<RouteV6::Prefix>& overflowPrefixes,
+      const EcmpResourceManager* consolidatorToCheck = nullptr) {
+    consolidatorToCheck =
+        consolidatorToCheck ? consolidatorToCheck : consolidator_.get();
+    EXPECT_EQ(state_->getFibs()->getNode(RouterID(0))->getFibV4()->size(), 1);
     for (auto [_, inRoute] : std::as_const(*cfib(endStatePrefixes))) {
       auto route = cfib(targetState)->exactMatch(inRoute->prefix());
       ASSERT_TRUE(route->isResolved());
       ASSERT_NE(route, nullptr);
+      auto consolidatorGrpInfo = consolidatorToCheck->getGroupInfo(
+          RouterID(0), inRoute->prefix().toCidrNetwork());
+      bool isEcmpRoute = route->isResolved() &&
+          route->getForwardInfo().getNextHopSet().size() > 1;
+      if (isEcmpRoute) {
+        ASSERT_NE(consolidatorGrpInfo, nullptr);
+        if (consolidatorToCheck == consolidator_.get()) {
+          /*
+           * If consolidatorToCheck is the same as test class consolidator
+           * assert that group infos b/w SwSwitch's consolidator_ and
+           * Test class consolidator match
+           */
+
+          auto swSwitchGroupInfo = sw_->getEcmpResourceManager()->getGroupInfo(
+              RouterID(0), route->prefix().toCidrNetwork());
+          ASSERT_NE(swSwitchGroupInfo, nullptr);
+          auto consolidatorRouteUsageCount =
+              consolidatorGrpInfo->getRouteUsageCount();
+          auto swRouteUsageCount = swSwitchGroupInfo->getRouteUsageCount();
+          auto consolidatorIsBackupEcmpType =
+              consolidatorGrpInfo->isBackupEcmpGroupType();
+          auto swIsBackupEcmpType = swSwitchGroupInfo->isBackupEcmpGroupType();
+          EXPECT_EQ(
+              std::tie(swRouteUsageCount, swIsBackupEcmpType),
+              std::tie(
+                  consolidatorRouteUsageCount, consolidatorIsBackupEcmpType));
+        }
+      }
       if (overflowPrefixes.find(route->prefix()) != overflowPrefixes.end()) {
         EXPECT_TRUE(
             route->getForwardInfo().getOverrideEcmpSwitchingMode().has_value())
@@ -89,10 +120,16 @@ class EcmpBackupGroupTypeTest : public BaseEcmpResourceManagerTest {
             << " to have override ECMP group type";
         EXPECT_EQ(
             route->getForwardInfo().getOverrideEcmpSwitchingMode(),
-            consolidator_->getBackupEcmpSwitchingMode());
+            consolidatorToCheck->getBackupEcmpSwitchingMode());
+        if (isEcmpRoute) {
+          EXPECT_TRUE(consolidatorGrpInfo->isBackupEcmpGroupType());
+        }
       } else {
         EXPECT_FALSE(
             route->getForwardInfo().getOverrideEcmpSwitchingMode().has_value());
+        if (isEcmpRoute) {
+          EXPECT_FALSE(consolidatorGrpInfo->isBackupEcmpGroupType());
+        }
       }
     }
   }
@@ -167,7 +204,7 @@ TEST_F(EcmpBackupGroupTypeTest, updateRouteBelowEcmpLimitToSingleNhop) {
     auto fib6 = fib(newState);
     auto nhopSet = defaultNhops();
     auto nhopItr = nhopSet.begin();
-    for (const auto& [_, route] : std::as_const(*cfib(oldState))) {
+    for (const auto& route : getPostConfigResolvedRoutes(oldState)) {
       auto newRoute = fib6->getRouteIf(route->prefix())->clone();
       newRoute->setResolved(RouteNextHopEntry(
           RouteNextHopSet{*nhopItr++}, kDefaultAdminDistance));
@@ -184,7 +221,7 @@ TEST_F(EcmpBackupGroupTypeTest, updateRouteBelowEcmpLimitToSingleNhop) {
     auto fib6 = fib(newState);
     auto nhopSets = defaultNhopSets();
     auto nhopSetItr = nhopSets.begin();
-    for (const auto& [_, route] : std::as_const(*cfib(oldState))) {
+    for (const auto& route : getPostConfigResolvedRoutes(oldState)) {
       auto newRoute = fib6->getRouteIf(route->prefix())->clone();
       newRoute->setResolved(
           RouteNextHopEntry(*nhopSetItr, kDefaultAdminDistance));
@@ -206,7 +243,7 @@ TEST_F(EcmpBackupGroupTypeTest, updateRoutesSingleNhopToSingleNhop) {
     auto fib6 = fib(newState);
     auto nhopSet = defaultNhops();
     auto nhopItr = nhopSet.begin();
-    for (const auto& [_, route] : std::as_const(*cfib(oldState))) {
+    for (const auto& route : getPostConfigResolvedRoutes(oldState)) {
       auto newRoute = fib6->getRouteIf(route->prefix())->clone();
       newRoute->setResolved(RouteNextHopEntry(
           RouteNextHopSet{*nhopItr++}, kDefaultAdminDistance));
@@ -224,7 +261,7 @@ TEST_F(EcmpBackupGroupTypeTest, updateRoutesSingleNhopToSingleNhop) {
     auto fib6 = fib(newState);
     auto nhopSet = defaultNhops();
     auto nhopItr = nhopSet.rbegin();
-    for (const auto& [_, route] : std::as_const(*cfib(oldState))) {
+    for (const auto& route : getPostConfigResolvedRoutes(oldState)) {
       auto newRoute = fib6->getRouteIf(route->prefix())->clone();
       newRoute->setResolved(RouteNextHopEntry(
           RouteNextHopSet{*nhopItr++}, kDefaultAdminDistance));
@@ -247,7 +284,7 @@ TEST_F(EcmpBackupGroupTypeTest, updateRouteAboveEcmpLimitToSingleNhop) {
     auto oldState = state_;
     auto newState = oldState->clone();
     auto fib6 = fib(newState);
-    auto newRoute = fib6->cbegin()->second->clone();
+    auto newRoute = (*getPostConfigResolvedRoutes(oldState).begin())->clone();
     newRoute->setResolved(
         RouteNextHopEntry(*nhopSets.begin(), kDefaultAdminDistance));
     addedPrefixes.insert(newRoute->prefix());
@@ -265,7 +302,7 @@ TEST_F(EcmpBackupGroupTypeTest, updateRouteAboveEcmpLimitToSingleNhop) {
     auto newState = oldState->clone();
     auto fib6 = fib(newState);
     auto nhopSet = defaultNhops();
-    auto newRoute = fib6->getRouteIf(*addedPrefixes.begin())->clone();
+    auto newRoute = (*getPostConfigResolvedRoutes(oldState).begin())->clone();
     newRoute->setResolved(RouteNextHopEntry(
         RouteNextHopSet{*nhopSet.begin()}, kDefaultAdminDistance));
     fib6->updateNode(newRoute);
@@ -318,7 +355,7 @@ TEST_F(EcmpBackupGroupTypeTest, addRoutesAboveEcmpLimitAndReplay) {
   auto oldState = state_;
   auto newState = oldState->clone();
   auto fib6 = fib(newState);
-  auto routesBefore = fib6->size();
+  auto routesBefore = getPostConfigResolvedRoutes(oldState).size();
   std::set<RouteNextHopSet> nhops;
   std::set<RouteV6::Prefix> overflowPrefixes;
   for (auto i = 0; i < numStartRoutes(); ++i) {
@@ -369,7 +406,7 @@ TEST_F(EcmpBackupGroupTypeTest, addRoutesAboveEcmpLimitAndReplay) {
                << "should get identical result";
     auto newerState = state_->clone();
     fib6 = fib(newerState);
-    for (const auto& [_, origRoute] : std::as_const(*cfib(state_))) {
+    for (const auto& origRoute : getPostConfigResolvedRoutes(state_)) {
       auto route = fib6->getRouteIf(origRoute->prefix())->clone();
       route->publish();
       fib6->updateNode(route);
@@ -386,7 +423,7 @@ TEST_F(EcmpBackupGroupTypeTest, updateRoutesToSingleNhopGroups) {
   auto fib6 = fib(newState);
   auto nhopSet = defaultNhops();
   auto nhopItr = nhopSet.begin();
-  for (const auto& [_, route] : std::as_const(*cfib(oldState))) {
+  for (const auto& route : getPostConfigResolvedRoutes(oldState)) {
     auto newRoute = fib6->getRouteIf(route->prefix())->clone();
     newRoute->setResolved(
         RouteNextHopEntry(RouteNextHopSet{*nhopItr++}, kDefaultAdminDistance));
@@ -405,7 +442,7 @@ TEST_F(EcmpBackupGroupTypeTest, updateRouteBelowEcmpLimit) {
     auto oldState = state_;
     auto newState = oldState->clone();
     auto fib6 = fib(newState);
-    auto rmRoute = fib6->cbegin()->second->clone();
+    auto rmRoute = (*getPostConfigResolvedRoutes(newState).begin())->clone();
     fib6->removeNode(rmRoute);
     auto deltas = consolidate(newState);
     EXPECT_EQ(deltas.size(), 1);
@@ -415,7 +452,7 @@ TEST_F(EcmpBackupGroupTypeTest, updateRouteBelowEcmpLimit) {
     auto oldState = state_;
     auto newState = oldState->clone();
     auto fib6 = fib(newState);
-    auto newRoute = fib6->cbegin()->second->clone();
+    auto newRoute = (*getPostConfigResolvedRoutes(newState).begin())->clone();
     newRoute->setResolved(
         RouteNextHopEntry(*nextNhopSets().begin(), kDefaultAdminDistance));
     fib6->updateNode(newRoute);
@@ -434,7 +471,7 @@ TEST_F(EcmpBackupGroupTypeTest, updateRouteAboveEcmpLimit) {
   auto oldState = state_;
   auto newState = oldState->clone();
   auto fib6 = fib(newState);
-  auto newRoute = fib6->cbegin()->second->clone();
+  auto newRoute = (*getPostConfigResolvedRoutes(oldState).begin())->clone();
   std::set<RouteV6::Prefix> overflowPrefixes;
   newRoute->setResolved(
       RouteNextHopEntry(*nhopSets.begin(), kDefaultAdminDistance));
@@ -452,9 +489,9 @@ TEST_F(EcmpBackupGroupTypeTest, updateAllRoutesOneRouteAboveEcmpLimit) {
   auto fib6 = fib(newState);
   std::set<RouteV6::Prefix> overflowPrefixes;
   auto nhopSets = nextNhopSets();
-  ASSERT_EQ(nhopSets.size(), fib6->size());
+  ASSERT_EQ(nhopSets.size(), getPostConfigResolvedRoutes(oldState).size());
   auto idx = 0;
-  for (const auto& [_, route] : std::as_const(*cfib(oldState))) {
+  for (const auto& route : getPostConfigResolvedRoutes(oldState)) {
     auto newRoute = fib6->getRouteIf(route->prefix())->clone();
     newRoute->setResolved(
         RouteNextHopEntry(nhopSets[idx++], kDefaultAdminDistance));
@@ -467,7 +504,7 @@ TEST_F(EcmpBackupGroupTypeTest, updateAllRoutesOneRouteAboveEcmpLimit) {
 
 TEST_F(EcmpBackupGroupTypeTest, updateAllRoutesAllRoutesAboveEcmpLimit) {
   std::set<RouteV6::Prefix> startPrefixes;
-  for (const auto& [_, route] : std::as_const(*cfib(state_))) {
+  for (const auto& route : getPostConfigResolvedRoutes(state_)) {
     startPrefixes.insert(route->prefix());
   }
   {
@@ -476,7 +513,7 @@ TEST_F(EcmpBackupGroupTypeTest, updateAllRoutesAllRoutesAboveEcmpLimit) {
     auto newState = oldState->clone();
     auto fib6 = fib(newState);
     auto existingNhopSets = defaultNhopSets();
-    auto routesBefore = fib6->size();
+    auto routesBefore = getPostConfigResolvedRoutes(oldState).size();
     for (auto i = 0; i < routesBefore; ++i) {
       auto newRoute =
           makeRoute(makePrefix(routesBefore + i), existingNhopSets[i]);
@@ -538,7 +575,7 @@ TEST_F(EcmpBackupGroupTypeTest, updateAllRoutesToNewNhopsAboveEcmpLimit) {
     auto newState = oldState->clone();
     auto fib6 = fib(newState);
     auto existingNhopSets = defaultNhopSets();
-    auto routesBefore = fib6->size();
+    auto routesBefore = getPostConfigResolvedRoutes(oldState).size();
     for (auto i = 0; i < routesBefore; ++i) {
       auto newRoute =
           makeRoute(makePrefix(routesBefore + i), existingNhopSets[i]);
@@ -574,7 +611,7 @@ TEST_F(EcmpBackupGroupTypeTest, updateAllRoutesToNewNhopsAboveEcmpLimit) {
     auto nhopSets = nextNhopSets();
     auto idx = 0;
     bool idxDirectionFwd = true;
-    for (const auto& [_, route] : std::as_const(*cfib(oldState))) {
+    for (const auto& route : getPostConfigResolvedRoutes(oldState)) {
       auto newRoute = fib6->getRouteIf(route->prefix())->clone();
       newRoute->setResolved(RouteNextHopEntry(
           nhopSets[idxDirectionFwd ? idx++ : idx--], kDefaultAdminDistance));
@@ -592,7 +629,7 @@ TEST_F(EcmpBackupGroupTypeTest, updateAllRoutesToNewNhopsAboveEcmpLimit) {
 
 TEST_F(EcmpBackupGroupTypeTest, reclaimPrioritizesECMPWithMoreRoutes) {
   std::set<RouteV6::Prefix> overflowPrefixes;
-  size_t routesStart = cfib(state_)->size();
+  size_t routesStart = getPostConfigResolvedRoutes(state_).size();
   {
     /*
      * Initial state
@@ -615,7 +652,7 @@ TEST_F(EcmpBackupGroupTypeTest, reclaimPrioritizesECMPWithMoreRoutes) {
     auto newState = oldState->clone();
     auto fib6 = fib(newState);
     auto nhopSets = nextNhopSets();
-    ASSERT_EQ(nhopSets.size(), fib6->size());
+    ASSERT_EQ(nhopSets.size(), getPostConfigResolvedRoutes(newState).size());
     for (auto i = 0; i < 2; ++i) {
       auto route = makeRoute(makePrefix(routesStart + i), nhopSets[i]);
       overflowPrefixes.insert(route->prefix());
@@ -655,7 +692,8 @@ TEST_F(EcmpBackupGroupTypeTest, reclaimPrioritizesECMPWithMoreRoutes) {
     auto newState = oldState->clone();
     auto fib6 = fib(newState);
     auto nhopSets = nextNhopSets();
-    auto prefixFrom = makePrefix(fib6->size() - 1);
+    auto prefixFrom =
+        makePrefix(getPostConfigResolvedRoutes(newState).size() - 1);
     auto nhopsFrom =
         fib6->getRouteIf(prefixFrom)->getForwardInfo().getNextHopSet();
     auto updateRoute = fib6->getRouteIf(makePrefix(0))->clone();
@@ -700,7 +738,7 @@ TEST_F(EcmpBackupGroupTypeTest, overflowAndSwitchingModeChange) {
   auto oldState = state_;
   auto newState = oldState->clone();
   auto fib6 = fib(newState);
-  auto routesBefore = fib6->size();
+  auto routesBefore = getPostConfigResolvedRoutes(newState).size();
   std::set<RouteNextHopSet> nhops;
   std::set<RouteV6::Prefix> overflowPrefixes;
   for (auto i = 0; i < numStartRoutes(); ++i) {
@@ -725,7 +763,7 @@ TEST_F(EcmpBackupGroupTypeTest, overflowRoutesAndThenSwitchingModeChange) {
   auto oldState = state_;
   auto newState = oldState->clone();
   auto fib6 = fib(newState);
-  auto routesBefore = fib6->size();
+  auto routesBefore = getPostConfigResolvedRoutes(newState).size();
   std::set<RouteNextHopSet> nhops;
   std::set<RouteV6::Prefix> overflowPrefixes;
   for (auto i = 0; i < numStartRoutes(); ++i) {
@@ -756,7 +794,11 @@ TEST_F(EcmpBackupGroupTypeTest, resetBackupSwitchingModeProhibited) {
                             ->getNode(hwMatcher().matcherString())
                             ->modify(&newState);
   switchSettings->setFlowletSwitchingConfig(nullptr);
-  EXPECT_THROW(consolidate(newState), FbossError);
+  auto newConsolidator = makeResourceMgr();
+  newConsolidator->reconstructFromSwitchState(oldState);
+  newConsolidator->updateDone();
+  EXPECT_THROW(
+      newConsolidator->consolidate(StateDelta(oldState, newState)), FbossError);
 }
 
 TEST_F(EcmpBackupGroupTypeTest, changeSwitchingModeAndFailUpdate) {
@@ -774,7 +816,7 @@ TEST_F(EcmpBackupGroupTypeTest, changeSwitchingModeAndFailUpdate) {
 
 TEST_F(EcmpBackupGroupTypeTest, overflowRoutesInReverseOrderOfReplay) {
   std::set<RouteV6::Prefix> startPrefixes;
-  for (const auto& [_, route] : std::as_const(*cfib(state_))) {
+  for (const auto& route : getPostConfigResolvedRoutes(state_)) {
     startPrefixes.insert(route->prefix());
   }
   // clear all routes
@@ -876,6 +918,7 @@ TEST_F(EcmpBackupGroupTypeTest, reclaimOnReplay) {
   auto replayDeltas = newConsolidator->reconstructFromSwitchState(state_);
   ASSERT_EQ(replayDeltas.size(), 1);
   // No overflow, since we increased the limit to cover all the prefixes
-  assertTargetState(replayDeltas.back().newState(), state_, {});
+  assertTargetState(
+      replayDeltas.back().newState(), state_, {}, newConsolidator.get());
 }
 } // namespace facebook::fboss
