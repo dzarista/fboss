@@ -2,6 +2,7 @@
 // Arista Networks, Inc. Confidential and Proprietary.
 
 #include "PsuShowtech.h"
+#include "ShowtechUtils.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
@@ -256,6 +257,7 @@ std::unique_ptr<PowerSupply> createPsu(const char *i2cDevice, int busNum,
                                        int chipAddr) {
   std::vector<uint8_t> mfrModelRegInfo = readI2c(i2cDevice, chipAddr, 0x9a, 0);
   std::string mfrModel(mfrModelRegInfo.begin(), mfrModelRegInfo.end());
+  strip(mfrModel);
 
   // PWR-2422-HV-RED (Liteon Power)
   if (mfrModel == "PS-2242-9A")
