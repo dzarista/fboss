@@ -16,6 +16,7 @@ cd "$(dirname "$0")"
 sai_sdk_dir=/result
 scratch_dir=/var/FBOSS/tmp_build_dir
 kernel_dir=/kernel-6.4
+getdeps=build/fbcode_builder/getdeps.py
 
 while [[ $# -gt 0 ]]; do
    case $1 in
@@ -80,7 +81,7 @@ if ! [[ -z $clean_fboss ]]; then
    make -C $kernel_dir M=~+/fboss.bsp.arista/bsp-kmods clean
    make -C fboss.bsp.arista/showtech clean
    make -C arista/psu-upgrade clean
-   rm -rf $scratch_dir/*
+   $getdeps clean --scratch-path $scratch_dir
    if ! [[ -z $clean_and_exit ]]; then exit 0; fi
 fi
 
@@ -119,9 +120,10 @@ touch ".git"
 rm -rf build/deps/github_hashes
 tar -xvf fboss/oss/stable_commits/latest_stable_hashes.tar.gz --no-same-owner
 
+# Copy and install SAI/SDK artifacts for fboss
 fboss/oss/scripts/arista-build-helper.py $sai_sdk_dir/libraries/libsai_impl.a \
    $sai_sdk_dir/include/ /tmp/sai_impl_output $ocp_sai_version
-./build/fbcode_builder/getdeps.py build --scratch-path $scratch_dir sai_impl \
+$getdeps build --scratch-path $scratch_dir sai_impl \
    --extra-cmake-defines='{"CMAKE_CXX_STANDARD":"20"}'
 
 # Setup environment for FBOSS build
@@ -131,9 +133,10 @@ export GETDEPS_USE_WGET=1
 export BUILD_FBOSS_CLI=1
 export IS_OSS=1
 unset DESTDIR
+export CCACHE_DISABLE="true"
 
 echo "==== Building fboss ===="
-time ./build/fbcode_builder/getdeps.py build --allow-system-packages --num-jobs 40 \
+time $getdeps build --allow-system-packages --num-jobs 40 \
    --scratch-path $scratch_dir --build-type $build_type ${src_dir_arg[@]} fboss \
    --extra-cmake-defines='{"CMAKE_CXX_STANDARD":"20"}' ${cmake_target+--cmake-target $cmake_target} \
    ${FBOSS_BARNEY_BUILD+--schedule-type continuous}
