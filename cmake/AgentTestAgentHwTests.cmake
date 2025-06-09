@@ -122,6 +122,7 @@ target_link_libraries(agent_hw_test_src
   load_balancer_test_utils
   l2learn_observer_util
   mac_test_utils
+  multi_port_traffic_test_utils
   port_stats_test_utils
   utils
   sflow_shim_utils
@@ -134,30 +135,6 @@ target_link_libraries(agent_hw_test_src
   ecmp_test_utils
   scale_test_utils
   neighbor_test_utils
-)
-
-add_executable(multi_switch_agent_hw_test
-  fboss/agent/test/agent_hw_tests/MultiSwitchAgentHwTest.cpp
-)
-
-target_link_libraries(multi_switch_agent_hw_test
-  -Wl,--whole-archive
-  acl_test_utils
-  agent_test_utils
-  copp_test_utils
-  pkt_test_utils
-  agent_hw_test_src
-  agent_hw_test
-  multi_switch_agent_ensemble
-  olympic_qos_utils
-  network_ai_qos_utils
-  trunk_utils
-  traffic_policy_utils
-  Folly::folly
-  hw_packet_utils
-  -Wl,--no-whole-archive
-  ${GTEST}
-  ${LIBGMOCK_LIBRARIES}
 )
 
 function(BUILD_SAI_AGENT_HW_TEST SAI_IMPL_NAME SAI_IMPL_ARG)

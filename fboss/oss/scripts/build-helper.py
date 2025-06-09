@@ -88,9 +88,13 @@ class BuildHelper:
 
     def __init__(self, args):
         self._script_dir = os.getcwd()
-        self._working_tree_dir = git.Repo(
-            ".", search_parent_directories=True
-        ).working_tree_dir
+        # barney doesn't provide git's files so we need use barney's env instead
+        if os.environ.get("SRCDIR_0"):
+            self._working_tree_dir = os.environ.get("SRCDIR_0")
+        else:
+            self._working_tree_dir = git.Repo(
+                ".", search_parent_directories=True
+            ).working_tree_dir
         self._fboss_manifest_path = os.path.join(
             self._working_tree_dir, "build/fbcode_builder/manifests/fboss"
         )

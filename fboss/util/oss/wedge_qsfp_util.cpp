@@ -9,10 +9,12 @@
 #include "fboss/lib/bsp/meru400biu/Meru400biuBspPlatformMapping.h"
 #include "fboss/lib/bsp/meru800bfa/Meru800bfaBspPlatformMapping.h"
 #include "fboss/lib/bsp/meru800bia/Meru800biaBspPlatformMapping.h"
+#include "fboss/lib/bsp/glath05a-64o/Glath05a-64oBspPlatformMapping.h"
 #include "fboss/lib/bsp/minipack3n/Minipack3NBspPlatformMapping.h"
 #include "fboss/lib/bsp/montblanc/MontblancBspPlatformMapping.h"
 #include "fboss/lib/bsp/morgan800cc/Morgan800ccBspPlatformMapping.h"
 #include "fboss/lib/bsp/tahan800bc/Tahan800bcBspPlatformMapping.h"
+#include "fboss/lib/bsp/darwin/DarwinBspPlatformMapping.h"
 #include "fboss/lib/fpga/Wedge400I2CBus.h"
 #include "fboss/lib/fpga/Wedge400TransceiverApi.h"
 #include "fboss/lib/platforms/PlatformMode.h"
@@ -73,6 +75,12 @@ std::pair<std::unique_ptr<TransceiverI2CApi>, int> getTransceiverAPI() {
               .get();
       auto ioBus = std::make_unique<BspIOBus>(systemContainer);
       return std::make_pair(std::move(ioBus), 0);
+    } else if (FLAGS_platform == "glath05a-64o") {
+      auto systemContainer =
+          BspGenericSystemContainer<Glath05a_64oBspPlatformMapping>::getInstance()
+              .get();
+      auto ioBus = std::make_unique<BspIOBus>(systemContainer);
+      return std::make_pair(std::move(ioBus), 0);
     } else if (FLAGS_platform == "morgan800cc") {
       auto systemContainer = BspGenericSystemContainer<
                                  Morgan800ccBspPlatformMapping>::getInstance()
@@ -100,6 +108,13 @@ std::pair<std::unique_ptr<TransceiverI2CApi>, int> getTransceiverAPI() {
     } else if (FLAGS_platform == "minipack3n") {
       auto systemContainer =
           BspGenericSystemContainer<Minipack3NBspPlatformMapping>::getInstance()
+              .get();
+      auto ioBus = std::make_unique<BspIOBus>(systemContainer);
+      return std::make_pair(std::move(ioBus), 0);
+    } else if (
+      FLAGS_platform == "darwin" || FLAGS_platform == "darwin48v") {
+      auto systemContainer =
+          BspGenericSystemContainer<DarwinBspPlatformMapping>::getInstance()
               .get();
       auto ioBus = std::make_unique<BspIOBus>(systemContainer);
       return std::make_pair(std::move(ioBus), 0);
@@ -148,6 +163,12 @@ std::pair<std::unique_ptr<TransceiverI2CApi>, int> getTransceiverAPI() {
             .get();
     auto ioBus = std::make_unique<BspIOBus>(systemContainer);
     return std::make_pair(std::move(ioBus), 0);
+  } else if (mode == PlatformType::PLATFORM_GLATH05A_64O) {
+    auto systemContainer =
+        BspGenericSystemContainer<Glath05a_64oBspPlatformMapping>::getInstance()
+            .get();
+    auto ioBus = std::make_unique<BspIOBus>(systemContainer);
+    return std::make_pair(std::move(ioBus), 0);
   } else if (mode == PlatformType::PLATFORM_MORGAN800CC) {
     auto systemContainer =
         BspGenericSystemContainer<Morgan800ccBspPlatformMapping>::getInstance()
@@ -168,6 +189,14 @@ std::pair<std::unique_ptr<TransceiverI2CApi>, int> getTransceiverAPI() {
             .get();
     auto ioBus = std::make_unique<BspIOBus>(systemContainer);
     return std::make_pair(std::move(ioBus), 0);
+  } else if (
+    mode == PlatformType::PLATFORM_DARWIN ||
+    mode == PlatformType::PLATFORM_DARWIN48V) {
+    auto systemContainer =
+        BspGenericSystemContainer<DarwinBspPlatformMapping>::getInstance()
+            .get();
+    auto ioBus = std::make_unique<BspIOBus>(systemContainer);
+    return std::make_pair(std::move(ioBus), 0);
   }
 
   // TODO(klahey):  Should probably verify the other chip architecture.
@@ -178,7 +207,7 @@ std::pair<std::unique_ptr<TransceiverI2CApi>, int> getTransceiverAPI() {
 }
 
 /* This function creates and returns the Transceiver Platform Api object
- * for that platform. Cuirrently this is kept empty function and it will
+ * for that platform. Currently this is kept empty function and it will
  * be implemented in coming version
  */
 std::pair<std::unique_ptr<TransceiverPlatformApi>, int>
@@ -202,6 +231,8 @@ getTransceiverPlatformAPI(TransceiverI2CApi* i2cBus) {
       mode = PlatformType::PLATFORM_MERU800BFA;
     } else if (FLAGS_platform == "meru800bfa_p1") {
       mode = PlatformType::PLATFORM_MERU800BFA_P1;
+    } else if (FLAGS_platform == "glath05a-64o") {
+      mode = PlatformType::PLATFORM_GLATH05A_64O;
     } else if (FLAGS_platform == "morgan800cc") {
       mode = PlatformType::PLATFORM_MORGAN800CC;
     } else if (FLAGS_platform == "wedge400c") {
@@ -210,6 +241,8 @@ getTransceiverPlatformAPI(TransceiverI2CApi* i2cBus) {
       mode = PlatformType::PLATFORM_JANGA800BIC;
     } else if (FLAGS_platform == "tahan800bc") {
       mode = PlatformType::PLATFORM_TAHAN800BC;
+    } else if (FLAGS_platform == "darwin") {
+      mode = PlatformType::PLATFORM_DARWIN;
     }
   } else {
     // If the platform is not provided by the user then use current hardware's
@@ -255,6 +288,12 @@ getTransceiverPlatformAPI(TransceiverI2CApi* i2cBus) {
             .get();
     return std::make_pair(
         std::make_unique<BspTransceiverApi>(systemContainer), 0);
+  } else if (mode == PlatformType::PLATFORM_GLATH05A_64O) {
+    auto systemContainer =
+        BspGenericSystemContainer<Glath05a_64oBspPlatformMapping>::getInstance()
+            .get();
+    return std::make_pair(
+        std::make_unique<BspTransceiverApi>(systemContainer), 0);
   } else if (mode == PlatformType::PLATFORM_MORGAN800CC) {
     auto systemContainer =
         BspGenericSystemContainer<Morgan800ccBspPlatformMapping>::getInstance()
@@ -263,6 +302,14 @@ getTransceiverPlatformAPI(TransceiverI2CApi* i2cBus) {
         std::make_unique<BspTransceiverApi>(systemContainer), 0);
   } else if (mode == PlatformType::PLATFORM_WEDGE400C) {
     return std::make_pair(std::make_unique<Wedge400TransceiverApi>(), 0);
+  } else if (
+    mode == PlatformType::PLATFORM_DARWIN ||
+    mode == PlatformType::PLATFORM_DARWIN48V) {
+    auto systemContainer =
+        BspGenericSystemContainer<DarwinBspPlatformMapping>::getInstance()
+            .get();
+    return std::make_pair(
+        std::make_unique<BspTransceiverApi>(systemContainer), 0);
   }
   return std::make_pair(nullptr, EX_USAGE);
 }

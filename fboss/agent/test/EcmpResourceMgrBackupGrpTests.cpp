@@ -156,6 +156,11 @@ class EcmpBackupGroupTypeTest : public BaseEcmpResourceManagerTest {
       const std::set<RouteV6::Prefix>& overflowPrefixes) {
     assertTargetState(state_, endStatePrefixes, overflowPrefixes);
   }
+  void assertEndState(
+      const std::shared_ptr<SwitchState>& endStatePrefixes,
+      const std::set<RouteV6::Prefix>& overflowPrefixes) {
+    assertTargetState(state_, endStatePrefixes, overflowPrefixes);
+  }
 };
 
 TEST_F(EcmpBackupGroupTypeTest, addSingleNhopRoutesBelowEcmpLimit) {

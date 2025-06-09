@@ -21,6 +21,7 @@ platform_to_vendor = {
     "morgan800cc": "cisco",
     "tahan800bc": "fboss",
     "minipack3n": "fboss",
+    "glath05a-64o": 'arista',
 }
 
 

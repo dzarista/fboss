@@ -174,6 +174,7 @@ add_library(l2learn_observer_util
 target_link_libraries(l2learn_observer_util
   core
   l2learn_event_observer
+  agent_hw_test_ctrl_cpp2
   Folly::folly
 )
 
@@ -398,6 +399,7 @@ add_library(pfc_test_utils
 
 target_link_libraries(pfc_test_utils
   acl_test_utils
+  agent_hw_test_ctrl_cpp2
   hardware_stats_cpp2
   switch_config_cpp2
 )
@@ -432,6 +434,7 @@ target_link_libraries(mirror_test_utils
   fboss_types
   trap_packet_utils
   switch_config_cpp2
+  agent_hw_test_ctrl_cpp2
   Folly::folly
 )
 
@@ -466,6 +469,7 @@ add_library(multi_port_traffic_test_utils
 
 target_link_libraries(multi_port_traffic_test_utils
   agent_hw_test
+  agent_hw_test_ctrl_cpp2
   qos_test_utils
   state
   ecmp_helper
