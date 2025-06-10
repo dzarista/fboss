@@ -1179,6 +1179,7 @@
     "/run/devmap/sensors/PEM_ADC_MAX11645": "/PEM_SLOT@0/[PEM_ADC_MAX11645]",
     "/run/devmap/sensors/PEM_TEMP_MAX6658": "/PEM_SLOT@0/[PEM_TEMP_MAX6658]"
   },
+  "numXcvrs": 32,
   "bspKmodsRpmName": "arista_bsp_kmods",
   "bspKmodsRpmVersion": "0.7.9-1",
   "requiredKmodsToLoad": [
