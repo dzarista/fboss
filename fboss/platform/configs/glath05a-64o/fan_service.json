@@ -33,7 +33,7 @@
   },
   "sensors": [
     {
-      "sensorName": "SMB_BOARD_FRONT_TEMP",
+      "sensorName": "SMB_TH5_DIODE_1_TEMP",
       "access": {
         "accessType": "ACCESS_TYPE_THRIFT"
       },
@@ -115,7 +115,7 @@
       "zoneType": "ZONE_TYPE_MAX",
       "zoneName": "zone1",
       "sensorNames": [
-        "SMB_BOARD_FRONT_TEMP",
+        "SMB_TH5_DIODE_1_TEMP",
         "osfp_group_1"
       ],
       "fanNames": [
