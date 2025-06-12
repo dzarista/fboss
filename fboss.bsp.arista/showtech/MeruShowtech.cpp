@@ -142,30 +142,6 @@ Glath05a_64oShowtech::Glath05a_64oShowtech(bool verbose)
       cpuCpld->addr, 1, 3, "60", "glath05a-64o-fan-cpld"));
 }
 
-void MeruShowtech::printFpgaVersion(std::string name,
-                                    std::string major_rev_path,
-                                    std::string minor_rev_path,
-                                    std::string combined_rev_path = "") {
-  std::string major_rev;
-  std::string minor_rev;
-  std::string combined_rev;
-
-  if (!combined_rev_path.empty() &&
-      run_cmd("head -n 1 " + combined_rev_path, combined_rev) == 0) {
-    strip(combined_rev);
-    std::cout << name << ": " << combined_rev << std::endl;
-  } else if (run_cmd("head -n 1 " + major_rev_path, major_rev) == 0 &&
-             run_cmd("head -n 1 " + minor_rev_path, minor_rev) == 0 &&
-             major_rev != "" && minor_rev != "") {
-    strip(major_rev);
-    strip(minor_rev);
-    std::cout << name << ": " << std::stoul(major_rev, nullptr, 16) << "."
-              << std::stoul(minor_rev, nullptr, 16) << std::endl;
-  } else {
-    std::cout << name << ": VERSION_NOT_DETECTED" << std::endl;
-  }
-}
-
 void MeruShowtech::printAllFpgaVersions() {
   std::string major_rev_path, minor_rev_path, combined_path;
   std::set<std::filesystem::path> fpga_sorted_by_name, cpld_sorted_by_name;
@@ -184,8 +160,8 @@ void MeruShowtech::printAllFpgaVersions() {
     std::cout << fpga_path << " does not exist" << std::endl;
   }
   for (const auto &path : fpga_sorted_by_name) {
-    combined_path = path.string() + "/fw_ver";
-    printFpgaVersion(path.filename().string(), "", "", combined_path);
+    combined_path = "/fw_ver";
+    printFpgaVersion(path.filename().string(), path.string(), combined_path);
   }
 
   if (std::filesystem::exists(cpld_path)) {
@@ -198,13 +174,14 @@ void MeruShowtech::printAllFpgaVersions() {
   for (const auto &path : cpld_sorted_by_name) {
     if (path.string().find("FAN") != std::string::npos) {
       // Fan CPLDs are a special case because the version files are in hwmon.
-      major_rev_path = path.string() + "/hwmon/hwmon*/cpld_ver";
-      minor_rev_path = path.string() + "/hwmon/hwmon*/cpld_sub_ver";
+      major_rev_path = "/hwmon/hwmon*/cpld_ver";
+      minor_rev_path = "/hwmon/hwmon*/cpld_sub_ver";
     } else {
-      major_rev_path = path.string() + "/cpld_ver";
-      minor_rev_path = path.string() + "/cpld_sub_ver";
+      major_rev_path = "/cpld_ver";
+      minor_rev_path = "/cpld_sub_ver";
     }
-    printFpgaVersion(path.filename().string(), major_rev_path, minor_rev_path);
+    printFpgaVersion(path.filename().string(), path.string(), major_rev_path,
+                     minor_rev_path);
   }
 
   std::cout << std::endl;

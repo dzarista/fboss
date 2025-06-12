@@ -48,6 +48,33 @@ void Showtech::printWeutil(std::string target) {
   std::cout << run_cmd_no_check(cmd) << std::endl;
 }
 
+void Showtech::printFpgaVersion(std::string name, std::string sysfsPath,
+                                std::string combinedRevPath) {
+  std::string combinedRev;
+  if (run_cmd("head -n 1 " + sysfsPath + combinedRevPath, combinedRev) == 0) {
+    strip(combinedRev);
+    std::cout << name << ": " << combinedRev << std::endl;
+  } else {
+    std::cout << name << ": VERSION_NOT_DETECTED" << std::endl;
+  }
+}
+
+void Showtech::printFpgaVersion(std::string name, std::string sysfsPath,
+                                std::string majorRevPath,
+                                std::string minorRevPath) {
+  std::string majorRev;
+  std::string minorRev;
+  if (run_cmd("head -n 1 " + sysfsPath + majorRevPath, majorRev) == 0 &&
+      run_cmd("head -n 1 " + sysfsPath + minorRevPath, minorRev) == 0) {
+    strip(majorRev);
+    strip(minorRev);
+    std::cout << name << ": " << std::stoul(majorRev, nullptr, 16) << "."
+              << std::stoul(minorRev, nullptr, 16) << std::endl;
+  } else {
+    std::cout << name << ": VERSION_NOT_DETECTED" << std::endl;
+  }
+}
+
 void Showtech::printLspci() {
   std::string cmd;
 

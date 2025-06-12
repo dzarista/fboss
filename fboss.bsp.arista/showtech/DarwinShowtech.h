@@ -20,7 +20,6 @@ public:
 
 private:
   void printSwitchcardPowergood();
-  void printFpgaVersion(std::string target, std::string sysfsPath);
   void printAllFpgaVersions();
   void printPemInfo();
   void printFanspinnerInfo();
