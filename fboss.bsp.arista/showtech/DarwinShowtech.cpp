@@ -18,53 +18,18 @@ void DarwinShowtech::printSwitchcardPowergood() {
   std::cout << std::endl;
 }
 
-void DarwinShowtech::printFpgaVersion(std::string target,
-                                      std::string sysfsPath) {
-  std::string majorRevFile;
-  std::string minorRevFile;
-  std::string combinedRevFile;
-  std::string majorRev;
-  std::string minorRev;
-  std::string combinedRev;
-  
-  if (target == "CPU_CPLD" || target == "SWITCHCARD_SCD") {
-    combinedRevFile = "fw_ver";
-  } else if (target == "SWITCHCARD_CPLD" || target == "FAN_CPLD") {
-    majorRevFile = "cpld_ver";
-    minorRevFile = "cpld_sub_ver";
-  } else if (target == "SAT_CPLD0") {
-    majorRevFile = "sat0_cpld_ver";
-    minorRevFile = "sat0_cpld_sub_ver";
-  } else {
-    majorRevFile = "sat1_cpld_ver";
-    minorRevFile = "sat1_cpld_sub_ver";
-  }
-
-  if (!combinedRevFile.empty() &&
-      run_cmd("head -n 1 " + sysfsPath + combinedRevFile, combinedRev) == 0) {
-    strip(combinedRev);
-    std::cout << target << ": " << combinedRev << std::endl;
-  } else if (run_cmd("head -n 1 " + sysfsPath + majorRevFile, majorRev) == 0 &&
-      run_cmd("head -n 1 " + sysfsPath + minorRevFile, minorRev) == 0 &&
-      majorRev != "" && minorRev != "") {
-    strip(majorRev);
-    strip(minorRev);
-    std::cout << target << ": " << std::stoul(majorRev, nullptr, 16) << "."
-              << std::stoul(minorRev, nullptr, 16) << std::endl;
-  } else {
-    std::cout << target << ": VERSION_NOT_DETECTED" << std::endl;
-  }
-}
-
 void DarwinShowtech::printAllFpgaVersions() {
   std::cout << "##### FPGA VERSIONS #####\n";
 
-  printFpgaVersion("CPU_CPLD", cpuCpld->infoRomPath);
-  printFpgaVersion("SWITCHCARD_CPLD", switchcardCpld->sysfsPath);
-  printFpgaVersion("SWITCHCARD_SCD", switchcardScd->infoRomPath);
-  printFpgaVersion("SAT_CPLD0", switchcardScd->sysfsPath);
-  printFpgaVersion("SAT_CPLD1", switchcardScd->sysfsPath);
-  printFpgaVersion("FAN_CPLD", fanCpld->sysfsPath);
+  printFpgaVersion("CPU_CPLD", cpuCpld->infoRomPath, "fw_ver");
+  printFpgaVersion("SWITCHCARD_CPLD", switchcardCpld->sysfsPath, "cpld_ver",
+                   "cpld_sub_ver");
+  printFpgaVersion("SWITCHCARD_SCD", switchcardScd->infoRomPath, "fw_ver");
+  printFpgaVersion("SAT_CPLD0", switchcardScd->sysfsPath, "sat0_cpld_ver",
+                   "sat0_cpld_sub_ver");
+  printFpgaVersion("SAT_CPLD1", switchcardScd->sysfsPath, "sat1_cpld_ver",
+                   "sat1_cpld_sub_ver");
+  printFpgaVersion("FAN_CPLD", fanCpld->sysfsPath, "cpld_ver", "cpld_sub_ver");
   std::cout << std::endl;
 }
 
@@ -203,8 +168,8 @@ void DarwinShowtech::printPsuShowtechInfo() {
 void DarwinShowtech::printPlatformInfo() {
   cpuCpld = std::make_unique<PciScdDevice>("0000:ff:0b.3",
                                            "cplds/ROOK_CPU_CPLD_INFO_ROM");
-  switchcardScd = std::make_unique<PciScdDevice>("0000:07:00.0",
-                                                 "fpgas/SCD_FPGA_INFO_ROM");
+  switchcardScd =
+      std::make_unique<PciScdDevice>("0000:07:00.0", "fpgas/SCD_FPGA_INFO_ROM");
   switchcardCpld =
       std::make_unique<I2cDevice>(cpuCpld->addr, 2, 0, "23", "blackhawk-cpld");
   fanCpld = std::make_unique<I2cHwmonDevice>(cpuCpld->addr, 3, 0, "60",
