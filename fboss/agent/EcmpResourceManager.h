@@ -20,6 +20,7 @@
 namespace facebook::fboss {
 class StateDelta;
 class SwitchState;
+class SwitchStats;
 
 class NextHopGroupInfo {
  public:
@@ -63,19 +64,8 @@ class EcmpResourceManager {
   explicit EcmpResourceManager(
       uint32_t maxHwEcmpGroups,
       int compressionPenaltyThresholdPct = 0,
-      std::optional<cfg::SwitchingMode> backupEcmpGroupType = std::nullopt)
-      // We keep a buffer of 2 for transient increment in ECMP groups when
-      // pushing updates down to HW
-      : maxEcmpGroups_(
-            maxHwEcmpGroups -
-            FLAGS_ecmp_resource_manager_make_before_break_buffer),
-        compressionPenaltyThresholdPct_(compressionPenaltyThresholdPct),
-        backupEcmpGroupType_(backupEcmpGroupType) {
-    CHECK_GT(
-        maxHwEcmpGroups, FLAGS_ecmp_resource_manager_make_before_break_buffer);
-    CHECK_EQ(compressionPenaltyThresholdPct_, 0)
-        << " Group compression algo is WIP";
-  }
+      std::optional<cfg::SwitchingMode> backupEcmpGroupType = std::nullopt,
+      SwitchStats* stats = nullptr);
   using NextHopGroupId = uint32_t;
   using NextHopGroupIds = boost::container::flat_set<NextHopGroupId>;
   using NextHops2GroupId = std::map<RouteNextHopSet, NextHopGroupId>;
@@ -103,10 +93,6 @@ class EcmpResourceManager {
       RouterID rid,
       const folly::CIDRNetwork& nw) const;
 
-  const PrefixToGroupInfo& getPrefixToGroupInfo() const {
-    return prefixToGroupInfo_;
-  }
-
  private:
   template <typename AddrT>
   bool routesEqual(
@@ -128,11 +114,36 @@ class EcmpResourceManager {
         uint32_t _nonBackupEcmpGroupsCnt,
         const StateDelta& _in,
         const PreUpdateState& _groupIdCache = PreUpdateState());
+    /*
+     * addOrUpdateRoute has 2 interesting knobs
+     * ecmpDemandExceeded - used for checking that new route now
+     * either has overrideEcmpType set or points to a merged group
+     * addNewDelta - This route update should be placed on a new
+     * delta. This only applies to when we are merging groups at
+     * ECMP limit. When doing so we will
+     * a. Create a merged group
+     * b. Move all routes that point to any members of this merged
+     * group to this new group.
+     * In transient state this creates 2 extra groups -
+     * New merged ECMP group
+     * Group that was merged into the new ECMP group
+     * This is exactly the make before break buffer we have.
+     * We need this update to be applied fully before we process
+     * more routes. Since multiple routes maybe migrated to new
+     * merged ECMP group and we cannot rely on ordered processing
+     * of routes to take care of not tipping over the limit.
+     * New delta creation *does not apply* for spillover to backup
+     * ECMP type since, on ecmp demand exceeding, we always spillover
+     * the new incoming route to backup ecmp type (new group only has
+     * one route pointing to it and there is nothing cheaper than a
+     * group pointed to by one route).
+     */
     template <typename AddrT>
     void addOrUpdateRoute(
         RouterID rid,
         const std::shared_ptr<Route<AddrT>>& newRoute,
-        bool ecmpDemandExceeded);
+        bool ecmpDemandExceeded,
+        bool addNewDelta = false);
 
     template <typename AddrT>
     void deleteRoute(
@@ -226,5 +237,6 @@ class EcmpResourceManager {
   uint32_t maxEcmpGroups_{0};
   int compressionPenaltyThresholdPct_{0};
   std::optional<cfg::SwitchingMode> backupEcmpGroupType_;
+  SwitchStats* switchStats_;
 };
 } // namespace facebook::fboss

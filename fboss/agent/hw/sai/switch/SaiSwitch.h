@@ -122,6 +122,7 @@ class SaiSwitch : public HwSwitch {
   HwSwitchDropStats getSwitchDropStats() const override;
   HwSwitchWatermarkStats getSwitchWatermarkStats() const override;
   HwSwitchPipelineStats getSwitchPipelineStats() const override;
+  std::map<int, cfg::PortState> getSysPortShelState() const override;
 
   HwResourceStats getResourceStats() const override;
 
@@ -697,6 +698,7 @@ class SaiSwitch : public HwSwitch {
   bool pfcDeadlockEnabled_{false};
   folly::Synchronized<int> switchReachabilityChangePending_{0};
   folly::Synchronized<bool> txReadyStatusChangePending_{false};
+  std::optional<uint32_t> asicRevision_;
 };
 
 } // namespace facebook::fboss

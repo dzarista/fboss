@@ -86,26 +86,119 @@ class CmdShowFabricInputBalance : public CmdHandler<
 
     std::map<int32_t, facebook::fboss::PortInfoThrift> myPortInfo;
     fbossCtrlClient->sync_getAllPortInfo(myPortInfo);
-    auto neighborName2Ports = utility::getNeighborFabricPortsToSelf(myPortInfo);
+    auto neighborToPorts = utility::getNeighborFabricPortsToSelf(myPortInfo);
+    auto neighborToLinkFailure = utility::getNeighborToLinkFailure(myPortInfo);
+    auto portToVirtualDevice = utility::getPortToVirtualDeviceId(myPortInfo);
 
     auto neighborReachability = getNeighborReachability(
-        deviceToQueryInputCapacity, neighborName2Ports, dstSwitchName);
+        deviceToQueryInputCapacity, neighborToPorts, dstSwitchName);
     auto selfReachability =
         utils::getCachedSwSwitchReachabilityInfo(hostInfo, dstSwitchName);
 
-    auto inputBalanceResult = utility::checkInputBalanceSingleStage(
-        dstSwitchName, neighborReachability, selfReachability);
-
-    return createModel();
+    return createModel(utility::checkInputBalanceSingleStage(
+        dstSwitchName,
+        neighborReachability,
+        selfReachability,
+        neighborToLinkFailure,
+        portToVirtualDevice,
+        true /* verbose */));
   }
 
-  RetType createModel() {
-    // TODO(zecheng): Create model for input balance
-    return {};
+  RetType createModel(
+      const std::vector<utility::InputBalanceResult>& inputBalanceResults) {
+    RetType ret;
+    std::vector<cli::InputBalanceEntry> entries;
+
+    for (const auto& result : inputBalanceResults) {
+      cli::InputBalanceEntry entry;
+      entry.destinationSwitchName() = result.destinationSwitch;
+      entry.sourceSwitchName() = result.sourceSwitch;
+      entry.virtualDeviceID() = result.virtualDeviceID;
+      entry.balanced() = result.balanced;
+      entry.inputCapacity() = result.inputCapacity.value();
+      entry.outputCapacity() = result.outputCapacity.value();
+      entry.inputLinkFailure() = result.inputLinkFailure.value();
+      entry.outputLinkFailure() = result.outputLinkFailure.value();
+      entries.push_back(entry);
+    }
+    ret.inputBalanceEntry() = entries;
+    return ret;
   }
 
   void printOutput(const RetType& model, std::ostream& out = std::cout) {
-    // TODO(zecheng): Print output of input balance
+    Table table;
+    table.setHeader({
+        "Destination",
+        "Source",
+        "VirtualDeviceID",
+        "Balanced",
+        "InputCapacity",
+        "OutputCapacity",
+        "InputLinkFailure",
+        "OutputLinkFailure",
+    });
+    for (const auto& entry : *model.inputBalanceEntry()) {
+      table.addRow(
+          {*entry.destinationSwitchName(),
+           folly::join(" ", *entry.sourceSwitchName()),
+           folly::to<std::string>(*entry.virtualDeviceID()),
+           *entry.balanced() ? "True" : "False",
+           folly::join(" ", *entry.inputCapacity()),
+           folly::join(" ", *entry.outputCapacity()),
+           folly::join(" ", *entry.inputLinkFailure()),
+           folly::join(" ", *entry.outputLinkFailure())});
+    }
+    out << table << std::endl;
+  }
+
+ private:
+  // Returns unordered_map<neighborSwitch, unordered_map<destinationSwitch,
+  // std::vector<neighboringPorts>>>
+  std::unordered_map<
+      std::string,
+      std::unordered_map<std::string, std::vector<std::string>>>
+  getNeighborReachability(
+      std::vector<std::pair<int64_t, std::string>> deviceToQueryInputCapacity,
+      const std::unordered_map<
+          std::string,
+          std::unordered_map<std::string, std::string>>& neighborName2Ports,
+      const std::vector<std::string>& dstSwitchNames) {
+    std::unordered_map<
+        std::string,
+        std::unordered_map<std::string, std::vector<std::string>>>
+        neighborReachability;
+    std::map<
+        std::string,
+        std::shared_future<
+            std::unordered_map<std::string, std::vector<std::string>>>>
+        neighborReachabilityFutureMap;
+    for (const auto& [switchId, switchName] : deviceToQueryInputCapacity) {
+      neighborReachabilityFutureMap[switchName] = std::async(
+          std::launch::async,
+          &utils::getCachedSwSwitchReachabilityInfo,
+          HostInfo(switchName),
+          dstSwitchNames);
+    }
+
+    for (const auto& [switchName, neighborReachabilityFuture] :
+         neighborReachabilityFutureMap) {
+      auto neighborReachabilityMap = neighborReachabilityFuture.get();
+      std::unordered_map<std::string, std::vector<std::string>>
+          filteredReachabilityMap;
+      for (const auto& [dstSwitch, ports] : neighborReachabilityMap) {
+        std::vector<std::string> filteredPorts;
+        for (const auto& port : ports) {
+          // Filter ports that are not connected to the source switch
+          auto iter = neighborName2Ports.at(switchName).find(port);
+          if (iter != neighborName2Ports.at(switchName).end()) {
+            filteredPorts.push_back(iter->second);
+          }
+        }
+        filteredReachabilityMap[dstSwitch] = std::move(filteredPorts);
+      }
+      neighborReachability[switchName] = std::move(filteredReachabilityMap);
+    }
+    return neighborReachability;
   }
 
  private:

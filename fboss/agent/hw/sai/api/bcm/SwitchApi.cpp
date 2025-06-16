@@ -274,7 +274,7 @@ void SwitchApi::registerSwitchEventCallback(
     //   callback.
 
     // Register switch events
-#if defined(BRCM_SAI_SDK_DNX_GTE_12_0)
+#if defined(BRCM_SAI_SDK_DNX_GTE_11_7)
     std::array<uint32_t, 11> events = {
         SAI_SWITCH_EVENT_TYPE_PARITY_ERROR,
         SAI_SWITCH_EVENT_TYPE_STABLE_FULL,
@@ -287,18 +287,6 @@ void SwitchApi::registerSwitchEventCallback(
         SAI_SWITCH_EVENT_TYPE_REMOTE_LINK_CHANGE,
         SAI_SWITCH_EVENT_TYPE_RX_FIFO_STUCK_DETECTED,
         SAI_SWITCH_EVENT_TYPE_INTERRUPT_MASKED};
-#elif defined(BRCM_SAI_SDK_DNX_GTE_11_7)
-    std::array<uint32_t, 10> events = {
-        SAI_SWITCH_EVENT_TYPE_PARITY_ERROR,
-        SAI_SWITCH_EVENT_TYPE_STABLE_FULL,
-        SAI_SWITCH_EVENT_TYPE_STABLE_ERROR,
-        SAI_SWITCH_EVENT_TYPE_UNCONTROLLED_SHUTDOWN,
-        SAI_SWITCH_EVENT_TYPE_WARM_BOOT_DOWNGRADE,
-        SAI_SWITCH_EVENT_TYPE_INTERRUPT,
-        SAI_SWITCH_EVENT_TYPE_FABRIC_AUTO_ISOLATE,
-        SAI_SWITCH_EVENT_TYPE_FIRMWARE_CRASHED,
-        SAI_SWITCH_EVENT_TYPE_REMOTE_LINK_CHANGE,
-        SAI_SWITCH_EVENT_TYPE_RX_FIFO_STUCK_DETECTED};
 #elif defined(BRCM_SAI_SDK_GTE_11_0)
     std::array<uint32_t, 7> events = {
         SAI_SWITCH_EVENT_TYPE_PARITY_ERROR,
@@ -625,4 +613,13 @@ std::optional<sai_attr_id_t>
 SaiSwitchTraits::Attributes::AttributeDisableSllAndHllTimeout::operator()() {
   return std::nullopt;
 }
+
+std::optional<sai_attr_id_t>
+SaiSwitchTraits::Attributes::AttributeAsicRevision::operator()() {
+#if defined(BRCM_SAI_SDK_DNX_GTE_13_0)
+  return SAI_SWITCH_ATTR_ASIC_REVISION;
+#endif
+  return std::nullopt;
+}
+
 } // namespace facebook::fboss

@@ -198,6 +198,10 @@ bool MonolithicHwSwitchHandler::needL2EntryForNeighbor(
   return hw_->needL2EntryForNeighbor();
 }
 
+void MonolithicHwSwitchHandler::initialStateApplied() {
+  hw_->initialStateApplied();
+}
+
 std::pair<fsdb::OperDelta, HwSwitchStateUpdateStatus>
 MonolithicHwSwitchHandler::stateChanged(
     const std::vector<fsdb::OperDelta>& deltas,
@@ -260,6 +264,7 @@ void MonolithicHwSwitchHandler::getHwStats(
   hwStats.fb303GlobalStats() = hw_->getSwitchStats()->getAllFb303Stats();
   hwStats.hwResourceStats() = hw_->getResourceStats();
   hwStats.arsExhausted() = hw_->getArsExhaustionStatus();
+  hwStats.sysPortShelState() = hw_->getSysPortShelState();
 }
 
 } // namespace facebook::fboss

@@ -32,7 +32,7 @@ TEST(ConfigLibTest, Basic) {
   EXPECT_NO_THROW(ConfigLib().getSensorServiceConfig(kGlath05a_64o));
   EXPECT_THROW(
       ConfigLib().getSensorServiceConfig(kNonExistentPlatform),
-      std::out_of_range);
+      std::runtime_error);
 
   // FanService Configs
   EXPECT_NO_THROW(ConfigLib().getFanServiceConfig(kDarwin));
@@ -44,7 +44,8 @@ TEST(ConfigLibTest, Basic) {
   EXPECT_NO_THROW(ConfigLib().getSensorServiceConfig(kGlath05a_64o));
   EXPECT_NO_THROW(ConfigLib().getFanServiceConfig(kSample));
   EXPECT_THROW(
-      ConfigLib().getFanServiceConfig(kNonExistentPlatform), std::out_of_range);
+      ConfigLib().getFanServiceConfig(kNonExistentPlatform),
+      std::runtime_error);
 
   // PlatformManager Configs
   EXPECT_NO_THROW(ConfigLib().getPlatformManagerConfig(kSample));
@@ -57,7 +58,7 @@ TEST(ConfigLibTest, Basic) {
   EXPECT_NO_THROW(ConfigLib().getSensorServiceConfig(kGlath05a_64o));
   EXPECT_THROW(
       ConfigLib().getPlatformManagerConfig(kNonExistentPlatform),
-      std::out_of_range);
+      std::runtime_error);
 
   // weutil Configs
   EXPECT_NO_THROW(ConfigLib().getWeutilConfig(kDarwin));
@@ -68,7 +69,7 @@ TEST(ConfigLibTest, Basic) {
   EXPECT_NO_THROW(ConfigLib().getWeutilConfig(kMontblanc));
   EXPECT_NO_THROW(ConfigLib().getSensorServiceConfig(kGlath05a_64o));
   EXPECT_THROW(
-      ConfigLib().getWeutilConfig(kNonExistentPlatform), std::out_of_range);
+      ConfigLib().getWeutilConfig(kNonExistentPlatform), std::runtime_error);
 
   // fwutil Configs
   EXPECT_NO_THROW(ConfigLib().getFwUtilConfig(kDarwin));
@@ -78,12 +79,13 @@ TEST(ConfigLibTest, Basic) {
   EXPECT_NO_THROW(ConfigLib().getFwUtilConfig(kTahan800bc));
   EXPECT_NO_THROW(ConfigLib().getSensorServiceConfig(kGlath05a_64o));
   EXPECT_THROW(
-      ConfigLib().getFwUtilConfig(kNonExistentPlatform), std::out_of_range);
+      ConfigLib().getFwUtilConfig(kNonExistentPlatform), std::runtime_error);
 
   // LedManager Configs
   EXPECT_NO_THROW(ConfigLib().getLedManagerConfig(kDarwin));
   EXPECT_NO_THROW(ConfigLib().getLedManagerConfig(kMorgan800cc));
   EXPECT_NO_THROW(ConfigLib().getLedManagerConfig(kGlath05a_64o));
   EXPECT_THROW(
-      ConfigLib().getLedManagerConfig(kNonExistentPlatform), std::out_of_range);
+      ConfigLib().getLedManagerConfig(kNonExistentPlatform),
+      std::runtime_error);
 }
