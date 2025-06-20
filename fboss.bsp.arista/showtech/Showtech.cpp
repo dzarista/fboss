@@ -11,6 +11,24 @@
 
 namespace showtech {
 
+void Showtech::_printMainHeader(std::string_view headerName) {
+  std::string topPadding = std::string(headerName.size() + 12, '#');
+  std::cout << topPadding << "\n";
+  std::cout << "##### " << headerName << " #####\n";
+  std::cout << topPadding << "\n\n";
+}
+
+void Showtech::_printSubHeader(std::string_view headerName) {
+  std::cout << "#### " << headerName << " ####\n";
+}
+
+void Showtech::print_fboss2_show_cmd(std::string cmd) {
+  if (!ramdisk_) {
+    _printSubHeader("fboss2 show " + cmd);
+    std::cout << run_cmd_no_check("fboss2 show " + cmd) << std::endl;
+  }
+}
+
 void Showtech::printWeutil(std::string target) {
   std::string cmd = "weutil --eeprom " + target;
   std::filesystem::path ossConfigPath{
@@ -20,7 +38,8 @@ void Showtech::printWeutil(std::string target) {
     // OSS doesn't support running weutil without the -config_file arg.
     cmd = cmd + " -config_file " + ossConfigPath.string();
   }
-  std::cout << "#### " + target + " SERIAL NUMBER ####\n";
+
+  _printSubHeader(target + " SERIAL NUMBER");
   std::cout << run_cmd_no_check(cmd) << std::endl;
 }
 
@@ -52,30 +71,27 @@ void Showtech::printFpgaVersion(std::string name, std::string sysfsPath,
 }
 
 void Showtech::printVersion() {
-  std::cout << "################################\n";
-  std::cout << "##### SHOWTECH VERSION " << version << " #####\n";
-  std::cout << "################################\n\n";
+  _printMainHeader("SHOWTECH VERSION " + version);
 }
 
 void Showtech::printCpuDetails() {
-  std::cout << "#########################\n";
-  std::cout << "##### HOST DETAILS #####\n";
-  std::cout << "#########################\n\n";
+  _printMainHeader("HOST DETAILS");
 
-  std::cout << "#### CPU SYSTEM TIME ####\n" 
-            << run_cmd_no_check("date");
-  std::cout << "\n#### CPU HOSTNAME ####\n" 
-            << run_cmd_no_check("hostname");
-  std::cout << "\n#### CPU Linux Kernel Version #####\n"
-            << run_cmd_no_check("uname -r");
-  std::cout << "\n#### CPU UPTIME ####\n"
-            << run_cmd_no_check("uptime") << std::endl;
+  _printSubHeader("CPU SYSTEM TIME");
+  std::cout << run_cmd_no_check("date") << std::endl;
+
+  _printSubHeader("CPU HOSTNAME");
+  std::cout << run_cmd_no_check("hostname") << std::endl;
+
+  _printSubHeader("CPU Linux Kernel Version");
+  std::cout << run_cmd_no_check("uname -r") << std::endl;
+
+  _printSubHeader("CPU UPTIME");
+  std::cout << run_cmd_no_check("uptime") << std::endl;
 }
 
 void Showtech::printFbossDetails() {
-  std::cout << "#########################\n";
-  std::cout << "##### FBOSS DETAILS #####\n";
-  std::cout << "#########################\n\n";
+  _printMainHeader("FBOSS DETAILS");
 
   print_fboss2_show_cmd("product");
   print_fboss2_show_cmd("version agent");
@@ -86,9 +102,7 @@ void Showtech::printFbossDetails() {
 }
 
 void Showtech::printLspci() {
-  std::cout << "#################\n";
-  std::cout << "##### LSPCI #####\n";
-  std::cout << "#################\n\n";
+  _printMainHeader("LSPCI");
 
   std::string cmd = "lspci";
   if (verbose_) {
@@ -99,18 +113,14 @@ void Showtech::printLspci() {
 }
 
 void Showtech::printI2cDetect() {
-  std::string cmd;
+  _printMainHeader("I2C DETECT");
+
+  std::string cmd = "i2cdetect -l";
+  std::cout << cmd << std::endl;
+  std::cout << run_cmd_no_check(cmd) << std::endl;
+
   std::set<int> bus_to_ignore = i2cBusIgnore();
-  int bus;
-
-  std::cout << "######################\n";
-  std::cout << "##### I2C DETECT #####\n";
-  std::cout << "######################\n\n";
-
-  cmd = "i2cdetect -l";
-  std::cout << cmd << std::endl << run_cmd_no_check(cmd) << std::endl;
-
-  for (bus = 0; bus <= get_max_i2c_bus(); ++bus) {
+  for (int bus = 0; bus <= get_max_i2c_bus(); ++bus) {
     if (bus_to_ignore.find(bus) == bus_to_ignore.end()) {
       cmd = "i2cdetect -y " + std::to_string(bus);
       std::cout << cmd << std::endl
@@ -120,6 +130,8 @@ void Showtech::printI2cDetect() {
 }
 
 void Showtech::printLogs() {
+  _printMainHeader("DEBUG LOGS");
+
   const std::string alt_platform_manager_log_path =
       "/var/facebook/logs/fboss/platform_manager.log";
   const std::string alt_sensor_service_log_path =
@@ -129,11 +141,7 @@ void Showtech::printLogs() {
   const std::string alt_fan_service_log_path =
       "/var/facebook/logs/fboss/fan_service.log";
 
-  std::cout << "######################\n";
-  std::cout << "##### DEBUG LOGS #####\n";
-  std::cout << "######################\n\n";
-
-  std::cout << "#### PLATFORM MANAGER LOG ####\n";
+  _printSubHeader("PLATFORM MANAGER LOG");
   if (std::filesystem::exists(alt_platform_manager_log_path)) {
     std::cout << run_cmd_with_limit("cat " + alt_platform_manager_log_path)
               << std::endl;
@@ -142,7 +150,7 @@ void Showtech::printLogs() {
               << std::endl;
   }
 
-  std::cout << "#### SENSOR SERVICE LOG ####\n";
+  _printSubHeader("SENSOR SERVICE LOG");
   if (std::filesystem::exists(alt_sensor_service_log_path)) {
     std::cout << run_cmd_with_limit("cat " + alt_sensor_service_log_path)
               << std::endl;
@@ -151,7 +159,7 @@ void Showtech::printLogs() {
               << std::endl;
   }
 
-  std::cout << "#### FAN SERVICE LOG ####\n";
+  _printSubHeader("FAN SERVICE LOG");
   if (std::filesystem::exists(alt_fan_service_log_path)) {
     std::cout << run_cmd_with_limit("cat " + alt_fan_service_log_path)
               << std::endl;
@@ -159,7 +167,7 @@ void Showtech::printLogs() {
     std::cout << run_cmd_with_limit("journalctl -u fan_service") << std::endl;
   }
 
-  std::cout << "#### DATA CORRAL LOG ####\n";
+  _printSubHeader("DATA CORRAL LOG");
   if (std::filesystem::exists(alt_data_corral_log_path)) {
     std::cout << run_cmd_with_limit("cat " + alt_data_corral_log_path)
               << std::endl;
@@ -168,39 +176,37 @@ void Showtech::printLogs() {
               << std::endl;
   }
 
-  std::cout << "#### QSFP LOG ####\n";
+  _printSubHeader("QSFP LOG");
   std::cout << run_cmd_with_limit("journalctl -u qsfp_service") << std::endl;
 
-  std::cout << "#### SW AGENT LOG ####\n";
+  _printSubHeader("SW AGENT LOG");
   std::cout << run_cmd_with_limit("journalctl -u fboss_sw_agent") << std::endl;
 
-  std::cout << "#### HW AGENT LOG ####\n";
+  _printSubHeader("HW AGENT LOG");
   std::cout << run_cmd_with_limit("journalctl -u fboss_hw_agent@0")
             << std::endl;
 
-  std::cout << "#### DMESG LOG ####\n";
+  _printSubHeader("DMESG LOG");
   std::cout << run_cmd_with_limit("dmesg") << std::endl;
 
-  std::cout << "#### BOOT CONSOLE LOG ####\n";
+  _printSubHeader("BOOT CONSOLE LOG");
   std::cout << run_cmd_with_limit("cat /var/log/boot.log") << std::endl;
 
-  std::cout << "#### LINUX MESSAGES LOG ####\n";
+  _printSubHeader("LINUX MESSAGES LOG");
   std::cout << run_cmd_with_limit("cat /var/log/messages") << std::endl;
 
-  std::cout << "#### NVME SSD SMART LOG ####\n";
+  _printSubHeader("NVME SSD SMART LOG");
   std::cout << run_cmd_no_check("nvme smart-log /dev/nvme0n1") << std::endl;
 
-  std::cout << "#### NVME SSD ERROR LOG ####\n";
+  _printSubHeader("NVME SSD ERROR LOG");
   std::cout << run_cmd_no_check("nvme error-log /dev/nvme0n1") << std::endl;
 
-  std::cout << "#### NVME SSD ID CTRL LOG ####\n";
+  _printSubHeader("NVME SSD ID CTRL LOG");
   std::cout << run_cmd_no_check("nvme id-ctrl /dev/nvme0n1") << std::endl;
 }
 
 void Showtech::printL1Info() {
-  std::cout << "###################\n";
-  std::cout << "##### L1 LOGS #####\n";
-  std::cout << "###################\n\n";
+  _printMainHeader("L1 LOGS");
 
   print_fboss2_show_cmd("port");
   print_fboss2_show_cmd("fabric");
@@ -212,16 +218,13 @@ void Showtech::printL1Info() {
   print_fboss2_show_cmd("transceiver");
 
   if (verbose_ && !ramdisk_) {
-    std::cout << "#### wedge_qsfp_util ####\n";
+    _printSubHeader("wedge_qsfp_util");
     std::cout << run_cmd_with_timeout("wedge_qsfp_util", 30) << std::endl;
   }
 }
 
 void Showtech::printSensors() {
-  std::cout << "########################\n";
-  std::cout << "##### SENSORS DUMP #####\n";
-  std::cout << "########################\n\n";
-
+  _printMainHeader("SENSORS DUMP");
   std::cout << run_cmd_with_timeout("sensors", 30) << std::endl;
 }
 

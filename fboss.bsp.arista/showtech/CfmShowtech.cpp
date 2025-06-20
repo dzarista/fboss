@@ -193,7 +193,7 @@ void printCfmInfo() {
               << std::endl;
   } else {
     double totalCfm = calcFanCfm() + calcPsuCfm();
-    std::cout << "TOTAL CFM: " << totalCfm << std::endl;
+    std::cout << "TOTAL CFM: " << totalCfm << "\n" << std::endl;
   }
 }
 

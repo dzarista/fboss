@@ -143,23 +143,18 @@ Glath05a_64oShowtech::Glath05a_64oShowtech(bool verbose)
 }
 
 void MeruShowtech::printWeutilInfo() {
-  std::cout << "#########################\n";
-  std::cout << "##### WEUTIL INFO #####\n";
-  std::cout << "#########################\n\n";
-
+  _printMainHeader("WEUTIL INFO");
   printWeutil("SCM");
   printWeutil("SMB");
 }
 
 void MeruShowtech::printAllFpgaVersions() {
+  _printMainHeader("FPGA VERSIONS");
+
   std::string major_rev_path, minor_rev_path, combined_path;
   std::set<std::filesystem::path> fpga_sorted_by_name, cpld_sorted_by_name;
   std::string fpga_path = "/run/devmap/fpgas/";
   std::string cpld_path = "/run/devmap/cplds/";
-
-  std::cout << "#########################\n";
-  std::cout << "##### FPGA VERSIONS #####\n";
-  std::cout << "#########################\n\n";
 
   if (std::filesystem::exists(fpga_path)) {
     for (const auto &fpga : std::filesystem::directory_iterator(fpga_path)) {
@@ -199,14 +194,11 @@ void MeruShowtech::printAllFpgaVersions() {
 }
 
 void MeruShowtech::printFanInfo() {
+  _printMainHeader("FAN DEBUG INFO");
   int i, pwm_pcnt, num_cpld = 0;
   std::set<std::filesystem::path> path_sorted_by_name;
   std::string per_cpld_fan_num, global_fan_num, present, pwm, rpm;
   std::string sensor_path = "/run/devmap/sensors/";
-
-  std::cout << "##########################\n";
-  std::cout << "##### FAN DEBUG INFO #####\n";
-  std::cout << "##########################\n\n";
 
   if (std::filesystem::exists(sensor_path)) {
     // This is dependent on the numbering of the FAN_CPLDs in the filenames.
@@ -254,14 +246,12 @@ void MeruShowtech::printFanInfo() {
 }
 
 void MeruShowtech::printI2cInfo() {
-  std::cout << "##########################\n";
-  std::cout << "##### I2C DEBUG INFO #####\n";
-  std::cout << "##########################\n\n";
+  _printMainHeader("I2C DEBUG INFO");
 
-  std::cout << "#### SWITCHCARD CPLD I2C DUMP ####" << std::endl;
+  _printSubHeader("SWITCHCARD CPLD I2C DUMP");
   std::cout << switchcardCpld->i2cDump() << std::endl;
 
-  std::cout << "#### POWER CONTROLLER I2C DUMPS ####" << std::endl;
+  _printSubHeader("POWER CONTROLLER I2C DUMPS");
   for (const auto &pwrCtrler : powerCtrlers) {
     /* Force writes on claimed device potentially dangerous - disable for now
 
@@ -275,23 +265,19 @@ void MeruShowtech::printI2cInfo() {
     std::cout << (pwrCtrler.first)->i2cDump() << std::endl;
   }
 
-  std::cout << "#### FAN I2C DUMPS ####" << std::endl;
+  _printSubHeader("FAN I2C DUMPS");
   for (const auto &fanCpld : fanCplds) {
     std::cout << fanCpld->i2cDump() << std::endl;
   }
 }
 
 void MeruShowtech::printPsuShowtechInfo() {
-  std::cout << "##########################\n";
-  std::cout << "##### PSU DEBUG INFO #####\n";
-  std::cout << "##########################\n\n";
+  _printMainHeader("PSU DEBUG INFO");
   printPsuInfo();
 }
 
 void MeruShowtech::printCfmShowtechInfo() {
-  std::cout << "####################\n";
-  std::cout << "##### CFM INFO #####\n";
-  std::cout << "####################\n\n";
+  _printMainHeader("CFM INFO");
   printCfmInfo();
 }
 
