@@ -148,7 +148,7 @@ void DarwinShowtech::printRackmonInfo() {
 }
 
 void DarwinShowtech::printI2cInfo() {
-  _printMainHeader("PSU DEBUG INFO");
+  _printMainHeader("I2C DEBUG INFO");
 
   _printSubHeader("SWITCHCARD CPLD I2CDUMP");
   std::cout << switchcardCpld->i2cDump() << std::endl;
