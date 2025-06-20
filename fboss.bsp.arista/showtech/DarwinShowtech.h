@@ -20,6 +20,7 @@ public:
 
 private:
   void printSwitchcardPowergood();
+  void printWeutilInfo();
   void printAllFpgaVersions();
   void printPemInfo();
   void printFanspinnerInfo();

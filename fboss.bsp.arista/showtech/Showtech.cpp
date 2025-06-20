@@ -11,30 +11,6 @@
 
 namespace showtech {
 
-void Showtech::printVersion() {
-  std::cout << "################################\n";
-  std::cout << "##### SHOWTECH VERSION " << version << " #####\n";
-  std::cout << "################################\n\n";
-}
-
-void Showtech::printCpuDetails() {
-  std::cout << "##### CPU SYSTEM TIME #####\n" << run_cmd_no_check("date");
-  std::cout << "\n##### CPU HOSTNAME #####\n" << run_cmd_no_check("hostname");
-  std::cout << "\n##### CPU Linux Kernel Version #####\n"
-            << run_cmd_no_check("uname -r");
-  std::cout << "\n##### CPU UPTIME #####\n"
-            << run_cmd_no_check("uptime") << std::endl;
-}
-
-void Showtech::printFbossDetails() {
-  print_fboss2_show_cmd("product");
-  print_fboss2_show_cmd("version agent");
-  print_fboss2_show_cmd("environment sensor");
-  print_fboss2_show_cmd("environment temperature");
-  print_fboss2_show_cmd("environment fan");
-  print_fboss2_show_cmd("environment power");
-}
-
 void Showtech::printWeutil(std::string target) {
   std::string cmd = "weutil --eeprom " + target;
   std::filesystem::path ossConfigPath{
@@ -44,7 +20,7 @@ void Showtech::printWeutil(std::string target) {
     // OSS doesn't support running weutil without the -config_file arg.
     cmd = cmd + " -config_file " + ossConfigPath.string();
   }
-  std::cout << "##### " + target + " SERIAL NUMBER #####\n";
+  std::cout << "#### " + target + " SERIAL NUMBER ####\n";
   std::cout << run_cmd_no_check(cmd) << std::endl;
 }
 
@@ -75,18 +51,51 @@ void Showtech::printFpgaVersion(std::string name, std::string sysfsPath,
   }
 }
 
-void Showtech::printLspci() {
-  std::string cmd;
-
+void Showtech::printVersion() {
   std::cout << "################################\n";
-  std::cout << "############# LSPCI ############\n";
+  std::cout << "##### SHOWTECH VERSION " << version << " #####\n";
   std::cout << "################################\n\n";
+}
 
-  cmd = "lspci";
+void Showtech::printCpuDetails() {
+  std::cout << "#########################\n";
+  std::cout << "##### HOST DETAILS #####\n";
+  std::cout << "#########################\n\n";
+
+  std::cout << "#### CPU SYSTEM TIME ####\n" 
+            << run_cmd_no_check("date");
+  std::cout << "\n#### CPU HOSTNAME ####\n" 
+            << run_cmd_no_check("hostname");
+  std::cout << "\n#### CPU Linux Kernel Version #####\n"
+            << run_cmd_no_check("uname -r");
+  std::cout << "\n#### CPU UPTIME ####\n"
+            << run_cmd_no_check("uptime") << std::endl;
+}
+
+void Showtech::printFbossDetails() {
+  std::cout << "#########################\n";
+  std::cout << "##### FBOSS DETAILS #####\n";
+  std::cout << "#########################\n\n";
+
+  print_fboss2_show_cmd("product");
+  print_fboss2_show_cmd("version agent");
+  print_fboss2_show_cmd("environment sensor");
+  print_fboss2_show_cmd("environment temperature");
+  print_fboss2_show_cmd("environment fan");
+  print_fboss2_show_cmd("environment power");
+}
+
+void Showtech::printLspci() {
+  std::cout << "#################\n";
+  std::cout << "##### LSPCI #####\n";
+  std::cout << "#################\n\n";
+
+  std::string cmd = "lspci";
   if (verbose_) {
     cmd = cmd + " -vvv";
   }
-  std::cout << cmd << std::endl << run_cmd_no_check(cmd) << std::endl;
+  std::cout << cmd << std::endl;
+  std::cout << run_cmd_no_check(cmd) << std::endl;
 }
 
 void Showtech::printI2cDetect() {
@@ -94,9 +103,9 @@ void Showtech::printI2cDetect() {
   std::set<int> bus_to_ignore = i2cBusIgnore();
   int bus;
 
-  std::cout << "################################\n";
-  std::cout << "########## I2C DETECT ##########\n";
-  std::cout << "################################\n\n";
+  std::cout << "######################\n";
+  std::cout << "##### I2C DETECT #####\n";
+  std::cout << "######################\n\n";
 
   cmd = "i2cdetect -l";
   std::cout << cmd << std::endl << run_cmd_no_check(cmd) << std::endl;
@@ -111,7 +120,6 @@ void Showtech::printI2cDetect() {
 }
 
 void Showtech::printLogs() {
-
   const std::string alt_platform_manager_log_path =
       "/var/facebook/logs/fboss/platform_manager.log";
   const std::string alt_sensor_service_log_path =
@@ -120,9 +128,10 @@ void Showtech::printLogs() {
       "/var/facebook/logs/fboss/data_corral_service.log";
   const std::string alt_fan_service_log_path =
       "/var/facebook/logs/fboss/fan_service.log";
-  std::cout << "################################\n";
-  std::cout << "########## DEBUG LOGS ##########\n";
-  std::cout << "################################\n\n";
+
+  std::cout << "######################\n";
+  std::cout << "##### DEBUG LOGS #####\n";
+  std::cout << "######################\n\n";
 
   std::cout << "#### PLATFORM MANAGER LOG ####\n";
   if (std::filesystem::exists(alt_platform_manager_log_path)) {
@@ -189,9 +198,9 @@ void Showtech::printLogs() {
 }
 
 void Showtech::printL1Info() {
-  std::cout << "################################\n";
-  std::cout << "########### L1 LOGS ############\n";
-  std::cout << "################################\n\n";
+  std::cout << "###################\n";
+  std::cout << "##### L1 LOGS #####\n";
+  std::cout << "###################\n\n";
 
   print_fboss2_show_cmd("port");
   print_fboss2_show_cmd("fabric");
@@ -209,11 +218,13 @@ void Showtech::printL1Info() {
 }
 
 void Showtech::printSensors() {
-  std::cout << "################################\n";
-  std::cout << "######### SENSORS DUMP #########\n";
-  std::cout << "################################\n\n";
+  std::cout << "########################\n";
+  std::cout << "##### SENSORS DUMP #####\n";
+  std::cout << "########################\n\n";
+
   std::cout << run_cmd_with_timeout("sensors", 30) << std::endl;
 }
+
 void Showtech::printShowtech() {
   printVersion();
   printCpuDetails();

@@ -142,13 +142,24 @@ Glath05a_64oShowtech::Glath05a_64oShowtech(bool verbose)
       cpuCpld->addr, 1, 3, "60", "glath05a-64o-fan-cpld"));
 }
 
+void MeruShowtech::printWeutilInfo() {
+  std::cout << "#########################\n";
+  std::cout << "##### WEUTIL INFO #####\n";
+  std::cout << "#########################\n\n";
+
+  printWeutil("SCM");
+  printWeutil("SMB");
+}
+
 void MeruShowtech::printAllFpgaVersions() {
   std::string major_rev_path, minor_rev_path, combined_path;
   std::set<std::filesystem::path> fpga_sorted_by_name, cpld_sorted_by_name;
   std::string fpga_path = "/run/devmap/fpgas/";
   std::string cpld_path = "/run/devmap/cplds/";
 
+  std::cout << "#########################\n";
   std::cout << "##### FPGA VERSIONS #####\n";
+  std::cout << "#########################\n\n";
 
   if (std::filesystem::exists(fpga_path)) {
     for (const auto &fpga : std::filesystem::directory_iterator(fpga_path)) {
@@ -193,7 +204,9 @@ void MeruShowtech::printFanInfo() {
   std::string per_cpld_fan_num, global_fan_num, present, pwm, rpm;
   std::string sensor_path = "/run/devmap/sensors/";
 
-  std::cout << "##### FANS #####\n";
+  std::cout << "##########################\n";
+  std::cout << "##### FAN DEBUG INFO #####\n";
+  std::cout << "##########################\n\n";
 
   if (std::filesystem::exists(sensor_path)) {
     // This is dependent on the numbering of the FAN_CPLDs in the filenames.
@@ -245,10 +258,10 @@ void MeruShowtech::printI2cInfo() {
   std::cout << "##### I2C DEBUG INFO #####\n";
   std::cout << "##########################\n\n";
 
-  std::cout << "SWITCHCARD CPLD I2C DUMP" << std::endl;
+  std::cout << "#### SWITCHCARD CPLD I2C DUMP ####" << std::endl;
   std::cout << switchcardCpld->i2cDump() << std::endl;
 
-  std::cout << "POWER CONTROLLER I2C DUMPS" << std::endl;
+  std::cout << "#### POWER CONTROLLER I2C DUMPS ####" << std::endl;
   for (const auto &pwrCtrler : powerCtrlers) {
     /* Force writes on claimed device potentially dangerous - disable for now
 
@@ -262,7 +275,7 @@ void MeruShowtech::printI2cInfo() {
     std::cout << (pwrCtrler.first)->i2cDump() << std::endl;
   }
 
-  std::cout << "FAN I2C DUMPS" << std::endl;
+  std::cout << "#### FAN I2C DUMPS ####" << std::endl;
   for (const auto &fanCpld : fanCplds) {
     std::cout << fanCpld->i2cDump() << std::endl;
   }
@@ -283,8 +296,7 @@ void MeruShowtech::printCfmShowtechInfo() {
 }
 
 void MeruShowtech::printPlatformInfo() {
-  printWeutil("SCM");
-  printWeutil("SMB");
+  printWeutilInfo();
   printAllFpgaVersions();
   printFanInfo();
   printPsuShowtechInfo();
