@@ -17,7 +17,7 @@
 
 namespace showtech {
 
-Meru800BiaShowtech::Meru800BiaShowtech(bool verbose) : MeruShowtech(verbose) {
+Meru800BiaShowtech::Meru800BiaShowtech() : MeruShowtech() {
   cpuCpld = std::make_unique<PciScdDevice>("0000:07:00.0",
                                            "fpgas/MERU_SCM_CPLD_INFO_ROM");
   switchcardScds.push_back(std::make_unique<PciScdDevice>(
@@ -37,7 +37,7 @@ Meru800BiaShowtech::Meru800BiaShowtech(bool verbose) : MeruShowtech(verbose) {
                                                          "60", "dsf-fan-cpld"));
 }
 
-Meru800BfaShowtech::Meru800BfaShowtech(bool verbose) : MeruShowtech(verbose) {
+Meru800BfaShowtech::Meru800BfaShowtech() : MeruShowtech() {
   cpuCpld = std::make_unique<PciScdDevice>("0000:07:00.0",
                                            "fpgas/MERU_SCM_CPLD_INFO_ROM");
   switchcardScds.emplace_back(std::make_unique<PciScdDevice>(
@@ -115,8 +115,7 @@ std::set<int> Meru800BfaShowtech::i2cBusIgnore() {
   return busesToIgnore;
 }
 
-Glath05a_64oShowtech::Glath05a_64oShowtech(bool verbose)
-    : MeruShowtech(verbose) {
+Glath05a_64oShowtech::Glath05a_64oShowtech() : MeruShowtech() {
   cpuCpld = std::make_unique<PciScdDevice>("0000:07:00.0",
                                            "fpgas/MERU_SCM_CPLD_INFO_ROM");
   switchcardScds.emplace_back(
@@ -289,9 +288,7 @@ void MeruShowtech::printPlatformInfo() {
   if (!ramdisk_) {
     printCfmShowtechInfo();
   }
-  if (verbose_) {
-    printI2cInfo();
-  }
+  printI2cInfo();
 }
 
 } // namespace showtech

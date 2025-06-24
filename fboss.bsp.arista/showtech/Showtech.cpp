@@ -93,10 +93,7 @@ void Showtech::printFbossDetails() {
 void Showtech::printLspci() {
   printMainHeader("LSPCI");
 
-  std::string cmd = "lspci";
-  if (verbose_) {
-    cmd = cmd + " -vvv";
-  }
+  std::string cmd = "lspci -vvv";
   std::cout << cmd << std::endl;
   std::cout << run_cmd_no_check(cmd) << std::endl;
 }
@@ -206,7 +203,7 @@ void Showtech::printL1Info() {
   print_fboss2_show_cmd("interface phy");
   print_fboss2_show_cmd("transceiver");
 
-  if (verbose_ && !ramdisk_) {
+  if (!ramdisk_) {
     printSubHeader("wedge_qsfp_util");
     std::cout << run_cmd_with_timeout("wedge_qsfp_util", 30) << std::endl;
   }
@@ -225,10 +222,8 @@ void Showtech::printShowtech() {
   printLspci();
   printL1Info();
   printSensors();
-  if (verbose_) {
-    printI2cDetect();
-    printLogs();
-  }
+  printI2cDetect();
+  printLogs();
 }
 
 } // namespace showtech
