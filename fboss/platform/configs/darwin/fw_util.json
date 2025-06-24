@@ -278,7 +278,7 @@
       },
       "priority": 5
     },
-    "fan_cpld": {
+    "FAN_CPLD": {
       "version": {
         "versionType": "full_command",
         "getVersionCmd": "fanCpld_ver=$((`cat /sys/bus/i2c/drivers/rook-fan-cpld/*/*/*/cpld_ver`));fanCpld_subver=$((`cat /sys/bus/i2c/drivers/rook-fan-cpld/*/*/*/cpld_sub_ver`));echo $fanCpld_ver'.'$fanCpld_subver"
