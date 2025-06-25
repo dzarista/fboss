@@ -1162,9 +1162,9 @@ CpuCosQueueId hwQueueIdToCpuCosQueueId(
     return CpuCosQueueId::DEFAULT;
   }
   // ARISTA Hack to avoid fboss_hw_agent crash on J3.
-  //XLOG_EVERY_N(ERR, 10000) << "Got Invalid hwQueueId " << hwQueueId;
-  //switchStats->invalidQueueRxPackets();
-  //return CpuCosQueueId::LOPRI;
+  // XLOG_EVERY_N(ERR, 10000) << "Got Invalid hwQueueId " << hwQueueId;
+  // switchStats->invalidQueueRxPackets();
+  // return CpuCosQueueId::LOPRI;
   return CpuCosQueueId::DEFAULT;
 }
 
