@@ -49,12 +49,9 @@ cpp_library(
         "MinipackBaseLedManager.cpp",
         "MontblancLedManager.cpp",
         "Morgan800ccLedManager.cpp",
-<<<<<<< srv-fboss-arista-robot.upstream_copy_06-25-2025
         "Tahan800bcLedManager.cpp",
         "facebook/DarwinLedManager.cpp",
-=======
         "DarwinLedManager.cpp",
->>>>>>> main
         "facebook/ElbertLedManager.cpp",
         "facebook/FsdbSwitchStateSubscriber.cpp",
         "facebook/FujiLedManager.cpp",
@@ -124,11 +121,8 @@ cpp_library(
         "//fboss/lib/bsp/glath05a-64o:glath05a-64o_bsp",
         "//fboss/lib/bsp/montblanc:montblanc_bsp",
         "//fboss/lib/bsp/morgan800cc:morgan800cc_bsp",
-<<<<<<< srv-fboss-arista-robot.upstream_copy_06-25-2025
         "//fboss/lib/bsp/tahan800bc:tahan800bc_bsp",
-=======
         "//fboss/lib/bsp/darwin:darwin_bsp",
->>>>>>> main
         "//fboss/lib/fpga:minipack_base_container",
         "//fboss/lib/fpga:minipack_container",
         "//fboss/lib/fpga:wedge400_fpga",
