@@ -9,7 +9,22 @@
  */
 #include "fboss/qsfp_service/platforms/wedge/WedgeManagerInit.h"
 
+<<<<<<< srv-fboss-arista-robot.upstream_copy_06-25-2025
 #include "fboss/agent/platforms/common/PlatformMappingUtils.h"
+=======
+#include "fboss/agent/platforms/common/janga800bic/Janga800bicPlatformMapping.h"
+#include "fboss/agent/platforms/common/meru400bfu/Meru400bfuPlatformMapping.h"
+#include "fboss/agent/platforms/common/meru400bia/Meru400biaPlatformMapping.h"
+#include "fboss/agent/platforms/common/meru400biu/Meru400biuPlatformMapping.h"
+#include "fboss/agent/platforms/common/meru800bfa/Meru800bfaPlatformMapping.h"
+#include "fboss/agent/platforms/common/meru800bia/Meru800biaPlatformMapping.h"
+#include "fboss/agent/platforms/common/minipack3n/Minipack3NPlatformMapping.h"
+#include "fboss/agent/platforms/common/montblanc/MontblancPlatformMapping.h"
+#include "fboss/agent/platforms/common/morgan800cc/Morgan800ccPlatformMapping.h"
+#include "fboss/agent/platforms/common/tahan800bc/Tahan800bcPlatformMapping.h"
+#include "fboss/agent/platforms/common/darwin/DarwinPlatformMapping.h"
+#include "fboss/agent/platforms/common/glath05a-64o/Glath05a-64oPlatformMapping.h"
+>>>>>>> main
 #include "fboss/lib/bsp/BspGenericSystemContainer.h"
 #include "fboss/lib/bsp/janga800bic/Janga800bicBspPlatformMapping.h"
 #include "fboss/lib/bsp/meru400bfu/Meru400bfuBspPlatformMapping.h"
@@ -21,6 +36,8 @@
 #include "fboss/lib/bsp/montblanc/MontblancBspPlatformMapping.h"
 #include "fboss/lib/bsp/morgan800cc/Morgan800ccBspPlatformMapping.h"
 #include "fboss/lib/bsp/tahan800bc/Tahan800bcBspPlatformMapping.h"
+#include "fboss/lib/bsp/darwin/DarwinBspPlatformMapping.h"
+#include "fboss/lib/bsp/glath05a-64o/Glath05a-64oBspPlatformMapping.h"
 #include "fboss/lib/platforms/PlatformProductInfo.h"
 #include "fboss/qsfp_service/platforms/wedge/BspWedgeManager.h"
 #include "fboss/qsfp_service/platforms/wedge/GalaxyManager.h"
@@ -49,8 +66,104 @@ std::unique_ptr<WedgeManager> createWedgeManager() {
                << FLAGS_platform_mapping_override_path;
   }
 
+<<<<<<< srv-fboss-arista-robot.upstream_copy_06-25-2025
   std::shared_ptr<const PlatformMapping> platformMapping =
       utility::initPlatformMapping(mode);
+=======
+  createDir(FLAGS_qsfp_service_volatile_dir);
+  if (mode == PlatformType::PLATFORM_WEDGE100) {
+    return std::make_unique<Wedge100Manager>(platformMappingStr);
+  } else if (
+      mode == PlatformType::PLATFORM_GALAXY_LC ||
+      mode == PlatformType::PLATFORM_GALAXY_FC) {
+    return std::make_unique<GalaxyManager>(mode, platformMappingStr);
+  } else if (mode == PlatformType::PLATFORM_YAMP) {
+    return createYampWedgeManager(platformMappingStr);
+  } else if (
+      mode == PlatformType::PLATFORM_DARWIN ||
+      mode == PlatformType::PLATFORM_DARWIN48V) {
+    return createDarwinWedgeManager(platformMappingStr);
+  } else if (mode == PlatformType::PLATFORM_ELBERT) {
+    return createElbertWedgeManager(platformMappingStr);
+  } else if (mode == PlatformType::PLATFORM_MERU400BFU) {
+    return createMeru400bfuWedgeManager(platformMappingStr);
+  } else if (mode == PlatformType::PLATFORM_MERU400BIA) {
+    return createMeru400biaWedgeManager(platformMappingStr);
+  } else if (mode == PlatformType::PLATFORM_MERU400BIU) {
+    return createMeru400biuWedgeManager(platformMappingStr);
+  } else if (
+      mode == PlatformType::PLATFORM_MERU800BIA ||
+      mode == PlatformType::PLATFORM_MERU800BIAB) {
+    return createMeru800biaWedgeManager(platformMappingStr);
+  } else if (
+      mode == PlatformType::PLATFORM_MERU800BFA ||
+      mode == PlatformType::PLATFORM_MERU800BFA_P1) {
+    return createMeru800bfaWedgeManager(platformMappingStr);
+  } else if (mode == PlatformType::PLATFORM_MONTBLANC) {
+    return createMontblancWedgeManager(platformMappingStr);
+  } else if (mode == PlatformType::PLATFORM_MINIPACK3N) {
+    return createMinipack3NWedgeManager(platformMappingStr);
+  } else if (mode == PlatformType::PLATFORM_MORGAN800CC) {
+    return createMorgan800ccWedgeManager(platformMappingStr);
+  } else if (mode == PlatformType::PLATFORM_WEDGE400C) {
+    return std::make_unique<Wedge400CManager>(platformMappingStr);
+  } else if (mode == PlatformType::PLATFORM_JANGA800BIC) {
+    return createJanga800bicWedgeManager(platformMappingStr);
+  } else if (mode == PlatformType::PLATFORM_TAHAN800BC) {
+    return createTahan800bcWedgeManager(platformMappingStr);
+  } else if (mode == PlatformType::PLATFORM_GLATH05A_64O) {
+    return createGlath05a_64oWedgeManager(platformMappingStr);
+  } else if (
+      mode == PlatformType::PLATFORM_FUJI ||
+      mode == PlatformType::PLATFORM_MINIPACK ||
+      mode == PlatformType::PLATFORM_WEDGE400) {
+    return createFBWedgeManager(std::move(productInfo), platformMappingStr);
+  }
+  return std::make_unique<Wedge40Manager>(platformMappingStr);
+}
+
+std::unique_ptr<WedgeManager> createDarwinWedgeManager(
+    const std::string& platformMappingStr) {
+  auto systemContainer =
+      BspGenericSystemContainer<DarwinBspPlatformMapping>::getInstance()
+          .get();
+  return std::make_unique<BspWedgeManager>(
+      systemContainer,
+      std::make_unique<BspTransceiverApi>(systemContainer),
+      platformMappingStr.empty()
+          ? std::make_unique<DarwinPlatformMapping>()
+          : std::make_unique<DarwinPlatformMapping>(platformMappingStr),
+      PlatformType::PLATFORM_DARWIN);
+}
+
+std::unique_ptr<WedgeManager> createGlath05a_64oWedgeManager(
+  const std::string& platformMappingStr) {
+auto systemContainer =
+    BspGenericSystemContainer<Glath05a_64oBspPlatformMapping>::getInstance()
+        .get();
+return std::make_unique<BspWedgeManager>(
+    systemContainer,
+    std::make_unique<BspTransceiverApi>(systemContainer),
+    platformMappingStr.empty()
+        ? std::make_unique<Glath05a_64oPlatformMapping>()
+        : std::make_unique<Glath05a_64oPlatformMapping>(platformMappingStr),
+    PlatformType::PLATFORM_GLATH05A_64O);
+}
+
+std::unique_ptr<WedgeManager> createMeru400bfuWedgeManager(
+    const std::string& platformMappingStr) {
+  auto systemContainer =
+      BspGenericSystemContainer<Meru400bfuBspPlatformMapping>::getInstance()
+          .get();
+  return std::make_unique<BspWedgeManager>(
+      systemContainer,
+      std::make_unique<BspTransceiverApi>(systemContainer),
+      platformMappingStr.empty()
+          ? std::make_unique<Meru400bfuPlatformMapping>()
+          : std::make_unique<Meru400bfuPlatformMapping>(platformMappingStr),
+      PlatformType::PLATFORM_MERU400BFU);
+}
+>>>>>>> main
 
   const auto threads =
       std::make_shared<std::unordered_map<TransceiverID, SlotThreadHelper>>();

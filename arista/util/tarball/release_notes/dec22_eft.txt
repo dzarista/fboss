@@ -1,0 +1,29 @@
+- FBOSS BSP:
+  - Platform configs:
+    - weutil.json configs updated to support EEPROM V5, SMB target used as chassis EEPROM
+    - platform-showtech weutil integration fixed, output is verbose (-v) by default
+    - fw_util.json now supports reading BIOS version
+    - fw_util.json limits SPI write to 4 MB (faster than writing entire memory) for SMB FPGAs
+    - fw_util.json now uses flashrom + spidev for SPI programming of SMB FPGAs
+      - Requires updated flashrom patches (provided) which support GD25LQ256DYIG Gigadevice part
+    - fan_service.json updated to account for unified fan LED sysfs files
+    - cpu-oob-eeprom-util.sh script added for programming OOB switch EEPROM from FBOSS. All
+      hardware currently is programmed with the latest image 0.6 so no upgrade is needed
+  - Kernel drivers:
+    - dsf-fan-cpld driver refactored for single /sys/class/leds sysfs file per fan
+    - scd-spi driver no longer binds SPI devices to spi-nor driver by default; instead,
+      fw_util will bind spi devices to spidev as needed for programming
+- OpenBMC (changes upstreamed to openbmc.arista)
+  - oob-status.sh improved to work over SSH and provide better MDIO error reporting
+  - show_tech.py now provided verbose output (-v) by default
+  - MAC address lookup fixed to support EEPROM V5 format
+- Programmables:
+  - Aboot.rom 13.1.0-33784852 -> 13.1.0-34439569
+    - Adds support for i2c-tools
+    - Add DNS support for PXE boot
+  - Meru800bia FAN CPLD 0x1_0x2 -> 0x1_0x3
+    - FAN_CHANGE registers now clear on per-bit basis (dsf-fan-cpld driver already handles this)
+  - Meru800bfa SMB CPLD 0x1_0x9 -> 0x1_0xb
+    - Resolve RC32312A clock issue preventing config from loading at powerup
+  - Meru800bfa FAN CPLD 0x1_0x2 -> 0x1_0x4
+    - FAN_CHANGE registers now clear on per-bit basis (dsf-fan-cpld driver already handles this)

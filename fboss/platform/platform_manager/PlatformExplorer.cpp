@@ -307,12 +307,13 @@ std::optional<std::string> PlatformExplorer::getPmUnitNameFromSlot(
 
     /*
     Because of upstream kernel issues, we have to manually read the
-    SCM EEPROM for the Meru800BFA/BIA platforms. It is read directly
+    SCM EEPROM for the Meru800BFA/BIA/BA platforms. It is read directly
     with ioctl and written to the /run/devmap file.
     See: https://github.com/facebookexternal/fboss.bsp.arista/pull/31/files
     */
     if ((platformConfig_.platformName().value() == "meru800bfa" ||
-         platformConfig_.platformName().value() == "meru800bia") &&
+         platformConfig_.platformName().value() == "meru800bia" ||
+         platformConfig_.platformName().value() == "glath05a-64o") &&
         (!(idpromConfig.busName()->starts_with("INCOMING")) &&
          *idpromConfig.address() == "0x50")) {
       try {
@@ -929,6 +930,15 @@ void PlatformExplorer::genHumanReadableEeproms() {
           "{} is not IDPROM. Skip generating eeprom content.", linkPath);
       continue;
     }
+
+    // Ignore Darwin's I2cDeviceConfig eeproms as they don't support meta eeprom
+    // Darwin48v eeproms defined in I2cDeviceConfig aren't at offset 0
+    if (devicePath == "/RACKMON_SLOT@0/[FANSPINNER_EEPROM]" ||
+        devicePath == "/RACKMON_SLOT@0/[IDPROM]" ||
+        devicePath == "/[CHASSIS_EEPROM]") {
+      continue;
+    }
+
     writeEepromContent(devicePath, linkPath);
   }
 

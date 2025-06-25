@@ -1,0 +1,49 @@
+- FBOSS BSP:
+  - Meru800bia:
+    - fw_util.json updated to support SPI programming of SMB FPGA
+      - requires updated flashrom patches
+      - requires strip_arista_header utility (new in fboss.bsp.arista/fw-util-common)
+    - fw_util.json updated to support JTAG programming of FAN CPLD
+      - requires updated jam patch
+  - Meru800bfa:
+    - fw_util.json updated to support SPI programming of SMB FPGAs
+      - requires updated flashrom patches
+      - requires strip_arista_header utility (new in fboss.bsp.arista/fw-util-common)
+    - fw_util.json updated to support JTAG programming of FAN CPLDs
+      - requires updated jam patch
+  - Kernel drivers:
+    - scd driver updated to support SPI devices on SMB FPGAs (in APL)
+    - scd driver psuN_[input|output]_ok sysfs files fixed for Meru800bia (in APL)
+- Programmables:
+  - OpenBMC image meru-6d029aea4a8-dirty
+    - Moves to Linux kernel 6.1 (previous images used kernel 6.0)
+    - Fixes BUG871326: "wedge_power.sh reset" now resets ASIC
+    - Meta EEPROM V5 format supported
+  - Aboot-norcal13-13.1.0-lcc-64m-ENG-33784852.rom
+    - Same image as shared in the last drop
+  - Meru SCM CPLD 0x0_0x16 -> 0x0_0x17
+  - Meru800bia SMB FPGA 0x1_0x9
+    - Same version as previous drop but now includes .abit iamge for SPI programming
+  - Meru800bia FAN CPLD 0x1_0x2
+    - Initial JTAG image
+  - Meru800bfa SMB CPLD 0x1_0x7 -> 0x1_0x9
+    - Adds support for resets from SMB FPGA0
+    - Adds support for PSU presence status in SMB FPGA0
+    - Changes Ramon3 PCIe strapping to Gen3 instead of Gen4
+  - Meru800bfa SMB FPGA0 0x1_0xe
+    - Initial SPI image
+  - Meru800bfa SMB FPGA1 0x1_0xe
+    - Initial SPI image
+  - Meru800bfa SMB FPGA2 0x1_0xf
+    - Initial SPI image
+  - Meru800bfa SMB FPGA3 0x1_0xd
+    - Initial SPI image
+  - Meru800bfa FAN CPLD 0x1_0x2
+    - Initial JTAG image (same image for all 3 FAN CPLDs)
+- EFT Systems:
+  - 5x Meru800bfa (Whistler) shipment:
+    - Meta EEPROM V5 format programmed
+  - 9x Meru800bia (Viper) shipment is P1D Hardware:
+    - Meta EEPROM V5 format programmed
+    - 1 + 1 DC PSU configuration
+    - new fan modules

@@ -30,6 +30,7 @@ std::unique_ptr<WedgeManager> createYampWedgeManager(
   return std::unique_ptr<WedgeManager>{};
 }
 
+<<<<<<< srv-fboss-arista-robot.upstream_copy_06-25-2025
 std::unique_ptr<WedgeManager> createDarwinWedgeManager(
     const std::shared_ptr<const PlatformMapping> /* platformMapping */,
     const std::shared_ptr<
@@ -37,6 +38,8 @@ std::unique_ptr<WedgeManager> createDarwinWedgeManager(
   return std::unique_ptr<WedgeManager>{};
 }
 
+=======
+>>>>>>> main
 std::unique_ptr<WedgeManager> createElbertWedgeManager(
     const std::shared_ptr<const PlatformMapping> /* platformMapping */,
     const std::shared_ptr<
