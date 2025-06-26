@@ -70,11 +70,13 @@ std::unique_ptr<WedgeManager> createWedgeManager() {
       return std::make_unique<GalaxyManager>(mode, platformMapping, threads);
     case PlatformType::PLATFORM_YAMP:
       return createYampWedgeManager(platformMapping, threads);
-    case PlatformType::PLATFORM_DARWIN:
-    case PlatformType::PLATFORM_DARWIN48V:
-      return createDarwinWedgeManager(platformMapping, threads);
     case PlatformType::PLATFORM_ELBERT:
       return createElbertWedgeManager(platformMapping, threads);
+    case PlatformType::PLATFORM_DARWIN:
+    case PlatformType::PLATFORM_DARWIN48V:
+      return createBspWedgeManager<
+          DarwinBspPlatformMapping,
+          PlatformType::PLATFORM_DARWIN>(platformMapping, threads);
     case PlatformType::PLATFORM_MERU400BFU:
       return createBspWedgeManager<
           Meru400bfuBspPlatformMapping,
