@@ -510,22 +510,26 @@ class WhistlerSMB( SMBUnit ):
 
       smbFpga0.addXcvrCtrlConfigs(
          numConfigs=32, basePortNumber=1, portNumberSkipStep=4,
-         smbusName="SMB_FPGA0_I2C_MASTER", smbusAccelStart=0, accelBusRange=( 0, 7 )
+         smbusName="SMB_FPGA0_I2C_MASTER", smbusAccelStart=0, accelBusRange=( 0, 7 ),
+         lanesCount=8
       )
 
       smbFpga1.addXcvrCtrlConfigs(
          numConfigs=32, basePortNumber=5, portNumberSkipStep=4,
-         smbusName="SMB_FPGA1_I2C_MASTER", smbusAccelStart=0, accelBusRange=( 0, 7 )
+         smbusName="SMB_FPGA1_I2C_MASTER", smbusAccelStart=0, accelBusRange=( 0, 7 ),
+         lanesCount=8
       )
 
       smbFpga2.addXcvrCtrlConfigs(
          numConfigs=32, basePortNumber=65, portNumberSkipStep=4,
-         smbusName="SMB_FPGA2_I2C_MASTER", smbusAccelStart=0, accelBusRange=( 0, 7 )
+         smbusName="SMB_FPGA2_I2C_MASTER", smbusAccelStart=0, accelBusRange=( 0, 7 ),
+         lanesCount=8
       )
 
       smbFpga3.addXcvrCtrlConfigs(
          numConfigs=32, basePortNumber=69, portNumberSkipStep=4,
-         smbusName="SMB_FPGA3_I2C_MASTER", smbusAccelStart=0, accelBusRange=( 0, 7 )
+         smbusName="SMB_FPGA3_I2C_MASTER", smbusAccelStart=0, accelBusRange=( 0, 7 ),
+         lanesCount=8
       )
 
       smbFpga0.addInfoRomConfigs( "0x100" )

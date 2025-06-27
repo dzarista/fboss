@@ -96,7 +96,9 @@ class RackhawkScd( PciDeviceConfig ):
       self.addXcvrCtrlConfigs( numConfigs=32, basePortNumber=1, ledsPerXcvr=1,
                                portLedOffsetStep=0x40, portType="qsfp",
                                smbusName="SCD_SMBUS", smbusAccelStart=2,
-                               accelBusRange=( 0, 7 ), ledDeviceName='port_led_darwin' )
+                               accelBusRange=( 0, 7 ),
+                               ledDeviceName='port_led_darwin', lanesCount=8,
+                               defaultLedColor='green' )
 
    def addLeds( self ):
       self.addLedCtrlConfigs( [
