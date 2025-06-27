@@ -82,7 +82,15 @@ void print_fboss2_show_cmd(std::string cmd) {
 }
 
 void strip(std::string &str) {
-  str.erase(remove_if(str.begin(), str.end(), ::isspace), str.end());
+  const std::string stripChars = " \t\n\r\f\v";
+  const size_t last = str.find_last_not_of(stripChars);
+  if (std::string::npos == last) {
+    str.clear();
+    return;
+  }
+  str.erase(last + 1);
+  const size_t first = str.find_first_not_of(stripChars);
+  str.erase(0, first);
 }
 
 int get_max_i2c_bus() {
