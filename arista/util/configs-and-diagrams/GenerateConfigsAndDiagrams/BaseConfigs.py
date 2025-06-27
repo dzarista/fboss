@@ -131,9 +131,9 @@ class PlatformConfig:
       return symlinkDict
 
    def getChassisEepromDeviceName( self ):
-      scmPmUnit = self.getPmUnit( "SCM" )
-      if scmPmUnit:
-         for slotConfig in scmPmUnit.outgoingSlotConfigs:
+      rootPmUnitName = self.getPmUnit( self.rootPmUnitName )
+      if rootPmUnitName:
+         for slotConfig in rootPmUnitName.outgoingSlotConfigs:
             if slotConfig.slotType == "SMB_SLOT":
                return "SMB"
       return "CHASSIS"
@@ -1392,13 +1392,7 @@ class SensorType( Enum ):
    CURRENT = 2
    TEMP = 3
    FAN_SPEED = 4
-
-class IdEepromFormatVersion(Enum):
-   V0 = 0
-   V3 = 3
-   V4 = 4
-   V5 = 5
-
+   
 
 class SensorConfig:
    def __init__( self, name, filename, sensorType, compute=None, thresholds=None,
