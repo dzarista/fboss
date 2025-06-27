@@ -130,6 +130,14 @@ class PlatformConfig:
             symlinkDict[ symlink ] = devicePath
       return symlinkDict
 
+   def getChassisEepromDeviceName( self ):
+      scmPmUnit = self.getPmUnit( "SCM" )
+      if scmPmUnit:
+         for slotConfig in scmPmUnit.outgoingSlotConfigs:
+            if slotConfig.slotType == "SMB_SLOT":
+               return "SMB"
+      return "CHASSIS"
+
    def getChassisEepromDevicePath( self ):
       scmPmUnit = self.getPmUnit( "SCM" )
       if scmPmUnit:
@@ -174,6 +182,16 @@ class PlatformConfig:
       jsonDump = json.dumps( jsonDict, indent=2 )
       output = reformatOneElementLists( jsonDump )
       return output
+
+   def weutilJson( self, chassis_eeprom_name: str = "CHASSIS"):
+      """
+      Generates the weutil.json content based on the platform's EEPROM configurations.
+      """
+      weutil_data = OrderedDict()
+      weutil_data["chassisEepromName"] = self.getChassisEepromDeviceName()
+      weutil_data["fruEepromList"] = OrderedDict()
+      output_json_dump = json.dumps(weutil_data, indent=2)
+      return output_json_dump
 
    def genDiagram( self ):
       graph_attr = {
@@ -1374,6 +1392,12 @@ class SensorType( Enum ):
    CURRENT = 2
    TEMP = 3
    FAN_SPEED = 4
+
+class IdEepromFormatVersion(Enum):
+   V0 = 0
+   V3 = 3
+   V4 = 4
+   V5 = 5
 
 
 class SensorConfig:

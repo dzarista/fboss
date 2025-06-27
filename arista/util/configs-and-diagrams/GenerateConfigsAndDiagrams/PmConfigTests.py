@@ -92,6 +92,39 @@ class PlatformConfigTest( unittest.TestCase ):
       pmConfig = json.loads( platform.pmConfigJson() )
       self.assertEqual( pmConfig[ "chassisEepromDevicePath" ], "/SMB_SLOT@0/[IDPROM]")
 
+   def testChassisEepromDeviceName( self ):
+      # Test 1: No SCM or SMB_SLOT, should default to "CHASSIS"
+      platform = PlatformConfig( "test_platform_no_scm" )
+      self.assertEqual( platform.getChassisEepromDeviceName(), "CHASSIS",
+                        "Without SCM or SMB_SLOT, chassisEepromName should default to 'CHASSIS'")
+
+      # Test 2: SCM exists but no SMB_SLOT, should still default to "CHASSIS"
+      platform_with_scm = PlatformConfig( "test_platform_with_scm" )
+      scmPmUnit_no_smb = PmUnitConfig( "SCM" )
+      platform_with_scm.addPmUnitConfigs( [ scmPmUnit_no_smb ] )
+      self.assertEqual( platform_with_scm.getChassisEepromDeviceName(), "CHASSIS",
+                        "With SCM but no SMB_SLOT, chassisEepromName should still be 'CHASSIS'")
+
+      # Test 3: SCM exists with SMB_SLOT, should return "SMB"
+      platform_with_smb = PlatformConfig( "test_platform_with_smb" )
+      scmPmUnit_with_smb = PmUnitConfig( "SCM" )
+      scmPmUnit_with_smb.addOutgoingSlotConfigs( [ SlotConfig( slotName="SMB_SLOT@0" ) ] )
+      platform_with_smb.addPmUnitConfigs( [ scmPmUnit_with_smb ] )
+      self.assertEqual( platform_with_smb.getChassisEepromDeviceName(), "SMB",
+                        "With SCM and SMB_SLOT, chassisEepromName should be 'SMB'")
+
+      # Test 4: SCM exists with multiple outgoing slots, one of which is SMB_SLOT
+      platform_multiple_slots = PlatformConfig( "test_platform_multiple_slots" )
+      scmPmUnit_multiple_slots = PmUnitConfig( "SCM" )
+      scmPmUnit_multiple_slots.addOutgoingSlotConfigs( [
+         SlotConfig( slotName="FAN_SLOT@0" ),
+         SlotConfig( slotName="SMB_SLOT@0" ),
+         SlotConfig( slotName="PSU_SLOT@0" )
+      ] )
+      platform_multiple_slots.addPmUnitConfigs( [ scmPmUnit_multiple_slots ] )
+      self.assertEqual( platform_multiple_slots.getChassisEepromDeviceName(), "SMB",
+                        "With multiple outgoing slots including SMB_SLOT, chassisEepromName should be 'SMB'")
+
 
 class SlotTypeConfigTest( unittest.TestCase ):
    def testWithIdPromConfig( self ):
