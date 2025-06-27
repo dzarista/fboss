@@ -59,17 +59,8 @@ images:
       - image: code.arista.io/os/fboss-centos%fboss-centos-image-el9
       - image: .%package_dnx_6.4-el9
     finalizers:
-      - [ 'sh', '-c', 'test -e /usr/share/ptest-data/Fboss/RPMS/dnx/6.4/arista-fboss-core-1-1.el9.x86_64.rpm' ]
-      - [ 'sh', '-c', 'test -e /usr/share/ptest-data/Fboss/RPMS/dnx/6.4/arista-fboss-platform-darwin-1-1.el9.x86_64.rpm' ]
-      - [ 'sh', '-c', 'test -e /usr/share/ptest-data/Fboss/RPMS/dnx/6.4/arista-fboss-platform-darwin48v-1-1.el9.x86_64.rpm' ]
-      - [ 'sh', '-c', 'test -e /usr/share/ptest-data/Fboss/RPMS/dnx/6.4/arista-fboss-platform-meru400bia-1-1.el9.x86_64.rpm' ]
-      - [ 'sh', '-c', 'test -e /usr/share/ptest-data/Fboss/RPMS/dnx/6.4/arista-fboss-platform-meru800bfa-1-1.el9.x86_64.rpm' ]
-      - [ 'sh', '-c', 'test -e /usr/share/ptest-data/Fboss/RPMS/dnx/6.4/arista-fboss-platform-meru800bia-1-1.el9.x86_64.rpm' ]
-      - [ 'sh', '-c', 'test -e /usr/share/ptest-data/Fboss/RPMS/dnx/6.4/arista-fboss-platform-meru800biab-1-1.el9.x86_64.rpm' ]
-      - [ 'sh', '-c', 'test -e /usr/share/ptest-data/Fboss/RPMS/dnx/6.4/arista-fboss-platform-glath05a-64o-1-1.el9.x86_64.rpm' ]
-      - [ 'sh', '-c', 'test -e /usr/share/ptest-data/Fboss/RPMS/dnx/6.4/arista-fboss-platform-yamp-1-1.el9.x86_64.rpm' ]
-      - [ 'sh', '-c', 'test -e /usr/share/ptest-data/Fboss/RPMS/dnx/6.4/arista_bsp_kmods-0.5.0-1.el9.x86_64.rpm' ]
-      - [ 'sh', '-c', 'test -e /usr/share/ptest-data/Fboss/RPMS/dnx/6.4/showtech-arista-1-1.el9.x86_64.rpm' ]
+      - [ 'sh', '-c', 'rpm -iUvh /usr/share/ptest-data/Fboss/RPMS/dnx/6.4/arista-fboss-core-1-1.el9.x86_64.rpm' ]
+      - [ 'sh', '-c', 'export LD_LIBRARY_PATH=/opt/fboss/lib:$LD_LIBRARY_PATH && /opt/fboss/run_sw_tests.sh /opt/fboss/bin' ]
 
   test/package_xgs_6.4-el9:
     description: |
@@ -78,14 +69,5 @@ images:
       - image: code.arista.io/os/fboss-centos%fboss-centos-image-el9
       - image: .%package_xgs_6.4-el9
     finalizers:
-      - [ 'sh', '-c', 'test -e /usr/share/ptest-data/Fboss/RPMS/xgs/6.4/arista-fboss-core-1-1.el9.x86_64.rpm' ]
-      - [ 'sh', '-c', 'test -e /usr/share/ptest-data/Fboss/RPMS/xgs/6.4/arista-fboss-platform-darwin-1-1.el9.x86_64.rpm' ]
-      - [ 'sh', '-c', 'test -e /usr/share/ptest-data/Fboss/RPMS/xgs/6.4/arista-fboss-platform-darwin48v-1-1.el9.x86_64.rpm' ]
-      - [ 'sh', '-c', 'test -e /usr/share/ptest-data/Fboss/RPMS/xgs/6.4/arista-fboss-platform-meru400bia-1-1.el9.x86_64.rpm' ]
-      - [ 'sh', '-c', 'test -e /usr/share/ptest-data/Fboss/RPMS/xgs/6.4/arista-fboss-platform-meru800bfa-1-1.el9.x86_64.rpm' ]
-      - [ 'sh', '-c', 'test -e /usr/share/ptest-data/Fboss/RPMS/xgs/6.4/arista-fboss-platform-meru800bia-1-1.el9.x86_64.rpm' ]
-      - [ 'sh', '-c', 'test -e /usr/share/ptest-data/Fboss/RPMS/xgs/6.4/arista-fboss-platform-meru800biab-1-1.el9.x86_64.rpm' ]
-      - [ 'sh', '-c', 'test -e /usr/share/ptest-data/Fboss/RPMS/xgs/6.4/arista-fboss-platform-glath05a-64o-1-1.el9.x86_64.rpm' ]
-      - [ 'sh', '-c', 'test -e /usr/share/ptest-data/Fboss/RPMS/xgs/6.4/arista-fboss-platform-yamp-1-1.el9.x86_64.rpm' ]
-      - [ 'sh', '-c', 'test -e /usr/share/ptest-data/Fboss/RPMS/xgs/6.4/arista_bsp_kmods-0.5.0-1.el9.x86_64.rpm' ]
-      - [ 'sh', '-c', 'test -e /usr/share/ptest-data/Fboss/RPMS/xgs/6.4/showtech-arista-1-1.el9.x86_64.rpm' ]
+      - [ 'sh', '-c', 'rpm -iUvh /usr/share/ptest-data/Fboss/RPMS/xgs/6.4/arista-fboss-core-1-1.el9.x86_64.rpm' ]
+      - [ 'sh', '-c', 'export LD_LIBRARY_PATH=/opt/fboss/lib:$LD_LIBRARY_PATH && /opt/fboss/run_sw_tests.sh /opt/fboss/bin' ]

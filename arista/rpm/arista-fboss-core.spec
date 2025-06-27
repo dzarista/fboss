@@ -13,6 +13,8 @@ URL: https://github.com/aristanetworks/arista-fboss
 %define _fboss_target_lib %{_fboss_target_opt}/lib/
 %define _fboss_target_share %{_fboss_target_opt}/share/
 %define _fboss_target_systemd %{_fboss_target_share}/systemd/
+%define _swtest_samples %{_fboss_target_bin}/fboss/platform/configs/sample/
+%define _fboss_target_platform_mappings %{_fboss_target_bin}/fboss/lib/platform_mapping_v2/
 
 %description
 This package provides core utilities to run Meta FBOSS OSS on Arista switches.
@@ -60,13 +62,18 @@ cp -f  %{_fboss_repo_core}/scripts/fboss-state-sync.py %{_fboss_target_bin}
 cp -f  %{_fboss_repo_core}/scripts/cpu-oob-eeprom-util.sh %{_fboss_target_bin}
 cp -f  %{_fboss_repo_core}/scripts/switch-to-bmc.sh %{_fboss_target_bin}
 
-# Install sw_test files
-mkdir -p %{_fboss_target_opt}/sw_test/
-cp -rf %{_fboss_dir}/fboss/platform/configs/sample/ %{_fboss_target_opt}/sw_test/
-cp -f  %{_fboss_repo_core}/scripts/run_sw_tests.sh %{_fboss_target_opt}/sw_test/
-
 # Install utility binaries
 cp -f %{_fboss_dir}/arista/psu-upgrade/psu-upgrade %{_fboss_target_bin}
+
+# Install swtest artifacts
+mkdir -p %{_swtest_samples}
+mkdir -p %{_fboss_target_platform_mappings}
+cp -rf %{_fboss_dir}/fboss/platform/configs/sample/* %{_swtest_samples}
+cp -rf %{_fboss_dir}/fboss/lib/platform_mapping_v2/platforms %{_fboss_target_platform_mappings}
+cp -rf %{_fboss_dir}/fboss/lib/platform_mapping_v2/test %{_fboss_target_platform_mappings}
+cp -rf %{_fboss_dir}/fboss/lib/platform_mapping_v2/generated_platform_mappings %{_fboss_target_platform_mappings}
+
+cp -f %{_fboss_repo_core}/scripts/run_sw_tests.sh %{_fboss_target_opt}
 
 # Install thriftctl utility
 cp -f %{_fboss_dir}/arista/util/thriftctl/thriftctl.py %{_fboss_target_bin}/thriftctl
