@@ -7,6 +7,40 @@ from GenerateConfigsAndDiagrams.Platforms.Rackhawk import RackhawkORv3, Rackhawk
 from GenerateConfigsAndDiagrams.Platforms.Viper import Viper
 from GenerateConfigsAndDiagrams.Platforms.Whistler import Whistler
 
+# Avoid generating certain configs on certain platforms.
+# This is useful for platforms that share the configs.
+EXCLUDE_LIST = {
+   'pm-config': [],
+   'sensor-config': [],
+   'bsp-mapping': [ 'RackhawkORv3' ]
+}
+
+
+def genPmConfig( platform, aristaCodename, metaCodename, output ):
+   if aristaCodename not in EXCLUDE_LIST.get( 'pm-config', [] ):
+      with open(
+         f'../../../fboss/platform/configs/{ metaCodename }/platform_manager.json', 'w'
+      ) as file:
+         file.write( getattr( platform, output[ 'pm-config' ] )() )
+         file.write( '\n' )
+
+
+def genSensorConfig( platform, aristaCodename, metaCodename, output ):
+   if aristaCodename not in EXCLUDE_LIST.get( 'sensor-config', [] ):
+      with open(
+         f'../../../fboss/platform/configs/{ metaCodename }/sensor_service.json', 'w'
+      ) as file:
+         file.write( getattr( platform, output[ 'sensor-config' ] )() )
+         file.write( '\n' )
+
+
+def genBspMapping( platform, aristaCodename, metaCodename, output ):
+   if aristaCodename not in EXCLUDE_LIST.get( 'bsp-mapping', [] ):
+      with open(
+         f'../../../fboss/lib/bsp/bspmapping/input/{ metaCodename }_BspMapping.csv', 'w',
+      ) as file:
+         file.write( getattr( platform, output[ 'bsp-mapping' ] )() )
+
 
 def main():
    platforms = {
@@ -20,7 +54,8 @@ def main():
    output = {
       'pm-config': 'pmConfigJson',
       'sensor-config': 'sensorServiceJson',
-      'pm-diagram': 'genDiagram'
+      'pm-diagram': 'genDiagram',
+      'bsp-mapping': 'bspMappingCsv'
    }
 
    parser = argparse.ArgumentParser(
@@ -33,28 +68,24 @@ def main():
    parser.add_argument( '--platform', choices=platforms.keys(),
                         help='Platform name' )
    parser.add_argument( '--output',
-                        choices=[ 'pm-config', 'sensor-config', 'pm-diagram' ],
+                        choices=[ 'pm-config', 'sensor-config', 'pm-diagram',
+                                  'bsp-mapping' ],
                         help='Config/diagram to generate' )
    args = parser.parse_args()
 
    if args.update_all_configs and not args.platform and not args.output:
       for p in platforms:
+         aristaCodename = p
          platform = platforms[ p ]()
-         name = platform.platformName.lower()
-         with open(
-            f'../../../fboss/platform/configs/{ name }/platform_manager.json', 'w'
-         ) as file:
-            file.write( getattr( platform, output[ 'pm-config' ] )() )
-            file.write( '\n' )
-         with open(
-            f'../../../fboss/platform/configs/{ name }/sensor_service.json', 'w'
-         ) as file:
-            file.write( getattr( platform, output[ 'sensor-config' ] )() )
-            file.write( '\n' )
+         metaCodename = platform.platformName.lower()
+
+         genPmConfig( platform, aristaCodename, metaCodename, output )
+         genSensorConfig( platform, aristaCodename, metaCodename, output )
+         genBspMapping( platform, aristaCodename, metaCodename.capitalize(), output )
    elif args.platform and args.output and not args.update_all_configs:
       platform = platforms[ args.platform ]()
       result = getattr( platform, output[ args.output ] )()
-      if args.output in [ 'pm-config', 'sensor-config' ]:
+      if args.output in [ 'pm-config', 'sensor-config', 'bsp-mapping' ]:
          print( result )
    else:
       parser.error( parser.description )
@@ -62,5 +93,3 @@ def main():
 
 if __name__ == '__main__':
    main()
-
-
