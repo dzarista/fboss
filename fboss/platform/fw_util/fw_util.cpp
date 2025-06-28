@@ -29,6 +29,7 @@ int main(int argc, char* argv[]) {
   bool verify_sha1sum = false;
   bool dry_run = false;
 
+<<<<<<< HEAD
   app.set_version_flag("--version", helpers::getBuildVersion());
 
   // Group: Firmware Options
@@ -37,39 +38,26 @@ int main(int argc, char* argv[]) {
       "Specify firmware action, target, and optional binary file");
 
   fwGroup->add_option(
+=======
+  app.set_version_flag("--version", facebook::BuildInfo::toDebugString());
+  app.add_option(
+>>>>>>> parent of 2345a79404 (fw_util: Improve CLI help UX and enforce option constraints for fw_util)
       "--fw_target_name",
       fw_target_name,
-      "Firmware target name, to see list of targets, run fw_util --list");
-
-  fwGroup
-      ->add_option(
-          "--fw_action",
-          fw_action,
-          "Firmware action (program, verify, read, version, list, audit)")
-      ->check(CLI::IsMember(
-          {"program", "verify", "read", "version", "list", "audit"}))
-      ->required();
-
-  fwGroup->add_option(
+      "The fpd name that needs to be programmed");
+  app.add_option(
+      "--fw_action",
+      fw_action,
+      "The firmware action (program, verify, read, version, list, audit)");
+  app.add_option(
       "--fw_binary_file",
       fw_binary_file,
-      "Firmware binary file path to be programmed");
+      "The binary file to program (only required for 'program')");
 
-  // Group: Flags
-  auto flagsGroup = app.add_option_group("Flags", "Additional flags");
-  flagsGroup->add_flag(
+  app.add_flag(
       "--verify_sha1sum", verify_sha1sum, "Verify SHA1 sum of the firmware");
-  flagsGroup->add_flag(
+  app.add_flag(
       "--dry_run", dry_run, "Dry run without actually programming firmware");
-
-  // Add examples in the footer/help
-  app.footer(
-      "Examples:\n"
-      "  fw_util --fw_action=program --fw_target_name=bios --fw_binary_file=/path/to/firmware.bin\n"
-      "  fw_util --fw_action=verify --fw_target_name=FPGA --fw_binary_file=/path/to/firmware.bin\n"
-      "  fw_util --fw_action=version --fw_target_name=CPLD\n"
-      "  fw_util --fw_action=list\n"
-      "  fw_util --fw_action=audit\n");
 
   CLI11_PARSE(app, argc, argv);
 
