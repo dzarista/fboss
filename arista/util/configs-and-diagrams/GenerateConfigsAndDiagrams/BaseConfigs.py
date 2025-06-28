@@ -108,6 +108,28 @@ class PlatformConfig:
          ] = pmConfig.slotTypeConfig.asJson()
       return jsonDict
 
+   def getFruEepromList( self ):
+      jsonDict = {}
+      for pmConfig in self.pmUnitConfigs:
+         slotTypeConfig = pmConfig.slotTypeConfig
+         idprom_config = slotTypeConfig.parseIdpromConfig()
+
+         # Check if idprom exists
+         if idprom_config and all(v is not None for v in idprom_config.values()):
+            name = slotTypeConfig.pmUnitName
+            path = ""
+            if name == "SCM":
+               path = "/run/devmap/eeproms/MERU_SCM_EEPROM"
+            else:
+               path = f"/run/devmap/eeproms/{self.platformName}_{name}_EEPROM"
+            offset = idprom_config.get('offset', 0)
+            jsonDict[name] = {
+               "path": path,
+               "offset": offset
+            }
+      return jsonDict
+
+
    def addPmUnitConfigs( self, newConfigs ):
       for config in newConfigs:
          config.addParentConfigPointer( self )
@@ -183,13 +205,15 @@ class PlatformConfig:
       output = reformatOneElementLists( jsonDump )
       return output
 
-   def weutilJson( self, chassis_eeprom_name: str = "CHASSIS"):
-      """
-      Generates the weutil.json content based on the platform's EEPROM configurations.
-      """
+   def weutilJson( self ):
       weutil_data = OrderedDict()
-      weutil_data["chassisEepromName"] = self.getChassisEepromDeviceName()
-      weutil_data["fruEepromList"] = OrderedDict()
+      weutil_data["chassisEepromName"] = "SMB"
+
+      for pm_config_to_populate in self.pmUnitConfigs:
+          pm_config_to_populate.populateSymlinkToDevicePaths()
+
+      weutil_data["fruEepromList"] = self.getFruEepromList()
+
       output_json_dump = json.dumps(weutil_data, indent=2)
       return output_json_dump
 
@@ -1392,7 +1416,7 @@ class SensorType( Enum ):
    CURRENT = 2
    TEMP = 3
    FAN_SPEED = 4
-   
+
 
 class SensorConfig:
    def __init__( self, name, filename, sensorType, compute=None, thresholds=None,
