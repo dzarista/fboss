@@ -135,19 +135,23 @@ class PlatformConfig:
          slotTypeConfig = pmConfig.slotTypeConfig
          idprom_config = slotTypeConfig.parseIdpromConfig()
 
-         # Check if idprom exists
          if idprom_config and all(v is not None for v in idprom_config.values()):
             name = slotTypeConfig.pmUnitName
             path = ""
             if name == "SCM":
-               path = "/run/devmap/eeproms/MERU_SCM_EEPROM"
+                  path = "/run/devmap/eeproms/MERU_SCM_EEPROM"
+
+            elif hasattr(pmConfig, 'prefixSymlink') and pmConfig.prefixSymlink:
+                  path = f"/run/devmap/eeproms/{pmConfig.prefixSymlink}_{name}_EEPROM"
+
             else:
-               path = f"/run/devmap/eeproms/{self.platformName}_{name}_EEPROM"
+                  path = f"/run/devmap/eeproms/{self.platformName}_{name}_EEPROM"
+
             offset = idprom_config.get('offset', 0)
-            jsonDict[name] = {
-               "path": path,
-               "offset": offset
-            }
+            jsonDict[name] = OrderedDict([
+                  ("path", path),
+                  ("offset", offset)
+            ])
       return jsonDict
 
 

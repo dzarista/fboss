@@ -150,7 +150,7 @@ class PlatformConfigTest( unittest.TestCase ):
       expected_data_normalized = json.loads(json.dumps(expected_data), object_pairs_hook=OrderedDict)
 
       self.assertDictEqual(generated_data, expected_data_normalized,
-                           f"weutil.json mismatch for platform: {platform_codename}")
+                           generated_data)
 
 
 
