@@ -108,10 +108,10 @@ class PlatformConfigTest( unittest.TestCase ):
          idPromConfigKernelDeviceName="24c512",
          idPromConfigOffset=15360
       )
-      scm_idprom_instance = I2cIdProm("0x50", "24c512", "MERU_SCM_EEPROM", hasCpuMac=True)
-      scm_unit.addI2cDeviceConfigs([scm_idprom_instance])
+      scm_idprom_instance = I2cIdProm( "0x50", "24c512", "MERU_SCM_EEPROM", hasCpuMac=True )
+      scm_unit.addI2cDeviceConfigs( [ scm_idprom_instance ] )
 
-      scm_unit.addOutgoingSlotConfigs([SlotConfig(slotName="SMB_SLOT@0")])
+      scm_unit.addOutgoingSlotConfigs( [ SlotConfig( slotName="SMB_SLOT@0" ) ] )
 
       smb_unit = SMBUnit()
       smb_unit.setSlotTypeConfig(
@@ -121,36 +121,35 @@ class PlatformConfigTest( unittest.TestCase ):
          idPromConfigKernelDeviceName="24c512",
          idPromConfigOffset=15360
       )
-      smb_idprom_instance = I2cIdProm("0x50", "24c512", f"{platform_codename}_SMB_EEPROM")
-      smb_unit.addI2cDeviceConfigs([smb_idprom_instance])
+      smb_idprom_instance = I2cIdProm( "0x50", "24c512", f"{platform_codename}_SMB_EEPROM" )
+      smb_unit.addI2cDeviceConfigs( [ smb_idprom_instance ] )
 
-      platform_config.addPmUnitConfigs([scm_unit, smb_unit])
+      platform_config.addPmUnitConfigs( [ scm_unit, smb_unit ] )
 
       for pm_cfg in platform_config.pmUnitConfigs:
          pm_cfg.populateSymlinkToDevicePaths()
 
       generated_json_str = platform_config.weutilJson()
-      generated_data = json.loads(generated_json_str, object_pairs_hook=OrderedDict)
+      generated_data = json.loads( generated_json_str, object_pairs_hook=OrderedDict )
 
-      expected_data = OrderedDict([
-         ("chassisEepromName", "SMB"),
-         ("fruEepromList", OrderedDict([
-               ("SCM", OrderedDict([
+      expected_data = OrderedDict( [
+         ( "chassisEepromName", "SMB" ),
+         ( "fruEepromList", OrderedDict( [
+               ( "SCM", OrderedDict( [
                   ("path", expected_scm_path),
                   ("offset", 15360),
-               ])),
-               ("SMB", OrderedDict([
+               ] ) ),
+               ( "SMB", OrderedDict( [
                   ("path", expected_smb_path),
                   ("offset", 15360),
-               ]))
-         ]))
-      ])
+               ] ) )
+         ] ) )
+      ] )
       
-      expected_data_normalized = json.loads(json.dumps(expected_data), object_pairs_hook=OrderedDict)
+      expected_data_normalized = json.loads( json.dumps( expected_data ), object_pairs_hook=OrderedDict )
 
-      self.assertDictEqual(generated_data, expected_data_normalized,
-                           generated_data)
-
+      self.assertDictEqual( generated_data, expected_data_normalized,
+                           generated_data )
 
 
 class SlotTypeConfigTest( unittest.TestCase ):

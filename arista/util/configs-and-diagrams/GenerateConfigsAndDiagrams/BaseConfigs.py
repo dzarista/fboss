@@ -138,10 +138,10 @@ class PlatformConfig:
          path = slotTypeConfig.getEepromConfig()
          if path:
             offset = idprom_config.get( 'offset', 0 )
-            jsonDict[pmConfig.pmUnitName] = OrderedDict([
+            jsonDict[ pmConfig.pmUnitName ] = OrderedDict( [
                   ("path", path),
                   ("offset", offset)
-            ])
+            ] )
       return jsonDict
 
 
@@ -216,7 +216,7 @@ class PlatformConfig:
       weutil_data = OrderedDict()
       weutil_data[ "chassisEepromName" ] = "SMB"
       weutil_data[ "fruEepromList" ] = self.getFruEepromList()
-      output_json_dump = json.dumps(weutil_data, indent=2)
+      output_json_dump = json.dumps( weutil_data, indent=2 )
       return output_json_dump
 
    def bspMappingCsv( self ):
