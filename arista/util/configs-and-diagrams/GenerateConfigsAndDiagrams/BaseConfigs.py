@@ -135,19 +135,19 @@ class PlatformConfig:
          slotTypeConfig = pmConfig.slotTypeConfig
          idprom_config = slotTypeConfig.parseIdpromConfig()
 
-         if idprom_config and all(v is not None for v in idprom_config.values()):
+         if idprom_config and all( v is not None for v in idprom_config.values() ):
             name = slotTypeConfig.pmUnitName
             path = ""
             if name == "SCM":
                   path = "/run/devmap/eeproms/MERU_SCM_EEPROM"
 
-            elif hasattr(pmConfig, 'prefixSymlink') and pmConfig.prefixSymlink:
+            elif hasattr( pmConfig, 'prefixSymlink' ) and pmConfig.prefixSymlink:
                   path = f"/run/devmap/eeproms/{pmConfig.prefixSymlink}_{name}_EEPROM"
 
             else:
                   path = f"/run/devmap/eeproms/{self.platformName}_{name}_EEPROM"
 
-            offset = idprom_config.get('offset', 0)
+            offset = idprom_config.get( 'offset', 0 )
             jsonDict[name] = OrderedDict([
                   ("path", path),
                   ("offset", offset)
@@ -176,14 +176,6 @@ class PlatformConfig:
          for symlink, devicePath in pmUnitDict.items():
             symlinkDict[ symlink ] = devicePath
       return symlinkDict
-
-   def getChassisEepromDeviceName( self ):
-      rootPmUnitName = self.getPmUnit( self.rootPmUnitName )
-      if rootPmUnitName:
-         for slotConfig in rootPmUnitName.outgoingSlotConfigs:
-            if slotConfig.slotType == "SMB_SLOT":
-               return "SMB"
-      return "CHASSIS"
 
    def getChassisEepromDevicePath( self ):
       scmPmUnit = self.getPmUnit( "SCM" )
@@ -232,12 +224,12 @@ class PlatformConfig:
 
    def weutilJson( self ):
       weutil_data = OrderedDict()
-      weutil_data["chassisEepromName"] = "SMB"
+      weutil_data[ "chassisEepromName" ] = "SMB"
 
       for pm_config_to_populate in self.pmUnitConfigs:
           pm_config_to_populate.populateSymlinkToDevicePaths()
 
-      weutil_data["fruEepromList"] = self.getFruEepromList()
+      weutil_data[ "fruEepromList" ] = self.getFruEepromList()
 
       output_json_dump = json.dumps(weutil_data, indent=2)
       return output_json_dump
