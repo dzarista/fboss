@@ -129,27 +129,26 @@ class PlatformConfig:
          ] = pmConfig.slotTypeConfig.asJson()
       return jsonDict
 
-   def getFruEepromList(self):
-      """
-      Generates a dictionary of FRU EEPROMs for weutil.json.
-      This method relies on the symlink paths being populated first.
-      """
-      fru_eeprom_list = OrderedDict()
-      all_symlinks = self.parseSymbolicLinkToDevicePaths()
+   def getFruEepromList( self ):
+      jsonDict = {}
+      for pmConfig in self.pmUnitConfigs:
+         slotTypeConfig = pmConfig.slotTypeConfig
+         idprom_config = slotTypeConfig.parseIdpromConfig()
 
-      for pm_unit in self.pmUnitConfigs:
-         for device in pm_unit.i2cDeviceConfigs:
-               if isinstance(device, I2cIdProm):
-                  symlink = device.symlinkPath
-                  if symlink and symlink in all_symlinks:
-                     fru_name = pm_unit.pmUnitName
-                     offset = pm_unit.slotTypeConfig.idPromConfigOffset
-                  
-                     fru_eeprom_list[fru_name] = OrderedDict([
-                           ("path", symlink),
-                           ("offset", offset), 
-                     ])
-      return fru_eeprom_list
+         # Check if idprom exists
+         if idprom_config and all(v is not None for v in idprom_config.values()):
+            name = slotTypeConfig.pmUnitName
+            path = ""
+            if name == "SCM":
+               path = "/run/devmap/eeproms/MERU_SCM_EEPROM"
+            else:
+               path = f"/run/devmap/eeproms/{self.platformName}_{name}_EEPROM"
+            offset = idprom_config.get('offset', 0)
+            jsonDict[name] = {
+               "path": path,
+               "offset": offset
+            }
+      return jsonDict
 
 
    def addPmUnitConfigs( self, newConfigs ):
@@ -229,9 +228,15 @@ class PlatformConfig:
 
    def weutilJson( self ):
       weutil_data = OrderedDict()
-      weutil_data["chassisEepromName"] = "SMB" 
+      weutil_data["chassisEepromName"] = "SMB"
+
+      for pm_config_to_populate in self.pmUnitConfigs:
+          pm_config_to_populate.populateSymlinkToDevicePaths()
+
       weutil_data["fruEepromList"] = self.getFruEepromList()
-      return json.dumps(weutil_data, indent=2)
+
+      output_json_dump = json.dumps(weutil_data, indent=2)
+      return output_json_dump
 
    def bspMappingCsv( self ):
       output = io.StringIO()

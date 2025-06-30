@@ -12,7 +12,8 @@ from GenerateConfigsAndDiagrams.Platforms.Whistler import Whistler
 EXCLUDE_LIST = {
    'pm-config': [],
    'sensor-config': [],
-   'bsp-mapping': [ 'RackhawkORv3' ]
+   'bsp-mapping': [ 'RackhawkORv3' ],
+   'weutil-config': [ 'Rackhawk', 'RackhawkORv3' ],
 }
 
 
@@ -42,6 +43,15 @@ def genBspMapping( platform, aristaCodename, metaCodename, output ):
          file.write( getattr( platform, output[ 'bsp-mapping' ] )() )
 
 
+def genWeutilConfig( platform, aristaCodename, metaCodename, output ):
+   if aristaCodename not in EXCLUDE_LIST.get( 'weutil-config', [] ):
+      with open(
+         f'../../../fboss/platform/configs/{ metaCodename }/weutil.json', 'w'
+      ) as file:
+         file.write( getattr( platform, output[ 'weutil-config' ] )() )
+         file.write( '\n' )
+
+
 def main():
    platforms = {
       'QuicksilverPFb': QuicksilverPFb,
@@ -55,7 +65,8 @@ def main():
       'pm-config': 'pmConfigJson',
       'sensor-config': 'sensorServiceJson',
       'pm-diagram': 'genDiagram',
-      'bsp-mapping': 'bspMappingCsv'
+      'bsp-mapping': 'bspMappingCsv',
+      'weutil-config': 'weutilJson',
    }
 
    parser = argparse.ArgumentParser(
@@ -69,7 +80,7 @@ def main():
                         help='Platform name' )
    parser.add_argument( '--output',
                         choices=[ 'pm-config', 'sensor-config', 'pm-diagram',
-                                  'bsp-mapping' ],
+                                  'bsp-mapping', 'weutil-config' ],
                         help='Config/diagram to generate' )
    args = parser.parse_args()
 
@@ -85,7 +96,7 @@ def main():
    elif args.platform and args.output and not args.update_all_configs:
       platform = platforms[ args.platform ]()
       result = getattr( platform, output[ args.output ] )()
-      if args.output in [ 'pm-config', 'sensor-config', 'bsp-mapping' ]:
+      if args.output in [ 'pm-config', 'sensor-config', 'bsp-mapping', 'weutil-config' ]:
          print( result )
    else:
       parser.error( parser.description )
