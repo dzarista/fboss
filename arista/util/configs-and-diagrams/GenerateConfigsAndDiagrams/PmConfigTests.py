@@ -19,12 +19,14 @@ from .BaseConfigs import (
    I2cDeviceConfig,
    I2cIdProm,
    LedConfig,
+   OrderedDict,
    PciDeviceConfig,
    PlatformConfig,
    PSUBus,
    PSUUnit,
    PmUnitConfig,
    SCMUnit,
+   SMBUnit,
    Sensor,
    SlotConfig,
    SMBCpld,
@@ -92,38 +94,64 @@ class PlatformConfigTest( unittest.TestCase ):
       pmConfig = json.loads( platform.pmConfigJson() )
       self.assertEqual( pmConfig[ "chassisEepromDevicePath" ], "/SMB_SLOT@0/[IDPROM]")
 
-   def testChassisEepromDeviceName( self ):
-      # Test 1: No SCM or SMB_SLOT, should default to "CHASSIS"
-      platform = PlatformConfig( "test_platform_no_scm" )
-      self.assertEqual( platform.getChassisEepromDeviceName(), "CHASSIS",
-                        "Without SCM or SMB_SLOT, chassisEepromName should default to 'CHASSIS'")
+   def testWeutilJson(self):
+      platform_codename = "test_platform_alpha"
+      smb_prefix = "TEST_PREFIX"
+      expected_scm_path = "/run/devmap/eeproms/MERU_SCM_EEPROM"
+      expected_smb_path = f"/run/devmap/eeproms/{smb_prefix}_SMB_EEPROM"
 
-      # Test 2: SCM exists but no SMB_SLOT, should still default to "CHASSIS"
-      platform_with_scm = PlatformConfig( "test_platform_with_scm" )
-      scmPmUnit_no_smb = PmUnitConfig( "SCM" )
-      platform_with_scm.addPmUnitConfigs( [ scmPmUnit_no_smb ] )
-      self.assertEqual( platform_with_scm.getChassisEepromDeviceName(), "CHASSIS",
-                        "With SCM but no SMB_SLOT, chassisEepromName should still be 'CHASSIS'")
+      platform_config = PlatformConfig(platform_codename, rootPmUnitName="SCM")
+      
+      scm_unit = SCMUnit()
+      scm_unit.setSlotTypeConfig(
+         idPromConfigBusName="mock_scm_bus",
+         idPromConfigAddress="0x50",
+         idPromConfigKernelDeviceName="24c512",
+         idPromConfigOffset=15360
+      )
+      scm_idprom_instance = I2cIdProm("0x50", "24c512", "MERU_SCM_EEPROM", hasCpuMac=True)
+      scm_unit.addI2cDeviceConfigs([scm_idprom_instance])
 
-      # Test 3: SCM exists with SMB_SLOT, should return "SMB"
-      platform_with_smb = PlatformConfig( "test_platform_with_smb" )
-      scmPmUnit_with_smb = PmUnitConfig( "SCM" )
-      scmPmUnit_with_smb.addOutgoingSlotConfigs( [ SlotConfig( slotName="SMB_SLOT@0" ) ] )
-      platform_with_smb.addPmUnitConfigs( [ scmPmUnit_with_smb ] )
-      self.assertEqual( platform_with_smb.getChassisEepromDeviceName(), "SMB",
-                        "With SCM and SMB_SLOT, chassisEepromName should be 'SMB'")
+      scm_unit.addOutgoingSlotConfigs([SlotConfig(slotName="SMB_SLOT@0")])
 
-      # Test 4: SCM exists with multiple outgoing slots, one of which is SMB_SLOT
-      platform_multiple_slots = PlatformConfig( "test_platform_multiple_slots" )
-      scmPmUnit_multiple_slots = PmUnitConfig( "SCM" )
-      scmPmUnit_multiple_slots.addOutgoingSlotConfigs( [
-         SlotConfig( slotName="FAN_SLOT@0" ),
-         SlotConfig( slotName="SMB_SLOT@0" ),
-         SlotConfig( slotName="PSU_SLOT@0" )
-      ] )
-      platform_multiple_slots.addPmUnitConfigs( [ scmPmUnit_multiple_slots ] )
-      self.assertEqual( platform_multiple_slots.getChassisEepromDeviceName(), "SMB",
-                        "With multiple outgoing slots including SMB_SLOT, chassisEepromName should be 'SMB'")
+      smb_unit = SMBUnit(smb_prefix)
+      smb_unit.setSlotTypeConfig(
+         numOutgoingI2cBuses=3,
+         idPromConfigBusName="mock_bus_smb",
+         idPromConfigAddress="0x50",
+         idPromConfigKernelDeviceName="24c512",
+         idPromConfigOffset=15360
+      )
+      smb_idprom_instance = I2cIdProm("0x50", "24c512", f"{smb_prefix}_SMB_EEPROM")
+      smb_unit.addI2cDeviceConfigs([smb_idprom_instance])
+
+      platform_config.addPmUnitConfigs([scm_unit, smb_unit])
+
+      for pm_cfg in platform_config.pmUnitConfigs:
+         pm_cfg.populateSymlinkToDevicePaths()
+
+      generated_json_str = platform_config.weutilJson()
+      generated_data = json.loads(generated_json_str, object_pairs_hook=OrderedDict)
+
+      expected_data = OrderedDict([
+         ("chassisEepromName", "SMB"),
+         ("fruEepromList", OrderedDict([
+               ("SCM", OrderedDict([
+                  ("path", expected_scm_path),
+                  ("offset", 15360),
+               ])),
+               ("SMB", OrderedDict([
+                  ("path", expected_smb_path),
+                  ("offset", 15360),
+               ]))
+         ]))
+      ])
+      
+      expected_data_normalized = json.loads(json.dumps(expected_data), object_pairs_hook=OrderedDict)
+
+      self.assertDictEqual(generated_data, expected_data_normalized,
+                           f"weutil.json mismatch for platform: {platform_codename}")
+
 
 
 class SlotTypeConfigTest( unittest.TestCase ):
