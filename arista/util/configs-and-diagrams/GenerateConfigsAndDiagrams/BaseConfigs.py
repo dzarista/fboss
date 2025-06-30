@@ -134,21 +134,11 @@ class PlatformConfig:
       for pmConfig in self.pmUnitConfigs:
          slotTypeConfig = pmConfig.slotTypeConfig
          idprom_config = slotTypeConfig.parseIdpromConfig()
-
-         if idprom_config and all( v is not None for v in idprom_config.values() ):
-            name = slotTypeConfig.pmUnitName
-            path = ""
-            if name == "SCM":
-                  path = "/run/devmap/eeproms/MERU_SCM_EEPROM"
-
-            elif hasattr( pmConfig, 'prefixSymlink' ) and pmConfig.prefixSymlink:
-                  path = f"/run/devmap/eeproms/{pmConfig.prefixSymlink}_{name}_EEPROM"
-
-            else:
-                  path = f"/run/devmap/eeproms/{self.platformName}_{name}_EEPROM"
-
+         # Call the eeprom config get symlink
+         path = slotTypeConfig.getEepromConfig()
+         if path:
             offset = idprom_config.get( 'offset', 0 )
-            jsonDict[name] = OrderedDict([
+            jsonDict[pmConfig.pmUnitName] = OrderedDict([
                   ("path", path),
                   ("offset", offset)
             ])
@@ -225,12 +215,7 @@ class PlatformConfig:
    def weutilJson( self ):
       weutil_data = OrderedDict()
       weutil_data[ "chassisEepromName" ] = "SMB"
-
-      for pm_config_to_populate in self.pmUnitConfigs:
-          pm_config_to_populate.populateSymlinkToDevicePaths()
-
       weutil_data[ "fruEepromList" ] = self.getFruEepromList()
-
       output_json_dump = json.dumps(weutil_data, indent=2)
       return output_json_dump
 
@@ -275,8 +260,20 @@ class SlotTypeConfig:
       self.idPromConfigAddress = None
       self.idPromConfigKernelDeviceName = None
       self.idPromConfigOffset = None
+      self.idPromDevice = None  # Added for weutil automation
       self.pmUnitName = pmUnitName
       self.parentConfig = None
+
+   def getEepromConfig( self ):
+      # NOTE: this is only valid at generation time
+      # is idprom defined
+      if not self.idPromConfigBusName:
+         return None
+      platformName = self.parentConfig.parentConfig.platformName
+      if self.pmUnitName == 'SCM' and platformName in ( "meru800bia", "meru800bfa", "glath05a-64o" ):
+         return "/run/devmap/eeproms/MERU_SCM_EEPROM"
+      else:
+         return f"/run/devmap/eeproms/{platformName.upper()}_{self.pmUnitName}_EEPROM"
 
    def addParentConfigPointer( self, parentConfig ):
       self.parentConfig = parentConfig
@@ -327,12 +324,14 @@ class PmUnitConfig:
    def setSlotTypeConfig( self, numOutgoingI2cBuses=0, idPromConfigBusName=None,
                           idPromConfigAddress=None,
                           idPromConfigKernelDeviceName=None,
-                          idPromConfigOffset=None ):
+                          idPromConfigOffset=None,
+                          idPromDevice=None ):
       self.slotTypeConfig.numOutgoingI2cBuses = numOutgoingI2cBuses
       self.slotTypeConfig.idPromConfigBusName = idPromConfigBusName
       self.slotTypeConfig.idPromConfigAddress = idPromConfigAddress
       self.slotTypeConfig.idPromConfigKernelDeviceName = idPromConfigKernelDeviceName
       self.slotTypeConfig.idPromConfigOffset = idPromConfigOffset
+      self.slotTypeConfig.idPromDevice = idPromDevice
       self.slotTypeConfig.addParentConfigPointer( self )
 
    def addParentConfigPointer( self, parentConfig ):

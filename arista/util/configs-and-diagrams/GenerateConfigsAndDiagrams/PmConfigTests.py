@@ -95,10 +95,9 @@ class PlatformConfigTest( unittest.TestCase ):
       self.assertEqual( pmConfig[ "chassisEepromDevicePath" ], "/SMB_SLOT@0/[IDPROM]")
 
    def testWeutilJson(self):
-      platform_codename = "test_platform_alpha"
-      smb_prefix = "TEST_PREFIX"
-      expected_scm_path = "/run/devmap/eeproms/MERU_SCM_EEPROM"
-      expected_smb_path = f"/run/devmap/eeproms/{smb_prefix}_SMB_EEPROM"
+      platform_codename = "test_platform"
+      expected_scm_path = "/run/devmap/eeproms/TEST_PLATFORM_SCM_EEPROM"
+      expected_smb_path = f"/run/devmap/eeproms/TEST_PLATFORM_SMB_EEPROM"
 
       platform_config = PlatformConfig(platform_codename, rootPmUnitName="SCM")
       
@@ -114,7 +113,7 @@ class PlatformConfigTest( unittest.TestCase ):
 
       scm_unit.addOutgoingSlotConfigs([SlotConfig(slotName="SMB_SLOT@0")])
 
-      smb_unit = SMBUnit(smb_prefix)
+      smb_unit = SMBUnit()
       smb_unit.setSlotTypeConfig(
          numOutgoingI2cBuses=3,
          idPromConfigBusName="mock_bus_smb",
@@ -122,7 +121,7 @@ class PlatformConfigTest( unittest.TestCase ):
          idPromConfigKernelDeviceName="24c512",
          idPromConfigOffset=15360
       )
-      smb_idprom_instance = I2cIdProm("0x50", "24c512", f"{smb_prefix}_SMB_EEPROM")
+      smb_idprom_instance = I2cIdProm("0x50", "24c512", f"{platform_codename}_SMB_EEPROM")
       smb_unit.addI2cDeviceConfigs([smb_idprom_instance])
 
       platform_config.addPmUnitConfigs([scm_unit, smb_unit])
