@@ -140,7 +140,6 @@ setup() {
    maybe_setup_build_env
    # Docker run's volume mount can't handle symlinks, so copy the latest versions
    # of the build scripts every time.
-   cp -f "${FBOSS_REPO_DIR}"/arista/core/scripts/run_sw_tests.sh "${FBOSS_HOST_DIR}"
    cp -f "${FBOSS_REPO_DIR}"/arista/util/bsp-mapping-gen/bspMappingGen.sh "${FBOSS_HOST_DIR}"
    cp -f "${FBOSS_REPO_DIR}"/arista/util/platform-mapping-gen/platformMappginGen.sh "${FBOSS_HOST_DIR}"
 }
@@ -166,7 +165,7 @@ run_cmd_container() {
       docker run -l owner="${USER}" --rm -it \
          -v "/b5/container/$(hostname)/rootfs/data${FBOSS_HOST_DIR}":/var/FBOSS/ \
          -v "/b5/container/$(hostname)/rootfs/data${FBOSS_REPO_DIR}":/var/FBOSS/fboss.git \
-         -w /var/FBOSS --name="${DOCKER_NAME}" "${FBOSS_IMG}" $@
+         -w /var/FBOSS --name="${DOCKER_NAME}" "${FBOSS_IMG}" "$@"
    fi
 }
 
@@ -251,7 +250,7 @@ do_update_dut() {
 
 do_sw_tests() {
     setup
-    run_cmd_container bash run_sw_tests.sh
+    run_cmd_container bash -c "cd fboss.git; ./arista/core/scripts/run_sw_tests.sh"
 }
 
 do_bsp_mapping_gen() {
