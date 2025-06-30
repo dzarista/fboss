@@ -143,13 +143,13 @@ Glath05a_64oShowtech::Glath05a_64oShowtech(bool verbose)
 }
 
 void MeruShowtech::printWeutilInfo() {
-  _printMainHeader("WEUTIL INFO");
+  printMainHeader("WEUTIL INFO");
   printWeutil("SCM");
   printWeutil("SMB");
 }
 
 void MeruShowtech::printAllFpgaVersions() {
-  _printMainHeader("FPGA VERSIONS");
+  printMainHeader("FPGA VERSIONS");
 
   std::string major_rev_path, minor_rev_path, combined_path;
   std::set<std::filesystem::path> fpga_sorted_by_name, cpld_sorted_by_name;
@@ -194,7 +194,7 @@ void MeruShowtech::printAllFpgaVersions() {
 }
 
 void MeruShowtech::printFanInfo() {
-  _printMainHeader("FAN DEBUG INFO");
+  printMainHeader("FAN DEBUG INFO");
   int i, pwm_pcnt, num_cpld = 0;
   std::set<std::filesystem::path> path_sorted_by_name;
   std::string per_cpld_fan_num, global_fan_num, present, pwm, rpm;
@@ -246,12 +246,12 @@ void MeruShowtech::printFanInfo() {
 }
 
 void MeruShowtech::printI2cInfo() {
-  _printMainHeader("I2C DEBUG INFO");
+  printMainHeader("I2C DEBUG INFO");
 
-  _printSubHeader("SWITCHCARD CPLD I2C DUMP");
+  printSubHeader("SWITCHCARD CPLD I2C DUMP");
   std::cout << switchcardCpld->i2cDump() << std::endl;
 
-  _printSubHeader("POWER CONTROLLER I2C DUMPS");
+  printSubHeader("POWER CONTROLLER I2C DUMPS");
   for (const auto &pwrCtrler : powerCtrlers) {
     /* Force writes on claimed device potentially dangerous - disable for now
 
@@ -265,19 +265,19 @@ void MeruShowtech::printI2cInfo() {
     std::cout << (pwrCtrler.first)->i2cDump() << std::endl;
   }
 
-  _printSubHeader("FAN I2C DUMPS");
+  printSubHeader("FAN I2C DUMPS");
   for (const auto &fanCpld : fanCplds) {
     std::cout << fanCpld->i2cDump() << std::endl;
   }
 }
 
 void MeruShowtech::printPsuShowtechInfo() {
-  _printMainHeader("PSU DEBUG INFO");
+  printMainHeader("PSU DEBUG INFO");
   printPsuInfo();
 }
 
 void MeruShowtech::printCfmShowtechInfo() {
-  _printMainHeader("CFM INFO");
+  printMainHeader("CFM INFO");
   printCfmInfo();
 }
 

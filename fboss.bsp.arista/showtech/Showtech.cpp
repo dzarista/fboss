@@ -11,20 +11,9 @@
 
 namespace showtech {
 
-void Showtech::_printMainHeader(std::string_view headerName) {
-  std::string topPadding = std::string(headerName.size() + 12, '#');
-  std::cout << topPadding << "\n";
-  std::cout << "##### " << headerName << " #####\n";
-  std::cout << topPadding << "\n\n";
-}
-
-void Showtech::_printSubHeader(std::string_view headerName) {
-  std::cout << "#### " << headerName << " ####\n";
-}
-
 void Showtech::print_fboss2_show_cmd(std::string cmd) {
   if (!ramdisk_) {
-    _printSubHeader("fboss2 show " + cmd);
+    printSubHeader("fboss2 show " + cmd);
     std::cout << run_cmd_no_check("fboss2 show " + cmd) << std::endl;
   }
 }
@@ -39,7 +28,7 @@ void Showtech::printWeutil(std::string target) {
     cmd = cmd + " -config_file " + ossConfigPath.string();
   }
 
-  _printSubHeader(target + " SERIAL NUMBER");
+  printSubHeader(target + " SERIAL NUMBER");
   std::cout << run_cmd_no_check(cmd) << std::endl;
 }
 
@@ -71,27 +60,27 @@ void Showtech::printFpgaVersion(std::string name, std::string sysfsPath,
 }
 
 void Showtech::printVersion() {
-  _printMainHeader("SHOWTECH VERSION " + version);
+  printMainHeader("SHOWTECH VERSION " + version);
 }
 
 void Showtech::printCpuDetails() {
-  _printMainHeader("HOST DETAILS");
+  printMainHeader("HOST DETAILS");
 
-  _printSubHeader("CPU SYSTEM TIME");
+  printSubHeader("CPU SYSTEM TIME");
   std::cout << run_cmd_no_check("date") << std::endl;
 
-  _printSubHeader("CPU HOSTNAME");
+  printSubHeader("CPU HOSTNAME");
   std::cout << run_cmd_no_check("hostname") << std::endl;
 
-  _printSubHeader("CPU Linux Kernel Version");
+  printSubHeader("CPU Linux Kernel Version");
   std::cout << run_cmd_no_check("uname -r") << std::endl;
 
-  _printSubHeader("CPU UPTIME");
+  printSubHeader("CPU UPTIME");
   std::cout << run_cmd_no_check("uptime") << std::endl;
 }
 
 void Showtech::printFbossDetails() {
-  _printMainHeader("FBOSS DETAILS");
+  printMainHeader("FBOSS DETAILS");
 
   print_fboss2_show_cmd("product");
   print_fboss2_show_cmd("version agent");
@@ -102,7 +91,7 @@ void Showtech::printFbossDetails() {
 }
 
 void Showtech::printLspci() {
-  _printMainHeader("LSPCI");
+  printMainHeader("LSPCI");
 
   std::string cmd = "lspci";
   if (verbose_) {
@@ -113,7 +102,7 @@ void Showtech::printLspci() {
 }
 
 void Showtech::printI2cDetect() {
-  _printMainHeader("I2C DETECT");
+  printMainHeader("I2C DETECT");
 
   std::string cmd = "i2cdetect -l";
   std::cout << cmd << std::endl;
@@ -130,7 +119,7 @@ void Showtech::printI2cDetect() {
 }
 
 void Showtech::printLogs() {
-  _printMainHeader("DEBUG LOGS");
+  printMainHeader("DEBUG LOGS");
 
   const std::string alt_platform_manager_log_path =
       "/var/facebook/logs/fboss/platform_manager.log";
@@ -141,7 +130,7 @@ void Showtech::printLogs() {
   const std::string alt_fan_service_log_path =
       "/var/facebook/logs/fboss/fan_service.log";
 
-  _printSubHeader("PLATFORM MANAGER LOG");
+  printSubHeader("PLATFORM MANAGER LOG");
   if (std::filesystem::exists(alt_platform_manager_log_path)) {
     std::cout << run_cmd_with_limit("cat " + alt_platform_manager_log_path)
               << std::endl;
@@ -150,7 +139,7 @@ void Showtech::printLogs() {
               << std::endl;
   }
 
-  _printSubHeader("SENSOR SERVICE LOG");
+  printSubHeader("SENSOR SERVICE LOG");
   if (std::filesystem::exists(alt_sensor_service_log_path)) {
     std::cout << run_cmd_with_limit("cat " + alt_sensor_service_log_path)
               << std::endl;
@@ -159,7 +148,7 @@ void Showtech::printLogs() {
               << std::endl;
   }
 
-  _printSubHeader("FAN SERVICE LOG");
+  printSubHeader("FAN SERVICE LOG");
   if (std::filesystem::exists(alt_fan_service_log_path)) {
     std::cout << run_cmd_with_limit("cat " + alt_fan_service_log_path)
               << std::endl;
@@ -167,7 +156,7 @@ void Showtech::printLogs() {
     std::cout << run_cmd_with_limit("journalctl -u fan_service") << std::endl;
   }
 
-  _printSubHeader("DATA CORRAL LOG");
+  printSubHeader("DATA CORRAL LOG");
   if (std::filesystem::exists(alt_data_corral_log_path)) {
     std::cout << run_cmd_with_limit("cat " + alt_data_corral_log_path)
               << std::endl;
@@ -176,37 +165,37 @@ void Showtech::printLogs() {
               << std::endl;
   }
 
-  _printSubHeader("QSFP LOG");
+  printSubHeader("QSFP LOG");
   std::cout << run_cmd_with_limit("journalctl -u qsfp_service") << std::endl;
 
-  _printSubHeader("SW AGENT LOG");
+  printSubHeader("SW AGENT LOG");
   std::cout << run_cmd_with_limit("journalctl -u fboss_sw_agent") << std::endl;
 
-  _printSubHeader("HW AGENT LOG");
+  printSubHeader("HW AGENT LOG");
   std::cout << run_cmd_with_limit("journalctl -u fboss_hw_agent@0")
             << std::endl;
 
-  _printSubHeader("DMESG LOG");
+  printSubHeader("DMESG LOG");
   std::cout << run_cmd_with_limit("dmesg") << std::endl;
 
-  _printSubHeader("BOOT CONSOLE LOG");
+  printSubHeader("BOOT CONSOLE LOG");
   std::cout << run_cmd_with_limit("cat /var/log/boot.log") << std::endl;
 
-  _printSubHeader("LINUX MESSAGES LOG");
+  printSubHeader("LINUX MESSAGES LOG");
   std::cout << run_cmd_with_limit("cat /var/log/messages") << std::endl;
 
-  _printSubHeader("NVME SSD SMART LOG");
+  printSubHeader("NVME SSD SMART LOG");
   std::cout << run_cmd_no_check("nvme smart-log /dev/nvme0n1") << std::endl;
 
-  _printSubHeader("NVME SSD ERROR LOG");
+  printSubHeader("NVME SSD ERROR LOG");
   std::cout << run_cmd_no_check("nvme error-log /dev/nvme0n1") << std::endl;
 
-  _printSubHeader("NVME SSD ID CTRL LOG");
+  printSubHeader("NVME SSD ID CTRL LOG");
   std::cout << run_cmd_no_check("nvme id-ctrl /dev/nvme0n1") << std::endl;
 }
 
 void Showtech::printL1Info() {
-  _printMainHeader("L1 LOGS");
+  printMainHeader("L1 LOGS");
 
   print_fboss2_show_cmd("port");
   print_fboss2_show_cmd("fabric");
@@ -218,13 +207,13 @@ void Showtech::printL1Info() {
   print_fboss2_show_cmd("transceiver");
 
   if (verbose_ && !ramdisk_) {
-    _printSubHeader("wedge_qsfp_util");
+    printSubHeader("wedge_qsfp_util");
     std::cout << run_cmd_with_timeout("wedge_qsfp_util", 30) << std::endl;
   }
 }
 
 void Showtech::printSensors() {
-  _printMainHeader("SENSORS DUMP");
+  printMainHeader("SENSORS DUMP");
   std::cout << run_cmd_with_timeout("sensors", 30) << std::endl;
 }
 

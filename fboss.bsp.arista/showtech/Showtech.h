@@ -34,8 +34,6 @@ protected:
                         std::string combinedRevPath);
   void printFpgaVersion(std::string name, std::string sysfsPath,
                         std::string majorRevPath, std::string minorRevPath);
-  void _printMainHeader(std::string_view headerName);
-  void _printSubHeader(std::string_view headerName);
 
   // Each platform overrides platform-specific info here.
   virtual void printPlatformInfo() = 0;

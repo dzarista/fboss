@@ -9,6 +9,17 @@
 
 namespace showtech {
 
+void printMainHeader(std::string_view headerName) {
+  std::string topPadding = std::string(headerName.size() + 12, '#');
+  std::cout << topPadding << "\n";
+  std::cout << "##### " << headerName << " #####\n";
+  std::cout << topPadding << "\n\n";
+}
+
+void printSubHeader(std::string_view headerName) {
+  std::cout << "#### " << headerName << " ####\n";
+}
+
 int run_cmd(std::string cmd, std::string &output) {
   std::array<char, 128> buffer;
   std::string result;

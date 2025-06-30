@@ -15,6 +15,8 @@ void strip(std::string &str);
 int get_max_i2c_bus();
 std::string i2c_dump(int bus, int addr, char type = 'b');
 int getI2cBusForScd(std::string pciAddr, int master, int bus);
+void printMainHeader(std::string_view headerName);
+void printSubHeader(std::string_view headerName);
 
 class Device {
 public:

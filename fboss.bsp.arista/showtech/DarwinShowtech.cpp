@@ -12,14 +12,14 @@
 namespace showtech {
 
 void DarwinShowtech::printSwitchcardPowergood() {
-  _printMainHeader("SWITCHCARD POWERGOOD STATUS");
+  printMainHeader("SWITCHCARD POWERGOOD STATUS");
 
   switchcardCpld->printSysfsAttr("switch_card_pwr_status", "POWERGOOD");
   std::cout << std::endl;
 }
 
 void DarwinShowtech::printWeutilInfo() {
-  _printMainHeader("WEUTIL INFO");
+  printMainHeader("WEUTIL INFO");
 
   printWeutil("chassis");
   if (product == "darwin") {
@@ -30,7 +30,7 @@ void DarwinShowtech::printWeutilInfo() {
 }
 
 void DarwinShowtech::printAllFpgaVersions() {
-  _printMainHeader("FPGA VERSIONS");
+  printMainHeader("FPGA VERSIONS");
 
   printFpgaVersion("CPU_CPLD", cpuCpld->infoRomPath, "fw_ver");
   printFpgaVersion("SWITCHCARD_CPLD", switchcardCpld->sysfsPath, "cpld_ver",
@@ -45,7 +45,7 @@ void DarwinShowtech::printAllFpgaVersions() {
 }
 
 void DarwinShowtech::printPemInfo() {
-  _printMainHeader("PEM DEBUG INFO");
+  printMainHeader("PEM DEBUG INFO");
 
   switchcardScd->printSysfsAttr("pem_present", "PRESENT");
   switchcardScd->printSysfsAttr("pem_input_ok", "INPUT_OK");
@@ -56,9 +56,9 @@ void DarwinShowtech::printPemInfo() {
 }
 
 void DarwinShowtech::printFanspinnerInfo() {
-  _printMainHeader("FANSPINNER DEBUG INFO");
+  printMainHeader("FANSPINNER DEBUG INFO");
 
-  _printSubHeader("SLG4F4527 INFO");
+  printSubHeader("SLG4F4527 INFO");
   fanspinner->printSysfsAttr("pwm", "PWM");
   fanspinner->printSysfsAttr("fan1_input", "RPM");
   fanspinner->printSysfsAttr("idprom_wp", "IDPROM_WP");
@@ -66,7 +66,7 @@ void DarwinShowtech::printFanspinnerInfo() {
   fanspinner->printSysfsAttr("led_green", "LED_GREEN");
   fanspinner->printSysfsAttr("led_red", "LED_RED");
 
-  _printSubHeader("PCA9539 GPIO INFO");
+  printSubHeader("PCA9539 GPIO INFO");
   if (pca9539->gpioPath == "") {
     std::cout << "PCA9539 GPIO Expander NOT DETECTED" << std::endl;
   } else {
@@ -89,21 +89,21 @@ void DarwinShowtech::printFanspinnerInfo() {
 }
 
 void DarwinShowtech::printFanInfo() {
-  _printMainHeader("FAN DEBUG INFO");
+  printMainHeader("FAN DEBUG INFO");
   unsigned int i, j;
   int pwm_pcnt;
   int fan_delay = 0.5;
   std::string rawPwm;
   std::string rpm;
 
-  _printSubHeader("FAN PRESENCE");
+  printSubHeader("FAN PRESENCE");
   for (i = 1; i <= 5; ++i) {
     fanCpld->printSysfsAttr("fan" + std::to_string(i) + "_present",
                             "FAN " + std::to_string(i));
   }
   switchcardScd->printSysfsAttr("rackmon_present", "FANSPINNER FAN");
 
-  _printSubHeader("FAN SPEED LOGS");
+  printSubHeader("FAN SPEED LOGS");
   for (i = 0; i < 2; ++i) {
     for (j = 1; j <= 5; ++j) {
       rawPwm = fanCpld->readSysfsAttr("pwm" + std::to_string(j));
@@ -137,7 +137,7 @@ void DarwinShowtech::printFanInfo() {
 }
 
 void DarwinShowtech::printRackmonInfo() {
-  _printMainHeader("RACKMON DEBUG INFO");
+  printMainHeader("RACKMON DEBUG INFO");
 
   std::cout << run_cmd_no_check("/usr/bin/rackmonctl status");
   if (verbose_) {
@@ -148,17 +148,17 @@ void DarwinShowtech::printRackmonInfo() {
 }
 
 void DarwinShowtech::printI2cInfo() {
-  _printMainHeader("I2C DEBUG INFO");
+  printMainHeader("I2C DEBUG INFO");
 
-  _printSubHeader("SWITCHCARD CPLD I2CDUMP");
+  printSubHeader("SWITCHCARD CPLD I2CDUMP");
   std::cout << switchcardCpld->i2cDump() << std::endl;
 
-  _printSubHeader("FAN CPLD I2CDUMP");
+  printSubHeader("FAN CPLD I2CDUMP");
   std::cout << fanCpld->i2cDump() << std::endl;
 }
 
 void DarwinShowtech::printPsuShowtechInfo() {
-  _printMainHeader("PSU DEBUG INFO");
+  printMainHeader("PSU DEBUG INFO");
   printPsuInfo();
 }
 
