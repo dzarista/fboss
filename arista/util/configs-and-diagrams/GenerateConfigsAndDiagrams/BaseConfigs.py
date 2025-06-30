@@ -260,16 +260,14 @@ class SlotTypeConfig:
       self.idPromConfigAddress = None
       self.idPromConfigKernelDeviceName = None
       self.idPromConfigOffset = None
-      self.idPromDevice = None  # Added for weutil automation
       self.pmUnitName = pmUnitName
       self.parentConfig = None
 
    def getEepromConfig( self ):
-      # NOTE: this is only valid at generation time
-      # is idprom defined
       if not self.idPromConfigBusName:
          return None
       platformName = self.parentConfig.parentConfig.platformName
+      # Special case: SCM for the 3 platforms has special handling for the symlink
       if self.pmUnitName == 'SCM' and platformName in ( "meru800bia", "meru800bfa", "glath05a-64o" ):
          return "/run/devmap/eeproms/MERU_SCM_EEPROM"
       else:
@@ -292,20 +290,21 @@ class SlotTypeConfig:
       }
 
    def parseIdpromConfig( self ):
-      busName = self.idPromConfigBusName
-      address = self.idPromConfigAddress
-      kernelDeviceName = self.idPromConfigKernelDeviceName
-      offset = self.idPromConfigOffset
-      assert ( busName == address == kernelDeviceName ) or\
-         ( busName and address and kernelDeviceName ), (
-            "Error: 1 or 2 of the strings are empty"
-         )
+      args = [
+         self.idPromConfigBusName,
+         self.idPromConfigAddress,
+         self.idPromConfigKernelDeviceName,
+         self.idPromConfigOffset,
+      ]
+
+      assert all(arg is not None for arg in args) or not any(args), \
+         "Invalid SlotType IDPROM: all idprom configs must be defined, or none at all."
 
       return {
-         "busName": busName,
-         "address": address.lower() if address else '',
-         "kernelDeviceName": kernelDeviceName,
-         "offset": offset
+         "busName": self.idPromConfigBusName,
+         "address": self.idPromConfigAddress.lower() if self.idPromConfigAddress else None,
+         "kernelDeviceName": self.idPromConfigKernelDeviceName,
+         "offset": self.idPromConfigOffset
       }
 
 
