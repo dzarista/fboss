@@ -2,11 +2,32 @@
 # Arista Networks, Inc. Confidential and Proprietary.
 
 from collections import OrderedDict
+import csv
 from diagrams import Diagram, Cluster, Edge, Node as _Node
 from enum import Enum
+import io
 import json
 import re
 
+BSP_MAPPING_KEYS = [
+   "TcvrId",
+   "TcvrLaneIdList",
+   "PimId",
+   "AccessControllerId",
+   "AccessControlType",
+   "ResetPath",
+   "ResetMask",
+   "ResetHoldHi",
+   "PresentPath",
+   "PresentMask",
+   "PresentHoldHi",
+   "IoControllerId",
+   "IoControlType",
+   "IoPath",
+   "LedId",
+   "LedBluePath",
+   "LedYellowPath",
+]
 
 def reformatOneElementLists( jsonDump ):
    pattern = re.compile( r'\[\s*(-?\d+)\s*\]' )
@@ -217,6 +238,27 @@ class PlatformConfig:
       output_json_dump = json.dumps(weutil_data, indent=2)
       return output_json_dump
 
+   def bspMappingCsv( self ):
+      output = io.StringIO()
+      writer = csv.DictWriter( output,
+                               fieldnames=BSP_MAPPING_KEYS,
+                               lineterminator='\n' )
+      writer.writeheader()
+
+      xcvrList = []
+      for pmConfig in self.pmUnitConfigs:
+         for pciConfig in pmConfig.pciDeviceConfigs:
+            xcvrList.extend( pciConfig.xcvrCtrlConfigs )
+
+      xcvrListSorted = sorted( xcvrList, key=lambda xcvr: xcvr.portNumber )
+
+      for rec in xcvrListSorted:
+         rows = rec.createBspRow()
+         for row in rows:
+            writer.writerow( {k: row.get(k, "") for k in BSP_MAPPING_KEYS} )
+
+      return output.getvalue()
+
    def genDiagram( self ):
       graph_attr = {
          "ratio": "0.5625",
@@ -225,7 +267,7 @@ class PlatformConfig:
          'fontsize': '48'
       }
       with Diagram( f"Platform: { self.platformName }", show=False,
-                    graph_attr=graph_attr ):
+                    graph_attr = graph_attr ):
          self.rootPmUnitPointer.render()
 
 
@@ -358,8 +400,7 @@ class PmUnitConfig:
       symlinkDict = {}
       for pciConfig in self.pciDeviceConfigs:
          for xcvrConfig in pciConfig.xcvrCtrlConfigs:
-            portNumber = xcvrConfig.portNumber
-            symlinkDict[ f"/run/devmap/xcvrs/xcvr_{ portNumber }" ] = (
+            symlinkDict[ xcvrConfig.symlink ] = (
                constructDevicePaths( xcvrConfig )[ 0 ]
             )
       symlinkDict = OrderedDict(
@@ -374,15 +415,12 @@ class PmUnitConfig:
       symlinkDict = {}
       for pciConfig in self.pciDeviceConfigs:
          for xcvrConfig in pciConfig.xcvrCtrlConfigs:
-            portNumber = xcvrConfig.portNumber
             outputList = []
             constructHelper( xcvrConfig,
                              f"/[{xcvrConfig.i2cPath}]",
                              outputList )
-            symlinkDict[ f"/run/devmap/xcvrs/xcvr_io_{portNumber}" ] = (
-               outputList[ 0 ]
-            )
-            symlinkDict[ f"/run/devmap/xcvrs/xcvr_ctrl_{ portNumber }" ] = (
+            symlinkDict[ xcvrConfig.ioSymlink ] = ( outputList[ 0 ] )
+            symlinkDict[ xcvrConfig.ctrlSymlink ] = (
                constructDevicePaths( xcvrConfig )[ 0 ]
             )
          symlinkDict = OrderedDict(
@@ -945,12 +983,14 @@ class PciDeviceConfig:
                            xcvrBaseOffset="0xA010", ledBaseOffset="0x6100",
                            ledsPerXcvr=2, ledDeviceName='port_led',
                            portNumberSkipStep=1, xcvrOffsetStep=0x10,
-                           portLedOffsetStep=0x10 ):
+                           portLedOffsetStep=0x10, lanesCount=None,
+                           defaultLedColor='blue' ):
       newConfigs = enumerateXcvrConfigs( numConfigs, basePortNumber, smbusName,
                                          smbusAccelStart, accelBusRange, portType, 
                                          xcvrBaseOffset, ledBaseOffset, ledsPerXcvr,
-                                         ledDeviceName, portNumberSkipStep, xcvrOffsetStep,
-                                         portLedOffsetStep )
+                                         ledDeviceName, portNumberSkipStep,
+                                         xcvrOffsetStep, portLedOffsetStep,
+                                         lanesCount, defaultLedColor )
       for config in newConfigs:
          config.addParentConfigPointer( self )
       self.xcvrCtrlConfigs.extend( newConfigs )
@@ -1185,7 +1225,8 @@ class Flash( SpiDeviceConfig ):
 
 class XcvrConfig:
    def __init__( self, portNumber, portType, xcvrCtrlOffset, ledDeviceName,
-                 led1Offset, led2Offset, led3Offset, led4Offset, i2cPath ):
+                 led1Offset, led2Offset, led3Offset, led4Offset, i2cPath,
+                 lanesCount, defaultLedColor ):
       self.portNumber = portNumber
       self.portType = portType
       self.xcvrCtrlOffset = xcvrCtrlOffset
@@ -1197,6 +1238,11 @@ class XcvrConfig:
       self.pmUnitScopedName = f"{ portType }_PORT{ portNumber }_XCVR".upper()
       self.parentConfig = None
       self.i2cPath = i2cPath
+      self.lanesCount = lanesCount
+      self.symlink = f"/run/devmap/xcvrs/xcvr_{ portNumber }"
+      self.ioSymlink = f"/run/devmap/xcvrs/xcvr_io_{self.portNumber}"
+      self.ctrlSymlink = f"/run/devmap/xcvrs/xcvr_ctrl_{self.portNumber}"
+      self.defaultLedColor = defaultLedColor
 
    def addParentConfigPointer( self, parentConfig ):
       self.parentConfig = parentConfig
@@ -1253,6 +1299,50 @@ class XcvrConfig:
          },
          "portNumber": portNumber,
       }
+
+   def createBspRow( self ):
+      rows = []
+      port = self.portNumber
+      color = self.defaultLedColor
+      def _createBspRow( ledId, lanes ):
+         ledCount = 1
+         if self.led4Offset:
+            ledCount = 4
+         elif self.led2Offset:
+            ledCount = 2
+
+         ledIdx = ( ledId - 1 ) % ledCount + 1
+         return {
+            "TcvrId": port,
+            "TcvrLaneIdList": " ".join(map(str, range(lanes[0], lanes[1] + 1))),
+            "PimId": 1, # All fixed systems are ID 1
+            "AccessControllerId": self.portNumber, # Not used
+            "AccessControlType": "CPLD",
+            "ResetPath": f"{self.ctrlSymlink}/xcvr{port}_reset",
+            "ResetMask": "1",
+            "ResetHoldHi": "0",
+            "PresentPath": f"{self.ctrlSymlink}/xcvr{port}_present",
+            "PresentMask": "1",
+            "PresentHoldHi": "0",
+            "IoControllerId": port,
+            "IoControlType": "I2C",
+            "IoPath": self.ioSymlink,
+            "LedId": ledId,
+            "LedBluePath": f"/sys/class/leds/port{port}_led{ledIdx}:{color}:status",
+            "LedYellowPath": f"/sys/class/leds/port{port}_led{ledIdx}:yellow:status",
+         }
+
+      lanes = self.lanesCount // 4 if self.portType == "qsfp" else self.lanesCount // 2
+      ledId = ( port - 1 ) * 2
+      if self.led2Offset:
+         rows.append( _createBspRow( ledId + 1, [ 1, lanes ] ) )
+         rows.append( _createBspRow( ledId + 2, [ lanes + 1, lanes * 2 ] ) )
+      if self.led3Offset and self.led4Offset:
+         rows.append( _createBspRow( ledId + 3, [ lanes + 2, lanes * 3 ] ) )
+         rows.append( _createBspRow( ledId + 4, [ lanes + 3, lanes * 4 ] ) )
+      if not self.led2Offset:
+         rows.append( _createBspRow( port, [ 1, self.lanesCount ] ) )
+      return rows
 
 
 class LedConfig:
@@ -1315,7 +1405,8 @@ class MiscConfig:
 def enumerateXcvrConfigs( numConfigs, basePortNumber, smbusName, smbusAccelStart, 
                           accelBusRange, portType, xcvrBaseOffset, ledBaseOffset,
                           ledsPerXcvr, ledDeviceName, portNumberSkipStep=1,
-                          xcvrOffsetStep=0x10, portLedOffsetStep=0x10 ):
+                          xcvrOffsetStep=0x10, portLedOffsetStep=0x10,
+                          lanesCount=None, defaultLedColor="blue" ):
    configs = []
    currIndex = basePortNumber
    currLedOffset = int( ledBaseOffset, 16 )
@@ -1336,7 +1427,9 @@ def enumerateXcvrConfigs( numConfigs, basePortNumber, smbusName, smbusAccelStart
             led2Offset=ledOffsets[ 1 ] if ledsPerXcvr > 1 else None,
             led3Offset=ledOffsets[ 2 ] if ledsPerXcvr > 2 else None,
             led4Offset=ledOffsets[ 3 ] if ledsPerXcvr > 3 else None,
-            i2cPath=i2cPath
+            i2cPath=i2cPath,
+            lanesCount=lanesCount,
+            defaultLedColor=defaultLedColor
          )
       )
       if portNumberSkipStep > 1:
