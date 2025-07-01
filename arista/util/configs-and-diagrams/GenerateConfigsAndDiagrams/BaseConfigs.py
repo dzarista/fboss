@@ -312,8 +312,7 @@ class PmUnitConfig:
    def setSlotTypeConfig( self, numOutgoingI2cBuses=0, idPromConfigBusName=None,
                           idPromConfigAddress=None,
                           idPromConfigKernelDeviceName=None,
-                          idPromConfigOffset=None,
-                          idPromDevice=None ):
+                          idPromConfigOffset=None ):
       args = [
          idPromConfigBusName,
          idPromConfigAddress,
@@ -328,11 +327,7 @@ class PmUnitConfig:
       self.slotTypeConfig.idPromConfigAddress = idPromConfigAddress
       self.slotTypeConfig.idPromConfigKernelDeviceName = idPromConfigKernelDeviceName
       self.slotTypeConfig.idPromConfigOffset = idPromConfigOffset
-      self.slotTypeConfig.idPromDevice = idPromDevice
       self.slotTypeConfig.addParentConfigPointer( self )
-
-
-
 
    def addParentConfigPointer( self, parentConfig ):
       self.parentConfig = parentConfig
