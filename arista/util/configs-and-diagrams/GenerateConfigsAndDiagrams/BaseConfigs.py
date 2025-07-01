@@ -114,7 +114,7 @@ class PlatformConfig:
          "bspKmodsRpmVersion": "0.7.9-1",
          "requiredKmodsToLoad": [],
       }
-      self.PlatformFanPwmConfig = None
+      self.PlatformFanManagerConfig = None
 
    def getPmUnit( self, pmUnitName ):
       for pmUnit in self.pmUnitConfigs:
@@ -229,13 +229,10 @@ class PlatformConfig:
                     graph_attr = graph_attr ):
          self.rootPmUnitPointer.render()
 
-   def fanJson( self,  ):
-      # Need to make sure all data is inputted
+   def fanJson( self ):
       fan_data = OrderedDict()
-      assert self.platformFanPwmConfig is not None, \
-         "PWM Configs must be set by calling setPlatformFanPwmConfig() first."
-      for key, val in self.platformFanPwmConfig.items():
-         fan_data[key] = val
+      fan_data = fanPwmConfig
+      return json.dumps(fan_data, indent=2)
 
    def createPlatformFanPwmConfig( self, pwmBoostOnNumDeadFan,
                                     pwmBoostOnNumDeadSensor,
@@ -259,6 +256,55 @@ class PlatformConfig:
          "pwmUpperThreshold": pwmUpperThreshold,
       }
 
+
+class OpticConfig:
+   def __init__( self, opticName, accessType, aggregationType ):
+      self.opticName = opticName
+      self.accessType = accessType
+      self.aggregationType = aggregationType
+      self.portlist = []
+      self.tempToPwmMaps = {}
+
+   def addTempToPwmMap( self, opticType, tempToPwm ):
+      opticKey = f"OPTIC_TYPE_{opticType}_GENERIC"
+      self.tempToPwmMaps[ opticKey ] = tempToPwm
+
+
+class FanManagerConfig:
+   def __init__( self ):
+      self.pwmConfig = None
+      self.optics = []
+
+   # "opticType" is the Gbps throughput of the opticPort (e.g. 100, 200, 400, 800 Gbps)
+   def addOpticConfig( self, opticName, accessType, aggregationType ):
+      opticConfig = OpticConfig( opticName, accessType, aggregationType )
+      self.optics.append( opticConfig )
+      return opticConfig
+
+   def setPwmConfig( self, pwmBoostOnNumDeadFan,
+                     pwmBoostOnNumDeadSensor,
+                     pwmBoostOnNoQsfpAfterInSec,
+                     pwmBoostValue,
+                     pwmTransitionValue,
+                     pwmLowerThreshold,
+                     pwmUpperThreshold ):
+      args = [
+         pwmBoostOnNumDeadFan, pwmBoostOnNumDeadSensor, pwmBoostOnNoQsfpAfterInSec,
+         pwmBoostValue, pwmTransitionValue, pwmLowerThreshold, pwmUpperThreshold,
+      ]
+      assert all(arg is not None for arg in args), "All fan PWM config arguments must be provided."
+      self.pwmConfig = {
+         "pwmBoostOnNumDeadFan": pwmBoostOnNumDeadFan,
+         "pwmBoostOnNumDeadSensor": pwmBoostOnNumDeadSensor,
+         "pwmBoostOnNoQsfpAfterInSec": pwmBoostOnNoQsfpAfterInSec,
+         "pwmBoostValue": pwmBoostValue,
+         "pwmTransitionValue": pwmTransitionValue,
+         "pwmLowerThreshold": pwmLowerThreshold,
+         "pwmUpperThreshold": pwmUpperThreshold,
+      }
+   
+   def 
+   
 
 class SlotTypeConfig:
    def __init__( self, pmUnitName ):
