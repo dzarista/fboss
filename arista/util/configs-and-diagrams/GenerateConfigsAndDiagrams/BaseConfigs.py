@@ -114,7 +114,7 @@ class PlatformConfig:
          "bspKmodsRpmVersion": "0.7.9-1",
          "requiredKmodsToLoad": [],
       }
-      self.PlatformFanManagerConfig = None
+      self.PlatformFanServiceConfig = None
 
    def getPmUnit( self, pmUnitName ):
       for pmUnit in self.pmUnitConfigs:
@@ -230,9 +230,13 @@ class PlatformConfig:
          self.rootPmUnitPointer.render()
 
    def fanJson( self ):
+      FanServiceConfig = self.PlatformFanServiceConfig
       fan_data = OrderedDict()
-      fan_data = fanPwmConfig
-      return json.dumps(fan_data, indent=2)
+      fan_data.update(FanServiceConfig.pwmConfig)
+      fan_data.update(FanServiceConfig.optics)
+      fan_data.update(FanServiceConfig.fans)
+      fan_data.update(FanServiceConfig.zones)
+      return json.dumps(final_config, indent=2)
 
    def createPlatformFanPwmConfig( self, pwmBoostOnNumDeadFan,
                                     pwmBoostOnNumDeadSensor,
@@ -245,7 +249,7 @@ class PlatformConfig:
          pwmBoostOnNumDeadFan, pwmBoostOnNumDeadSensor, pwmBoostOnNoQsfpAfterInSec,
          pwmBoostValue, pwmTransitionValue, pwmLowerThreshold, pwmUpperThreshold,
       ]
-      assert all(arg is not None for arg in args), "All fan PWM config arguments must be provided."
+      assert all( arg is not None for arg in args ), "All fan PWM config arguments must be provided."
       return {
          "pwmBoostOnNumDeadFan": pwmBoostOnNumDeadFan,
          "pwmBoostOnNumDeadSensor": pwmBoostOnNumDeadSensor,
@@ -258,28 +262,72 @@ class PlatformConfig:
 
 
 class OpticConfig:
-   def __init__( self, opticName, accessType, aggregationType ):
+   def __init__( self, opticName, accessType ):
       self.opticName = opticName
-      self.accessType = accessType
-      self.aggregationType = aggregationType
+
+      validAccessTypes = [ "QSFP", "THRIFT" ]
+      assert accessType in validAccessTypes, f"Optic type throughput invalid. Please choose from {validAccessTypes}."
+      self.accessType = f"ACCESS_TYPE_{accessType}"
+
+      # Hardcoding future argument for future PID support
+      aggregationType = "MAX"
+      self.aggregationType = f"OPTIC_AGGREGATION_TYPE_{aggregationType}"
+
       self.portlist = []
       self.tempToPwmMaps = {}
 
-   def addTempToPwmMap( self, opticType, tempToPwm ):
-      opticKey = f"OPTIC_TYPE_{opticType}_GENERIC"
+   # "opticTypeThrpt" is the Gbps throughput of the opticPort (e.g. 100, 200, 400, 800 Gbps)
+   def addTempToPwmMap( self, opticTypeThrpt, tempToPwm ):
+      validThrpts = [ 100, 200, 400, 800 ]
+      assert opticTypeThrpt in validThrpts, f"Optic type throughput invalid. Please choose from {validThrpts}."
+      opticKey = f"OPTIC_TYPE_{opticTypeThrpt}_GENERIC"
       self.tempToPwmMaps[ opticKey ] = tempToPwm
 
 
-class FanManagerConfig:
+class ZoneConfig:
+   def __init__(self, zoneName, sensor_objects, fan_objects, slope=3):
+      self.zoneType = "ZONE_TYPE_MAX"
+      self.zoneName = zoneName
+      self.sensorNames = [
+          s.sensorName if hasattr(s, 'sensorName') else s.opticName
+          for s in sensor_objects
+      ]
+      self.fanNames = [f['fanName'] for f in fan_objects]
+      self.slope = slope
+
+
+class FanServiceConfig:
    def __init__( self ):
       self.pwmConfig = None
       self.optics = []
+      self.sensors = []
+      self.fans = []
+      self.zones = []
 
-   # "opticType" is the Gbps throughput of the opticPort (e.g. 100, 200, 400, 800 Gbps)
-   def addOpticConfig( self, opticName, accessType, aggregationType ):
-      opticConfig = OpticConfig( opticName, accessType, aggregationType )
+   def addOpticConfig( self, opticName, accessType ):
+      opticConfig = OpticConfig( opticName, accessType )
       self.optics.append( opticConfig )
       return opticConfig
+
+   def addSensor( self, sensorName, accessType, tempToPwmMap ):
+      sensor_data = OrderedDict()
+      sensor_data["sensorName"] = sensorName
+
+      validAccessTypes = [ "QSFP", "THRIFT" ]
+      assert accessType in validAccessTypes, f"Optic type throughput invalid. Please choose from {validAccessTypes}."
+      sensor_data["access"] = {"accessType": f"ACCESS_TYPE_{accessType}"}
+
+      sensor_data["pwmCalcType"] = "SENSOR_PWM_CALC_TYPE_FOUR_LINEAR_TABLE"
+      sensor_data["normalUpTable"] = tempToPwmMap
+      sensor_data["normalDownTable"] = tempToPwmMap
+      sensor_data["failUpTable"] = tempToPwmMap
+      sensor_data["failDownTable"] = tempToPwmMap
+      self.sensors.append(sensor_data)
+      return sensor_data
+
+   def addZone(self, zoneName, sensor_objects, fan_objects, slope=3):
+      zone = ZoneConfig(zoneName, sensor_objects, fan_objects, slope)
+      self.zones.append(zone)
 
    def setPwmConfig( self, pwmBoostOnNumDeadFan,
                      pwmBoostOnNumDeadSensor,
@@ -302,8 +350,30 @@ class FanManagerConfig:
          "pwmLowerThreshold": pwmLowerThreshold,
          "pwmUpperThreshold": pwmUpperThreshold,
       }
-   
-   def 
+
+   def setFansConfig(self, platform_config):
+      all_symlinks = platform_config.parseSymbolicLinkToDevicePaths()
+      internal_to_final_path = {v: k for k, v in all_symlinks.items()}
+      for pm_unit in platform_config.pmUnitConfigs:
+         for slot_config in pm_unit.outgoingSlotConfigs:
+            if slot_config.slotType == "FAN_SLOT":
+               fan_index = int(slot_config.slotName.split('@')[1]) + 1
+               controller_symlink = internal_to_final_path.get(slot_config.presenceDevicePath)
+               if controller_symlink:
+                  fan_dict = OrderedDict()
+                  fan_dict["fanName"] = f"fan_{fan_index}"
+                  fan_dict["rpmSysfsPath"] = f"{controller_symlink}/fan{fan_index}_input"
+                  fan_dict["pwmSysfsPath"] = f"{controller_symlink}/pwm{fan_index}"
+                  fan_dict["presenceSysfsPath"] = f"{controller_symlink}/{slot_config.presenceFileName}"
+                  fan_dict["ledSysfsPath"] = f"/sys/class/leds/fan{fan_index}::status/brightness"
+                  fan_dict["pwmMin"] = 1
+                  fan_dict["pwmMax"] = 255
+                  fan_dict["fanPresentVal"] = 1
+                  fan_dict["fanMissingVal"] = 0
+                  fan_dict["fanGoodLedVal"] = 1
+                  fan_dict["fanFailLedVal"] = 2
+                  self.fans.append(fan_dict)
+      return self.fans
    
 
 class SlotTypeConfig:
@@ -1559,6 +1629,8 @@ class SensorConfig:
       self.sensorType = sensorType
       self.parentConfig = None
       self.prependPmUnit = prependPmUnit
+      self.pwmLowerThreshold = None
+      self.pwmUpperThreshold = None
 
    def toDict( self, pmUnitIndex=None ):
       sensorDict = OrderedDict()
