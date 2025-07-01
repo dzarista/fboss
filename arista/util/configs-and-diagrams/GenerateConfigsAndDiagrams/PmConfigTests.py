@@ -181,14 +181,14 @@ class SlotTypeConfigTest( unittest.TestCase ):
    def testWithInvalidIdPromConfig( self ):
       platform = PlatformConfig( "test_platform" )
       platform.addPmUnitConfigs( [ PmUnitConfig( pmUnitName="PSU" ) ] )
-      platform.pmUnitConfigs[ 0 ].setSlotTypeConfig(
-         numOutgoingI2cBuses=1,
-         idPromConfigBusName="INCOMING@7",
-         idPromConfigAddress="0x42",
-         idPromConfigOffset=13500
-      )
+      # Update: idProm won't be settable if not valid
       with self.assertRaises( AssertionError ):
-         platform.pmConfigJson()
+         platform.pmUnitConfigs[ 0 ].setSlotTypeConfig(
+            numOutgoingI2cBuses=1,
+            idPromConfigBusName="INCOMING@7",
+            idPromConfigAddress="0x42",
+            idPromConfigOffset=13500
+         )
 
 
 class PmUnitConfigTest( unittest.TestCase ):

@@ -144,7 +144,6 @@ class PlatformConfig:
             ] )
       return jsonDict
 
-
    def addPmUnitConfigs( self, newConfigs ):
       for config in newConfigs:
          config.addParentConfigPointer( self )
@@ -290,16 +289,6 @@ class SlotTypeConfig:
       }
 
    def parseIdpromConfig( self ):
-      args = [
-         self.idPromConfigBusName,
-         self.idPromConfigAddress,
-         self.idPromConfigKernelDeviceName,
-         self.idPromConfigOffset,
-      ]
-
-      assert all(arg is not None for arg in args) or not any(args), \
-         "Invalid SlotType IDPROM: all idprom configs must be defined, or none at all."
-
       return {
          "busName": self.idPromConfigBusName,
          "address": self.idPromConfigAddress.lower() if self.idPromConfigAddress else None,
@@ -325,6 +314,15 @@ class PmUnitConfig:
                           idPromConfigKernelDeviceName=None,
                           idPromConfigOffset=None,
                           idPromDevice=None ):
+      args = [
+         idPromConfigBusName,
+         idPromConfigAddress,
+         idPromConfigKernelDeviceName,
+         idPromConfigOffset,
+      ]
+      assert all(arg is not None for arg in args) or not any(args), \
+         f"Invalid SlotType IDPROM: all idprom configs must be defined, or none at all.{args}"
+
       self.slotTypeConfig.numOutgoingI2cBuses = numOutgoingI2cBuses
       self.slotTypeConfig.idPromConfigBusName = idPromConfigBusName
       self.slotTypeConfig.idPromConfigAddress = idPromConfigAddress
@@ -332,6 +330,9 @@ class PmUnitConfig:
       self.slotTypeConfig.idPromConfigOffset = idPromConfigOffset
       self.slotTypeConfig.idPromDevice = idPromDevice
       self.slotTypeConfig.addParentConfigPointer( self )
+
+
+
 
    def addParentConfigPointer( self, parentConfig ):
       self.parentConfig = parentConfig
