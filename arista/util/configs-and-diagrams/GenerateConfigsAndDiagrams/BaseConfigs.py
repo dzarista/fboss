@@ -114,6 +114,7 @@ class PlatformConfig:
          "bspKmodsRpmVersion": "0.7.9-1",
          "requiredKmodsToLoad": [],
       }
+      self.PlatformFanPwmConfig = None
 
    def getPmUnit( self, pmUnitName ):
       for pmUnit in self.pmUnitConfigs:
@@ -227,6 +228,36 @@ class PlatformConfig:
       with Diagram( f"Platform: { self.platformName }", show=False,
                     graph_attr = graph_attr ):
          self.rootPmUnitPointer.render()
+
+   def fanJson( self,  ):
+      # Need to make sure all data is inputted
+      fan_data = OrderedDict()
+      assert self.platformFanPwmConfig is not None, \
+         "PWM Configs must be set by calling setPlatformFanPwmConfig() first."
+      for key, val in self.platformFanPwmConfig.items():
+         fan_data[key] = val
+
+   def createPlatformFanPwmConfig( self, pwmBoostOnNumDeadFan,
+                                    pwmBoostOnNumDeadSensor,
+                                    pwmBoostOnNoQsfpAfterInSec,
+                                    pwmBoostValue,
+                                    pwmTransitionValue,
+                                    pwmLowerThreshold,
+                                    pwmUpperThreshold ):
+      args = [
+         pwmBoostOnNumDeadFan, pwmBoostOnNumDeadSensor, pwmBoostOnNoQsfpAfterInSec,
+         pwmBoostValue, pwmTransitionValue, pwmLowerThreshold, pwmUpperThreshold,
+      ]
+      assert all(arg is not None for arg in args), "All fan PWM config arguments must be provided."
+      return {
+         "pwmBoostOnNumDeadFan": pwmBoostOnNumDeadFan,
+         "pwmBoostOnNumDeadSensor": pwmBoostOnNumDeadSensor,
+         "pwmBoostOnNoQsfpAfterInSec": pwmBoostOnNoQsfpAfterInSec,
+         "pwmBoostValue": pwmBoostValue,
+         "pwmTransitionValue": pwmTransitionValue,
+         "pwmLowerThreshold": pwmLowerThreshold,
+         "pwmUpperThreshold": pwmUpperThreshold,
+      }
 
 
 class SlotTypeConfig:
