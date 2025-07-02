@@ -218,6 +218,22 @@ class PlatformConfig:
 
       return output.getvalue()
 
+   def getSlotConfigs( self, pmUnits=[], slotTypes=[] ):
+      slots = OrderedDict()
+      for pmUnit in self.pmUnitConfigs:
+         if not pmUnits or pmUnit.pmUnitName in pmUnits:
+            slots[pmUnit.pmUnitName] = pmUnit.getOutgoingSlotConfigsDict(slotTypes)
+      return slots
+
+   def getSensorConfigs( self, pmUnits=[] ):
+      allSensors = OrderedDict()
+      for pmUnit in self.pmUnitConfigs:
+         if not pmUnits or pmUnit.pmUnitName in pmUnits:
+            sensorDict = pmUnit.getAllSensorConfigsAsDicts()
+            if sensorDict:
+               allSensors[pmUnit.pmUnitName] = sensorDict
+      return allSensors
+
    def genDiagram( self ):
       graph_attr = {
          "ratio": "0.5625",
@@ -366,12 +382,6 @@ class FanServiceConfig:
                   fan_dict["pwmSysfsPath"] = f"{controller_symlink}/pwm{fan_index}"
                   fan_dict["presenceSysfsPath"] = f"{controller_symlink}/{slot_config.presenceFileName}"
                   fan_dict["ledSysfsPath"] = f"/sys/class/leds/fan{fan_index}::status/brightness"
-                  fan_dict["pwmMin"] = 1
-                  fan_dict["pwmMax"] = 255
-                  fan_dict["fanPresentVal"] = 1
-                  fan_dict["fanMissingVal"] = 0
-                  fan_dict["fanGoodLedVal"] = 1
-                  fan_dict["fanFailLedVal"] = 2
                   self.fans.append(fan_dict)
       return self.fans
    
@@ -582,17 +592,32 @@ class PmUnitConfig:
             embeddedSensorConfigs } if len( embeddedSensorConfigs ) > 0 else {} )
       }
 
+   def getAllSensorConfigsAsDicts( self ):
+      name_map = OrderedDict()
+
+      all_devices = self.embeddedSensorConfigs + self.i2cDeviceConfigs
+
+      for device in all_devices:
+         for sensor_config_obj in device.sensorConfigs:            
+            original_name = sensor_config_obj.name
+            resolved_name_dict = sensor_config_obj.toDict()
+            resolved_name = resolved_name_dict.get('name')
+            if original_name and resolved_name:
+               name_map[original_name] = resolved_name
+      return name_map
+
    def getEmbeddedSensorConfigsList( self ):
       return [ config.asJson() for config in self.embeddedSensorConfigs ]
 
    def getI2cDeviceConfigsList( self ):
       return [ config.asJson() for config in self.i2cDeviceConfigs ]
 
-   def getOutgoingSlotConfigsDict( self ):
+   def getOutgoingSlotConfigsDict( self, slotTypes=[] ):
       jsonDict = {}
       for config in self.outgoingSlotConfigs:
-         slotName = config.slotName
-         jsonDict[ slotName ] = config.asJson()
+         if not slotTypes or config.slotName in slotTypes:
+            slotName = config.slotName
+            jsonDict[ slotName ] = config.asJson()
       return jsonDict
 
    def getPciDeviceConfigsList( self ):
@@ -1631,6 +1656,7 @@ class SensorConfig:
       self.prependPmUnit = prependPmUnit
       self.pwmLowerThreshold = None
       self.pwmUpperThreshold = None
+      self.sensorName = None
 
    def toDict( self, pmUnitIndex=None ):
       sensorDict = OrderedDict()

@@ -21,7 +21,9 @@ from ..BaseConfigs import (
    SlotConfig,
    SMBUnit,
    SpiMasterConfig,
-   Thresholds
+   Thresholds,
+   FanServiceConfig,
+   OpticConfig,
 )
 
 
@@ -46,6 +48,7 @@ class ViperSMB( SMBUnit ):
 
    def __init__( self ):
       super().__init__( self.prefixSymlink )
+      self.fanServiceSensorConfigs = {}
 
       self.setSlotTypeConfig(
          numOutgoingI2cBuses=3,
@@ -66,13 +69,17 @@ class ViperSMB( SMBUnit ):
 
       smbTmp75Front = Sensor( "0x49", "lm75", "SMB_TMP75_FRONT", incomingBusIndex=1,
                               initRegSettings=InitRegSettings( [ ( 3, 95 ) ] ) )
-      smbTmp75Front.addSensorConfigs( [
-         SensorConfig( "BOARD_FRONT_TEMP", "temp1_input", SensorType.TEMP,
-                       compute="@/1000.0",
-                       thresholds=Thresholds(
-                           upperCriticalVal=85.0, maxAlarmVal=80.0
-                       ) )
-      ] )
+
+      front_temp_config = SensorConfig( "BOARD_FRONT_TEMP", 
+                                        "temp1_input", 
+                                        SensorType.TEMP,
+                                        compute="@/1000.0",
+                                        thresholds=Thresholds(
+                                        upperCriticalVal=85.0, maxAlarmVal=80.0
+                                        ) )
+
+      self.fanServiceSensorConfigs["BOARD_FRONT_TEMP"] = front_temp_config
+      smbTmp75Front.addSensorConfigs([front_temp_config])
 
       smbTmp75Back = Sensor( "0x4A", "lm75", "SMB_TMP75_REAR",
                              incomingBusIndex=1,
@@ -276,19 +283,18 @@ class ViperSMB( SMBUnit ):
 
       smbFpga.addXcvrCtrlConfigs( numConfigs=32, basePortNumber=1,
                                   smbusName="SMB_I2C_MASTER", smbusAccelStart=1,
-                                  accelBusRange=( 0, 7 ), lanesCount=8 )
+                                  accelBusRange=( 0, 7 ) )
 
       smbFpga.addXcvrCtrlConfigs( numConfigs=6, basePortNumber=33,
                                   xcvrBaseOffset="0xA210", ledBaseOffset="0x6500",
                                   smbusName="SMB_I2C_MASTER",
-                                  smbusAccelStart=5, accelBusRange=( 0, 5 ),
-                                  lanesCount=8 )
+                                  smbusAccelStart=5, accelBusRange=( 0, 5 ) )
 
       smbFpga.addXcvrCtrlConfigs( numConfigs=1, basePortNumber=39,
                                   portType="qsfp", xcvrBaseOffset="0xA290",
                                   ledBaseOffset="0x65C0", ledsPerXcvr=4,
                                   smbusName="SMB_I2C_MASTER", smbusAccelStart=0,
-                                  accelBusRange=( 4, 4 ), lanesCount=4
+                                  accelBusRange=( 4, 4 )
                                  )
 
       smbFpga.addInfoRomConfigs( "0x100" )
@@ -328,7 +334,7 @@ class Viper( PlatformConfig ):
 
    def __init__( self ):
       super().__init__( self.codename )
-
+      self.smb = ViperSMB()
       self.addPmUnitConfigs( [
          ViperSCM(),
          ViperSMB(),
@@ -349,3 +355,32 @@ class Viper( PlatformConfig ):
 
       for pmConfig in self.pmUnitConfigs:
          pmConfig.populateSymlinkToDevicePaths()
+
+
+      # Fan Service Config
+      fanServiceConfig = FanServiceConfig()
+      
+      # Creates top variables
+      fanServiceConfig.setPwmConfig(1, 0, 0, 60, 50, 30, 100)
+      
+      # Handles Optics
+      opticConfig = fanServiceConfig.addOpticConfig("osfp_group_1", "QSFP")
+      opticLookupTable = {
+         "5": 43,
+         "69": 56,
+         "70": 73,
+         "71": 100
+      }
+      opticConfig.addTempToPwmMap(800, opticLookupTable)
+
+      # Handles Sensors
+      boardFrontTempLookupTable = {
+        "15": 30,
+        "110": 100
+      }
+      fanServiceConfig.addSensor(self.smb.fanServiceSensorConfigs["BOARD_FRONT_TEMP"].toDict()['name'], 
+                                 "THRIFT", 
+                                 boardFrontTempLookupTable)
+
+
+
