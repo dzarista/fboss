@@ -299,6 +299,7 @@ add_library(
 
 target_link_libraries(
   agent_fsdb_sync_manager
+  agent_info_cpp2
   fsdb_syncer
   hwswitch_matcher
   state

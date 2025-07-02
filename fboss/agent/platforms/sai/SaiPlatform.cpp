@@ -28,13 +28,13 @@
 #include "fboss/agent/platforms/sai/SaiBcmYampPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiElbert8DDPhyPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiFakePlatformPort.h"
+#include "fboss/agent/platforms/sai/SaiGlath05a-64oPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiJanga800bicPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMeru400bfuPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMeru400biaPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMeru400biuPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMeru800bfaPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMeru800biaPlatformPort.h"
-#include "fboss/agent/platforms/sai/SaiGlath05a-64oPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMinipack3NPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMorgan800ccPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiTahan800bcPlatformPort.h"
@@ -60,11 +60,6 @@ DEFINE_bool(
     enable_delay_drop_congestion_threshold,
     false,
     "Enable new delay drop congestion threshold in CGM");
-
-DEFINE_int32(
-    pfc_watchdog_timer_granularity_msec,
-    10,
-    "PFC watchdog timer granularity which can be 1ms, 10ms or 100ms");
 
 namespace {
 
@@ -312,8 +307,6 @@ void SaiPlatform::initSaiProfileValues() {
   auto vendorProfileValues = getSaiProfileVendorExtensionValues();
   kSaiProfileValues.insert(
       vendorProfileValues.begin(), vendorProfileValues.end());
-  kSaiProfileValues.insert(std::make_pair(
-      "SAI_SDK_LOG_CONFIG_FILE", "/root/res/config/sai_sdk_log_config.json"));
 }
 
 void SaiPlatform::initImpl(uint32_t hwFeaturesDesired) {
@@ -775,6 +768,24 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
     maxLocalSystemPortId = 184;
     maxSystemPorts = 22136;
     maxVoqs = 65284;
+  } else if (FLAGS_dsf_single_stage_r192_f40_e32) {
+    // Total System Ports required:
+    //  = System Ports required for RDSW + System Ports required for EDSW
+    //  = 192 RDSWs x System Ports per RDSW + 32 EDSWs x System Port per EDSW
+    //  = 192 x (36 x 400G GPU facing ports, 1x100G mgmt port, 1x100G RCY port)
+    //  + 32 x (16 x 800G, 1x100G mgmt port, 1x100G RCY
+    //  = 192 x 38 + 32 x 18 = 7872
+    //
+    // From the numbering standpoint,
+    //  - 1 CPU, 4 RCY, 1 eventor, 160 Fabric link monitoring + 16 hyper ports
+    //   = 182 Local ports.
+    // If we start allocating the global system ports after local system ports,
+    // and say with a buffer of 3 i.e. at 182 + 3 = 185.
+    // maxSystemPortID = 185 + 7872 = 8057
+    maxSystemPortId = 8056;
+    maxLocalSystemPortId = 184;
+    maxSystemPorts = 8057;
+    maxVoqs = 8057 * 8;
   } else {
     maxSystemPortId = 6143;
     maxLocalSystemPortId = -1;
@@ -811,7 +822,8 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
          pri++) {
       sai_map_t mapping{};
       mapping.key = pri;
-      mapping.value = FLAGS_pfc_watchdog_timer_granularity_msec;
+      mapping.value =
+          switchSettings->pfcWatchdogTimerGranularityMsec().value_or(10);
       mapToValueList.at(pri) = mapping;
     }
     pfcWatchdogTimerGranularityMap =
