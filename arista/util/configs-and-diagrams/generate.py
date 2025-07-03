@@ -13,6 +13,7 @@ EXCLUDE_LIST = {
    'pm-config': [],
    'sensor-config': [],
    'bsp-mapping': [ 'RackhawkORv3' ]
+   'fan-config': [ 'Whistler', 'QuickSilverPFb', 'RackhawkORv3' ]
 }
 
 
