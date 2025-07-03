@@ -55,7 +55,8 @@ def main():
       'pm-config': 'pmConfigJson',
       'sensor-config': 'sensorServiceJson',
       'pm-diagram': 'genDiagram',
-      'bsp-mapping': 'bspMappingCsv'
+      'bsp-mapping': 'bspMappingCsv',
+      'fan-config': 'fanJson'
    }
 
    parser = argparse.ArgumentParser(
@@ -69,7 +70,7 @@ def main():
                         help='Platform name' )
    parser.add_argument( '--output',
                         choices=[ 'pm-config', 'sensor-config', 'pm-diagram',
-                                  'bsp-mapping' ],
+                                  'bsp-mapping', 'fan-config' ],
                         help='Config/diagram to generate' )
    args = parser.parse_args()
 
@@ -85,7 +86,7 @@ def main():
    elif args.platform and args.output and not args.update_all_configs:
       platform = platforms[ args.platform ]()
       result = getattr( platform, output[ args.output ] )()
-      if args.output in [ 'pm-config', 'sensor-config', 'bsp-mapping' ]:
+      if args.output in [ 'pm-config', 'sensor-config', 'bsp-mapping', 'fan-config' ]:
          print( result )
    else:
       parser.error( parser.description )
