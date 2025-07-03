@@ -1704,9 +1704,6 @@ class SensorConfig:
       self.sensorType = sensorType
       self.parentConfig = None
       self.prependPmUnit = prependPmUnit
-      self.pwmLowerThreshold = None
-      self.pwmUpperThreshold = None
-      self.sensorName = None
 
    def toDict( self, pmUnitIndex=None ):
       sensorDict = OrderedDict()

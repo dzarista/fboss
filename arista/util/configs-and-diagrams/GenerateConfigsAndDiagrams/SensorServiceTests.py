@@ -148,7 +148,6 @@ class SensorServiceTest( unittest.TestCase ):
       self.assertTrue( "SMB2_VRM2_VIN" in sensorDict[ "sensorMapList" ][ "SMB2" ] )
       self.assertTrue( "SMB1_CORE_TEMP0" in sensorDict[ "sensorMapList" ][ "SMB1" ] )
       self.assertTrue( "SMB2_CORE_TEMP0" in sensorDict[ "sensorMapList" ][ "SMB2" ] )
-      # print(platform.getSensorConfigs())
 
    def testAddFANRpms( self ):
       self.platform.pmUnitConfigs[ 1 ].addI2cDeviceConfigs( [
