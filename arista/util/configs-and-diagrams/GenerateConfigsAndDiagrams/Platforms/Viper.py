@@ -78,7 +78,7 @@ class ViperSMB( SMBUnit ):
                                         upperCriticalVal=85.0, maxAlarmVal=80.0
                                         ) )
 
-      self.fanServiceSensorConfigs["BOARD_FRONT_TEMP"] = front_temp_config
+      self.fanServiceSensorConfigs["BOARD_FRONT_TEMP"] = front_temp_config.name
       smbTmp75Front.addSensorConfigs([front_temp_config])
 
       smbTmp75Back = Sensor( "0x4A", "lm75", "SMB_TMP75_REAR",
@@ -373,14 +373,23 @@ class Viper( PlatformConfig ):
       }
       opticConfig.addTempToPwmMap(800, opticLookupTable)
 
-      # Handles Sensors
-      boardFrontTempLookupTable = {
+      # Handles sensors
+      sensorLookupTable = {
         "15": 30,
         "110": 100
       }
-      fanServiceConfig.addSensor(self.smb.fanServiceSensorConfigs["BOARD_FRONT_TEMP"].toDict()['name'], 
-                                 "THRIFT", 
-                                 boardFrontTempLookupTable)
+      fanServiceConfig.addSensor("BOARD_FRONT_TEMP", "THRIFT", sensorLookupTable)
+
+
+      # Only define zones at the end
+      fanServiceConfig.addZone(
+         zoneName="zone1",
+         sensorNames=["BOARD_FRONT_TEMP", "osfp_group_1"],
+         fanNumbers=range(1, 5),  # Defines fans 1, 2, 3, and 4
+         slope=3
+      )
+
+      self.PlatformFanServiceConfig = fanServiceConfig
 
 
 
