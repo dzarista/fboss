@@ -332,6 +332,7 @@ class Viper( PlatformConfig ):
 
    def __init__( self ):
       super().__init__( self.codename )
+
       self.addPmUnitConfigs( [
          ViperSCM(),
          ViperSMB(),
@@ -353,10 +354,8 @@ class Viper( PlatformConfig ):
       for pmConfig in self.pmUnitConfigs:
          pmConfig.populateSymlinkToDevicePaths()
 
-
       # Fan Service Config
-      fanServiceConfig = FanServiceConfig()
-      
+      fanServiceConfig = FanServiceConfig()     
       # Creates top variables
       fanServiceConfig.setPwmConfig(  pwmBoostOnNumDeadFan = 1,
                                        pwmBoostOnNumDeadSensor = 0,
@@ -365,7 +364,6 @@ class Viper( PlatformConfig ):
                                        pwmTransitionValue = 50,
                                        pwmLowerThreshold = 30,
                                        pwmUpperThreshold = 100 )
-      
       # Handles Optics
       opticConfig = fanServiceConfig.addOpticConfig( "osfp_group_1", "QSFP" )
       opticLookupTable = {
@@ -375,24 +373,17 @@ class Viper( PlatformConfig ):
          "71": 100
       }
       opticConfig.addTempToPwmMap( 800, opticLookupTable )
-
       # Handles sensors
       sensorLookupTable = {
         "15": 30,
         "110": 100
       }
       fanServiceConfig.addSensor( "BOARD_FRONT_TEMP", "THRIFT", sensorLookupTable )
-
-
-      # Only define zones at the end
+       # Only define zones at the end
       fanServiceConfig.addZone(
          zoneName="zone1",
          sensorNames=[ "BOARD_FRONT_TEMP", "osfp_group_1" ],
          fanNumbers=range( 1, 5 ),  # Defines fans 1, 2, 3, and 4
          slope=3
       )
-
       self.PlatformFanServiceConfig = fanServiceConfig
-
-
-
