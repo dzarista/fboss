@@ -178,9 +178,9 @@ class ViperSMB( SMBUnit ):
                        compute="@/1000.0",
                        thresholds=Thresholds( upperCriticalVal=950 ) ),
          SensorConfig( "VRM1_POUT", "power1_input", SensorType.POWER,
-                       compute="@/1000.0" ),
+                       compute="@/1000000.0" ),
          SensorConfig( "VRM1_POUT_J3_0V85_CORE", "power3_input", SensorType.POWER,
-                       compute="@/1000.0" )
+                       compute="@/1000000.0" )
       ] )
 
       smbIsl = Sensor( "0x54", "isl68226", "SMB_ISL68226_J3" )
@@ -236,17 +236,17 @@ class ViperSMB( SMBUnit ):
                        compute="@/1000.0",
                        thresholds=Thresholds( upperCriticalVal=65 ) ),
          SensorConfig( "VRM2_POUT_1", "power1_input", SensorType.POWER,
-                       compute="@/1000.0" ),
+                       compute="@/1000000.0" ),
          SensorConfig( "VRM2_POUT_2", "power2_input", SensorType.POWER,
-                       compute="@/1000.0" ),
+                       compute="@/1000000.0" ),
          SensorConfig( "VRM2_POUT_3", "power3_input", SensorType.POWER,
-                       compute="@/1000.0" ),
+                       compute="@/1000000.0" ),
          SensorConfig( "VRM2_POUT_J3_0V9", "power4_input", SensorType.POWER,
-                       compute="@/1000.0" ),
+                       compute="@/1000000.0" ),
          SensorConfig( "VRM2_POUT_J3_0V75", "power5_input", SensorType.POWER,
-                       compute="@/1000.0" ),
+                       compute="@/1000000.0" ),
          SensorConfig( "VRM2_POUT_J3_1V2", "power6_input", SensorType.POWER,
-                       compute="@/1000.0" )
+                       compute="@/1000000.0" )
       ] )
 
       smbIslOptics = Sensor( "0x55", "isl68226", "SMB_ISL68226_OPTICS" )
@@ -272,9 +272,9 @@ class ViperSMB( SMBUnit ):
                        compute="@/1000.0",
                        thresholds=Thresholds( upperCriticalVal=350 ) ),
          SensorConfig( "VRM3_POUT", "power1_input", SensorType.POWER,
-                       compute="@/1000.0" ),
+                       compute="@/1000000.0" ),
          SensorConfig( "VRM3_POUT_OPTICS_3V3", "power4_input", SensorType.POWER,
-                       compute="@/1000.0" )
+                       compute="@/1000000.0" )
       ] )
 
       smbMgmtTemp = Sensor( "0x48", "lm75", "SMB_MGMT_TMP75" )

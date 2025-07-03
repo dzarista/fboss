@@ -294,13 +294,13 @@
           "name": "SMB_VRM1_POUT",
           "sysfsPath": "/run/devmap/sensors/SMB_RAA228926_J3/power1_input",
           "type": 0,
-          "compute": "@/1000.0"
+          "compute": "@/1000000.0"
         },
         {
           "name": "SMB_VRM1_POUT_J3_0V85_CORE",
           "sysfsPath": "/run/devmap/sensors/SMB_RAA228926_J3/power3_input",
           "type": 0,
-          "compute": "@/1000.0"
+          "compute": "@/1000000.0"
         },
         {
           "name": "SMB_VRM2_VIN",
@@ -421,37 +421,37 @@
           "name": "SMB_VRM2_POUT_1",
           "sysfsPath": "/run/devmap/sensors/SMB_ISL68226_J3/power1_input",
           "type": 0,
-          "compute": "@/1000.0"
+          "compute": "@/1000000.0"
         },
         {
           "name": "SMB_VRM2_POUT_2",
           "sysfsPath": "/run/devmap/sensors/SMB_ISL68226_J3/power2_input",
           "type": 0,
-          "compute": "@/1000.0"
+          "compute": "@/1000000.0"
         },
         {
           "name": "SMB_VRM2_POUT_3",
           "sysfsPath": "/run/devmap/sensors/SMB_ISL68226_J3/power3_input",
           "type": 0,
-          "compute": "@/1000.0"
+          "compute": "@/1000000.0"
         },
         {
           "name": "SMB_VRM2_POUT_J3_0V9",
           "sysfsPath": "/run/devmap/sensors/SMB_ISL68226_J3/power4_input",
           "type": 0,
-          "compute": "@/1000.0"
+          "compute": "@/1000000.0"
         },
         {
           "name": "SMB_VRM2_POUT_J3_0V75",
           "sysfsPath": "/run/devmap/sensors/SMB_ISL68226_J3/power5_input",
           "type": 0,
-          "compute": "@/1000.0"
+          "compute": "@/1000000.0"
         },
         {
           "name": "SMB_VRM2_POUT_J3_1V2",
           "sysfsPath": "/run/devmap/sensors/SMB_ISL68226_J3/power6_input",
           "type": 0,
-          "compute": "@/1000.0"
+          "compute": "@/1000000.0"
         },
         {
           "name": "SMB_VRM3_VIN",
@@ -502,13 +502,13 @@
           "name": "SMB_VRM3_POUT",
           "sysfsPath": "/run/devmap/sensors/SMB_ISL68226_OPTICS/power1_input",
           "type": 0,
-          "compute": "@/1000.0"
+          "compute": "@/1000000.0"
         },
         {
           "name": "SMB_VRM3_POUT_OPTICS_3V3",
           "sysfsPath": "/run/devmap/sensors/SMB_ISL68226_OPTICS/power4_input",
           "type": 0,
-          "compute": "@/1000.0"
+          "compute": "@/1000000.0"
         },
         {
           "name": "SMB_MGMT_INLET_TEMP",
