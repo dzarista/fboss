@@ -361,31 +361,37 @@ class Viper( PlatformConfig ):
       fanServiceConfig = FanServiceConfig()
       
       # Creates top variables
-      fanServiceConfig.setPwmConfig(1, 0, 0, 60, 50, 30, 100)
+      fanServiceConfig.setPwmConfig(  pwmBoostOnNumDeadFan = 1,
+                                       pwmBoostOnNumDeadSensor = 0,
+                                       pwmBoostOnNoQsfpAfterInSec = 0,
+                                       pwmBoostValue = 60,
+                                       pwmTransitionValue = 50,
+                                       pwmLowerThreshold = 30,
+                                       pwmUpperThreshold = 100 )
       
       # Handles Optics
-      opticConfig = fanServiceConfig.addOpticConfig("osfp_group_1", "QSFP")
+      opticConfig = fanServiceConfig.addOpticConfig( "osfp_group_1", "QSFP" )
       opticLookupTable = {
          "5": 43,
          "69": 56,
          "70": 73,
          "71": 100
       }
-      opticConfig.addTempToPwmMap(800, opticLookupTable)
+      opticConfig.addTempToPwmMap( 800, opticLookupTable )
 
       # Handles sensors
       sensorLookupTable = {
         "15": 30,
         "110": 100
       }
-      fanServiceConfig.addSensor("BOARD_FRONT_TEMP", "THRIFT", sensorLookupTable)
+      fanServiceConfig.addSensor( "BOARD_FRONT_TEMP", "THRIFT", sensorLookupTable )
 
 
       # Only define zones at the end
       fanServiceConfig.addZone(
          zoneName="zone1",
-         sensorNames=["BOARD_FRONT_TEMP", "osfp_group_1"],
-         fanNumbers=range(1, 5),  # Defines fans 1, 2, 3, and 4
+         sensorNames=[ "BOARD_FRONT_TEMP", "osfp_group_1" ],
+         fanNumbers=range( 1, 5 ),  # Defines fans 1, 2, 3, and 4
          slope=3
       )
 

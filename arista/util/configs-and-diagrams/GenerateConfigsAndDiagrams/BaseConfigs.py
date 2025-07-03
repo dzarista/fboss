@@ -223,7 +223,7 @@ class PlatformConfig:
       slots = OrderedDict()
       for pmUnit in self.pmUnitConfigs:
          if not pmUnits or pmUnit.pmUnitName in pmUnits:
-            slots[pmUnit.pmUnitName] = pmUnit.getOutgoingSlotConfigsDict(slotTypes)
+            slots[ pmUnit.pmUnitName ] = pmUnit.getOutgoingSlotConfigsDict( slotTypes )
       return slots
 
    # Arguments is to filter by pmUnit
@@ -233,7 +233,7 @@ class PlatformConfig:
          if not pmUnits or pmUnit.pmUnitName in pmUnits:
             sensorDict = pmUnit.getAllSensorConfigsAsDicts()
             if sensorDict:
-               allSensors[pmUnit.pmUnitName] = sensorDict
+               allSensors[ pmUnit.pmUnitName ] = sensorDict
       return allSensors
 
    def genDiagram( self ):
@@ -255,15 +255,15 @@ class PlatformConfig:
       assert serviceConfig.pwmConfig, "PWM configurations must be set on platform first."
       fanData.update(serviceConfig.pwmConfig)
       # Convert the list of OpticConfig objects into a list of dictionaries
-      fanData["optics"] = [optic.toDict() for optic in serviceConfig.optics]
+      fanData[ "optics" ] = [ optic.toDict() for optic in serviceConfig.optics ]
       if serviceConfig.controlInterval:
-         fanData["controlInterval"] = serviceConfig.controlInterval
-      fanData["sensors"] = serviceConfig.resolveSensorNames(self.getSensorConfigs())
-      serviceConfig.setFans(self.getSlotConfigs(slotTypes=["FAN_SLOT"]),
-                                                allSymlinks=self.parseSymbolicLinkToDevicePaths())
-      fanData["fans"] = serviceConfig.fans
-      fanData["zones"] = serviceConfig.getResolvedZoneConfigs()
-      return json.dumps(fanData, indent=2)
+         fanData[ "controlInterval" ] = serviceConfig.controlInterval
+      fanData[ "sensors" ] = serviceConfig.resolveSensorNames( self.getSensorConfigs() )
+      serviceConfig.setFans(self.getSlotConfigs( slotTypes=[ "FAN_SLOT" ] ),
+                                                allSymlinks=self.parseSymbolicLinkToDevicePaths() )
+      fanData[ "fans" ] = serviceConfig.fans
+      fanData[ "zones" ] = serviceConfig.getResolvedZoneConfigs()
+      return json.dumps( fanData, indent=2 )
 
 
 class OpticConfig:
@@ -290,11 +290,11 @@ class OpticConfig:
 
    def toDict( self ):
       optic_dict = OrderedDict()
-      optic_dict["opticName"] = self.opticName
-      optic_dict["access"] = {"accessType": self.accessType}
-      optic_dict["portList"] = self.portlist
-      optic_dict["aggregationType"] = self.aggregationType
-      optic_dict["tempToPwmMaps"] = self.tempToPwmMaps
+      optic_dict[ "opticName" ] = self.opticName
+      optic_dict[ "access" ] = {"accessType": self.accessType}
+      optic_dict[ "portList" ] = self.portlist
+      optic_dict[ "aggregationType" ] = self.aggregationType
+      optic_dict[ "tempToPwmMaps" ] = self.tempToPwmMaps
       return optic_dict
 
 class ZoneConfig:
@@ -303,16 +303,16 @@ class ZoneConfig:
       self.zoneName = zoneName
       self.sensorNames = sensorNames
       # Automatically format fan numbers into the required "fan_X" strings
-      self.fanNames = [f"fan_{i}" for i in fanNumbers]
+      self.fanNames = [ f"fan_{i}" for i in fanNumbers ]
       self.slope = slope
 
    def toDict( self ):
       return OrderedDict([
-         ("zoneType", self.zoneType),
-         ("zoneName", self.zoneName),
-         ("sensorNames", self.sensorNames),
-         ("fanNames", self.fanNames),
-         ("slope", self.slope),
+         ( "zoneType", self.zoneType ),
+         ( "zoneName", self.zoneName ),
+         ( "sensorNames", self.sensorNames ),
+         ( "fanNames", self.fanNames ),
+         ( "slope", self.slope ),
       ])
 
 
@@ -331,23 +331,23 @@ class FanServiceConfig:
          platformFanConfigs.update( pmUnitFans )
       inverseSymlinkLookupTable = {v: k for k, v in allSymlinks.items()}
       for slotName, slot in platformFanConfigs.items():
-         fanIndex = int(slotName.split('@')[1]) + 1
-         presenceDetection = slot["presenceDetection"]["sysfsFileHandle"]
-         symlink = inverseSymlinkLookupTable.get(presenceDetection["devicePath"])
+         fanIndex = int( slotName.split( '@' )[ 1 ] ) + 1
+         presenceDetection = slot[ "presenceDetection" ][ "sysfsFileHandle" ]
+         symlink = inverseSymlinkLookupTable.get( presenceDetection[ "devicePath" ] )
          if symlink:
             fanData = OrderedDict()
-            fanData["fanName"] = f"fan_{fanIndex}"
-            fanData["rpmSysfsPath"] = f"{symlink}/fan{fanIndex}_input"
-            fanData["pwmSysfsPath"] = f"{symlink}/pwm{fanIndex}"
-            fanData["presenceSysfsPath"] = f"{symlink}/{presenceDetection['presenceFileName']}"
-            fanData["ledSysfsPath"] = f"/sys/class/leds/fan{fanIndex}::status/brightness"
-            fanData["pwmMin"] = 1
-            fanData["pwmMax"] = 255
-            fanData["fanPresentVal"] = 1
-            fanData["fanMissingVal"] = 0
-            fanData["fanGoodLedVal"] = 1
-            fanData["fanFailLedVal"] = 2
-            self.fans.append(fanData)
+            fanData[ "fanName" ] = f"fan_{fanIndex}"
+            fanData[ "rpmSysfsPath" ] = f"{symlink}/fan{fanIndex}_input"
+            fanData[ "pwmSysfsPath" ] = f"{symlink}/pwm{fanIndex}"
+            fanData[ "presenceSysfsPath" ] = f"{symlink}/{presenceDetection[ 'presenceFileName' ]}"
+            fanData[ "ledSysfsPath" ] = f"/sys/class/leds/fan{fanIndex}::status/brightness"
+            fanData[ "pwmMin" ] = 1
+            fanData[ "pwmMax" ] = 255
+            fanData[ "fanPresentVal" ] = 1
+            fanData[ "fanMissingVal" ] = 0
+            fanData[ "fanGoodLedVal" ] = 1
+            fanData[ "fanFailLedVal" ] = 2
+            self.fans.append( fanData )
 
 
    def addOpticConfig( self, opticName, accessType ):
@@ -361,19 +361,19 @@ class FanServiceConfig:
 
       validAccessTypes = [ "QSFP", "THRIFT" ]
       assert accessType in validAccessTypes, f"Optic type throughput invalid. Please choose from {validAccessTypes}."
-      sensor["access"] = {"accessType": f"ACCESS_TYPE_{accessType}"}
+      sensor[ "access" ] = {"accessType": f"ACCESS_TYPE_{accessType}"}
 
-      sensor["pwmCalcType"] = "SENSOR_PWM_CALC_TYPE_FOUR_LINEAR_TABLE"
-      sensor["normalUpTable"] = tempToPwmMap
-      sensor["normalDownTable"] = tempToPwmMap
-      sensor["failUpTable"] = tempToPwmMap
-      sensor["failDownTable"] = tempToPwmMap
-      self.sensors[sensorName] = (sensor)
+      sensor[ "pwmCalcType" ] = "SENSOR_PWM_CALC_TYPE_FOUR_LINEAR_TABLE"
+      sensor[ "normalUpTable" ] = tempToPwmMap
+      sensor[ "normalDownTable" ] = tempToPwmMap
+      sensor[ "failUpTable" ] = tempToPwmMap
+      sensor[ "failDownTable" ] = tempToPwmMap
+      self.sensors[ sensorName ] = ( sensor )
       return sensor
 
-   def addZone(self, zoneName, sensorNames, fanNumbers, slope=3):
-      zone = ZoneConfig(zoneName, sensorNames, fanNumbers, slope)
-      self.zones.append(zone)
+   def addZone( self, zoneName, sensorNames, fanNumbers, slope=3 ):
+      zone = ZoneConfig( zoneName, sensorNames, fanNumbers, slope )
+      self.zones.append( zone )
 
    def setControlInterval( self, sensorReadInterval, pwmUpdateInterval ):
       self.controlInterval = {
@@ -392,7 +392,7 @@ class FanServiceConfig:
          pwmBoostOnNumDeadFan, pwmBoostOnNumDeadSensor, pwmBoostOnNoQsfpAfterInSec,
          pwmBoostValue, pwmTransitionValue, pwmLowerThreshold, pwmUpperThreshold,
       ]
-      assert all(arg is not None for arg in args), "All fan PWM config arguments must be provided."
+      assert all( arg is not None for arg in args ), "All fan PWM config arguments must be provided."
       self.pwmConfig = {
          "pwmBoostOnNumDeadFan": pwmBoostOnNumDeadFan,
          "pwmBoostOnNumDeadSensor": pwmBoostOnNumDeadSensor,
@@ -408,12 +408,12 @@ class FanServiceConfig:
       for pmUnitSensors in sensors.values():
          platformSensorNames.update( pmUnitSensors )
       for sensor in self.sensors.values():
-         suffix = sensor["sensorName"]
+         suffix = sensor[ "sensorName" ]
          assert suffix in platformSensorNames, f"'{suffix}' is not a valid sensor name in {platformSensorNames}."
-         sensor["sensorName"] = platformSensorNames[suffix]
-      return list(self.sensors.values())
+         sensor[ "sensorName" ] = platformSensorNames[ suffix ]
+      return list( self.sensors.values() )
    
-   def getResolvedZoneConfigs(self):
+   def getResolvedZoneConfigs( self ):
       resolved_zones_list = []
       for zone in self.zones:
          resolved_sensor_names = []
@@ -422,17 +422,17 @@ class FanServiceConfig:
                # Check if the name is a key in the sensors dictionary
                if name in self.sensors:
                   # If yes, extract the final resolved name
-                  resolved_sensor_names.append(self.sensors[name]['sensorName'])
+                  resolved_sensor_names.append( self.sensors[ name ][ 'sensorName' ] )
                # Else, check if it's a known optic name
-               elif any(optic.opticName == name for optic in self.optics):
-                  resolved_sensor_names.append(name)
+               elif any( optic.opticName == name for optic in self.optics ):
+                  resolved_sensor_names.append( name )
                else:
-                  raise ValueError(f"Zone name '{name}' not found in configured sensors or optics.")
+                  raise ValueError( f"Zone name '{name}' not found in configured sensors or optics." )
 
          # Create the final zone dictionary with the resolved names
          zone_dict = zone.toDict()
-         zone_dict['sensorNames'] = resolved_sensor_names
-         resolved_zones_list.append(zone_dict)
+         zone_dict[ 'sensorNames' ] = resolved_sensor_names
+         resolved_zones_list.append( zone_dict )
       
       return resolved_zones_list
 
@@ -643,18 +643,18 @@ class PmUnitConfig:
       }
 
    def getAllSensorConfigsAsDicts( self ):
-      name_map = OrderedDict()
+      nameMap = OrderedDict()
 
-      all_devices = self.embeddedSensorConfigs + self.i2cDeviceConfigs
+      allSensors = self.embeddedSensorConfigs + self.i2cDeviceConfigs
 
-      for device in all_devices:
-         for sensor_config_obj in device.sensorConfigs:            
+      for sensor in allSensors:
+         for sensor_config_obj in sensor.sensorConfigs:            
             original_name = sensor_config_obj.name
             resolved_name_dict = sensor_config_obj.toDict()
             resolved_name = resolved_name_dict.get('name')
             if original_name and resolved_name:
-               name_map[original_name] = resolved_name
-      return name_map
+               nameMap[original_name] = resolved_name
+      return nameMap
 
    def getEmbeddedSensorConfigsList( self ):
       return [ config.asJson() for config in self.embeddedSensorConfigs ]
