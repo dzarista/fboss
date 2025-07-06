@@ -23,12 +23,13 @@ protected:
   void printVersion();
   void printCpuDetails();
   void printFbossDetails();
-  void printWeutil(std::string target);
   void printLspci();
   void printI2cDetect();
   void printL1Info();
   void printLogs();
   void printSensors();
+  void print_fboss2_show_cmd(std::string cmd);
+  void printWeutil(std::string target);
   void printFpgaVersion(std::string name, std::string sysfsPath,
                         std::string combinedRevPath);
   void printFpgaVersion(std::string name, std::string sysfsPath,
