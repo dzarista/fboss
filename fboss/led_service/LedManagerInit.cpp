@@ -5,10 +5,7 @@
 #include "fboss/led_service/ElbertLedManager.h"
 #include "fboss/led_service/FujiLedManager.h"
 #include "fboss/led_service/Glath05a-64oLedManager.h"
-<<<<<<< HEAD
 #include "fboss/led_service/Janga800bicLedManager.h"
-=======
->>>>>>> 59eb9a217e (clang format)
 #include "fboss/led_service/Meru800bfaLedManager.h"
 #include "fboss/led_service/Meru800biaLedManager.h"
 #include "fboss/led_service/Minipack3NLedManager.h"
