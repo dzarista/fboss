@@ -11,8 +11,7 @@
 namespace showtech {
 class Showtech {
 public:
-  Showtech(bool verbose)
-      : verbose_{verbose}, ramdisk_{std::filesystem::exists("/etc/ramdisk")} {}
+  Showtech() : ramdisk_{std::filesystem::exists("/etc/ramdisk")} {}
   virtual ~Showtech() = default;
   void printShowtech();
 
@@ -39,13 +38,12 @@ protected:
   virtual void printPlatformInfo() = 0;
   virtual std::set<int> i2cBusIgnore() = 0;
 
-  bool verbose_;
   bool ramdisk_;
 };
 
 class GenericShowtech : public Showtech {
 public:
-  GenericShowtech(bool verbose) : Showtech(verbose) {}
+  GenericShowtech() : Showtech() {}
   void printPlatformInfo() override {};
   std::set<int> i2cBusIgnore() override { return {}; }
 };
