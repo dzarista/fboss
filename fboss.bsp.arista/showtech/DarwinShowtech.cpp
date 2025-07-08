@@ -140,10 +140,9 @@ void DarwinShowtech::printRackmonInfo() {
   printMainHeader("RACKMON DEBUG INFO");
 
   std::cout << run_cmd_no_check("/usr/bin/rackmonctl status");
-  if (verbose_) {
-    std::cout << run_cmd_no_check("/usr/bin/rackmonctl info");
-    std::cout << run_cmd_no_check("/usr/bin/rackmonctl data");
-  }
+  std::cout << run_cmd_no_check("/usr/bin/rackmonctl info");
+  std::cout << run_cmd_no_check("/usr/bin/rackmonctl data");
+
   std::cout << "\n\n";
 }
 
@@ -186,10 +185,7 @@ void DarwinShowtech::printPlatformInfo() {
     printPsuShowtechInfo();
   }
   printRackmonInfo();
-
-  if (verbose_) {
-    printI2cInfo();
-  }
+  printI2cInfo();
 }
 
 } // namespace showtech
