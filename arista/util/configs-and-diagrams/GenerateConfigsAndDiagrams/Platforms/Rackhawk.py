@@ -838,7 +838,7 @@ class RackhawkPEM( PmUnitConfig ):
       ] )
       self.addI2cDeviceConfigs( [ pemEcb, pemAdc, pemTempSensor ] )
    def populateSymlinkToDevicePaths( self ):
-      # Override this method to account for special-case Rackmon EEPROM.
+      # Override this method to account for special-case PEM EEPROM.
       addedPaths = {
          "/run/devmap/eeproms/PEM_EEPROM": "/PEM_SLOT@0/[IDPROM]",
          **self.generateI2cDeviceSymlinks(),
