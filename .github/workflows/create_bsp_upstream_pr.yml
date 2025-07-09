@@ -63,7 +63,7 @@ jobs:
         run: |
           echo "$SERVICE_ACCOUNT_PRIVATE_KEY" > private.key
           sudo chmod 600 private.key
-          ./arista-ci-scripts/create_bsp_upstream_pr.sh
+          ./arista-ci-scripts/create_bsp_upstream_pr.sh "$PWD"
 
       - name: Send status email
         if: env.SKIP_STEPS != 'true'

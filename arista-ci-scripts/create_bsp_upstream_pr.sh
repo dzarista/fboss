@@ -2,6 +2,7 @@ set -x
 
 #### This script creates a pull request in https://github.com/facebookexternal/fboss.bsp.arista
 #### with the changes made to the Git subtree in https://github.com/aristanetworks/arista-fboss
+#### Provide the top-level directory of the GitHub Actions workflow as an argument to the script
 
 repo_name=git@github.com:facebookexternal/fboss.bsp.arista.git
 upstream_pr_branch_name="bsp_upstream_pr_${PR_BRANCH}"
@@ -16,7 +17,7 @@ email_subject_file=status_email_subject.txt
 
 echo "fboss.bsp.arista pull request from $PR_BRANCH" > $email_subject_file
 
-SCRIPT_START_DIR=$(pwd)
+SCRIPT_START_DIR="$1"
 
 mkdir upstream_repo
 cd upstream_repo
