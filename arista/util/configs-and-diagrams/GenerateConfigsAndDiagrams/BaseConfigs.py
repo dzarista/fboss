@@ -78,13 +78,16 @@ def constructDevicePaths( device ):
    constructHelper( device, startPath, outputList )
    return outputList
 
+
 def constructSlotPaths( pmUnit ):
    outputList = []
    constructHelper( pmUnit, "", outputList )
    return outputList
 
+
 def filterByPrefix( data, prefix ):
    return [ item for item in data if item.get( 'name', '' ).startswith( prefix ) ]
+
 
 class Node:
    def __init__( self, name, shape="record", fillcolor="#5f97e4", **kwargs ):
@@ -136,6 +139,21 @@ class PlatformConfig:
          ] = pmConfig.slotTypeConfig.asJson()
       return jsonDict
 
+   def getFruEepromList( self ):
+      jsonDict = {}
+      for pmConfig in self.pmUnitConfigs:
+         slotTypeConfig = pmConfig.slotTypeConfig
+         idprom_config = slotTypeConfig.parseIdpromConfig()
+         # Call the eeprom config get symlink
+         path = slotTypeConfig.getEepromConfig()
+         if path:
+            offset = idprom_config.get( 'offset', 0 )
+            jsonDict[ pmConfig.pmUnitName ] = OrderedDict( [
+                  ("path", path),
+                  ("offset", offset)
+            ] )
+      return jsonDict
+
    def addPmUnitConfigs( self, newConfigs ):
       for config in newConfigs:
          config.addParentConfigPointer( self )
@@ -182,6 +200,13 @@ class PlatformConfig:
       output = json.dumps( sensorConfigDict, indent=2 )
       return output
 
+   def getNumXcvrs( self ):
+      xcvrCount = 0
+      for pmConfig in self.pmUnitConfigs:
+         for pciConfig in pmConfig.pciDeviceConfigs:
+            xcvrCount += len(pciConfig.xcvrCtrlConfigs)
+      return xcvrCount
+
    def pmConfigJson( self ):
       jsonDict = OrderedDict()
       jsonDict[ "platformName" ] = self.platformName
@@ -195,6 +220,7 @@ class PlatformConfig:
       )
       if self.setChassisEepromDevicePath:
          jsonDict[ "chassisEepromDevicePath"] = self.getChassisEepromDevicePath()
+      jsonDict[ "numXcvrs"] = self.getNumXcvrs()
       jsonDict[ "bspKmodsRpmName" ] = self.kmodsSettings[ "bspKmodsRpmName" ]
       jsonDict[ "bspKmodsRpmVersion" ] = self.kmodsSettings[ "bspKmodsRpmVersion" ]
       jsonDict[ "requiredKmodsToLoad" ] = self.kmodsSettings[ "requiredKmodsToLoad" ]
@@ -202,6 +228,13 @@ class PlatformConfig:
       jsonDump = json.dumps( jsonDict, indent=2 )
       output = reformatOneElementLists( jsonDump )
       return output
+
+   def weutilJson( self ):
+      weutil_data = OrderedDict()
+      weutil_data[ "chassisEepromName" ] = "SMB"
+      weutil_data[ "fruEepromList" ] = self.getFruEepromList()
+      output_json_dump = json.dumps( weutil_data, indent=2 )
+      return output_json_dump
 
    def bspMappingCsv( self ):
       output = io.StringIO()
@@ -331,6 +364,16 @@ class SlotTypeConfig:
       self.pmUnitName = pmUnitName
       self.parentConfig = None
 
+   def getEepromConfig( self ):
+      if not self.idPromConfigBusName:
+         return None
+      platformName = self.parentConfig.parentConfig.platformName
+      # Special case: SCM for the 3 platforms has special handling for the symlink
+      if self.pmUnitName == 'SCM' and platformName in ( "meru800bia", "meru800bfa", "glath05a-64o" ):
+         return "/run/devmap/eeproms/MERU_SCM_EEPROM"
+      else:
+         return f"/run/devmap/eeproms/{platformName.upper()}_{self.pmUnitName}_EEPROM"
+
    def addParentConfigPointer( self, parentConfig ):
       self.parentConfig = parentConfig
 
@@ -348,20 +391,11 @@ class SlotTypeConfig:
       }
 
    def parseIdpromConfig( self ):
-      busName = self.idPromConfigBusName
-      address = self.idPromConfigAddress
-      kernelDeviceName = self.idPromConfigKernelDeviceName
-      offset = self.idPromConfigOffset
-      assert ( busName == address == kernelDeviceName ) or\
-         ( busName and address and kernelDeviceName ), (
-            "Error: 1 or 2 of the strings are empty"
-         )
-
       return {
-         "busName": busName,
-         "address": address.lower() if address else '',
-         "kernelDeviceName": kernelDeviceName,
-         "offset": offset
+         "busName": self.idPromConfigBusName,
+         "address": self.idPromConfigAddress.lower() if self.idPromConfigAddress else None,
+         "kernelDeviceName": self.idPromConfigKernelDeviceName,
+         "offset": self.idPromConfigOffset
       }
 
 
@@ -381,6 +415,15 @@ class PmUnitConfig:
                           idPromConfigAddress=None,
                           idPromConfigKernelDeviceName=None,
                           idPromConfigOffset=None ):
+      args = [
+         idPromConfigBusName,
+         idPromConfigAddress,
+         idPromConfigKernelDeviceName,
+         idPromConfigOffset,
+      ]
+      assert all(arg is not None for arg in args) or not any(args), \
+         f"Invalid SlotType IDPROM: all idprom configs must be defined, or none at all.{args}"
+
       self.slotTypeConfig.numOutgoingI2cBuses = numOutgoingI2cBuses
       self.slotTypeConfig.idPromConfigBusName = idPromConfigBusName
       self.slotTypeConfig.idPromConfigAddress = idPromConfigAddress

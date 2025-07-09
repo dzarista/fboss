@@ -9,6 +9,17 @@
 
 namespace showtech {
 
+void printMainHeader(std::string_view headerName) {
+  std::string topPadding = std::string(headerName.size() + 12, '#');
+  std::cout << topPadding << "\n";
+  std::cout << "##### " << headerName << " #####\n";
+  std::cout << topPadding << "\n\n";
+}
+
+void printSubHeader(std::string_view headerName) {
+  std::cout << "#### " << headerName << " ####\n";
+}
+
 int run_cmd(std::string cmd, std::string &output) {
   std::array<char, 128> buffer;
   std::string result;
@@ -72,13 +83,6 @@ std::string run_cmd_with_timeout(std::string cmd, int timeout_s) {
   }
 
   return output;
-}
-
-void print_fboss2_show_cmd(std::string cmd) {
-  if (!std::filesystem::exists("/etc/ramdisk")) {
-    std::cout << "#### fboss2 show " << cmd << " ####\n";
-    std::cout << run_cmd_no_check("fboss2 show " + cmd) << std::endl;
-  }
 }
 
 void strip(std::string &str) {

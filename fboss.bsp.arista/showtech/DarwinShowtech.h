@@ -13,13 +13,13 @@
 namespace showtech {
 class DarwinShowtech : public Showtech {
 public:
-  DarwinShowtech(bool verbose, std::string product)
-      : Showtech(verbose), product(product) {}
+  DarwinShowtech(std::string product) : Showtech(), product(product) {}
   void printPlatformInfo() override;
   std::set<int> i2cBusIgnore() override { return {}; }
 
 private:
   void printSwitchcardPowergood();
+  void printWeutilInfo();
   void printAllFpgaVersions();
   void printPemInfo();
   void printFanspinnerInfo();
