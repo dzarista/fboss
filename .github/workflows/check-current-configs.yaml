@@ -5,10 +5,12 @@ on:
     paths:
       - 'arista/util/configs-and-diagrams/GenerateConfigsAndDiagrams/BaseConfigs.py'
       - 'arista/util/configs-and-diagrams/GenerateConfigsAndDiagrams/Platforms/**'
+      - 'fboss/platform/configs/**'
   pull_request:
     paths:
       - 'arista/util/configs-and-diagrams/GenerateConfigsAndDiagrams/BaseConfigs.py'
       - 'arista/util/configs-and-diagrams/GenerateConfigsAndDiagrams/Platforms/**'
+      - 'fboss/platform/configs/**'
 
 jobs:
   update:
@@ -36,12 +38,13 @@ jobs:
         git add ../../../fboss/platform/configs/*
 
         if ! git diff --cached --quiet; then
-          echo "Changes to JSON configs are required."
+          git diff --cached
+          echo "Changes to JSON platform configs are required."
           echo "Please run the config generation tool locally and commit the changes."
           echo "  cd arista/util/configs-and-diagrams"
           echo "  python generate.py --update_all_configs"
           exit 1
         else
-          echo "No changes to JSON configs needed."
+          echo "No changes to JSON platform configs needed."
           exit 0
         fi
