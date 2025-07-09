@@ -271,6 +271,54 @@ class PlatformConfig:
       fanData[ "zones" ] = serviceConfig.getResolvedZoneConfigs()
       return json.dumps( fanData, indent=2 )
 
+   def ledJson( self ):
+      ledData = OrderedDict()
+      fruTypeConfigs = OrderedDict()
+      ledData[ "systemLedConfig" ] = self.getLedConfig( "sys" )
+      for fruName in [ "FAN", "PSU" ]:
+         fruTypeConfigs[fruName] = self.getLedConfig(fruName.lower())
+      ledData[ "fruTypeLedConfigs" ] = fruTypeConfigs
+      fruConfigs = []
+      inverseSymlinkPaths = {v: k for k, v in self.parseSymbolicLinkToDevicePaths().items()}
+      slotGroups = self.getSlotConfigs( slotTypes=[ "FAN_SLOT", "PSU_SLOT" ] )
+
+      for pmUnitSlots in slotGroups.values():
+         for slotName, slotData in pmUnitSlots.items():
+               # Ensure presence detection is defined for this slot
+               if "presenceDetection" not in slotData:
+                  continue
+               presenceHandle = slotData[ "presenceDetection" ][ "sysfsFileHandle" ]
+               presenceDevicePath = presenceHandle.get( "devicePath" )
+               presenceDeviceSymlink = inverseSymlinkPaths.get( presenceDevicePath )
+               if not presenceDeviceSymlink:
+                  continue
+               fruType = slotData[ "slotType" ].replace( "_SLOT", "" )
+               slotIndex = int( slotName.split( '@' )[ 1 ] )
+
+               fruEntry = OrderedDict()
+               fruEntry[ "fruName" ] = f"{fruType}{slotIndex + 1}"
+               fruEntry[ "fruType" ] = fruType
+               fruEntry[ "presenceDetection" ] = {
+                  "sysfsFileHandle": {
+                     "presenceFilePath": f"{presenceDeviceSymlink}/{presenceHandle[ 'presenceFileName' ]}",
+                     "desiredValue": 1,
+                  }
+               }
+               fruConfigs.append( fruEntry )
+      sortedFruConfigs = sorted( fruConfigs, key=lambda x: x[ 'fruName' ] )
+      ledData[ "fruConfigs" ] = sortedFruConfigs
+
+      return json.dumps( ledData, indent=2 )
+
+   def getLedConfig( self, led_name: str ):
+      config = OrderedDict()
+      config[ "presentLedColor" ] = 1
+      config[ "presentLedSysfsPath" ] = f"/sys/class/leds/{led_name}_led:green:status/brightness"
+      config[ "absentLedColor" ] = 2
+      config[ "absentLedSysfsPath" ] = f"/sys/class/leds/{led_name}_led:red:status/brightness"
+      return config
+
+
 
 class SlotTypeConfig:
    def __init__( self, pmUnitName ):
