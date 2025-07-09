@@ -190,6 +190,13 @@ class PlatformConfig:
       output = json.dumps( sensorConfigDict, indent=2 )
       return output
 
+   def getNumXcvrs( self ):
+      xcvrCount = 0
+      for pmConfig in self.pmUnitConfigs:
+         for pciConfig in pmConfig.pciDeviceConfigs:
+            xcvrCount += len(pciConfig.xcvrCtrlConfigs)
+      return xcvrCount
+
    def pmConfigJson( self ):
       jsonDict = OrderedDict()
       jsonDict[ "platformName" ] = self.platformName
@@ -203,6 +210,7 @@ class PlatformConfig:
       )
       if self.setChassisEepromDevicePath:
          jsonDict[ "chassisEepromDevicePath"] = self.getChassisEepromDevicePath()
+      jsonDict[ "numXcvrs"] = self.getNumXcvrs()
       jsonDict[ "bspKmodsRpmName" ] = self.kmodsSettings[ "bspKmodsRpmName" ]
       jsonDict[ "bspKmodsRpmVersion" ] = self.kmodsSettings[ "bspKmodsRpmVersion" ]
       jsonDict[ "requiredKmodsToLoad" ] = self.kmodsSettings[ "requiredKmodsToLoad" ]
