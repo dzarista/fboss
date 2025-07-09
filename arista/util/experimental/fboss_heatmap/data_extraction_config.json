@@ -1,0 +1,64 @@
+{
+  "dataTypes": {
+    "temperature": {
+      "name": "Temperature",
+      "unit": "°C",
+      "description": "Transceiver temperature readings",
+      "showtech": {
+        "columnHeader": "Temperature (C)",
+        "columnPattern": "Temperature \\(C\\)",
+        "validationMin": 0,
+        "validationMax": 150,
+        "defaultValue": "0.00"
+      },
+      "timeSeries": {
+        "metricSuffix": ".temp",
+        "metricPattern": "::qsfp_service\\.qsfp\\.interface\\.(fab1|eth1)\\/(\\d+)\\/\\d+\\.temp",
+        "validationMin": 0,
+        "validationMax": 150,
+        "defaultValue": "0.00"
+      },
+      "csvColumnPrefix": "DomTemperatureSensor",
+      "colorScale": {
+        "low": "#0066cc",
+        "medium": "#ffcc00",
+        "high": "#ff3300"
+      }
+    },
+    "voltage": {
+      "name": "Voltage",
+      "unit": "mV",
+      "description": "Transceiver voltage readings in millivolts",
+      "showtech": {
+        "columnHeader": "Voltage (V)",
+        "columnPattern": "Voltage \\(V\\)",
+        "validationMin": 0,
+        "validationMax": 10000,
+        "defaultValue": "0.00",
+        "conversion": {
+          "factor": 1000,
+          "description": "Convert volts to millivolts"
+        }
+      },
+      "timeSeries": {
+        "metricSuffix": ".vcc.mv",
+        "metricPattern": "::qsfp_service\\.qsfp\\.interface\\.(fab1|eth1)\\/(\\d+)\\/\\d+\\.vcc\\.mv",
+        "validationMin": 0,
+        "validationMax": 10000,
+        "defaultValue": "0.00"
+      },
+      "csvColumnPrefix": "DomVoltageSensor",
+      "colorScale": {
+        "low": "#006600",
+        "medium": "#ffaa00",
+        "high": "#cc0000"
+      }
+    }
+  },
+  "metadata": {
+    "version": "1.0",
+    "lastUpdated": "2025-01-08",
+    "description": "Data extraction configuration for thermal monitoring tools",
+    "defaultDataType": "temperature"
+  }
+}
