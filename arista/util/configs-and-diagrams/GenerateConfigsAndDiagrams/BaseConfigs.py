@@ -72,13 +72,16 @@ def constructDevicePaths( device ):
    constructHelper( device, startPath, outputList )
    return outputList
 
+
 def constructSlotPaths( pmUnit ):
    outputList = []
    constructHelper( pmUnit, "", outputList )
    return outputList
 
+
 def filterByPrefix( data, prefix ):
    return [ item for item in data if item.get( 'name', '' ).startswith( prefix ) ]
+
 
 class Node:
    def __init__( self, name, shape="record", fillcolor="#5f97e4", **kwargs ):
