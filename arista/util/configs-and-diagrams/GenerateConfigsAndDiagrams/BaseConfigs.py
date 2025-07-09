@@ -259,7 +259,7 @@ class PlatformConfig:
       fanData = OrderedDict()
       
       assert serviceConfig.pwmConfig, "PWM configurations must be set on platform first."
-      fanData.update(serviceConfig.pwmConfig)
+      fanData.update( serviceConfig.pwmConfig )
       # Convert the list of OpticConfig objects into a list of dictionaries
       fanData[ "optics" ] = [ optic.toDict() for optic in serviceConfig.optics ]
       if serviceConfig.controlInterval:

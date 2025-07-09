@@ -301,7 +301,7 @@ class QuicksilverPFbSMB( SMBUnit ):
             presenceDevicePath="/SMB_SLOT@0/[SMB_FPGA]",
             outgoingI2cBuses=[ smbI2cMaster0.buses[ 4 ] ]
          ),
-         *enumerateFANSlotConfigs(4, "/SMB_SLOT@0/[FAN_CPLD]"),
+         *enumerateFANSlotConfigs( 4, "/SMB_SLOT@0/[FAN_CPLD]" ),
       ] )
 
 

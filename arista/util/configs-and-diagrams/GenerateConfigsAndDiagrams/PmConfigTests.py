@@ -94,40 +94,40 @@ class PlatformConfigTest( unittest.TestCase ):
       pmConfig = json.loads( platform.pmConfigJson() )
       self.assertEqual( pmConfig[ "chassisEepromDevicePath" ], "/SMB_SLOT@0/[IDPROM]")
 
-   def testGetSlotConfigs(self):
-      platform = PlatformConfig("test_platform")
-      smbUnit = PmUnitConfig("SMB")
-      smbUnit.addOutgoingSlotConfigs([
-         SlotConfig(slotName="FAN_SLOT@0"),
-         SlotConfig(slotName="PSU_SLOT@0"),
-      ])
-      otherUnit = PmUnitConfig("OTHER")
-      otherUnit.addOutgoingSlotConfigs([SlotConfig(slotName="FAN_SLOT@0")])
-      platform.addPmUnitConfigs([smbUnit, otherUnit])
-      slots = platform.getSlotConfigs(pmUnits=["SMB"], slotTypes=["PSU_SLOT"])
+   def testGetSlotConfigs( self ):
+      platform = PlatformConfig( "test_platform" )
+      smbUnit = PmUnitConfig( "SMB" )
+      smbUnit.addOutgoingSlotConfigs( [
+         SlotConfig( slotName="FAN_SLOT@0" ),
+         SlotConfig( slotName="PSU_SLOT@0" ),
+      ] )
+      otherUnit = PmUnitConfig( "OTHER" )
+      otherUnit.addOutgoingSlotConfigs( [ SlotConfig( slotName="FAN_SLOT@0" ) ] )
+      platform.addPmUnitConfigs( [ smbUnit, otherUnit ] )
+      slots = platform.getSlotConfigs( pmUnits=[ "SMB" ], slotTypes=[ "PSU_SLOT" ] )
 
-      self.assertIn("SMB", slots)
-      self.assertNotIn("OTHER", slots)
-      self.assertEqual(len(slots["SMB"]), 1)
-      self.assertIn("PSU_SLOT@0", slots["SMB"])
+      self.assertIn( "SMB", slots )
+      self.assertNotIn( "OTHER", slots )
+      self.assertEqual( len( slots [ "SMB" ] ), 1 )
+      self.assertIn( "PSU_SLOT@0", slots[ "SMB" ] )
 
-   def testGetSensorConfigs(self):
-      platform = PlatformConfig("test_platform")
+   def testGetSensorConfigs( self ):
+      platform = PlatformConfig( "test_platform" )
       scmUnit = SCMUnit()
-      scmSensor = Sensor("0x48", "lm75", "SCM_TMP75")
-      scmSensor.addSensorConfigs([
-         SensorConfig("SCM_BOARD_TEMP", "temp1_input", SensorType.TEMP)
-      ])
-      scmUnit.addI2cDeviceConfigs([scmSensor])
-      smbUnit = PmUnitConfig("SMB")
-      platform.addPmUnitConfigs([scmUnit, smbUnit])
+      scmSensor = Sensor( "0x48", "lm75", "SCM_TMP75" )
+      scmSensor.addSensorConfigs( [
+         SensorConfig( "SCM_BOARD_TEMP", "temp1_input", SensorType.TEMP )
+      ] )
+      scmUnit.addI2cDeviceConfigs( [ scmSensor ] )
+      smbUnit = PmUnitConfig( "SMB" )
+      platform.addPmUnitConfigs( [ scmUnit, smbUnit ] )
       for pmUnit in platform.pmUnitConfigs:
          pmUnit.populateSymlinkToDevicePaths()
-      sensors = platform.getSensorConfigs(pmUnits=["SCM"])
+      sensors = platform.getSensorConfigs( pmUnits=[ "SCM" ] )
 
-      self.assertIn("SCM", sensors)
-      self.assertNotIn("SMB", sensors)
-      self.assertIn("SCM_BOARD_TEMP", sensors["SCM"])
+      self.assertIn( "SCM", sensors )
+      self.assertNotIn( "SMB", sensors )
+      self.assertIn( "SCM_BOARD_TEMP", sensors[ "SCM" ] )
 
 
 class SlotTypeConfigTest( unittest.TestCase ):
