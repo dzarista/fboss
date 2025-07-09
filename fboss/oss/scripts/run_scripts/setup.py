@@ -57,7 +57,6 @@ class SetupFboss:
     ### ARISTA START ###
     J3 = "j3"
     J3B = "j3b"
-    J3C = "j3c"
     R3 = "r3"
     TH5 = "th5"
     ### ARISTA END ###
