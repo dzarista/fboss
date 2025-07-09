@@ -192,7 +192,7 @@
             border-radius: 4px;
             padding: 8px;
             margin: 2px;
-            min-width: 60px;
+            min-width: 120px;
             min-height: 60px;
             font-size: 12px;
             font-weight: bold;
@@ -340,6 +340,13 @@
                     </div>
 
                     <div class="control-item">
+                        <label for="data-type-select">Data Type:</label>
+                        <select id="data-type-select" class="bg-white">
+                            <option value="">Loading data types...</option>
+                        </select>
+                    </div>
+
+                    <div class="control-item">
                         <label for="percentile-input">Percentile (1-99):</label>
                         <input type="number" id="percentile-input" value="50" min="1" max="99" class="bg-white">
                     </div>
@@ -400,7 +407,7 @@
                     </div>
                 </div>
 
-                <h3 class="text-lg font-semibold text-gray-700 mb-3">Port Temperatures:</h3>
+                <h3 id="data-type-header" class="text-lg font-semibold text-gray-700 mb-3">Port Data:</h3>
                 <div id="grid-container" class="overflow-x-auto pb-4">
                     <p class="text-gray-500">Upload and process a showtech file to see visualization.</p>
                 </div>
@@ -419,10 +426,87 @@
         let animationInterval = null;
         let isPlaying = false;
         let actualPercentileValue = NaN;
+        let currentDataType = 'temperature';
 
         // Product definitions - loaded from external JSON file
         let PREDEFINED_LAYOUTS = {};
         let PRODUCT_METADATA = {};
+
+        // Data extraction configuration - loaded from external JSON file
+        let DATA_EXTRACTION_CONFIG = {};
+        let DATA_TYPES = {};
+
+        // Load data extraction configuration from JSON file
+        async function loadDataExtractionConfig() {
+            try {
+                const response = await fetch('./data_extraction_config.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                DATA_EXTRACTION_CONFIG = data;
+                DATA_TYPES = data.dataTypes;
+
+                console.log('Data extraction config loaded:', Object.keys(DATA_TYPES));
+
+                // Populate the data type dropdown
+                populateDataTypeDropdown();
+
+                // Set default data type
+                const defaultDataType = DATA_EXTRACTION_CONFIG.metadata?.defaultDataType || 'temperature';
+                currentDataType = defaultDataType;
+                if (dataTypeSelect) {
+                    dataTypeSelect.value = defaultDataType;
+                }
+
+                // Update header with default data type
+                updateDataTypeHeader();
+
+                return true;
+            } catch (error) {
+                console.error('Failed to load data extraction config:', error);
+                showToast('Error: Could not load data extraction configuration. Please ensure data_extraction_config.json is available.', 5000);
+                return false;
+            }
+        }
+
+        function populateDataTypeDropdown() {
+            if (!DATA_TYPES || Object.keys(DATA_TYPES).length === 0) {
+                console.error('No data types available');
+                return;
+            }
+
+            const defaultDataType = DATA_EXTRACTION_CONFIG.metadata?.defaultDataType || 'temperature';
+
+            dataTypeSelect.innerHTML = '';
+            Object.entries(DATA_TYPES).forEach(([key, dataType]) => {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = `${dataType.name} (${dataType.unit})`;
+                if (key === defaultDataType) {
+                    option.selected = true;
+                }
+                dataTypeSelect.appendChild(option);
+            });
+
+            // Add event listener for data type changes
+            dataTypeSelect.addEventListener('change', function() {
+                currentDataType = this.value;
+                console.log('Data type changed to:', currentDataType);
+                updateDataTypeHeader();
+                // If we have data loaded, refresh the visualization with current row
+                if (thermalData.length > 0 && currentRowIndex >= 0) {
+                    updateVisualization(currentRowIndex);
+                }
+            });
+        }
+
+        function updateDataTypeHeader() {
+            if (dataTypeHeader && DATA_TYPES[currentDataType]) {
+                const dataTypeConfig = DATA_TYPES[currentDataType];
+                dataTypeHeader.textContent = `Port ${dataTypeConfig.name}:`;
+            }
+        }
 
         // Load product definitions from JSON file
         async function loadProductDefinitions() {
@@ -514,6 +598,7 @@
         const visualizerModeBtn = document.getElementById('visualizerModeBtn');
         const mainProductSelect = document.getElementById('main-product-select');
         const productSelect = document.getElementById('product-select');
+        const dataTypeSelect = document.getElementById('data-type-select');
         const percentileInput = document.getElementById('percentile-input');
         const speedInput = document.getElementById('speed-input');
         const startRowInput = document.getElementById('start-row-input');
@@ -523,6 +608,7 @@
         const gridContainer = document.getElementById('grid-container');
         const statusMessage = document.getElementById('status-message');
         const toastNotification = document.getElementById('toast-notification');
+        const dataTypeHeader = document.getElementById('data-type-header');
 
         // Row slider elements
         const rowSliderSection = document.getElementById('row-slider-section');
@@ -616,15 +702,28 @@
             results.style.display = 'block';
 
             try {
-                // Extract transceiver data
-                const transceiverData = extractTransceiverData(content);
+                // Extract transceiver data for all available data types
+                const transceiverDataByType = {};
+                let totalDataPoints = 0;
+
+                Object.keys(DATA_TYPES).forEach(dataTypeKey => {
+                    try {
+                        const data = extractTransceiverData(content, dataTypeKey);
+                        if (Object.keys(data).length > 0) {
+                            transceiverDataByType[dataTypeKey] = data;
+                            totalDataPoints += Object.keys(data).length;
+                        }
+                    } catch (error) {
+                        console.log(`No ${dataTypeKey} data found:`, error.message);
+                    }
+                });
 
                 // Extract fan data
                 const fanData = extractFanData(content);
 
                 // Generate CSV using selected product
                 const selectedProduct = getSelectedProduct();
-                const csvData = generateCSV(transceiverData, fanData, selectedProduct);
+                const csvData = generateCSV(transceiverDataByType, fanData, selectedProduct, currentDataType);
                 currentCSVData = csvData;
 
                 // Show success status
@@ -634,11 +733,18 @@
                 `;
 
                 // Show statistics
+                const dataTypeStats = Object.entries(transceiverDataByType).map(([dataType, data]) => {
+                    const config = DATA_TYPES[dataType];
+                    return `
+                        <div class="stat-card">
+                            <div class="stat-number">${Object.keys(data).length}</div>
+                            <div class="stat-label">${config.name} Sensors</div>
+                        </div>
+                    `;
+                }).join('');
+
                 stats.innerHTML = `
-                    <div class="stat-card">
-                        <div class="stat-number">${Object.keys(transceiverData).length}</div>
-                        <div class="stat-label">Transceivers Found</div>
-                    </div>
+                    ${dataTypeStats}
                     <div class="stat-card">
                         <div class="stat-number">${Object.keys(fanData).length}</div>
                         <div class="stat-label">Fans Found</div>
@@ -688,15 +794,35 @@
             results.style.display = 'block';
 
             try {
-                // Parse time series CSV data
-                const { transceiverData, fanData, timestamps } = extractTimeSeriesData(content);
+                // Parse time series CSV data for all available data types
+                const transceiverDataByType = {};
+                let fanData = {};
+                let timestamps = [];
+                let totalDataPoints = 0;
+
+                Object.keys(DATA_TYPES).forEach(dataTypeKey => {
+                    try {
+                        const result = extractTimeSeriesData(content, dataTypeKey);
+                        if (Object.keys(result.transceiverData).length > 0) {
+                            transceiverDataByType[dataTypeKey] = result.transceiverData;
+                            totalDataPoints += Object.keys(result.transceiverData).length;
+                            // Use the fan data and timestamps from any successful extraction
+                            if (Object.keys(fanData).length === 0) {
+                                fanData = result.fanData;
+                                timestamps = result.timestamps;
+                            }
+                        }
+                    } catch (error) {
+                        console.log(`No ${dataTypeKey} time series data found:`, error.message);
+                    }
+                });
 
                 // Use selected product type
                 const selectedProduct = getSelectedProduct();
                 const productInfo = PREDEFINED_LAYOUTS[selectedProduct];
 
                 // Generate heatmap CSV with selected product type
-                const csvData = generateTimeSeriesCSV(transceiverData, fanData, timestamps, selectedProduct);
+                const csvData = generateTimeSeriesCSV(transceiverDataByType, fanData, timestamps, selectedProduct, currentDataType);
                 currentCSVData = csvData;
 
                 // Show success status
@@ -707,17 +833,24 @@
                 `;
 
                 // Show statistics
-                const portRange = Object.keys(transceiverData).length > 0 ?
-                    `${Math.min(...Object.keys(transceiverData).map(Number))} - ${Math.max(...Object.keys(transceiverData).map(Number))}` : 'None';
+                const dataTypeStats = Object.entries(transceiverDataByType).map(([dataType, data]) => {
+                    const config = DATA_TYPES[dataType];
+                    const portRange = Object.keys(data).length > 0 ?
+                        `${Math.min(...Object.keys(data).map(Number))} - ${Math.max(...Object.keys(data).map(Number))}` : 'None';
+                    return `
+                        <div class="stat-card">
+                            <div class="stat-number">${Object.keys(data).length}</div>
+                            <div class="stat-label">${config.name} Ports</div>
+                            <div class="text-xs text-gray-500">Range: ${portRange}</div>
+                        </div>
+                    `;
+                }).join('');
+
                 const fanRange = Object.keys(fanData).length > 0 ?
                     `${Math.min(...Object.keys(fanData).map(Number))} - ${Math.max(...Object.keys(fanData).map(Number))}` : 'None';
 
                 stats.innerHTML = `
-                    <div class="stat-card">
-                        <div class="stat-number">${Object.keys(transceiverData).length}</div>
-                        <div class="stat-label">Ports with Data</div>
-                        <div class="text-xs text-gray-500">Range: ${portRange}</div>
-                    </div>
+                    ${dataTypeStats}
                     <div class="stat-card">
                         <div class="stat-number">${Object.keys(fanData).length}</div>
                         <div class="stat-label">Fans with Data</div>
@@ -768,8 +901,16 @@
             showToast('Data loaded into visualizer!');
         }
 
-        function extractTransceiverData(content) {
+        function extractTransceiverData(content, dataType = 'temperature') {
             const transceiverData = {};
+
+            // Get data type configuration
+            const dataTypeConfig = DATA_TYPES[dataType];
+            if (!dataTypeConfig) {
+                throw new Error(`Unknown data type: ${dataType}`);
+            }
+
+            const showtechConfig = dataTypeConfig.showtech;
 
             // Find the transceiver section
             const transceiverMatch = content.match(/#### fboss2 show transceiver ####([\s\S]*?)(?=####|$)/);
@@ -783,25 +924,26 @@
             const lines = transceiverSection.split('\n');
 
             // Find the header line to determine column positions
-            let temperatureColumnStart = -1;
-            let temperatureColumnEnd = -1;
+            let dataColumnStart = -1;
+            let dataColumnEnd = -1;
 
             for (const line of lines) {
-                if (line.includes('Temperature (C)')) {
-                    temperatureColumnStart = line.indexOf('Temperature (C)');
-                    // Find the end of the temperature column (look for next column or end of line)
-                    const nextColumnMatch = line.substring(temperatureColumnStart + 15).match(/\s{2,}/);
+                if (line.includes(showtechConfig.columnHeader)) {
+                    dataColumnStart = line.indexOf(showtechConfig.columnHeader);
+                    // Find the end of the data column (look for next column or end of line)
+                    const headerLength = showtechConfig.columnHeader.length;
+                    const nextColumnMatch = line.substring(dataColumnStart + headerLength).match(/\s{2,}/);
                     if (nextColumnMatch) {
-                        temperatureColumnEnd = temperatureColumnStart + 15 + nextColumnMatch.index;
+                        dataColumnEnd = dataColumnStart + headerLength + nextColumnMatch.index;
                     } else {
-                        temperatureColumnEnd = line.length;
+                        dataColumnEnd = line.length;
                     }
                     break;
                 }
             }
 
-            if (temperatureColumnStart === -1) {
-                throw new Error('Could not find Temperature (C) column in transceiver data');
+            if (dataColumnStart === -1) {
+                throw new Error(`Could not find ${showtechConfig.columnHeader} column in transceiver data`);
             }
 
             for (const line of lines) {
@@ -810,14 +952,22 @@
                 if (interfaceMatch) {
                     const portNumber = parseInt(interfaceMatch[2]);
 
-                    // Extract temperature from the fixed column position
-                    if (line.length > temperatureColumnStart) {
-                        const tempStr = line.substring(temperatureColumnStart, temperatureColumnEnd).trim();
-                        const temperature = parseFloat(tempStr);
+                    // Extract data from the fixed column position
+                    if (line.length > dataColumnStart) {
+                        const dataStr = line.substring(dataColumnStart, dataColumnEnd).trim();
+                        let dataValue = parseFloat(dataStr);
 
-                        // Only store if temperature is reasonable (not 0.00 for absent transceivers)
-                        if (!isNaN(temperature) && temperature > 0) {
-                            transceiverData[portNumber] = temperature;
+                        // Apply conversion if specified (e.g., volts to millivolts)
+                        if (showtechConfig.conversion) {
+                            dataValue = dataValue * showtechConfig.conversion.factor;
+                        }
+
+                        // Validate data value
+                        if (!isNaN(dataValue) &&
+                            dataValue >= showtechConfig.validationMin &&
+                            dataValue <= showtechConfig.validationMax &&
+                            dataValue > 0) {
+                            transceiverData[portNumber] = dataValue;
                         }
                     }
                 }
@@ -853,10 +1003,18 @@
             return fanData;
         }
 
-        function extractTimeSeriesData(content) {
-            const transceiverData = {}; // portNumber -> { timestamp -> temperature }
+        function extractTimeSeriesData(content, dataType = 'temperature') {
+            const transceiverData = {}; // portNumber -> { timestamp -> dataValue }
             const fanData = {}; // fanNumber -> { timestamp -> percentage }
             const timestampSet = new Set();
+
+            // Get data type configuration
+            const dataTypeConfig = DATA_TYPES[dataType];
+            if (!dataTypeConfig) {
+                throw new Error(`Unknown data type: ${dataType}`);
+            }
+
+            const timeSeriesConfig = dataTypeConfig.timeSeries;
 
             const lines = content.split('\n');
             let processedLines = 0;
@@ -890,7 +1048,7 @@
                 }
 
                 const metric = parts[0].trim();
-                const value = parseFloat(parts[1]);
+                let value = parseFloat(parts[1]);
                 const timestampStr = parts[2].replace(/"/g, '').trim();
                 const timestampUnix = parseInt(parts[3].trim());
 
@@ -900,16 +1058,37 @@
                     continue;
                 }
 
-                // Extract transceiver temperature data - flexible hostname pattern
-                const tempMatch = metric.match(/.*::qsfp_service\.qsfp\.interface\.(fab1|eth1)\/(\d+)\/\d+\.temp/);
-                if (tempMatch) {
-                    const portNumber = parseInt(tempMatch[2]);
-                    if (!transceiverData[portNumber]) {
-                        transceiverData[portNumber] = {};
+                // Extract transceiver data using configurable pattern
+                const dataMatch = metric.match(new RegExp(timeSeriesConfig.metricPattern));
+                if (dataMatch) {
+                    const portNumber = parseInt(dataMatch[2]);
+
+                    // Apply conversion if specified (e.g., millivolts to volts)
+                    if (timeSeriesConfig.conversion) {
+                        value = value * timeSeriesConfig.conversion.factor;
                     }
-                    transceiverData[portNumber][timestampUnix] = value;
-                    timestampSet.add(timestampUnix);
-                    processedLines++;
+
+                    // Validate data value
+                    if (value >= timeSeriesConfig.validationMin &&
+                        value <= timeSeriesConfig.validationMax) {
+
+                        // Debug logging for specific port ranges
+                        if (portNumber >= 59 && portNumber <= 99) {
+                            console.log(`Found port ${portNumber} with ${dataType} ${value}${dataTypeConfig.unit} from metric: ${metric}`);
+                        }
+
+                        if (!transceiverData[portNumber]) {
+                            transceiverData[portNumber] = {};
+                        }
+                        transceiverData[portNumber][timestampUnix] = value;
+                        timestampSet.add(timestampUnix);
+                        processedLines++;
+                    }
+                } else {
+                    // Debug logging for lines that don't match the data pattern
+                    if (metric.includes('qsfp_service') && metric.includes(timeSeriesConfig.metricSuffix)) {
+                        console.log(`${dataType} metric didn't match regex: ${metric}`);
+                    }
                 }
 
                 // Extract fan RPM data and convert to percentage - flexible hostname pattern
@@ -933,8 +1112,37 @@
 
             console.log(`Processed ${processedLines} lines, skipped ${skippedLines} lines`);
             console.log(`Found ${timestamps.length} unique timestamps`);
-            console.log(`Port range: ${Math.min(...Object.keys(transceiverData).map(Number))} - ${Math.max(...Object.keys(transceiverData).map(Number))}`);
-            console.log(`Fan range: ${Math.min(...Object.keys(fanData).map(Number))} - ${Math.max(...Object.keys(fanData).map(Number))}`);
+
+            // Enhanced port debugging
+            const portNumbers = Object.keys(transceiverData).map(Number).sort((a, b) => a - b);
+            if (portNumbers.length > 0) {
+                console.log(`Port range: ${Math.min(...portNumbers)} - ${Math.max(...portNumbers)}`);
+                console.log(`Total ports found: ${portNumbers.length}`);
+                console.log(`All ports: ${portNumbers.join(', ')}`);
+
+                // Check for missing ports in ranges
+                const missingPorts = [];
+                for (let i = Math.min(...portNumbers); i <= Math.max(...portNumbers); i++) {
+                    if (!portNumbers.includes(i)) {
+                        missingPorts.push(i);
+                    }
+                }
+                if (missingPorts.length > 0) {
+                    console.log(`Missing ports in range: ${missingPorts.join(', ')}`);
+                }
+
+                // Check specific range 59-99
+                const range59to99 = portNumbers.filter(p => p >= 59 && p <= 99);
+                console.log(`Ports in range 59-99: ${range59to99.join(', ')}`);
+            } else {
+                console.log('No transceiver data found!');
+            }
+
+            const fanNumbers = Object.keys(fanData).map(Number).sort((a, b) => a - b);
+            if (fanNumbers.length > 0) {
+                console.log(`Fan range: ${Math.min(...fanNumbers)} - ${Math.max(...fanNumbers)}`);
+            }
+
             console.log(`First few timestamps:`, timestamps.slice(0, 5));
             if (timestamps.length > 0) {
                 console.log(`Sample timestamp conversion: ${timestamps[0]} -> ${formatTimestamp(timestamps[0])}`);
@@ -943,7 +1151,7 @@
             return { transceiverData, fanData, timestamps };
         }
 
-        function generateCSV(transceiverData, fanData, productType = 'whistler') {
+        function generateCSV(transceiverDataByType, fanData, productType = 'whistler', primaryDataType = 'temperature') {
             // Generate timestamp (current time)
             const now = new Date();
             const timestamp = now.toLocaleDateString('en-GB') + '-' + now.toTimeString().split(' ')[0];
@@ -959,12 +1167,17 @@
                 fanHeaders.push(`Fan${i}/1`);
             }
 
-            const tempHeaders = [];
-            for (let i = 1; i <= maxPorts; i++) {
-                tempHeaders.push(`DomTemperatureSensor${i}`);
-            }
+            // Add headers for all available data types
+            const dataHeaders = [];
+            Object.entries(DATA_TYPES).forEach(([dataTypeKey, dataTypeConfig]) => {
+                if (transceiverDataByType[dataTypeKey] && Object.keys(transceiverDataByType[dataTypeKey]).length > 0) {
+                    for (let i = 1; i <= maxPorts; i++) {
+                        dataHeaders.push(`${dataTypeConfig.csvColumnPrefix}${i}`);
+                    }
+                }
+            });
 
-            const headers = ['datetime', ...fanHeaders, ...tempHeaders];
+            const headers = ['datetime', ...fanHeaders, ...dataHeaders];
 
             // Create data row
             const dataRow = [timestamp];
@@ -974,10 +1187,16 @@
                 dataRow.push(fanData[i] || '0.00');
             }
 
-            // Add temperature data
-            for (let i = 1; i <= maxPorts; i++) {
-                dataRow.push(transceiverData[i] || '0.00');
-            }
+            // Add transceiver data for all available data types
+            Object.entries(DATA_TYPES).forEach(([dataTypeKey, dataTypeConfig]) => {
+                if (transceiverDataByType[dataTypeKey] && Object.keys(transceiverDataByType[dataTypeKey]).length > 0) {
+                    const transceiverData = transceiverDataByType[dataTypeKey];
+                    const defaultValue = dataTypeConfig.showtech.defaultValue;
+                    for (let i = 1; i <= maxPorts; i++) {
+                        dataRow.push(transceiverData[i] || defaultValue);
+                    }
+                }
+            });
 
             // Generate CSV
             const csvLines = [
@@ -1003,7 +1222,7 @@
             return `${day}/${month}/${year}-${hours}:${minutes}:${seconds}`;
         }
 
-        function generateTimeSeriesCSV(transceiverData, fanData, timestamps, productType = 'whistler') {
+        function generateTimeSeriesCSV(transceiverDataByType, fanData, timestamps, productType = 'whistler', primaryDataType = 'temperature') {
             // Get product specifications
             const product = PREDEFINED_LAYOUTS[productType];
             const maxFans = product ? product.fans : 12;
@@ -1015,12 +1234,17 @@
                 fanHeaders.push(`Fan${i}/1`);
             }
 
-            const tempHeaders = [];
-            for (let i = 1; i <= maxPorts; i++) {
-                tempHeaders.push(`DomTemperatureSensor${i}`);
-            }
+            // Add headers for all available data types
+            const dataHeaders = [];
+            Object.entries(DATA_TYPES).forEach(([dataTypeKey, dataTypeConfig]) => {
+                if (transceiverDataByType[dataTypeKey] && Object.keys(transceiverDataByType[dataTypeKey]).length > 0) {
+                    for (let i = 1; i <= maxPorts; i++) {
+                        dataHeaders.push(`${dataTypeConfig.csvColumnPrefix}${i}`);
+                    }
+                }
+            });
 
-            const headers = ['datetime', ...fanHeaders, ...tempHeaders];
+            const headers = ['datetime', ...fanHeaders, ...dataHeaders];
             const csvLines = [headers.join(',')];
 
             // Process each timestamp
@@ -1036,11 +1260,17 @@
                     dataRow.push(fanValue);
                 }
 
-                // Add temperature data
-                for (let i = 1; i <= maxPorts; i++) {
-                    const tempValue = transceiverData[i] && transceiverData[i][timestamp] ? transceiverData[i][timestamp].toFixed(2) : '0.00';
-                    dataRow.push(tempValue);
-                }
+                // Add transceiver data for all available data types
+                Object.entries(DATA_TYPES).forEach(([dataTypeKey, dataTypeConfig]) => {
+                    if (transceiverDataByType[dataTypeKey] && Object.keys(transceiverDataByType[dataTypeKey]).length > 0) {
+                        const transceiverData = transceiverDataByType[dataTypeKey];
+                        const defaultValue = dataTypeConfig.timeSeries.defaultValue;
+                        for (let i = 1; i <= maxPorts; i++) {
+                            const dataValue = transceiverData[i] && transceiverData[i][timestamp] ? transceiverData[i][timestamp].toFixed(2) : defaultValue;
+                            dataRow.push(dataValue);
+                        }
+                    }
+                });
 
                 csvLines.push(dataRow.join(','));
             }
@@ -1168,8 +1398,16 @@
                     thermalData = [];
                 } else {
                     const headers = Object.keys(thermalData[0]);
-                    if (!headers.includes('datetime') || !headers.some(h => h.startsWith('DomTemperatureSensor'))) {
-                        showToast('CSV must contain "datetime" and "DomTemperatureSensorX" columns.');
+
+                    // Check for datetime column and any data sensor columns
+                    const hasDatetime = headers.includes('datetime');
+                    const hasDataColumns = Object.values(DATA_TYPES).some(dataType =>
+                        headers.some(h => h.startsWith(dataType.csvColumnPrefix))
+                    );
+
+                    if (!hasDatetime || !hasDataColumns) {
+                        const expectedColumns = Object.values(DATA_TYPES).map(dt => `${dt.csvColumnPrefix}X`).join(' or ');
+                        showToast(`CSV must contain "datetime" and data columns (${expectedColumns}).`);
                         statusMessage.textContent = 'CSV missing required columns.';
                         thermalData = [];
                     } else {
@@ -1202,7 +1440,7 @@
             const gridHTML = currentProductLayout.map(row => {
                 const rowHTML = row.map(portId => {
                     if (isNaN(portId)) {
-                        return '<div class="grid-cell" style="visibility: hidden; min-width: 60px; min-height: 60px;"></div>';
+                        return '<div class="grid-cell" style="visibility: hidden; min-width: 120px; min-height: 60px;"></div>';
                     } else {
                         return `
                             <div class="grid-cell" data-port-id="${portId}" style="background-color: #f0f0f0;">
@@ -1218,84 +1456,90 @@
             gridContainer.innerHTML = `<div style="display: inline-block; border: 1px solid #ddd; padding: 10px; border-radius: 8px; background-color: #fafafa;">${gridHTML}</div>`;
         }
 
-        function calculateCurrentRowTemperatureStats(rowIndex) {
+        function calculateCurrentRowDataStats(rowIndex) {
             if (!thermalData || rowIndex >= thermalData.length) {
-                return { temperatures: [], minTemp: NaN, maxTemp: NaN, percentileTemp: NaN };
+                return { values: [], minValue: NaN, maxValue: NaN, percentileValue: NaN };
             }
 
             const dataRow = thermalData[rowIndex];
-            const temperatures = [];
+            const values = [];
+
+            // Get current data type configuration
+            const dataTypeConfig = DATA_TYPES[currentDataType];
+            if (!dataTypeConfig) {
+                return { values: [], minValue: NaN, maxValue: NaN, percentileValue: NaN };
+            }
 
             // Get product specifications for port count
             const selectedProduct = productSelect.value;
             const product = PREDEFINED_LAYOUTS[selectedProduct];
             const maxPorts = product ? product.ports : 128;
 
-            // Get all valid temperatures for the current row/snapshot
+            // Get all valid data values for the current row/snapshot
             for (let i = 1; i <= maxPorts; i++) {
-                const sensorName = `DomTemperatureSensor${i}`;
+                const sensorName = `${dataTypeConfig.csvColumnPrefix}${i}`;
                 if (dataRow[sensorName] && !isNaN(parseFloat(dataRow[sensorName]))) {
-                    const temp = parseFloat(dataRow[sensorName]);
-                    if (temp > 0) { // Only include valid temperatures
-                        temperatures.push(temp);
+                    const value = parseFloat(dataRow[sensorName]);
+                    if (value > 0) { // Only include valid values
+                        values.push(value);
                     }
                 }
             }
 
-            if (temperatures.length === 0) {
-                return { temperatures: [], minTemp: NaN, maxTemp: NaN, percentileTemp: NaN };
+            if (values.length === 0) {
+                return { values: [], minValue: NaN, maxValue: NaN, percentileValue: NaN };
             }
 
-            const minTemp = Math.min(...temperatures);
-            const maxTemp = Math.max(...temperatures);
+            const minValue = Math.min(...values);
+            const maxValue = Math.max(...values);
             const percentile = parseInt(percentileInput.value, 10);
-            const percentileTemp = calculatePercentileFromArray(temperatures, percentile);
+            const percentileValue = calculatePercentileFromArray(values, percentile);
 
             // Debug information
-            const avgTemp = temperatures.reduce((a, b) => a + b, 0) / temperatures.length;
-            console.log(`Row ${rowIndex} temperature stats: Min=${minTemp.toFixed(1)}°C, Max=${maxTemp.toFixed(1)}°C, Avg=${avgTemp.toFixed(1)}°C, ${percentile}th percentile=${percentileTemp.toFixed(1)}°C`);
+            const avgValue = values.reduce((a, b) => a + b, 0) / values.length;
+            console.log(`Row ${rowIndex} ${dataTypeConfig.name} stats: Min=${minValue.toFixed(1)}${dataTypeConfig.unit}, Max=${maxValue.toFixed(1)}${dataTypeConfig.unit}, Avg=${avgValue.toFixed(1)}${dataTypeConfig.unit}, ${percentile}th percentile=${percentileValue.toFixed(1)}${dataTypeConfig.unit}`);
 
-            return { temperatures, minTemp, maxTemp, percentileTemp };
+            return { values, minValue, maxValue, percentileValue };
         }
 
-        function getRelativeTemperatureColor(temp, temperatures, percentileValue) {
-            if (isNaN(temp) || temp <= 0) {
+        function getRelativeDataColor(value, values, percentileValue) {
+            if (isNaN(value) || value <= 0) {
                 return '#f0f0f0'; // Gray for invalid/missing data
             }
 
-            if (!temperatures || temperatures.length === 0) {
+            if (!values || values.length === 0) {
                 return '#90EE90'; // Light green for no data
             }
 
-            // Sort temperatures to find percentile ranges
-            const sortedTemps = [...temperatures].sort((a, b) => a - b);
-            const minTemp = sortedTemps[0];
-            const maxTemp = sortedTemps[sortedTemps.length - 1];
+            // Sort values to find percentile ranges
+            const sortedValues = [...values].sort((a, b) => a - b);
+            const minValue = sortedValues[0];
+            const maxValue = sortedValues[sortedValues.length - 1];
 
-            // If all temperatures are the same, use a neutral color
-            if (minTemp === maxTemp) {
-                return '#90EE90'; // Light green for uniform temperatures
+            // If all values are the same, use a neutral color
+            if (minValue === maxValue) {
+                return '#90EE90'; // Light green for uniform values
             }
 
-            // Calculate what percentile this temperature is at
+            // Calculate what percentile this value is at
             let rank = 0;
-            for (let i = 0; i < sortedTemps.length; i++) {
-                if (sortedTemps[i] <= temp) {
+            for (let i = 0; i < sortedValues.length; i++) {
+                if (sortedValues[i] <= value) {
                     rank = i + 1;
                 }
             }
-            const tempPercentile = (rank / sortedTemps.length) * 100;
+            const valuePercentile = (rank / sortedValues.length) * 100;
 
             // Color based on percentile position
             // Below percentile threshold: Green to Yellow gradient
             // Above percentile threshold: Yellow to Red gradient
             let ratio;
-            if (tempPercentile <= percentileValue) {
-                // Scale from 0 to 0.7 for temperatures below percentile
-                ratio = (tempPercentile / percentileValue) * 0.7;
+            if (valuePercentile <= percentileValue) {
+                // Scale from 0 to 0.7 for values below percentile
+                ratio = (valuePercentile / percentileValue) * 0.7;
             } else {
-                // Scale from 0.7 to 1.0 for temperatures above percentile
-                ratio = 0.7 + ((tempPercentile - percentileValue) / (100 - percentileValue)) * 0.3;
+                // Scale from 0.7 to 1.0 for values above percentile
+                ratio = 0.7 + ((valuePercentile - percentileValue) / (100 - percentileValue)) * 0.3;
             }
 
             // Create a smooth gradient: Green -> Yellow -> Orange -> Red
@@ -1329,8 +1573,15 @@
 
             const dataRow = thermalData[rowIndex];
 
-            // Calculate temperature stats for this specific row/snapshot
-            const tempStats = calculateCurrentRowTemperatureStats(rowIndex);
+            // Get current data type configuration
+            const dataTypeConfig = DATA_TYPES[currentDataType];
+            if (!dataTypeConfig) {
+                console.error('Unknown data type:', currentDataType);
+                return;
+            }
+
+            // Calculate data stats for this specific row/snapshot
+            const dataStats = calculateCurrentRowDataStats(rowIndex);
 
             // Update timestamp
             timestampDisplay.textContent = dataRow.datetime || '-';
@@ -1349,28 +1600,28 @@
             }
             fanDataDisplay.textContent = fanInfo.join(', ') || '-';
 
-            // Update status with current row temperature range
-            if (tempStats.temperatures.length > 0) {
+            // Update status with current row data range
+            if (dataStats.values.length > 0) {
                 const percentile = parseInt(percentileInput.value, 10);
-                statusMessage.textContent = `Row ${rowIndex + 1}/${thermalData.length} - Temp range: ${tempStats.minTemp.toFixed(1)}°C - ${tempStats.maxTemp.toFixed(1)}°C, ${percentile}th percentile: ${tempStats.percentileTemp.toFixed(1)}°C`;
+                statusMessage.textContent = `Row ${rowIndex + 1}/${thermalData.length} - ${dataTypeConfig.name} range: ${dataStats.minValue.toFixed(1)}${dataTypeConfig.unit} - ${dataStats.maxValue.toFixed(1)}${dataTypeConfig.unit}, ${percentile}th percentile: ${dataStats.percentileValue.toFixed(1)}${dataTypeConfig.unit}`;
             }
 
-            // Update port temperatures with relative coloring
+            // Update port data with relative coloring
             currentProductLayout.flat().forEach(portId => {
                 if (isNaN(portId)) return;
 
                 const cell = gridContainer.querySelector(`.grid-cell[data-port-id="${portId}"]`);
                 if (cell) {
-                    const sensorName = `DomTemperatureSensor${portId}`;
-                    const temp = parseFloat(dataRow[sensorName]);
+                    const sensorName = `${dataTypeConfig.csvColumnPrefix}${portId}`;
+                    const dataValue = parseFloat(dataRow[sensorName]);
 
-                    if (!isNaN(temp) && temp > 0) {
-                        const tempElement = cell.querySelector('.temperature');
-                        tempElement.textContent = `${temp.toFixed(1)}°C`;
+                    if (!isNaN(dataValue) && dataValue > 0) {
+                        const dataElement = cell.querySelector('.temperature');
+                        dataElement.textContent = `${dataValue.toFixed(1)}${dataTypeConfig.unit}`;
 
                         // Use relative coloring based on percentile
                         const percentile = parseInt(percentileInput.value, 10);
-                        const color = getRelativeTemperatureColor(temp, tempStats.temperatures, percentile);
+                        const color = getRelativeDataColor(dataValue, dataStats.values, percentile);
                         cell.style.backgroundColor = color;
 
                         // Set text color based on background brightness
@@ -1380,8 +1631,8 @@
                             cell.style.color = brightness > 128 ? '#000' : '#fff';
                         }
                     } else {
-                        const tempElement = cell.querySelector('.temperature');
-                        tempElement.textContent = '--°C';
+                        const dataElement = cell.querySelector('.temperature');
+                        dataElement.textContent = `--${dataTypeConfig.unit}`;
                         cell.style.backgroundColor = '#f0f0f0';
                         cell.style.color = '#333';
                     }
@@ -1542,8 +1793,15 @@
 
         // Initialize the application on page load
         document.addEventListener('DOMContentLoaded', async () => {
-            // Load product definitions from JSON file
-            await loadProductDefinitions();
+            // Load both configuration files
+            const [productConfigLoaded, dataConfigLoaded] = await Promise.all([
+                loadProductDefinitions(),
+                loadDataExtractionConfig()
+            ]);
+
+            if (!productConfigLoaded || !dataConfigLoaded) {
+                console.error('Failed to load required configuration files');
+            }
         });
     </script>
 </body>
