@@ -354,13 +354,13 @@ class QuicksilverPFb( PlatformConfig ):
             "69": 75,
             "70": 95,
             "71": 100
-      })
+      } )
       # 3. Define the sensor(s) to be used in zones
       # Note: We use the unresolved name "TH5_DIODE_1_TEMP" from QuicksilverPFbSMB
       fanServiceConfig.addSensor( "TH5_DIODE_1_TEMP", "THRIFT", {
             "15": 54,
             "110": 100
-      })
+      } )
       # 4. Define the thermal control zone
       fanServiceConfig.addZone(
          zoneName="zone1",

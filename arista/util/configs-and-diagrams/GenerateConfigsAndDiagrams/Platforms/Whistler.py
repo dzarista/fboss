@@ -613,44 +613,44 @@ class Whistler( PlatformConfig ):
                                        pwmLowerThreshold=7,
                                        pwmUpperThreshold=100 )
       # 2. Define the optics group with its specific temp-to-PWM map
-      opticConfig = fanServiceConfig.addOpticConfig("osfp_group_1", "QSFP")
-      opticConfig.addTempToPwmMap(800, {
+      opticConfig = fanServiceConfig.addOpticConfig( "osfp_group_1", "QSFP" )
+      opticConfig.addTempToPwmMap( 800, {
           "5": 35,
           "67": 41,
           "68": 50,
           "69": 67,
           "70": 80,
           "71": 100
-      })
+      } )
       # 3. Define the sensors and their temp-to-PWM maps
       # Note: We use the unresolved names defined in WhistlerSMB (e.g., "INLET_TEMP")
-      fanServiceConfig.addSensor("INLET_TEMP", "THRIFT", {
+      fanServiceConfig.addSensor( "INLET_TEMP", "THRIFT", {
           "15": 28,
           "110": 80
-      })
-      fanServiceConfig.addSensor("R3_0_TEMP", "THRIFT", {
+      } )
+      fanServiceConfig.addSensor( "R3_0_TEMP", "THRIFT", {
           "15": 7,
           "70": 10,
           "80": 100
-      })
-      fanServiceConfig.addSensor("R3_1_TEMP", "THRIFT", {
+      } )
+      fanServiceConfig.addSensor( "R3_1_TEMP", "THRIFT", {
           "15": 7,
           "70": 10,
           "80": 100
-      })
+      } )
       # 4. Define the thermal control zones
       # An ASIC zone that controls fans 1-4
       fanServiceConfig.addZone(
          zoneName="asic_zone",
-         sensorNames=["R3_0_TEMP", "R3_1_TEMP"],
-         fanNumbers=range(1, 5),  # Fans 1 through 4
+         sensorNames=[ "R3_0_TEMP", "R3_1_TEMP" ],
+         fanNumbers=range( 1, 5 ),  # Fans 1 through 4
          slope=3
       )
       # A system-wide zone that controls fans 5-12
       fanServiceConfig.addZone(
          zoneName="system_zone",
-         sensorNames=["INLET_TEMP", "osfp_group_1"],
-         fanNumbers=range(5, 13),  # Fans 5 through 12
+         sensorNames=[ "INLET_TEMP", "osfp_group_1" ],
+         fanNumbers=range( 5, 13 ),  # Fans 5 through 12
          slope=3
       )
       self.PlatformFanServiceConfig = fanServiceConfig
