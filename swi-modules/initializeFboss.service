@@ -1,0 +1,9 @@
+[Unit]
+Description=Initialize FBOSS
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/initializeFboss
+
+[Install]
+WantedBy=multi-user.target

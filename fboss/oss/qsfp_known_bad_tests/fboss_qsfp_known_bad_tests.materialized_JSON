@@ -662,6 +662,78 @@
         },
         {
           "test_name_regex": "HwTransceiverConfigValidationTest.validateAllActiveTransceivers$"
+        },
+        {
+          "test_name_regex": "HwStateMachineTest.CheckAgentConfigChanged$"
+        },
+        {
+          "test_name_regex": "HwStateMachineTest.CheckPortsProgrammed$"
+        },
+        {
+          "test_name_regex": "HwStateMachineTest.CheckTransceiverRemediated$"
+        },
+        {
+          "test_name_regex": "HwTest_PROFILE_200G_4_PAM4_RS544X2N_OPTICAL.TestProfile$"
+        },
+        {
+          "test_name_regex": "HwTest_PROFILE_400G_4_PAM4_RS544X2N_OPTICAL.TestProfile$"
+        }
+    ],
+    "morgan800cc/physdk-credo-0.9.0/credo-0.9.0": [
+        {
+          "test_name_regex": "HwTransceiverTest.resetTranscieverAndDetectStateChanged$"
+        },
+        {
+          "test_name_regex": "HwTransceiverResetTest.resetTranscieverAndDetectStateChanged$"
+        },
+        {
+          "test_name_regex": "OpticsFwUpgradeTest.*$"
+        },
+        {
+          "test_name_regex": "HwTransceiverConfigValidationTest.validateAllActiveTransceivers$"
+        },
+        {
+          "test_name_regex": "HwStateMachineTest.CheckAgentConfigChanged$"
+        },
+        {
+          "test_name_regex": "HwStateMachineTest.CheckPortsProgrammed$"
+        },
+        {
+          "test_name_regex": "HwStateMachineTest.CheckTransceiverRemediated$"
+        },
+        {
+          "test_name_regex": "HwTest_PROFILE_200G_4_PAM4_RS544X2N_OPTICAL.TestProfile$"
+        },
+        {
+          "test_name_regex": "HwTest_PROFILE_400G_4_PAM4_RS544X2N_OPTICAL.TestProfile$"
+        }
+    ],
+    "morgan800cc/physdk-credo-0.9.0/credo-0.9.0": [
+        {
+          "test_name_regex": "HwTransceiverTest.resetTranscieverAndDetectStateChanged$"
+        },
+        {
+          "test_name_regex": "HwTransceiverResetTest.resetTranscieverAndDetectStateChanged$"
+        },
+        {
+          "test_name_regex": "OpticsFwUpgradeTest.*$"
+        },
+        {
+          "test_name_regex": "HwTransceiverConfigValidationTest.validateAllActiveTransceivers$"
+        }
+    ],
+    "morgan800cc/physdk-credo-0.9.0/credo-0.9.0": [
+        {
+          "test_name_regex": "HwTransceiverTest.resetTranscieverAndDetectStateChanged$"
+        },
+        {
+          "test_name_regex": "HwTransceiverResetTest.resetTranscieverAndDetectStateChanged$"
+        },
+        {
+          "test_name_regex": "OpticsFwUpgradeTest.*$"
+        },
+        {
+          "test_name_regex": "HwTransceiverConfigValidationTest.validateAllActiveTransceivers$"
         }
     ],
     "morgan800cc/physdk-credo-0.9.0/credo-0.9.0": [

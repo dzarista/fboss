@@ -1,0 +1,1808 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Showtech to Heatmap Converter & Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', Arial, sans-serif;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .upload-area {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 20px;
+            transition: border-color 0.3s;
+            background-color: white;
+        }
+        .upload-area:hover {
+            border-color: #007bff;
+        }
+        .upload-area.dragover {
+            border-color: #007bff;
+            background-color: #f8f9fa;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .upload-btn {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .upload-btn:hover {
+            background-color: #0056b3;
+        }
+        .mode-toggle {
+            display: flex;
+            background-color: #f1f5f9;
+            border-radius: 8px;
+            padding: 4px;
+            margin-bottom: 20px;
+        }
+        .mode-btn {
+            flex: 1;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        .mode-btn.active {
+            background-color: #007bff;
+            color: white;
+        }
+        .mode-btn:not(.active) {
+            background-color: transparent;
+            color: #64748b;
+        }
+        .mode-btn:not(.active):hover {
+            background-color: #e2e8f0;
+        }
+        .results {
+            margin-top: 20px;
+        }
+        .info-box {
+            background-color: #e9ecef;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .download-btn {
+            background-color: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            text-decoration: none;
+            display: inline-block;
+            margin-right: 10px;
+        }
+        .download-btn:hover {
+            background-color: #218838;
+        }
+        .visualize-btn {
+            background-color: #6f42c1;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .visualize-btn:hover {
+            background-color: #5a2d91;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .stat-number {
+            font-size: 24px;
+            font-weight: bold;
+            color: #007bff;
+        }
+        .stat-label {
+            font-size: 14px;
+            color: #666;
+        }
+        .preview {
+            max-height: 300px;
+            overflow-y: auto;
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+
+        /* Heatmap visualizer styles */
+        .control-item {
+            display: flex;
+            flex-direction: column;
+            margin-right: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        .control-item label {
+            margin-bottom: 0.25rem;
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+        .control-item input[type="number"],
+        .control-item select {
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+            border: 1px solid #D1D5DB;
+            min-width: 150px;
+        }
+        .play-button-container {
+            display: flex;
+            align-items: flex-end;
+            margin-bottom: 0.5rem;
+        }
+        .play-button-container button {
+            padding: 0.6rem 1.2rem;
+            border-radius: 0.375rem;
+            font-weight: 600;
+            transition: background-color 0.2s;
+            height: calc(2.25rem + 2px);
+        }
+        .grid-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 8px;
+            margin: 2px;
+            min-width: 120px;
+            min-height: 60px;
+            font-size: 12px;
+            font-weight: bold;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        .grid-cell:hover {
+            transform: scale(1.05);
+            z-index: 10;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .grid-cell .port-number {
+            font-size: 10px;
+            font-weight: normal;
+            color: #333;
+        }
+        .grid-cell .temperature {
+            font-size: 11px;
+            font-weight: bold;
+        }
+        .toast {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #333;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        .toast.show {
+            opacity: 1;
+        }
+
+        /* Row slider styling */
+        #row-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            background: transparent;
+            cursor: pointer;
+        }
+
+        #row-slider::-webkit-slider-track {
+            background: #ddd;
+            height: 8px;
+            border-radius: 4px;
+        }
+
+        #row-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            background: #007bff;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        #row-slider::-moz-range-track {
+            background: #ddd;
+            height: 8px;
+            border-radius: 4px;
+            border: none;
+        }
+
+        #row-slider::-moz-range-thumb {
+            background: #007bff;
+            height: 20px;
+            width: 20px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+    <div class="container">
+        <header class="mb-6 text-center">
+            <h1 class="text-4xl font-bold text-gray-700 mb-2">Thermal Data Converter & Visualizer</h1>
+            <p class="text-gray-600">Upload showtech logs or time series CSV files to extract and visualize transceiver temperatures and fan speeds</p>
+        </header>
+
+        <!-- Mode Toggle -->
+        <div class="mode-toggle">
+            <button class="mode-btn active" id="converterModeBtn" onclick="switchMode('converter')">
+                📄 Converter Mode
+            </button>
+            <button class="mode-btn" id="visualizerModeBtn" onclick="switchMode('visualizer')">
+                🔥 Visualizer Mode
+            </button>
+        </div>
+
+        <!-- Converter Section -->
+        <div id="converterSection">
+            <div class="bg-white p-6 rounded-lg shadow-lg mb-6">
+                <!-- Product Selection -->
+                <div class="mb-6">
+                    <label for="main-product-select" class="block text-sm font-medium text-gray-700 mb-2">Product Type:</label>
+                    <select id="main-product-select" class="w-full p-3 border border-gray-300 rounded-lg bg-white">
+                        <option value="">Loading products...</option>
+                    </select>
+                    <p class="text-sm text-gray-500 mt-1">Select your switch product type for correct port/fan layout</p>
+                </div>
+
+                <div class="upload-area" id="uploadArea">
+                    <p class="text-gray-600 mb-4">Drag and drop your file here, or click to select</p>
+                    <p class="text-sm text-gray-500 mb-4">Supports: Showtech logs (.txt, .log) and Time series CSV files (.csv)</p>
+                    <button class="upload-btn" onclick="document.getElementById('fileInput').click()">Choose File</button>
+                    <input type="file" id="fileInput" accept=".txt,.log,.csv" onchange="handleFile(this.files[0])">
+                </div>
+
+                <div id="results" class="results" style="display: none;">
+                    <div id="statusBox" class="info-box"></div>
+                    <div id="stats" class="stats"></div>
+                    <div id="actionSection" style="display: none;">
+                        <h3 class="text-lg font-semibold mb-3">Actions</h3>
+                        <a id="downloadLink" class="download-btn">📥 Download CSV</a>
+                        <button id="visualizeBtn" class="visualize-btn" onclick="visualizeData()">🔥 Visualize Data</button>
+                    </div>
+                    <div id="previewSection" style="display: none;">
+                        <h3 class="text-lg font-semibold mb-3">CSV Preview (first 10 lines)</h3>
+                        <div id="csvPreview" class="preview"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Visualizer Section -->
+        <div id="visualizerSection" style="display: none;">
+            <div class="bg-white p-4 rounded-lg shadow-lg mb-6">
+                <h2 class="text-xl font-semibold mb-3 text-gray-700">Heatmap Controls</h2>
+                <div class="flex flex-wrap items-end">
+                    <div class="control-item">
+                        <label for="product-select">Product Layout:</label>
+                        <select id="product-select" class="bg-white">
+                            <option value="">Loading products...</option>
+                        </select>
+                    </div>
+
+                    <div class="control-item">
+                        <label for="data-type-select">Data Type:</label>
+                        <select id="data-type-select" class="bg-white">
+                            <option value="">Loading data types...</option>
+                        </select>
+                    </div>
+
+                    <div class="control-item">
+                        <label for="percentile-input">Percentile (1-99):</label>
+                        <input type="number" id="percentile-input" value="50" min="1" max="99" class="bg-white">
+                    </div>
+
+                    <div class="control-item">
+                        <label for="speed-input">Speed (rows/s):</label>
+                        <input type="number" id="speed-input" value="50" min="0.1" step="0.1" class="bg-white">
+                    </div>
+
+                    <div class="control-item">
+                        <label for="start-row-input">Start Row:</label>
+                        <input type="number" id="start-row-input" value="0" min="0" class="bg-white">
+                    </div>
+
+                    <div class="play-button-container control-item">
+                        <button id="play-pause-button" class="w-full bg-blue-500 hover:bg-blue-600 text-white" disabled>
+                            Play
+                        </button>
+                    </div>
+                </div>
+                <p id="status-message" class="text-sm text-gray-500 mt-2 text-left"></p>
+            </div>
+
+            <!-- Row Navigation Slider -->
+            <div id="row-slider-section" class="bg-white p-4 rounded-lg shadow-lg mb-6" style="display: none;">
+                <h3 class="text-lg font-semibold text-gray-700 mb-3">Time Navigation</h3>
+                <div class="flex items-center space-x-4">
+                    <button id="prev-row-btn" class="px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded text-sm" disabled>
+                        ⏮ Prev
+                    </button>
+                    <div class="flex-1">
+                        <input type="range" id="row-slider" class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                               min="0" max="0" value="0" step="1">
+                        <div class="flex justify-between text-xs text-gray-500 mt-1">
+                            <span id="slider-start-label">Row 0</span>
+                            <span id="slider-current-label">Current: 0</span>
+                            <span id="slider-end-label">Row 0</span>
+                        </div>
+                    </div>
+                    <button id="next-row-btn" class="px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded text-sm" disabled>
+                        Next ⏭
+                    </button>
+                </div>
+                <div class="mt-2 text-sm text-gray-600">
+                    <span id="current-row-info">No data loaded</span>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div class="md:col-span-1">
+                        <h3 class="text-lg font-semibold text-gray-700">Current Timestamp:</h3>
+                        <p id="timestamp-display" class="text-gray-600">-</p>
+                    </div>
+                    <div class="md:col-span-2">
+                        <h3 class="text-lg font-semibold text-gray-700">Fan Data:</h3>
+                        <p id="fan-data-display" class="text-gray-600 text-sm">-</p>
+                    </div>
+                </div>
+
+                <h3 id="data-type-header" class="text-lg font-semibold text-gray-700 mb-3">Port Data:</h3>
+                <div id="grid-container" class="overflow-x-auto pb-4">
+                    <p class="text-gray-500">Upload and process a showtech file to see visualization.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="toast-notification" class="toast"></div>
+
+    <script>
+        // Global variables
+        let currentCSVData = '';
+        let currentMode = 'converter';
+        let thermalData = [];
+        let currentProductLayout = [];
+        let currentRowIndex = 0;
+        let animationInterval = null;
+        let isPlaying = false;
+        let actualPercentileValue = NaN;
+        let currentDataType = 'temperature';
+
+        // Product definitions - loaded from external JSON file
+        let PREDEFINED_LAYOUTS = {};
+        let PRODUCT_METADATA = {};
+
+        // Data extraction configuration - loaded from external JSON file
+        let DATA_EXTRACTION_CONFIG = {};
+        let DATA_TYPES = {};
+
+        // Load data extraction configuration from JSON file
+        async function loadDataExtractionConfig() {
+            try {
+                const response = await fetch('./data_extraction_config.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                DATA_EXTRACTION_CONFIG = data;
+                DATA_TYPES = data.dataTypes;
+
+                console.log('Data extraction config loaded:', Object.keys(DATA_TYPES));
+
+                // Populate the data type dropdown
+                populateDataTypeDropdown();
+
+                // Set default data type
+                const defaultDataType = DATA_EXTRACTION_CONFIG.metadata?.defaultDataType || 'temperature';
+                currentDataType = defaultDataType;
+                if (dataTypeSelect) {
+                    dataTypeSelect.value = defaultDataType;
+                }
+
+                // Update header with default data type
+                updateDataTypeHeader();
+
+                return true;
+            } catch (error) {
+                console.error('Failed to load data extraction config:', error);
+                showToast('Error: Could not load data extraction configuration. Please ensure data_extraction_config.json is available.', 5000);
+                return false;
+            }
+        }
+
+        function populateDataTypeDropdown() {
+            if (!DATA_TYPES || Object.keys(DATA_TYPES).length === 0) {
+                console.error('No data types available');
+                return;
+            }
+
+            const defaultDataType = DATA_EXTRACTION_CONFIG.metadata?.defaultDataType || 'temperature';
+
+            dataTypeSelect.innerHTML = '';
+            Object.entries(DATA_TYPES).forEach(([key, dataType]) => {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = `${dataType.name} (${dataType.unit})`;
+                if (key === defaultDataType) {
+                    option.selected = true;
+                }
+                dataTypeSelect.appendChild(option);
+            });
+
+            // Add event listener for data type changes
+            dataTypeSelect.addEventListener('change', function() {
+                currentDataType = this.value;
+                console.log('Data type changed to:', currentDataType);
+                updateDataTypeHeader();
+                // If we have data loaded, refresh the visualization with current row
+                if (thermalData.length > 0 && currentRowIndex >= 0) {
+                    updateVisualization(currentRowIndex);
+                }
+            });
+        }
+
+        function updateDataTypeHeader() {
+            if (dataTypeHeader && DATA_TYPES[currentDataType]) {
+                const dataTypeConfig = DATA_TYPES[currentDataType];
+                dataTypeHeader.textContent = `Port ${dataTypeConfig.name}:`;
+            }
+        }
+
+        // Load product definitions from JSON file
+        async function loadProductDefinitions() {
+            try {
+                const response = await fetch('./product_definitions.json');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                PREDEFINED_LAYOUTS = data.products;
+                PRODUCT_METADATA = data.metadata;
+
+                console.log('Product definitions loaded:', Object.keys(PREDEFINED_LAYOUTS));
+
+                // Populate the product dropdown
+                populateProductDropdown();
+
+                // Load default layout
+                const defaultProduct = PRODUCT_METADATA.defaultProduct || 'whistler';
+                loadProductLayout(defaultProduct);
+
+                return true;
+            } catch (error) {
+                console.error('Failed to load product definitions:', error);
+                showToast('Error: Could not load product definitions. Please ensure product_definitions.json is available.', 5000);
+
+                // Show error in UI
+                const statusBox = document.getElementById('statusBox');
+                if (statusBox) {
+                    statusBox.className = 'info-box error';
+                    statusBox.innerHTML = `
+                        <strong>Error!</strong> Could not load product definitions.<br>
+                        <small>Please ensure <code>product_definitions.json</code> is in the same directory as this HTML file.</small>
+                    `;
+                    statusBox.style.display = 'block';
+                }
+
+                // Disable functionality
+                const uploadArea = document.getElementById('uploadArea');
+                if (uploadArea) {
+                    uploadArea.style.opacity = '0.5';
+                    uploadArea.style.pointerEvents = 'none';
+                }
+
+                return false;
+            }
+        }
+
+        function populateProductDropdown() {
+            // Validate that products are loaded
+            if (!PREDEFINED_LAYOUTS || Object.keys(PREDEFINED_LAYOUTS).length === 0) {
+                console.error('No product definitions available');
+                return;
+            }
+
+            const defaultProduct = PRODUCT_METADATA.defaultProduct || 'whistler';
+
+            // Populate main product select (converter page)
+            mainProductSelect.innerHTML = '';
+            Object.entries(PREDEFINED_LAYOUTS).forEach(([key, product]) => {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = product.name;
+                if (key === defaultProduct) {
+                    option.selected = true;
+                }
+                mainProductSelect.appendChild(option);
+            });
+
+            // Populate visualizer product select
+            productSelect.innerHTML = '';
+            Object.entries(PREDEFINED_LAYOUTS).forEach(([key, product]) => {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = product.name;
+                if (key === defaultProduct) {
+                    option.selected = true;
+                }
+                productSelect.appendChild(option);
+            });
+        }
+
+        // DOM Elements
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const converterSection = document.getElementById('converterSection');
+        const visualizerSection = document.getElementById('visualizerSection');
+        const converterModeBtn = document.getElementById('converterModeBtn');
+        const visualizerModeBtn = document.getElementById('visualizerModeBtn');
+        const mainProductSelect = document.getElementById('main-product-select');
+        const productSelect = document.getElementById('product-select');
+        const dataTypeSelect = document.getElementById('data-type-select');
+        const percentileInput = document.getElementById('percentile-input');
+        const speedInput = document.getElementById('speed-input');
+        const startRowInput = document.getElementById('start-row-input');
+        const playPauseButton = document.getElementById('play-pause-button');
+        const timestampDisplay = document.getElementById('timestamp-display');
+        const fanDataDisplay = document.getElementById('fan-data-display');
+        const gridContainer = document.getElementById('grid-container');
+        const statusMessage = document.getElementById('status-message');
+        const toastNotification = document.getElementById('toast-notification');
+        const dataTypeHeader = document.getElementById('data-type-header');
+
+        // Row slider elements
+        const rowSliderSection = document.getElementById('row-slider-section');
+        const rowSlider = document.getElementById('row-slider');
+        const prevRowBtn = document.getElementById('prev-row-btn');
+        const nextRowBtn = document.getElementById('next-row-btn');
+        const sliderStartLabel = document.getElementById('slider-start-label');
+        const sliderCurrentLabel = document.getElementById('slider-current-label');
+        const sliderEndLabel = document.getElementById('slider-end-label');
+        const currentRowInfo = document.getElementById('current-row-info');
+
+        // Mode switching
+        function switchMode(mode) {
+            currentMode = mode;
+            if (mode === 'converter') {
+                converterSection.style.display = 'block';
+                visualizerSection.style.display = 'none';
+                converterModeBtn.classList.add('active');
+                visualizerModeBtn.classList.remove('active');
+            } else {
+                converterSection.style.display = 'none';
+                visualizerSection.style.display = 'block';
+                converterModeBtn.classList.remove('active');
+                visualizerModeBtn.classList.add('active');
+            }
+        }
+
+        // Drag and drop functionality
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                detectAndProcessFile(content, file.name);
+            };
+            reader.readAsText(file);
+        }
+
+        function detectAndProcessFile(content, filename) {
+            // Detect file type based on content patterns
+            const lines = content.split('\n').slice(0, 10); // Check first 10 lines
+
+            // Check for time series CSV format - more flexible hostname pattern
+            const hasTimeSeriesPattern = lines.some(line =>
+                (line.includes('::qsfp_service.qsfp.interface.') && line.includes('.temp,')) ||
+                (line.includes('::sensor_service.sensor_read.') && line.includes('_RPM.value,'))
+            );
+
+            // Check for showtech text format
+            const hasShowtechPattern = content.includes('#### fboss2 show transceiver ####') ||
+                                     content.includes('##### FANS #####');
+
+            if (hasTimeSeriesPattern) {
+                processTimeSeriesCSV(content, filename);
+            } else if (hasShowtechPattern) {
+                processShowtechLog(content, filename);
+            } else {
+                // Try to auto-detect based on file extension or content structure
+                if (filename.toLowerCase().endsWith('.csv')) {
+                    processTimeSeriesCSV(content, filename);
+                } else {
+                    processShowtechLog(content, filename);
+                }
+            }
+        }
+
+        function processShowtechLog(content, filename) {
+            const results = document.getElementById('results');
+            const statusBox = document.getElementById('statusBox');
+            const stats = document.getElementById('stats');
+
+            results.style.display = 'block';
+
+            try {
+                // Extract transceiver data for all available data types
+                const transceiverDataByType = {};
+                let totalDataPoints = 0;
+
+                Object.keys(DATA_TYPES).forEach(dataTypeKey => {
+                    try {
+                        const data = extractTransceiverData(content, dataTypeKey);
+                        if (Object.keys(data).length > 0) {
+                            transceiverDataByType[dataTypeKey] = data;
+                            totalDataPoints += Object.keys(data).length;
+                        }
+                    } catch (error) {
+                        console.log(`No ${dataTypeKey} data found:`, error.message);
+                    }
+                });
+
+                // Extract fan data
+                const fanData = extractFanData(content);
+
+                // Generate CSV using selected product
+                const selectedProduct = getSelectedProduct();
+                const csvData = generateCSV(transceiverDataByType, fanData, selectedProduct, currentDataType);
+                currentCSVData = csvData;
+
+                // Show success status
+                statusBox.className = 'info-box success';
+                statusBox.innerHTML = `
+                    <strong>Success!</strong> Extracted data from ${filename}
+                `;
+
+                // Show statistics
+                const dataTypeStats = Object.entries(transceiverDataByType).map(([dataType, data]) => {
+                    const config = DATA_TYPES[dataType];
+                    return `
+                        <div class="stat-card">
+                            <div class="stat-number">${Object.keys(data).length}</div>
+                            <div class="stat-label">${config.name} Sensors</div>
+                        </div>
+                    `;
+                }).join('');
+
+                stats.innerHTML = `
+                    ${dataTypeStats}
+                    <div class="stat-card">
+                        <div class="stat-number">${Object.keys(fanData).length}</div>
+                        <div class="stat-label">Fans Found</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${csvData.split('\n').length - 1}</div>
+                        <div class="stat-label">CSV Rows</div>
+                    </div>
+                `;
+
+                // Setup download and actions
+                setupActions(csvData, filename);
+
+                // Show preview
+                showPreview(csvData);
+
+            } catch (error) {
+                statusBox.className = 'info-box error';
+                statusBox.innerHTML = `
+                    <strong>Error!</strong> ${error.message}
+                `;
+                console.error('Processing error:', error);
+            }
+        }
+
+        function getSelectedProduct() {
+            // Validate that products are loaded
+            if (!PREDEFINED_LAYOUTS || Object.keys(PREDEFINED_LAYOUTS).length === 0) {
+                throw new Error('Product definitions not loaded. Please ensure product_definitions.json is available.');
+            }
+
+            const selected = mainProductSelect.value || PRODUCT_METADATA.defaultProduct;
+
+            // Validate that the selected product exists
+            if (!selected || !PREDEFINED_LAYOUTS[selected]) {
+                throw new Error(`Selected product "${selected}" not found in product definitions.`);
+            }
+
+            return selected;
+        }
+
+        function processTimeSeriesCSV(content, filename) {
+            const results = document.getElementById('results');
+            const statusBox = document.getElementById('statusBox');
+            const stats = document.getElementById('stats');
+
+            results.style.display = 'block';
+
+            try {
+                // Parse time series CSV data for all available data types
+                const transceiverDataByType = {};
+                let fanData = {};
+                let timestamps = [];
+                let totalDataPoints = 0;
+
+                Object.keys(DATA_TYPES).forEach(dataTypeKey => {
+                    try {
+                        const result = extractTimeSeriesData(content, dataTypeKey);
+                        if (Object.keys(result.transceiverData).length > 0) {
+                            transceiverDataByType[dataTypeKey] = result.transceiverData;
+                            totalDataPoints += Object.keys(result.transceiverData).length;
+                            // Use the fan data and timestamps from any successful extraction
+                            if (Object.keys(fanData).length === 0) {
+                                fanData = result.fanData;
+                                timestamps = result.timestamps;
+                            }
+                        }
+                    } catch (error) {
+                        console.log(`No ${dataTypeKey} time series data found:`, error.message);
+                    }
+                });
+
+                // Use selected product type
+                const selectedProduct = getSelectedProduct();
+                const productInfo = PREDEFINED_LAYOUTS[selectedProduct];
+
+                // Generate heatmap CSV with selected product type
+                const csvData = generateTimeSeriesCSV(transceiverDataByType, fanData, timestamps, selectedProduct, currentDataType);
+                currentCSVData = csvData;
+
+                // Show success status
+                statusBox.className = 'info-box success';
+                statusBox.innerHTML = `
+                    <strong>Success!</strong> Processed time series data from ${filename}<br>
+                    <small>Using product: <strong>${productInfo.name}</strong></small>
+                `;
+
+                // Show statistics
+                const dataTypeStats = Object.entries(transceiverDataByType).map(([dataType, data]) => {
+                    const config = DATA_TYPES[dataType];
+                    const portRange = Object.keys(data).length > 0 ?
+                        `${Math.min(...Object.keys(data).map(Number))} - ${Math.max(...Object.keys(data).map(Number))}` : 'None';
+                    return `
+                        <div class="stat-card">
+                            <div class="stat-number">${Object.keys(data).length}</div>
+                            <div class="stat-label">${config.name} Ports</div>
+                            <div class="text-xs text-gray-500">Range: ${portRange}</div>
+                        </div>
+                    `;
+                }).join('');
+
+                const fanRange = Object.keys(fanData).length > 0 ?
+                    `${Math.min(...Object.keys(fanData).map(Number))} - ${Math.max(...Object.keys(fanData).map(Number))}` : 'None';
+
+                stats.innerHTML = `
+                    ${dataTypeStats}
+                    <div class="stat-card">
+                        <div class="stat-number">${Object.keys(fanData).length}</div>
+                        <div class="stat-label">Fans with Data</div>
+                        <div class="text-xs text-gray-500">Range: ${fanRange}</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${timestamps.length}</div>
+                        <div class="stat-label">Time Points</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-number">${csvData.split('\n').length - 1}</div>
+                        <div class="stat-label">CSV Rows</div>
+                    </div>
+                `;
+
+                // Sync the visualizer product selection
+                if (productSelect) {
+                    productSelect.value = selectedProduct;
+                }
+
+                // Setup download and actions
+                setupActions(csvData, filename);
+
+                // Show preview
+                showPreview(csvData);
+
+            } catch (error) {
+                statusBox.className = 'info-box error';
+                statusBox.innerHTML = `
+                    <strong>Error!</strong> ${error.message}
+                `;
+                console.error('Processing error:', error);
+            }
+        }
+
+        function visualizeData() {
+            if (!currentCSVData) {
+                showToast('No data to visualize. Please upload and process a file first.');
+                return;
+            }
+
+            // Switch to visualizer mode
+            switchMode('visualizer');
+
+            // Load the CSV data into the visualizer
+            loadCSVData(currentCSVData);
+
+            showToast('Data loaded into visualizer!');
+        }
+
+        function extractTransceiverData(content, dataType = 'temperature') {
+            const transceiverData = {};
+
+            // Get data type configuration
+            const dataTypeConfig = DATA_TYPES[dataType];
+            if (!dataTypeConfig) {
+                throw new Error(`Unknown data type: ${dataType}`);
+            }
+
+            const showtechConfig = dataTypeConfig.showtech;
+
+            // Find the transceiver section
+            const transceiverMatch = content.match(/#### fboss2 show transceiver ####([\s\S]*?)(?=####|$)/);
+            if (!transceiverMatch) {
+                throw new Error('Could not find transceiver section in the log file');
+            }
+
+            const transceiverSection = transceiverMatch[1];
+
+            // Parse each line looking for interface data
+            const lines = transceiverSection.split('\n');
+
+            // Find the header line to determine column positions
+            let dataColumnStart = -1;
+            let dataColumnEnd = -1;
+
+            for (const line of lines) {
+                if (line.includes(showtechConfig.columnHeader)) {
+                    dataColumnStart = line.indexOf(showtechConfig.columnHeader);
+                    // Find the end of the data column (look for next column or end of line)
+                    const headerLength = showtechConfig.columnHeader.length;
+                    const nextColumnMatch = line.substring(dataColumnStart + headerLength).match(/\s{2,}/);
+                    if (nextColumnMatch) {
+                        dataColumnEnd = dataColumnStart + headerLength + nextColumnMatch.index;
+                    } else {
+                        dataColumnEnd = line.length;
+                    }
+                    break;
+                }
+            }
+
+            if (dataColumnStart === -1) {
+                throw new Error(`Could not find ${showtechConfig.columnHeader} column in transceiver data`);
+            }
+
+            for (const line of lines) {
+                // Match fab1/X/Y or eth1/X/Y patterns at the start of the line
+                const interfaceMatch = line.match(/^\s*(fab1|eth1)\/(\d+)\/\d+/);
+                if (interfaceMatch) {
+                    const portNumber = parseInt(interfaceMatch[2]);
+
+                    // Extract data from the fixed column position
+                    if (line.length > dataColumnStart) {
+                        const dataStr = line.substring(dataColumnStart, dataColumnEnd).trim();
+                        let dataValue = parseFloat(dataStr);
+
+                        // Apply conversion if specified (e.g., volts to millivolts)
+                        if (showtechConfig.conversion) {
+                            dataValue = dataValue * showtechConfig.conversion.factor;
+                        }
+
+                        // Validate data value
+                        if (!isNaN(dataValue) &&
+                            dataValue >= showtechConfig.validationMin &&
+                            dataValue <= showtechConfig.validationMax &&
+                            dataValue > 0) {
+                            transceiverData[portNumber] = dataValue;
+                        }
+                    }
+                }
+            }
+
+            return transceiverData;
+        }
+
+        function extractFanData(content) {
+            const fanData = {};
+
+            // Find the fan section
+            const fanMatch = content.match(/##### FANS #####([\s\S]*?)(?=#####|$)/);
+            if (!fanMatch) {
+                throw new Error('Could not find fan section in the log file');
+            }
+
+            const fanSection = fanMatch[1];
+
+            // Parse each fan line
+            const lines = fanSection.split('\n');
+
+            for (const line of lines) {
+                // Match "FAN X: Present: 1, RPM: XXXX (XX%)"
+                const match = line.match(/FAN (\d+):\s+Present:\s+\d+,\s+RPM:\s+\d+\s+\((\d+)%\)/);
+                if (match) {
+                    const fanNumber = parseInt(match[1]);
+                    const fanSpeed = parseFloat(match[2]);
+                    fanData[fanNumber] = fanSpeed;
+                }
+            }
+
+            return fanData;
+        }
+
+        function extractTimeSeriesData(content, dataType = 'temperature') {
+            const transceiverData = {}; // portNumber -> { timestamp -> dataValue }
+            const fanData = {}; // fanNumber -> { timestamp -> percentage }
+            const timestampSet = new Set();
+
+            // Get data type configuration
+            const dataTypeConfig = DATA_TYPES[dataType];
+            if (!dataTypeConfig) {
+                throw new Error(`Unknown data type: ${dataType}`);
+            }
+
+            const timeSeriesConfig = dataTypeConfig.timeSeries;
+
+            const lines = content.split('\n');
+            let processedLines = 0;
+            let skippedLines = 0;
+
+            for (const line of lines) {
+                if (!line.trim()) continue;
+
+                // Parse CSV line: metric,value,timestamp_string,timestamp_unix
+                // Handle quoted fields properly
+                const parts = [];
+                let current = '';
+                let inQuotes = false;
+
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    if (char === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (char === ',' && !inQuotes) {
+                        parts.push(current.trim());
+                        current = '';
+                    } else {
+                        current += char;
+                    }
+                }
+                parts.push(current.trim()); // Add the last part
+
+                if (parts.length < 4) {
+                    skippedLines++;
+                    continue;
+                }
+
+                const metric = parts[0].trim();
+                let value = parseFloat(parts[1]);
+                const timestampStr = parts[2].replace(/"/g, '').trim();
+                const timestampUnix = parseInt(parts[3].trim());
+
+                if (isNaN(value) || isNaN(timestampUnix) || timestampUnix <= 0) {
+                    console.warn(`Invalid data in line: ${line.substring(0, 100)}...`);
+                    skippedLines++;
+                    continue;
+                }
+
+                // Extract transceiver data using configurable pattern
+                const dataMatch = metric.match(new RegExp(timeSeriesConfig.metricPattern));
+                if (dataMatch) {
+                    const portNumber = parseInt(dataMatch[2]);
+
+                    // Apply conversion if specified (e.g., millivolts to volts)
+                    if (timeSeriesConfig.conversion) {
+                        value = value * timeSeriesConfig.conversion.factor;
+                    }
+
+                    // Validate data value
+                    if (value >= timeSeriesConfig.validationMin &&
+                        value <= timeSeriesConfig.validationMax) {
+
+                        // Debug logging for specific port ranges
+                        if (portNumber >= 59 && portNumber <= 99) {
+                            console.log(`Found port ${portNumber} with ${dataType} ${value}${dataTypeConfig.unit} from metric: ${metric}`);
+                        }
+
+                        if (!transceiverData[portNumber]) {
+                            transceiverData[portNumber] = {};
+                        }
+                        transceiverData[portNumber][timestampUnix] = value;
+                        timestampSet.add(timestampUnix);
+                        processedLines++;
+                    }
+                } else {
+                    // Debug logging for lines that don't match the data pattern
+                    if (metric.includes('qsfp_service') && metric.includes(timeSeriesConfig.metricSuffix)) {
+                        console.log(`${dataType} metric didn't match regex: ${metric}`);
+                    }
+                }
+
+                // Extract fan RPM data and convert to percentage - flexible hostname pattern
+                const fanMatch = metric.match(/.*::sensor_service\.sensor_read\.FAN(\d+)_RPM\.value/);
+                if (fanMatch) {
+                    const fanNumber = parseInt(fanMatch[1]);
+                    const maxRPM = PRODUCT_METADATA.maxRPM || 11200; // Use metadata or fallback
+                    const percentage = (value / maxRPM) * 100;
+
+                    if (!fanData[fanNumber]) {
+                        fanData[fanNumber] = {};
+                    }
+                    fanData[fanNumber][timestampUnix] = Math.min(100, Math.max(0, percentage)); // Clamp to 0-100%
+                    timestampSet.add(timestampUnix);
+                    processedLines++;
+                }
+            }
+
+            // Convert timestamp set to sorted array
+            const timestamps = Array.from(timestampSet).sort((a, b) => a - b);
+
+            console.log(`Processed ${processedLines} lines, skipped ${skippedLines} lines`);
+            console.log(`Found ${timestamps.length} unique timestamps`);
+
+            // Enhanced port debugging
+            const portNumbers = Object.keys(transceiverData).map(Number).sort((a, b) => a - b);
+            if (portNumbers.length > 0) {
+                console.log(`Port range: ${Math.min(...portNumbers)} - ${Math.max(...portNumbers)}`);
+                console.log(`Total ports found: ${portNumbers.length}`);
+                console.log(`All ports: ${portNumbers.join(', ')}`);
+
+                // Check for missing ports in ranges
+                const missingPorts = [];
+                for (let i = Math.min(...portNumbers); i <= Math.max(...portNumbers); i++) {
+                    if (!portNumbers.includes(i)) {
+                        missingPorts.push(i);
+                    }
+                }
+                if (missingPorts.length > 0) {
+                    console.log(`Missing ports in range: ${missingPorts.join(', ')}`);
+                }
+
+                // Check specific range 59-99
+                const range59to99 = portNumbers.filter(p => p >= 59 && p <= 99);
+                console.log(`Ports in range 59-99: ${range59to99.join(', ')}`);
+            } else {
+                console.log('No transceiver data found!');
+            }
+
+            const fanNumbers = Object.keys(fanData).map(Number).sort((a, b) => a - b);
+            if (fanNumbers.length > 0) {
+                console.log(`Fan range: ${Math.min(...fanNumbers)} - ${Math.max(...fanNumbers)}`);
+            }
+
+            console.log(`First few timestamps:`, timestamps.slice(0, 5));
+            if (timestamps.length > 0) {
+                console.log(`Sample timestamp conversion: ${timestamps[0]} -> ${formatTimestamp(timestamps[0])}`);
+            }
+
+            return { transceiverData, fanData, timestamps };
+        }
+
+        function generateCSV(transceiverDataByType, fanData, productType = 'whistler', primaryDataType = 'temperature') {
+            // Generate timestamp (current time)
+            const now = new Date();
+            const timestamp = now.toLocaleDateString('en-GB') + '-' + now.toTimeString().split(' ')[0];
+
+            // Get product specifications
+            const product = PREDEFINED_LAYOUTS[productType];
+            const maxFans = product ? product.fans : 12;
+            const maxPorts = product ? product.ports : 128;
+
+            // Create headers
+            const fanHeaders = [];
+            for (let i = 1; i <= maxFans; i++) {
+                fanHeaders.push(`Fan${i}/1`);
+            }
+
+            // Add headers for all available data types
+            const dataHeaders = [];
+            Object.entries(DATA_TYPES).forEach(([dataTypeKey, dataTypeConfig]) => {
+                if (transceiverDataByType[dataTypeKey] && Object.keys(transceiverDataByType[dataTypeKey]).length > 0) {
+                    for (let i = 1; i <= maxPorts; i++) {
+                        dataHeaders.push(`${dataTypeConfig.csvColumnPrefix}${i}`);
+                    }
+                }
+            });
+
+            const headers = ['datetime', ...fanHeaders, ...dataHeaders];
+
+            // Create data row
+            const dataRow = [timestamp];
+
+            // Add fan data
+            for (let i = 1; i <= maxFans; i++) {
+                dataRow.push(fanData[i] || '0.00');
+            }
+
+            // Add transceiver data for all available data types
+            Object.entries(DATA_TYPES).forEach(([dataTypeKey, dataTypeConfig]) => {
+                if (transceiverDataByType[dataTypeKey] && Object.keys(transceiverDataByType[dataTypeKey]).length > 0) {
+                    const transceiverData = transceiverDataByType[dataTypeKey];
+                    const defaultValue = dataTypeConfig.showtech.defaultValue;
+                    for (let i = 1; i <= maxPorts; i++) {
+                        dataRow.push(transceiverData[i] || defaultValue);
+                    }
+                }
+            });
+
+            // Generate CSV
+            const csvLines = [
+                headers.join(','),
+                dataRow.join(',')
+            ];
+
+            return csvLines.join('\n');
+        }
+
+        function formatTimestamp(unixTimestamp) {
+            // Convert Unix timestamp to Date object
+            const date = new Date(unixTimestamp * 1000);
+
+            // Format as DD/MM/YYYY-HH:MM:SS
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0'); // getMonth() is 0-indexed
+            const year = date.getFullYear();
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+
+            return `${day}/${month}/${year}-${hours}:${minutes}:${seconds}`;
+        }
+
+        function generateTimeSeriesCSV(transceiverDataByType, fanData, timestamps, productType = 'whistler', primaryDataType = 'temperature') {
+            // Get product specifications
+            const product = PREDEFINED_LAYOUTS[productType];
+            const maxFans = product ? product.fans : 12;
+            const maxPorts = product ? product.ports : 128;
+
+            // Create headers
+            const fanHeaders = [];
+            for (let i = 1; i <= maxFans; i++) {
+                fanHeaders.push(`Fan${i}/1`);
+            }
+
+            // Add headers for all available data types
+            const dataHeaders = [];
+            Object.entries(DATA_TYPES).forEach(([dataTypeKey, dataTypeConfig]) => {
+                if (transceiverDataByType[dataTypeKey] && Object.keys(transceiverDataByType[dataTypeKey]).length > 0) {
+                    for (let i = 1; i <= maxPorts; i++) {
+                        dataHeaders.push(`${dataTypeConfig.csvColumnPrefix}${i}`);
+                    }
+                }
+            });
+
+            const headers = ['datetime', ...fanHeaders, ...dataHeaders];
+            const csvLines = [headers.join(',')];
+
+            // Process each timestamp
+            for (const timestamp of timestamps) {
+                // Convert Unix timestamp to readable format
+                const dateStr = formatTimestamp(timestamp);
+
+                const dataRow = [dateStr];
+
+                // Add fan data
+                for (let i = 1; i <= maxFans; i++) {
+                    const fanValue = fanData[i] && fanData[i][timestamp] ? fanData[i][timestamp].toFixed(2) : '0.00';
+                    dataRow.push(fanValue);
+                }
+
+                // Add transceiver data for all available data types
+                Object.entries(DATA_TYPES).forEach(([dataTypeKey, dataTypeConfig]) => {
+                    if (transceiverDataByType[dataTypeKey] && Object.keys(transceiverDataByType[dataTypeKey]).length > 0) {
+                        const transceiverData = transceiverDataByType[dataTypeKey];
+                        const defaultValue = dataTypeConfig.timeSeries.defaultValue;
+                        for (let i = 1; i <= maxPorts; i++) {
+                            const dataValue = transceiverData[i] && transceiverData[i][timestamp] ? transceiverData[i][timestamp].toFixed(2) : defaultValue;
+                            dataRow.push(dataValue);
+                        }
+                    }
+                });
+
+                csvLines.push(dataRow.join(','));
+            }
+
+            return csvLines.join('\n');
+        }
+
+        function setupActions(csvData, originalFilename) {
+            const actionSection = document.getElementById('actionSection');
+            const downloadLink = document.getElementById('downloadLink');
+
+            const blob = new Blob([csvData], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+
+            // Generate appropriate filename based on input type
+            let csvFilename;
+            if (originalFilename.toLowerCase().endsWith('.csv')) {
+                csvFilename = originalFilename.replace(/\.csv$/i, '_heatmap.csv');
+            } else {
+                csvFilename = originalFilename.replace(/\.(txt|log)$/i, '_heatmap.csv');
+            }
+
+            downloadLink.href = url;
+            downloadLink.download = csvFilename;
+            downloadLink.textContent = `📥 Download ${csvFilename}`;
+
+            actionSection.style.display = 'block';
+        }
+
+        function showPreview(csvData) {
+            const previewSection = document.getElementById('previewSection');
+            const csvPreview = document.getElementById('csvPreview');
+
+            const lines = csvData.split('\n');
+            const previewLines = lines.slice(0, 10);
+
+            csvPreview.textContent = previewLines.join('\n');
+            previewSection.style.display = 'block';
+        }
+
+        // Visualizer utility functions
+        function showToast(message, duration = 3000) {
+            toastNotification.textContent = message;
+            toastNotification.classList.add('show');
+            setTimeout(() => {
+                toastNotification.classList.remove('show');
+            }, duration);
+        }
+
+        function simpleCSVParser(csvText) {
+            const lines = csvText.trim().split(/\r?\n/);
+            if (lines.length === 0) return [];
+            const headers = lines[0].split(',').map(h => h.trim());
+            const data = [];
+            for (let i = 1; i < lines.length; i++) {
+                if (lines[i].trim() === "") continue;
+                const values = lines[i].split(',').map(v => v.trim());
+                if (values.length === headers.length) {
+                    const rowObject = {};
+                    headers.forEach((header, index) => {
+                        rowObject[header] = values[index];
+                    });
+                    data.push(rowObject);
+                } else {
+                    console.warn(`Skipping malformed CSV line ${i+1}: expected ${headers.length} values, got ${values.length}`);
+                }
+            }
+            return data;
+        }
+
+        function calculatePercentileFromArray(arr, p) {
+            if (!arr || arr.length === 0) return NaN;
+            const cleanArr = arr.filter(val => !isNaN(parseFloat(val))).map(val => parseFloat(val));
+            if (cleanArr.length === 0) return NaN;
+
+            const sorted = cleanArr.sort((a, b) => a - b);
+            const N = sorted.length;
+            const index = (p / 100) * (N - 1);
+
+            if (Number.isInteger(index)) {
+                return sorted[index];
+            } else {
+                const k = Math.floor(index);
+                const f = index - k;
+                if (k + 1 < N) {
+                    return sorted[k] + f * (sorted[k + 1] - sorted[k]);
+                } else {
+                    return sorted[k];
+                }
+            }
+        }
+
+        function parseLayoutCSV(csvText) {
+            return csvText.trim().split(/\r?\n/).map(line =>
+                line.trim().split(',').map(item => {
+                    const trimmed = item.trim();
+                    return trimmed === '' ? NaN : parseInt(trimmed, 10);
+                })
+            );
+        }
+
+        function loadProductLayout(productKey) {
+            const product = PREDEFINED_LAYOUTS[productKey];
+            if (!product) {
+                showToast(`Error: Product layout for "${productKey}" not found.`);
+                return;
+            }
+            try {
+                currentProductLayout = parseLayoutCSV(product.layoutData);
+                setupGrid();
+                showToast(`${product.name} layout loaded.`);
+            } catch (error) {
+                showToast(`Error parsing layout for ${product.name}: ${error.message}`);
+                console.error("Error parsing layout:", error);
+                currentProductLayout = [];
+            }
+        }
+
+        function loadCSVData(csvData) {
+            try {
+                thermalData = simpleCSVParser(csvData);
+                if (thermalData.length === 0) {
+                    showToast('CSV data is empty or invalid.');
+                    statusMessage.textContent = 'CSV empty/invalid.';
+                    thermalData = [];
+                } else {
+                    const headers = Object.keys(thermalData[0]);
+
+                    // Check for datetime column and any data sensor columns
+                    const hasDatetime = headers.includes('datetime');
+                    const hasDataColumns = Object.values(DATA_TYPES).some(dataType =>
+                        headers.some(h => h.startsWith(dataType.csvColumnPrefix))
+                    );
+
+                    if (!hasDatetime || !hasDataColumns) {
+                        const expectedColumns = Object.values(DATA_TYPES).map(dt => `${dt.csvColumnPrefix}X`).join(' or ');
+                        showToast(`CSV must contain "datetime" and data columns (${expectedColumns}).`);
+                        statusMessage.textContent = 'CSV missing required columns.';
+                        thermalData = [];
+                    } else {
+                        showToast(`CSV loaded successfully with ${thermalData.length} data rows.`);
+                        statusMessage.textContent = `${thermalData.length} rows loaded.`;
+                        startRowInput.max = thermalData.length > 0 ? thermalData.length - 1 : 0;
+
+                        // Load the selected product layout and setup grid
+                        const selectedProduct = productSelect.value;
+                        loadProductLayout(selectedProduct);
+                        setupRowSlider();
+                        playPauseButton.disabled = false;
+                    }
+                }
+            } catch (error) {
+                showToast(`Error parsing CSV: ${error.message}`);
+                statusMessage.textContent = 'Error parsing CSV.';
+                console.error("CSV parsing error:", error);
+                thermalData = [];
+                playPauseButton.disabled = true;
+            }
+        }
+
+        function setupGrid() {
+            if (!currentProductLayout || currentProductLayout.length === 0) {
+                gridContainer.innerHTML = '<p class="text-gray-500">No layout available. Select a product layout.</p>';
+                return;
+            }
+
+            const gridHTML = currentProductLayout.map(row => {
+                const rowHTML = row.map(portId => {
+                    if (isNaN(portId)) {
+                        return '<div class="grid-cell" style="visibility: hidden; min-width: 120px; min-height: 60px;"></div>';
+                    } else {
+                        return `
+                            <div class="grid-cell" data-port-id="${portId}" style="background-color: #f0f0f0;">
+                                <div class="port-number">Port ${portId}</div>
+                                <div class="temperature">--°C</div>
+                            </div>
+                        `;
+                    }
+                }).join('');
+                return `<div style="display: flex; justify-content: center; margin-bottom: 2px;">${rowHTML}</div>`;
+            }).join('');
+
+            gridContainer.innerHTML = `<div style="display: inline-block; border: 1px solid #ddd; padding: 10px; border-radius: 8px; background-color: #fafafa;">${gridHTML}</div>`;
+        }
+
+        function calculateCurrentRowDataStats(rowIndex) {
+            if (!thermalData || rowIndex >= thermalData.length) {
+                return { values: [], minValue: NaN, maxValue: NaN, percentileValue: NaN };
+            }
+
+            const dataRow = thermalData[rowIndex];
+            const values = [];
+
+            // Get current data type configuration
+            const dataTypeConfig = DATA_TYPES[currentDataType];
+            if (!dataTypeConfig) {
+                return { values: [], minValue: NaN, maxValue: NaN, percentileValue: NaN };
+            }
+
+            // Get product specifications for port count
+            const selectedProduct = productSelect.value;
+            const product = PREDEFINED_LAYOUTS[selectedProduct];
+            const maxPorts = product ? product.ports : 128;
+
+            // Get all valid data values for the current row/snapshot
+            for (let i = 1; i <= maxPorts; i++) {
+                const sensorName = `${dataTypeConfig.csvColumnPrefix}${i}`;
+                if (dataRow[sensorName] && !isNaN(parseFloat(dataRow[sensorName]))) {
+                    const value = parseFloat(dataRow[sensorName]);
+                    if (value > 0) { // Only include valid values
+                        values.push(value);
+                    }
+                }
+            }
+
+            if (values.length === 0) {
+                return { values: [], minValue: NaN, maxValue: NaN, percentileValue: NaN };
+            }
+
+            const minValue = Math.min(...values);
+            const maxValue = Math.max(...values);
+            const percentile = parseInt(percentileInput.value, 10);
+            const percentileValue = calculatePercentileFromArray(values, percentile);
+
+            // Debug information
+            const avgValue = values.reduce((a, b) => a + b, 0) / values.length;
+            console.log(`Row ${rowIndex} ${dataTypeConfig.name} stats: Min=${minValue.toFixed(1)}${dataTypeConfig.unit}, Max=${maxValue.toFixed(1)}${dataTypeConfig.unit}, Avg=${avgValue.toFixed(1)}${dataTypeConfig.unit}, ${percentile}th percentile=${percentileValue.toFixed(1)}${dataTypeConfig.unit}`);
+
+            return { values, minValue, maxValue, percentileValue };
+        }
+
+        function getRelativeDataColor(value, values, percentileValue) {
+            if (isNaN(value) || value <= 0) {
+                return '#f0f0f0'; // Gray for invalid/missing data
+            }
+
+            if (!values || values.length === 0) {
+                return '#90EE90'; // Light green for no data
+            }
+
+            // Sort values to find percentile ranges
+            const sortedValues = [...values].sort((a, b) => a - b);
+            const minValue = sortedValues[0];
+            const maxValue = sortedValues[sortedValues.length - 1];
+
+            // If all values are the same, use a neutral color
+            if (minValue === maxValue) {
+                return '#90EE90'; // Light green for uniform values
+            }
+
+            // Calculate what percentile this value is at
+            let rank = 0;
+            for (let i = 0; i < sortedValues.length; i++) {
+                if (sortedValues[i] <= value) {
+                    rank = i + 1;
+                }
+            }
+            const valuePercentile = (rank / sortedValues.length) * 100;
+
+            // Color based on percentile position
+            // Below percentile threshold: Green to Yellow gradient
+            // Above percentile threshold: Yellow to Red gradient
+            let ratio;
+            if (valuePercentile <= percentileValue) {
+                // Scale from 0 to 0.7 for values below percentile
+                ratio = (valuePercentile / percentileValue) * 0.7;
+            } else {
+                // Scale from 0.7 to 1.0 for values above percentile
+                ratio = 0.7 + ((valuePercentile - percentileValue) / (100 - percentileValue)) * 0.3;
+            }
+
+            // Create a smooth gradient: Green -> Yellow -> Orange -> Red
+            let r, g, b;
+
+            if (ratio <= 0.33) {
+                // Green to Yellow (coolest)
+                const localRatio = ratio / 0.33;
+                r = Math.floor(0 + (255 - 0) * localRatio);      // 0 -> 255
+                g = Math.floor(255);                              // 255 (constant)
+                b = Math.floor(0);                                // 0 (constant)
+            } else if (ratio <= 0.66) {
+                // Yellow to Orange (middle)
+                const localRatio = (ratio - 0.33) / 0.33;
+                r = Math.floor(255);                              // 255 (constant)
+                g = Math.floor(255 - (100 * localRatio));        // 255 -> 155
+                b = Math.floor(0);                                // 0 (constant)
+            } else {
+                // Orange to Red (hottest)
+                const localRatio = (ratio - 0.66) / 0.34;
+                r = Math.floor(255);                              // 255 (constant)
+                g = Math.floor(155 - (155 * localRatio));        // 155 -> 0
+                b = Math.floor(0);                                // 0 (constant)
+            }
+
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        function updateVisualization(rowIndex) {
+            if (!thermalData || rowIndex >= thermalData.length) return;
+
+            const dataRow = thermalData[rowIndex];
+
+            // Get current data type configuration
+            const dataTypeConfig = DATA_TYPES[currentDataType];
+            if (!dataTypeConfig) {
+                console.error('Unknown data type:', currentDataType);
+                return;
+            }
+
+            // Calculate data stats for this specific row/snapshot
+            const dataStats = calculateCurrentRowDataStats(rowIndex);
+
+            // Update timestamp
+            timestampDisplay.textContent = dataRow.datetime || '-';
+
+            // Update fan data using product specifications
+            const selectedProduct = productSelect.value;
+            const product = PREDEFINED_LAYOUTS[selectedProduct];
+            const maxFans = product ? product.fans : 12;
+
+            const fanInfo = [];
+            for (let i = 1; i <= maxFans; i++) {
+                const fanKey = `Fan${i}/1`;
+                if (dataRow[fanKey]) {
+                    fanInfo.push(`Fan${i}: ${dataRow[fanKey]}%`);
+                }
+            }
+            fanDataDisplay.textContent = fanInfo.join(', ') || '-';
+
+            // Update status with current row data range
+            if (dataStats.values.length > 0) {
+                const percentile = parseInt(percentileInput.value, 10);
+                statusMessage.textContent = `Row ${rowIndex + 1}/${thermalData.length} - ${dataTypeConfig.name} range: ${dataStats.minValue.toFixed(1)}${dataTypeConfig.unit} - ${dataStats.maxValue.toFixed(1)}${dataTypeConfig.unit}, ${percentile}th percentile: ${dataStats.percentileValue.toFixed(1)}${dataTypeConfig.unit}`;
+            }
+
+            // Update port data with relative coloring
+            currentProductLayout.flat().forEach(portId => {
+                if (isNaN(portId)) return;
+
+                const cell = gridContainer.querySelector(`.grid-cell[data-port-id="${portId}"]`);
+                if (cell) {
+                    const sensorName = `${dataTypeConfig.csvColumnPrefix}${portId}`;
+                    const dataValue = parseFloat(dataRow[sensorName]);
+
+                    if (!isNaN(dataValue) && dataValue > 0) {
+                        const dataElement = cell.querySelector('.temperature');
+                        dataElement.textContent = `${dataValue.toFixed(1)}${dataTypeConfig.unit}`;
+
+                        // Use relative coloring based on percentile
+                        const percentile = parseInt(percentileInput.value, 10);
+                        const color = getRelativeDataColor(dataValue, dataStats.values, percentile);
+                        cell.style.backgroundColor = color;
+
+                        // Set text color based on background brightness
+                        const rgb = color.match(/\d+/g);
+                        if (rgb) {
+                            const brightness = (parseInt(rgb[0]) * 299 + parseInt(rgb[1]) * 587 + parseInt(rgb[2]) * 114) / 1000;
+                            cell.style.color = brightness > 128 ? '#000' : '#fff';
+                        }
+                    } else {
+                        const dataElement = cell.querySelector('.temperature');
+                        dataElement.textContent = `--${dataTypeConfig.unit}`;
+                        cell.style.backgroundColor = '#f0f0f0';
+                        cell.style.color = '#333';
+                    }
+                }
+            });
+        }
+
+        function setupRowSlider() {
+            if (thermalData.length === 0) {
+                rowSliderSection.style.display = 'none';
+                return;
+            }
+
+            const maxRow = thermalData.length - 1;
+            rowSlider.max = maxRow;
+            rowSlider.value = 0;
+            startRowInput.max = maxRow;
+
+            sliderStartLabel.textContent = `Row 0`;
+            sliderEndLabel.textContent = `Row ${maxRow}`;
+            sliderCurrentLabel.textContent = `Current: 0`;
+            currentRowInfo.textContent = `Ready to navigate ${thermalData.length} time points`;
+
+            // Enable/disable buttons
+            prevRowBtn.disabled = true;
+            nextRowBtn.disabled = maxRow === 0;
+
+            rowSliderSection.style.display = 'block';
+
+            // Update visualization to show first row
+            currentRowIndex = 0;
+            updateVisualization(0);
+        }
+
+        function updateSliderPosition(rowIndex) {
+            rowSlider.value = rowIndex;
+            sliderCurrentLabel.textContent = `Current: ${rowIndex}`;
+
+            const maxRow = thermalData.length - 1;
+            prevRowBtn.disabled = rowIndex === 0;
+            nextRowBtn.disabled = rowIndex === maxRow;
+
+            if (thermalData[rowIndex]) {
+                const timestamp = thermalData[rowIndex].datetime || `Row ${rowIndex}`;
+                currentRowInfo.textContent = `Showing: ${timestamp} (${rowIndex + 1}/${thermalData.length})`;
+            }
+        }
+
+        function goToRow(rowIndex) {
+            if (rowIndex < 0 || rowIndex >= thermalData.length) return;
+
+            stopAnimation(); // Stop any running animation
+            currentRowIndex = rowIndex;
+            updateVisualization(rowIndex);
+            updateSliderPosition(rowIndex);
+            startRowInput.value = rowIndex; // Sync with start row input
+        }
+
+        // Event listeners for product selection
+        mainProductSelect.addEventListener('change', (e) => {
+            // Sync visualizer dropdown
+            productSelect.value = e.target.value;
+        });
+
+        productSelect.addEventListener('change', (e) => {
+            stopAnimation();
+            loadProductLayout(e.target.value);
+            timestampDisplay.textContent = '-';
+            fanDataDisplay.textContent = '-';
+            // Sync main dropdown
+            mainProductSelect.value = e.target.value;
+        });
+
+        percentileInput.addEventListener('change', () => {
+            if (thermalData.length > 0 && currentRowIndex > 0) {
+                // Re-render the current visualization with new percentile
+                updateVisualization(currentRowIndex - 1);
+            }
+        });
+
+        // Also listen for input events for real-time updates while dragging slider
+        percentileInput.addEventListener('input', () => {
+            if (thermalData.length > 0 && currentRowIndex >= 0) {
+                // Re-render the current visualization with new percentile
+                updateVisualization(currentRowIndex);
+            }
+        });
+
+        // Row slider event listeners
+        rowSlider.addEventListener('input', (e) => {
+            const rowIndex = parseInt(e.target.value);
+            goToRow(rowIndex);
+        });
+
+        prevRowBtn.addEventListener('click', () => {
+            if (currentRowIndex > 0) {
+                goToRow(currentRowIndex - 1);
+            }
+        });
+
+        nextRowBtn.addEventListener('click', () => {
+            if (currentRowIndex < thermalData.length - 1) {
+                goToRow(currentRowIndex + 1);
+            }
+        });
+
+        // Sync start row input with slider
+        startRowInput.addEventListener('change', (e) => {
+            const rowIndex = parseInt(e.target.value);
+            if (!isNaN(rowIndex) && rowIndex >= 0 && rowIndex < thermalData.length) {
+                goToRow(rowIndex);
+            }
+        });
+
+        playPauseButton.addEventListener('click', () => {
+            if (isPlaying) {
+                stopAnimation();
+            } else {
+                startAnimation();
+            }
+        });
+
+        function startAnimation() {
+            if (thermalData.length === 0) return;
+
+            isPlaying = true;
+            playPauseButton.textContent = 'Pause';
+            playPauseButton.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+            playPauseButton.classList.add('bg-red-500', 'hover:bg-red-600');
+
+            const speed = parseFloat(speedInput.value);
+            const startRow = parseInt(startRowInput.value);
+            currentRowIndex = startRow;
+
+            animationInterval = setInterval(() => {
+                if (currentRowIndex >= thermalData.length) {
+                    stopAnimation();
+                    return;
+                }
+
+                updateVisualization(currentRowIndex);
+                updateSliderPosition(currentRowIndex); // Update slider during animation
+                currentRowIndex++;
+            }, 1000 / speed);
+        }
+
+        function stopAnimation() {
+            isPlaying = false;
+            playPauseButton.textContent = 'Play';
+            playPauseButton.classList.remove('bg-red-500', 'hover:bg-red-600');
+            playPauseButton.classList.add('bg-blue-500', 'hover:bg-blue-600');
+
+            if (animationInterval) {
+                clearInterval(animationInterval);
+                animationInterval = null;
+            }
+        }
+
+        // Initialize the application on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Load both configuration files
+            const [productConfigLoaded, dataConfigLoaded] = await Promise.all([
+                loadProductDefinitions(),
+                loadDataExtractionConfig()
+            ]);
+
+            if (!productConfigLoaded || !dataConfigLoaded) {
+                console.error('Failed to load required configuration files');
+            }
+        });
+    </script>
+</body>
+</html>

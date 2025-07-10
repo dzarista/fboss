@@ -6,7 +6,8 @@
     "enable_replayer": "true",
     "intf_nbr_tables": "true",
     "log_variable_name": "true",
-    "sai_configure_six_tap": "true"
+    "sai_configure_six_tap": "true",
+    "dsf_subscribe": "false"
   },
   "sw": {
     "version": 0,
@@ -7664,7 +7665,7 @@
         "scope": 1
       },
       {
-        "intfID": 40,
+        "intfID": 28,
         "routerID": 0,
         "vlanID": 0,
         "ipAddresses": [
@@ -7678,7 +7679,7 @@
         "scope": 1
       },
       {
-        "intfID": 41,
+        "intfID": 29,
         "routerID": 0,
         "vlanID": 0,
         "ipAddresses": [
@@ -7692,7 +7693,7 @@
         "scope": 1
       },
       {
-        "intfID": 42,
+        "intfID": 32,
         "routerID": 0,
         "vlanID": 0,
         "ipAddresses": [
@@ -7706,12 +7707,404 @@
         "scope": 1
       },
       {
-        "intfID": 43,
+        "intfID": 33,
         "routerID": 0,
         "vlanID": 0,
         "ipAddresses": [
           "2407::/64",
           "17.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 24,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2408::/64",
+          "18.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 25,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2409::/64",
+          "19.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 20,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2410::/64",
+          "20.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 21,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2411::/64",
+          "21.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 26,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2412::/64",
+          "22.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 27,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2413::/64",
+          "23.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 22,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2414::/64",
+          "24.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 23,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2415::/64",
+          "25.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 18,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2416::/64",
+          "26.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 19,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2417::/64",
+          "27.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 36,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2418::/64",
+          "28.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 37,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2419::/64",
+          "29.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 40,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2420::/64",
+          "30.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 41,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2421::/64",
+          "31.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 38,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2422::/64",
+          "32.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 39,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2423::/64",
+          "33.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 52,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2424::/64",
+          "34.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 53,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2425::/64",
+          "35.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 42,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2426::/64",
+          "36.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 43,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2427::/64",
+          "37.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 48,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2428::/64",
+          "38.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 49,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2429::/64",
+          "39.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 50,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2430::/64",
+          "40.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 51,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2431::/64",
+          "41.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 44,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2432::/64",
+          "42.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 45,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2433::/64",
+          "43.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 46,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2434::/64",
+          "44.0.0.0/24"
+        ],
+        "mtu": 9000,
+        "isVirtual": false,
+        "isStateSyncDisabled": true,
+        "type": 2,
+        "scope": 1
+      },
+      {
+        "intfID": 47,
+        "routerID": 0,
+        "vlanID": 0,
+        "ipAddresses": [
+          "2435::/64",
+          "45.0.0.0/24"
         ],
         "mtu": 9000,
         "isVirtual": false,
@@ -8341,12 +8734,6 @@
             "globalSystemPortOffset": 10,
             "inbandPortId": 1,
             "firmwareNameToFirmwareInfo": {
-              "isolationFW": {
-                  "coreToUse": 5,
-                  "path": "/tmp/db/jericho3ai_a0/fi-2.4.0.1-GA.elf",
-                  "logPath": "/tmp/edk.log",
-                  "firmwareLoadType": 0
-              }
             }
         }
       },
@@ -8435,7 +8822,7 @@
             "custom_feature_use_new_access.BCM8889X": "1",
             "custom_feature_use_new_access.BCM8889X_ADAPTER": "1",
             "custom_feature_vsqd_lossless_reject_enable": "1",
-            "dpp_db_path": "/tmp/db",
+            "dpp_db_path": "/opt/fboss/share/db",
             "dram_temperature_monitor_enable.BCM8889X_ADAPTER": "0",
             "dtm_flow_mapping_mode_region_65.BCM8889X": "3",
             "dtm_flow_mapping_mode_region_66.BCM8889X": "3",
