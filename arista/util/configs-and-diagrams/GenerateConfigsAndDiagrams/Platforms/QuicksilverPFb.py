@@ -2,8 +2,11 @@
 # Arista Networks, Inc. Confidential and Proprietary.
 
 from ..BaseConfigs import (
+   enumerateFANSlotConfigs,
    FANCpld,
    FANUnit,
+   FanServiceConfig,
+   OpticConfig,
    PciDeviceConfig,
    PlatformConfig,
    SCMFairywren,
@@ -298,6 +301,7 @@ class QuicksilverPFbSMB( SMBUnit ):
             presenceDevicePath="/SMB_SLOT@0/[SMB_FPGA]",
             outgoingI2cBuses=[ smbI2cMaster0.buses[ 4 ] ]
          ),
+         *enumerateFANSlotConfigs( 4, "/SMB_SLOT@0/[FAN_CPLD]" ),
       ] )
 
 
@@ -328,3 +332,40 @@ class QuicksilverPFb( PlatformConfig ):
 
       for pmConfig in self.pmUnitConfigs:
          pmConfig.populateSymlinkToDevicePaths()
+
+      # Fan Service Config
+      fanServiceConfig = FanServiceConfig()
+      # 1. Set global PWM and control interval parameters
+      fanServiceConfig.setPwmConfig(  pwmBoostOnNumDeadFan=1,
+                                       pwmBoostOnNumDeadSensor=0,
+                                       pwmBoostOnNoQsfpAfterInSec=0,
+                                       pwmBoostValue=90,
+                                       pwmTransitionValue=75,
+                                       pwmLowerThreshold=54,
+                                       pwmUpperThreshold=100 )
+      fanServiceConfig.setControlInterval( sensorReadInterval=5, pwmUpdateInterval=5 )
+      # 2. Define the optics group with its specific temp-to-PWM map
+      opticConfig = fanServiceConfig.addOpticConfig( "osfp_group_1", "QSFP" )
+      opticConfig.addTempToPwmMap( 800, {
+            "5": 54,
+            "66": 58,
+            "67": 60,
+            "68": 62,
+            "69": 75,
+            "70": 95,
+            "71": 100
+      } )
+      # 3. Define the sensor(s) to be used in zones
+      # Note: We use the unresolved name "TH5_DIODE_1_TEMP" from QuicksilverPFbSMB
+      fanServiceConfig.addSensor( "TH5_DIODE_1_TEMP", "THRIFT", {
+            "15": 54,
+            "110": 100
+      } )
+      # 4. Define the thermal control zone
+      fanServiceConfig.addZone(
+         zoneName="zone1",
+         sensorNames=[ "TH5_DIODE_1_TEMP", "osfp_group_1" ],
+         fanNumbers=range( 1, 5 ),  # Fans 1 through 4
+         slope=3
+      )
+      self.PlatformFanServiceConfig = fanServiceConfig

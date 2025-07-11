@@ -9,6 +9,12 @@ import io
 import json
 import re
 
+from .FanServiceConfigs import (
+   FanServiceConfig,
+   OpticConfig,
+   ZoneConfig
+)
+
 BSP_MAPPING_KEYS = [
    "TcvrId",
    "TcvrLaneIdList",
@@ -117,6 +123,7 @@ class PlatformConfig:
          "bspKmodsRpmVersion": "0.7.9-1",
          "requiredKmodsToLoad": [],
       }
+      self.PlatformFanServiceConfig = None
 
    def getPmUnit( self, pmUnitName ):
       for pmUnit in self.pmUnitConfigs:
@@ -250,6 +257,24 @@ class PlatformConfig:
 
       return output.getvalue()
 
+   # Arguments are filtering by those pmUnits or slotTypes
+   def getSlotConfigs( self, pmUnits=[], slotTypes=[] ):
+      slots = OrderedDict()
+      for pmUnit in self.pmUnitConfigs:
+         if not pmUnits or pmUnit.pmUnitName in pmUnits:
+            slots[ pmUnit.pmUnitName ] = pmUnit.getOutgoingSlotConfigsDict( slotTypes )
+      return slots
+
+   # Arguments is to filter by pmUnit
+   def getSensorConfigs( self, pmUnits=[] ):
+      allSensors = OrderedDict()
+      for pmUnit in self.pmUnitConfigs:
+         if not pmUnits or pmUnit.pmUnitName in pmUnits:
+            sensorDict = pmUnit.getAllSensorConfigsAsDicts()
+            if sensorDict:
+               allSensors[ pmUnit.pmUnitName ] = sensorDict
+      return allSensors
+
    def genDiagram( self ):
       graph_attr = {
          "ratio": "0.5625",
@@ -260,6 +285,72 @@ class PlatformConfig:
       with Diagram( f"Platform: { self.platformName }", show=False,
                     graph_attr = graph_attr ):
          self.rootPmUnitPointer.render()
+
+   def fanJson( self ):
+      serviceConfig = self.PlatformFanServiceConfig
+      assert serviceConfig is not None, "FanServiceConfig must be set on the platform first."
+      fanData = OrderedDict()
+      
+      assert serviceConfig.pwmConfig, "PWM configurations must be set on platform first."
+      fanData.update( serviceConfig.pwmConfig )
+      # Convert the list of OpticConfig objects into a list of dictionaries
+      fanData[ "optics" ] = [ optic.toDict() for optic in serviceConfig.optics ]
+      if serviceConfig.controlInterval:
+         fanData[ "controlInterval" ] = serviceConfig.controlInterval
+      fanData[ "sensors" ] = serviceConfig.resolveSensorNames( self.getSensorConfigs() )
+      serviceConfig.setFans(self.getSlotConfigs( slotTypes=[ "FAN_SLOT" ] ),
+                                                allSymlinks=self.parseSymbolicLinkToDevicePaths() )
+      fanData[ "fans" ] = serviceConfig.fans
+      fanData[ "zones" ] = serviceConfig.getResolvedZoneConfigs()
+      return json.dumps( fanData, indent=2 )
+
+   def ledJson( self ):
+      ledData = OrderedDict()
+      fruTypeConfigs = OrderedDict()
+      ledData[ "systemLedConfig" ] = self.getLedConfig( "sys" )
+      for fruName in [ "FAN", "PSU" ]:
+         fruTypeConfigs[fruName] = self.getLedConfig(fruName.lower())
+      ledData[ "fruTypeLedConfigs" ] = fruTypeConfigs
+      fruConfigs = []
+      inverseSymlinkPaths = {v: k for k, v in self.parseSymbolicLinkToDevicePaths().items()}
+      slotGroups = self.getSlotConfigs( slotTypes=[ "FAN_SLOT", "PSU_SLOT" ] )
+
+      for pmUnitSlots in slotGroups.values():
+         for slotName, slotData in pmUnitSlots.items():
+               # Ensure presence detection is defined for this slot
+               if "presenceDetection" not in slotData:
+                  continue
+               presenceHandle = slotData[ "presenceDetection" ][ "sysfsFileHandle" ]
+               presenceDevicePath = presenceHandle.get( "devicePath" )
+               presenceDeviceSymlink = inverseSymlinkPaths.get( presenceDevicePath )
+               if not presenceDeviceSymlink:
+                  continue
+               fruType = slotData[ "slotType" ].replace( "_SLOT", "" )
+               slotIndex = int( slotName.split( '@' )[ 1 ] )
+
+               fruEntry = OrderedDict()
+               fruEntry[ "fruName" ] = f"{fruType}{slotIndex + 1}"
+               fruEntry[ "fruType" ] = fruType
+               fruEntry[ "presenceDetection" ] = {
+                  "sysfsFileHandle": {
+                     "presenceFilePath": f"{presenceDeviceSymlink}/{presenceHandle[ 'presenceFileName' ]}",
+                     "desiredValue": 1,
+                  }
+               }
+               fruConfigs.append( fruEntry )
+      sortedFruConfigs = sorted( fruConfigs, key=lambda x: x[ 'fruName' ] )
+      ledData[ "fruConfigs" ] = sortedFruConfigs
+
+      return json.dumps( ledData, indent=2 )
+
+   def getLedConfig( self, led_name: str ):
+      config = OrderedDict()
+      config[ "presentLedColor" ] = 1
+      config[ "presentLedSysfsPath" ] = f"/sys/class/leds/{led_name}_led:green:status/brightness"
+      config[ "absentLedColor" ] = 2
+      config[ "absentLedSysfsPath" ] = f"/sys/class/leds/{led_name}_led:red:status/brightness"
+      return config
+
 
 
 class SlotTypeConfig:
@@ -478,17 +569,33 @@ class PmUnitConfig:
             embeddedSensorConfigs } if len( embeddedSensorConfigs ) > 0 else {} )
       }
 
+   def getAllSensorConfigsAsDicts( self ):
+      nameMap = OrderedDict()
+
+      allSensors = self.embeddedSensorConfigs + self.i2cDeviceConfigs
+
+      for sensor in allSensors:
+         for sensor_config_obj in sensor.sensorConfigs:            
+            original_name = sensor_config_obj.name
+            resolved_name_dict = sensor_config_obj.toDict()
+            resolved_name = resolved_name_dict.get('name')
+            if original_name and resolved_name:
+               nameMap[original_name] = resolved_name
+      return nameMap
+
    def getEmbeddedSensorConfigsList( self ):
       return [ config.asJson() for config in self.embeddedSensorConfigs ]
 
    def getI2cDeviceConfigsList( self ):
       return [ config.asJson() for config in self.i2cDeviceConfigs ]
 
-   def getOutgoingSlotConfigsDict( self ):
+   # Slot types is used to filter specific slot types (e.g. FAN_SLOT, PSU_SLOT)
+   def getOutgoingSlotConfigsDict( self, slotTypes=[] ):
       jsonDict = {}
       for config in self.outgoingSlotConfigs:
-         slotName = config.slotName
-         jsonDict[ slotName ] = config.asJson()
+         if not slotTypes or config.slotType in slotTypes:
+            slotName = config.slotName
+            jsonDict[ slotName ] = config.asJson()
       return jsonDict
 
    def getPciDeviceConfigsList( self ):
