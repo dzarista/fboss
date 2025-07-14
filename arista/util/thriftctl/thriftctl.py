@@ -84,7 +84,7 @@ class FbossThriftctl:
    def close( self ):
       if self.transport:
          self.transport.close()
-   
+
    def parseResponseJson( self, response ):
       json_data = thrift_to_dict( response )
       return json.dumps( json_data, indent=2 )
@@ -97,10 +97,6 @@ def resolve_args( client, arg ):
    '''Dynamically resolve and create Thrift struct objects.
    e.g. {"struct": "PwmHoldRequest", "pwm": 70}'''
    try:
-      # If the argument is a string, safely parse it
-      if isinstance( arg, str ):
-         arg = ast.literal_eval( arg )
-
       # Intrepret arg using the struct key
       if isinstance( arg, dict ) and "struct" in arg:
          struct_name = arg.pop( "struct" )
