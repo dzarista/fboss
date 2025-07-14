@@ -794,6 +794,28 @@ struct SaiSwitchTraits {
         std::vector<sai_map_t>,
         AttributeModuleIdToCreditRequestProfileParamList,
         SaiListDefault<sai_map_list_t>>;
+    //
+    struct AttributeTriggerSimulatedEccCorrectableError {
+      std::optional<sai_attr_id_t> operator()();
+    };
+    using TriggerSimulatedEccCorrectableError = SaiExtensionAttribute<
+        bool,
+        AttributeTriggerSimulatedEccCorrectableError>;
+    //
+
+    struct AttributeTriggerSimulatedEccUnCorrectableError {
+      std::optional<sai_attr_id_t> operator()();
+    };
+    using TriggerSimulatedEccUnCorrectableError = SaiExtensionAttribute<
+        bool,
+        AttributeTriggerSimulatedEccUnCorrectableError>;
+    //
+    struct AttributeDefaultCpuEgressBufferPool {
+      std::optional<sai_attr_id_t> operator()();
+    };
+    using DefaultCpuEgressBufferPool = SaiExtensionAttribute<
+        sai_object_id_t,
+        AttributeDefaultCpuEgressBufferPool>;
   };
   using AdapterKey = SwitchSaiId;
   using AdapterHostKey = std::monostate;
@@ -889,7 +911,9 @@ struct SaiSwitchTraits {
       std::optional<Attributes::FirmwareObjectList>,
       std::optional<Attributes::TcRateLimitList>,
       std::optional<Attributes::PfcTcDldTimerGranularityInterval>,
-      std::optional<Attributes::DisableSllAndHllTimeout>>;
+      std::optional<Attributes::DisableSllAndHllTimeout>,
+      std::optional<Attributes::CreditRequestProfileSchedulerMode>,
+      std::optional<Attributes::ModuleIdToCreditRequestProfileParamList>>;
 
 #if SAI_API_VERSION >= SAI_VERSION(1, 12, 0)
   static constexpr std::array<sai_stat_id_t, 3> CounterIdsToRead = {
@@ -1066,6 +1090,10 @@ SAI_ATTRIBUTE_NAME(Switch, CreditRequestProfileSchedulerMode)
 SAI_ATTRIBUTE_NAME(Switch, ModuleIdToCreditRequestProfileParamList)
 SAI_ATTRIBUTE_NAME(Switch, AsicTemperatureList)
 SAI_ATTRIBUTE_NAME(Switch, NumTemperatureSensors)
+
+SAI_ATTRIBUTE_NAME(Switch, TriggerSimulatedEccCorrectableError)
+SAI_ATTRIBUTE_NAME(Switch, TriggerSimulatedEccUnCorrectableError)
+SAI_ATTRIBUTE_NAME(Switch, DefaultCpuEgressBufferPool)
 
 template <>
 struct SaiObjectHasStats<SaiSwitchTraits> : public std::true_type {};

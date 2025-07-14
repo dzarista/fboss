@@ -1,6 +1,8 @@
 //  Copyright 2021-present Facebook. All Rights Reserved.
 
+#include <folly/logging/FileHandlerFactory.h>
 #include <folly/logging/Init.h>
+#include <folly/logging/LogConfigParser.h>
 #include <folly/logging/xlog.h>
 
 #include <filesystem>
@@ -22,6 +24,17 @@ int main(int argc, char* argv[]) {
   // simultaneously.
 
   helpers::initCli(&argc, &argv, "fw_util");
+
+  // Log to a file
+  const std::filesystem::path logFolder = "/var/facebook/logs/fboss";
+  std::filesystem::create_directories(logFolder);
+  const std::filesystem::path logPath = logFolder / "fw_util.log";
+  folly::LoggerDB::get().registerHandlerFactory(
+      std::make_unique<folly::FileHandlerFactory>(), false);
+  folly::LoggerDB::get().updateConfig(folly::parseLogConfig(
+      "INFO:filehandler:default;"
+      "filehandler=file:path=" +
+      logPath.string() + ",async=true"));
 
   // TODO: To be removed once XFN change the commands in their codes
   if (FLAGS_fw_action.empty()) {
