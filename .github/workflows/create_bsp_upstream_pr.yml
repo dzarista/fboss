@@ -21,7 +21,7 @@ jobs:
         id: vars
         run: |
           # Define BASE_SHA and MERGED_SHA which can be used in the subsequent step
-          echo "BASE_SHA=${{ github.event.pull_request.base.sha }}" >> $GITHUB_OUTPUT
+          echo "BASE_SHA=$(git rev-parse ${{ github.sha }}^)" >> $GITHUB_OUTPUT
           echo "MERGED_SHA=${{ github.sha }}" >> $GITHUB_OUTPUT
 
       - name: Clone repo to get pre-merge version
@@ -63,7 +63,7 @@ jobs:
         run: |
           echo "$SERVICE_ACCOUNT_PRIVATE_KEY" > private.key
           sudo chmod 600 private.key
-          ./arista-ci-scripts/create_bsp_upstream_pr.sh
+          ./arista-ci-scripts/create_bsp_upstream_pr.sh "$PWD"
 
       - name: Send status email
         if: env.SKIP_STEPS != 'true'

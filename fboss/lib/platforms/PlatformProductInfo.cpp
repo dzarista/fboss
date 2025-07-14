@@ -157,6 +157,10 @@ void PlatformProductInfo::initMode() {
         modelName.find("DCS-DL-7700R4C-38PE-B-DC-F") == 0) {
       type_ = PlatformType::PLATFORM_MERU800BIAB;
     } else if (
+        modelName.find("Meru800biac") == 0 ||
+        modelName.find("MERU800BIAC") == 0) {
+      type_ = PlatformType::PLATFORM_MERU800BIAC;
+    } else if (
         modelName.find("Meru800bfa") == 0 ||
         modelName.find("MERU800BFA") == 0 ||
         modelName.find("ASY-57651-102") == 0 ||
@@ -185,7 +189,8 @@ void PlatformProductInfo::initMode() {
     } else if (modelName.find("ICEPACK-TH6") == 0) {
       type_ = PlatformType::PLATFORM_ICECUBE800BC;
     } else if (
-        modelName.find("Glath05a-64o") == 0 || modelName.find("GLATH05A-64O") == 0) {
+        modelName.find("Glath05a-64o") == 0 ||
+        modelName.find("GLATH05A-64O") == 0) {
       type_ = PlatformType::PLATFORM_GLATH05A_64O;
     } else {
       throw FbossError("invalid model name " + modelName);
@@ -223,6 +228,8 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_MERU800BIA;
     } else if (FLAGS_mode == "meru800biab") {
       type_ = PlatformType::PLATFORM_MERU800BIAB;
+    } else if (FLAGS_mode == "meru800biac") {
+      type_ = PlatformType::PLATFORM_MERU800BIAC;
     } else if (FLAGS_mode == "meru800bfa") {
       type_ = PlatformType::PLATFORM_MERU800BFA;
     } else if (FLAGS_mode == "meru800bfa_p1") {
@@ -237,7 +244,7 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_WEDGE400C_VOQ;
     } else if (FLAGS_mode == "wedge400c_fabric") {
       type_ = PlatformType::PLATFORM_WEDGE400C_FABRIC;
-    } else if (FLAGS_mode == "montblanc") {
+    } else if (FLAGS_mode == "montblanc" || FLAGS_mode == "minipack3ba") {
       type_ = PlatformType::PLATFORM_MONTBLANC;
     } else if (FLAGS_mode == "fake_sai") {
       type_ = PlatformType::PLATFORM_FAKE_SAI;
@@ -310,9 +317,15 @@ void PlatformProductInfo::parse(std::string data) {
   if (info.count(kVersion)) {
     productInfo_.version() = info[kVersion].asInt();
   }
-  productInfo_.subVersion() = info[kSubVersion].asInt();
-  productInfo_.productionState() = info[kProductionState].asInt();
-  productInfo_.productVersion() = info[kProdVersion].asInt();
+  if (info.count(kSubVersion)) {
+    productInfo_.subVersion() = info[kSubVersion].asInt();
+  }
+  if (info.count(kProductionState)) {
+    productInfo_.productionState() = info[kProductionState].asInt();
+  }
+  if (info.count(kProdVersion)) {
+    productInfo_.productVersion() = info[kProdVersion].asInt();
+  }
 
   // There are different keys for these values in BMC
   // and BMC-Lite platforms.

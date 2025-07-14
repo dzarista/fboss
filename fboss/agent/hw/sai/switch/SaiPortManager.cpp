@@ -220,6 +220,9 @@ void fillHwPortStats(
       case SAI_PORT_STAT_WRED_DROPPED_PACKETS:
         hwPortStats.wredDroppedPackets_() = value;
         break;
+      case SAI_PORT_STAT_IN_DROPPED_PKTS:
+        hwPortStats.inCongestionDiscards_() = value;
+        break;
       case SAI_PORT_STAT_IF_IN_FEC_CORRECTABLE_FRAMES:
         if (updateFecStats) {
           // SDK provides clear-on-read counter but we store it as a monotonic
@@ -3202,21 +3205,25 @@ void SaiPortManager::incrementPfcCounter(
   auto curPortStats = portStatItr->second->portStats();
 
   // Increment the appropriate counter based on the counter type.
+  auto now = duration_cast<seconds>(system_clock::now().time_since_epoch());
   if (counterType == PfcCounterType::DEADLOCK) {
     if (!curPortStats.pfcDeadlockDetection_().has_value()) {
+      // Make sure the counter is initialized to 0 if it doesn't exist.
       curPortStats.pfcDeadlockDetection_() = 0;
+      portStatItr->second->updateStats(curPortStats, now);
     }
     curPortStats.pfcDeadlockDetection_() =
         *curPortStats.pfcDeadlockDetection_() + 1;
   } else { // PfcCounterType::RECOVERY
     if (!curPortStats.pfcDeadlockRecovery_().has_value()) {
+      // Make sure the counter is initialized to 0 if it doesn't exist.
       curPortStats.pfcDeadlockRecovery_() = 0;
+      portStatItr->second->updateStats(curPortStats, now);
     }
     curPortStats.pfcDeadlockRecovery_() =
         *curPortStats.pfcDeadlockRecovery_() + 1;
   }
 
-  auto now = duration_cast<seconds>(system_clock::now().time_since_epoch());
   portStatItr->second->updateStats(curPortStats, now);
 }
 
