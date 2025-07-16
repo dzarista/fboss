@@ -88,6 +88,7 @@ class SetupFboss:
                 *[os.environ["FBOSS_DATA"], SetupFboss.J2CP, SetupFboss.BDE_CONF]
             )
     ### ARISTA START ###
+        # TODO: Add j3+/j3ai+
         elif [x for x in output if "Broadcom" in x and "8860" in x and "rev 11" in x]:
             self.src_fruid_full_path = os.path.join(
                 *[os.environ["FBOSS_DATA"], SetupFboss.J3B, SetupFboss.FRUID_CONF]

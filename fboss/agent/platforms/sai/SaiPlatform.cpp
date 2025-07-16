@@ -28,13 +28,13 @@
 #include "fboss/agent/platforms/sai/SaiBcmYampPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiElbert8DDPhyPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiFakePlatformPort.h"
+#include "fboss/agent/platforms/sai/SaiGlath05a-64oPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiJanga800bicPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMeru400bfuPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMeru400biaPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMeru400biuPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMeru800bfaPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMeru800biaPlatformPort.h"
-#include "fboss/agent/platforms/sai/SaiGlath05a-64oPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMinipack3NPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiMorgan800ccPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiTahan800bcPlatformPort.h"
@@ -60,11 +60,6 @@ DEFINE_bool(
     enable_delay_drop_congestion_threshold,
     false,
     "Enable new delay drop congestion threshold in CGM");
-
-DEFINE_int32(
-    pfc_watchdog_timer_granularity_msec,
-    10,
-    "PFC watchdog timer granularity which can be 1ms, 10ms or 100ms");
 
 namespace {
 
@@ -312,8 +307,6 @@ void SaiPlatform::initSaiProfileValues() {
   auto vendorProfileValues = getSaiProfileVendorExtensionValues();
   kSaiProfileValues.insert(
       vendorProfileValues.begin(), vendorProfileValues.end());
-  kSaiProfileValues.insert(std::make_pair(
-      "SAI_SDK_LOG_CONFIG_FILE", "/root/res/config/sai_sdk_log_config.json"));
 }
 
 void SaiPlatform::initImpl(uint32_t hwFeaturesDesired) {
@@ -371,7 +364,8 @@ void SaiPlatform::initPorts() {
       saiPort = std::make_unique<SaiMeru400biuPlatformPort>(portId, this);
     } else if (
         platformMode == PlatformType::PLATFORM_MERU800BIA ||
-        platformMode == PlatformType::PLATFORM_MERU800BIAB) {
+        platformMode == PlatformType::PLATFORM_MERU800BIAB ||
+        platformMode == PlatformType::PLATFORM_MERU800BIAC) {
       saiPort = std::make_unique<SaiMeru800biaPlatformPort>(portId, this);
     } else if (platformMode == PlatformType::PLATFORM_MERU400BIA) {
       saiPort = std::make_unique<SaiMeru400biaPlatformPort>(portId, this);
@@ -775,6 +769,48 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
     maxLocalSystemPortId = 184;
     maxSystemPorts = 22136;
     maxVoqs = 65284;
+  } else if (FLAGS_dsf_single_stage_r192_f40_e32) {
+    // Total System Ports in the cluster
+    // =================================
+    //
+    // 1 Global recycle port
+    // 1 Management port
+    // RDSW: 36 x 400G NIF ports. Thus, 1 + 1 + 36 = 38 ports.
+    // EDSW: 18 x 800G NIF ports. Thus, 1 + 1 + 18 = 20 ports.
+    //
+    // 4 CPU (1 per core) + 4 Recycle (1 per core) + 1 eventor +
+    // 160 Fabric link monitoring + 16 hyerports = 185
+    // Thus, Max local system PortID (starting 0) = 184.
+    //
+    // Max System Ports = 185 + (38 x 192) + (20 x 32) = 8121.
+    //
+    // System Port ID assignment
+    // =========================
+    //   Local Ports
+    //   -----------
+    //      [0-3]: CPU ports
+    //      [4-7]: Recycle ports
+    //          8: Eventor port
+    //    [9-168]: 160 Fabric link monitoring ports (in the future)
+    //  [169-184]: 16 Hyper ports (in the future)
+    //
+    //   The above assignment is same for ALL the RDSWs, EDSWs.
+    //
+    //   Global Ports for RDSW 1, base offset 184
+    //   ----------------------------------------
+    //        185: Recycle port for inband
+    //        186: Management port
+    //  [187-222]: One for each of the 36 x 400G NIF ports
+    //
+    //   Global Ports for EDSW 1, base offset 7480
+    //   -----------------------------------------
+    //        7481: Recycle port for inband
+    //        7482: Management port
+    //  [7483-7500: One for each of the 16 x 800G NIF ports
+    maxSystemPortId = 8120;
+    maxLocalSystemPortId = 184;
+    maxSystemPorts = 8121;
+    maxVoqs = 8121 * 8;
   } else {
     maxSystemPortId = 6143;
     maxLocalSystemPortId = -1;
@@ -811,7 +847,8 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
          pri++) {
       sai_map_t mapping{};
       mapping.key = pri;
-      mapping.value = FLAGS_pfc_watchdog_timer_granularity_msec;
+      mapping.value =
+          switchSettings->pfcWatchdogTimerGranularityMsec().value_or(10);
       mapToValueList.at(pri) = mapping;
     }
     pfcWatchdogTimerGranularityMap =
@@ -911,6 +948,8 @@ SaiSwitchTraits::CreateAttributes SaiPlatform::getSwitchAttributes(
       std::nullopt, // tc rate limit list
       pfcWatchdogTimerGranularityMap, // PFC watchdog timer granularity
       std::nullopt, // disable sll and hll timeout
+      std::nullopt, // credit request profile scheduler mode
+      std::nullopt, // module id to credit request profile param list
   };
 }
 

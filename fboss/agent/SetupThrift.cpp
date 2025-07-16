@@ -11,6 +11,8 @@
 #include "fboss/agent/AgentConfig.h"
 #include "fboss/lib/ThriftMethodRateLimit.h"
 
+#include <fb303/ExportType.h>
+#include <fb303/ServiceData.h>
 #include <folly/io/async/EventBase.h>
 #include <gflags/gflags.h>
 #include <thrift/lib/cpp2/async/MultiplexAsyncProcessor.h>
@@ -35,6 +37,11 @@ DEFINE_bool(
     "Whether to prepare hw agent for testing. This includes "
     "1) Enable thrift handler for HW tests, "
     "2) Consume config file created by sw agent with overrides.");
+
+DEFINE_bool(
+    thrift_rate_limit_shadow_mode,
+    true,
+    "Run thrift rate limit in shadow mode");
 
 namespace {
 // The worst performance of programming acceptable route scale is 28s across
@@ -80,7 +87,7 @@ std::unique_ptr<apache::thrift::ThriftServer> setupThriftServer(
   server->setAddresses(addresses);
   server->setIdleTimeout(std::chrono::seconds(FLAGS_thrift_idle_timeout));
 
-  std::map<std::string, int> method2QpsLimit = {};
+  std::map<std::string, double> method2QpsLimit = {};
   try {
     auto config = AgentConfig::fromDefaultFile();
     for (const auto& item : *config->thrift.thriftApiToRateLimitInQps()) {
@@ -92,10 +99,25 @@ std::unique_ptr<apache::thrift::ThriftServer> setupThriftServer(
     XLOG(ERR) << "cannot load thrift rate limit settings from agent config";
   }
   if (!method2QpsLimit.empty()) {
-    auto rateLimiter = std::make_unique<ThriftMethodRateLimit>(method2QpsLimit);
+    auto odsCounterUpdateFunc = [](const std::string& method,
+                                   uint64_t count,
+                                   uint64_t aggCount) {
+      XLOG(DBG2) << "Thrift method " << method << " rate limited " << count
+                 << " times" << ", total number of thrift rate limit deny "
+                 << aggCount;
+      // Update ODS counter for rate-limited thrift methods
+      facebook::fb303::fbData->addStatValue(
+          "thrift.method." + method + ".rate_limited", 1, facebook::fb303::SUM);
+      facebook::fb303::fbData->addStatValue(
+          "thrift.method.aggregate.rate_limited", 1, facebook::fb303::SUM);
+    };
+    auto rateLimiter = std::make_shared<ThriftMethodRateLimit>(
+        method2QpsLimit,
+        FLAGS_thrift_rate_limit_shadow_mode,
+        odsCounterUpdateFunc);
     auto preprocessFunc =
         ThriftMethodRateLimit::getThriftMethodRateLimitPreprocessFunc(
-            std::move(rateLimiter));
+            rateLimiter);
     server->addPreprocessFunc(
         "ThriftMethodRateLimit", std::move(preprocessFunc));
   }

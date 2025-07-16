@@ -5,23 +5,25 @@ from ..BaseConfigs import (
    enumerateFANSlotConfigs,
    FANUnit,
    FANCpld,
+   FanServiceConfig,
    Flash,
    GpioChip,
    I2cDeviceConfig,
    InitRegSettings,
    LedConfig,
    MiscConfig,
+   OpticConfig,
    PciDeviceConfig,
    PlatformConfig,
    PSUUnit,
-   SCMFairywren,
    Sensor,
+   SCMFairywren,
    SensorConfig,
    SensorType,
    SlotConfig,
    SMBUnit,
    SpiMasterConfig,
-   Thresholds
+   Thresholds,
 )
 
 
@@ -46,6 +48,7 @@ class ViperSMB( SMBUnit ):
 
    def __init__( self ):
       super().__init__( self.prefixSymlink )
+      self.fanServiceSensorConfigs = {}
 
       self.setSlotTypeConfig(
          numOutgoingI2cBuses=3,
@@ -66,13 +69,14 @@ class ViperSMB( SMBUnit ):
 
       smbTmp75Front = Sensor( "0x49", "lm75", "SMB_TMP75_FRONT", incomingBusIndex=1,
                               initRegSettings=InitRegSettings( [ ( 3, 95 ) ] ) )
-      smbTmp75Front.addSensorConfigs( [
-         SensorConfig( "BOARD_FRONT_TEMP", "temp1_input", SensorType.TEMP,
-                       compute="@/1000.0",
-                       thresholds=Thresholds(
-                           upperCriticalVal=85.0, maxAlarmVal=80.0
-                       ) )
-      ] )
+
+      smbTmp75Front.addSensorConfigs([ SensorConfig( "BOARD_FRONT_TEMP", 
+                                        "temp1_input", 
+                                        SensorType.TEMP,
+                                        compute="@/1000.0",
+                                        thresholds=Thresholds(
+                                        upperCriticalVal=85.0, maxAlarmVal=80.0 )
+                                       ) ] )
 
       smbTmp75Back = Sensor( "0x4A", "lm75", "SMB_TMP75_REAR",
                              incomingBusIndex=1,
@@ -373,7 +377,6 @@ class Viper( PlatformConfig ):
 
    def __init__( self ):
       super().__init__( self.codename )
-
       self.addPmUnitConfigs( [
          ViperSCM(),
          ViperSMB(),
@@ -394,3 +397,38 @@ class Viper( PlatformConfig ):
 
       for pmConfig in self.pmUnitConfigs:
          pmConfig.populateSymlinkToDevicePaths()
+
+
+      # Fan Service Config
+      fanServiceConfig = FanServiceConfig()
+      # Creates top variables
+      fanServiceConfig.setPwmConfig(  pwmBoostOnNumDeadFan = 1,
+                                       pwmBoostOnNumDeadSensor = 0,
+                                       pwmBoostOnNoQsfpAfterInSec = 0,
+                                       pwmBoostValue = 60,
+                                       pwmTransitionValue = 50,
+                                       pwmLowerThreshold = 30,
+                                       pwmUpperThreshold = 100 )
+      # Handles Optics
+      opticConfig = fanServiceConfig.addOpticConfig( "osfp_group_1", "QSFP" )
+      opticLookupTable = {
+         "5": 43,
+         "69": 56,
+         "70": 73,
+         "71": 100
+      }
+      opticConfig.addTempToPwmMap( 800, opticLookupTable )
+      # Handles sensors
+      sensorLookupTable = {
+        "15": 30,
+        "110": 100
+      }
+      fanServiceConfig.addSensor( "BOARD_FRONT_TEMP", "THRIFT", sensorLookupTable )
+      # Only define zones at the end
+      fanServiceConfig.addZone(
+         zoneName="zone1",
+         sensorNames=[ "BOARD_FRONT_TEMP", "osfp_group_1" ],
+         fanNumbers=range( 1, 5 ),  # Defines fans 1, 2, 3, and 4
+         slope=3
+      )
+      self.PlatformFanServiceConfig = fanServiceConfig

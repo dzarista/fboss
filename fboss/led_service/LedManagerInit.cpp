@@ -4,13 +4,15 @@
 #include "fboss/led_service/DarwinLedManager.h"
 #include "fboss/led_service/ElbertLedManager.h"
 #include "fboss/led_service/FujiLedManager.h"
+#include "fboss/led_service/Glath05a-64oLedManager.h"
+#include "fboss/led_service/Janga800bicLedManager.h"
 #include "fboss/led_service/Meru800bfaLedManager.h"
 #include "fboss/led_service/Meru800biaLedManager.h"
 #include "fboss/led_service/Minipack3NLedManager.h"
-#include "fboss/led_service/Glath05a-64oLedManager.h"
 #include "fboss/led_service/MinipackLedManager.h"
 #include "fboss/led_service/MontblancLedManager.h"
 #include "fboss/led_service/Morgan800ccLedManager.h"
+#include "fboss/led_service/Tahan800bcLedManager.h"
 #include "fboss/led_service/Wedge400LedManager.h"
 #include "fboss/led_service/YampLedManager.h"
 #include "fboss/lib/platforms/PlatformProductInfo.h"
@@ -50,12 +52,17 @@ std::unique_ptr<LedManager> createLedManager() {
     return std::make_unique<Meru800bfaLedManager>();
   } else if (
       mode == PlatformType::PLATFORM_MERU800BIA ||
-      mode == PlatformType::PLATFORM_MERU800BIAB) {
+      mode == PlatformType::PLATFORM_MERU800BIAB ||
+      mode == PlatformType::PLATFORM_MERU800BIAC) {
     return std::make_unique<Meru800biaLedManager>();
   } else if (mode == PlatformType::PLATFORM_MORGAN800CC) {
     return std::make_unique<Morgan800ccLedManager>();
   } else if (mode == PlatformType::PLATFORM_MINIPACK3N) {
     return std::make_unique<Minipack3NLedManager>();
+  } else if (mode == PlatformType::PLATFORM_JANGA800BIC) {
+    return std::make_unique<Janga800bicLedManager>();
+  } else if (mode == PlatformType::PLATFORM_TAHAN800BC) {
+    return std::make_unique<Tahan800bcLedManager>();
   } else if (mode == PlatformType::PLATFORM_GLATH05A_64O) {
     return std::make_unique<Glath05a_64oLedManager>();
   }

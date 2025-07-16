@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Data Viewer (Normalized, Multi-Axis)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        /* Base styles */
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .container {
+            max-width: 1400px; /* Increased max-width for more space */
+            margin-left: auto;
+            margin-right: auto;
+            padding: 1rem 2rem 2rem 2rem;
+        }
+        .file-input-label {
+            display: inline-block;
+            padding: 0.75rem 1.5rem;
+            background-color: #4F46E5; /* Indigo-600 */
+            color: white;
+            border-radius: 0.375rem; /* rounded-md */
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .file-input-label:hover {
+            background-color: #4338CA; /* Indigo-700 */
+        }
+        #fileInput {
+            display: none;
+        }
+        #plotContainer {
+            width: 100%;
+            height: 500px; /* Default height, adjustable */
+            border: 1px solid #e5e7eb; /* gray-200 */
+            border-radius: 0.375rem; /* rounded-md */
+            margin-top: 1.5rem; /* mt-6 */
+            transition: height 0.3s ease-in-out;
+            /* Reverted UI tweak: Removed flex centering */
+        }
+        #messageBox {
+            padding: 1rem;
+            border-radius: 0.375rem; /* rounded-md */
+            margin-top: 1rem;
+            font-weight: 500; /* medium */
+        }
+        .message-error {
+            background-color: #FEE2E2; /* red-100 */
+            color: #B91C1C; /* red-700 */
+            border: 1px solid #FCA5A5; /* red-300 */
+        }
+        .message-success {
+            background-color: #D1FAE5; /* green-100 */
+            color: #065F46; /* green-700 */
+            border: 1px solid #6EE7B7; /* green-300 */
+        }
+        .loader {
+            border: 5px solid #f3f3f3; /* Light grey */
+            border-top: 5px solid #4F46E5; /* Indigo */
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .height-control-input {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #D1D5DB; /* gray-300 */
+            border-radius: 0.375rem; /* rounded-md */
+            width: 80px;
+            margin-left: 0.5rem;
+            margin-right: 0.5rem;
+            text-align: right;
+        }
+        .apply-height-button {
+            padding: 0.5rem 1rem;
+            background-color: #10B981; /* Emerald-500 */
+            color: white;
+            border-radius: 0.375rem; /* rounded-md */
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .apply-height-button:hover {
+            background-color: #059669; /* Emerald-600 */
+        }
+
+        /* Styles for sensor selection elements */
+        #sensorSelectionControls {
+            margin-top: 1.5rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid #e5e7eb;
+        }
+        .sensor-control-input, .sensor-control-select {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #D1D5DB;
+            border-radius: 0.375rem;
+            width: 100%; /* Full width within its container */
+        }
+        /* Adjusted width for sensor lists to allow side-by-side */
+        .sensor-list-wrapper {
+            flex: 1; /* Allows it to grow and shrink */
+            min-width: 280px; /* Minimum width to prevent squishing */
+            max-width: 45%; /* Limits max width for two columns */
+        }
+        #sensorMultiSelect, #plottedSensorList {
+            min-height: 150px; /* Reverted height for better visibility of options */
+            overflow-y: auto;
+            background-color: white;
+            border: 1px solid #D1D5DB;
+            border-radius: 0.375rem;
+            width: 100%; /* Ensure select fills its container */
+        }
+        #sensorMultiSelect option, #plottedSensorList option {
+            padding: 0.3rem 0.5rem; /* Reverted padding for easier clicking */
+            cursor: pointer;
+        }
+        #sensorMultiSelect option:hover, #plottedSensorList option:hover {
+            background-color: #e0e7ff; /* Indigo-100 */
+        }
+        #sensorMultiSelect option:checked, #plottedSensorList option:checked {
+            background-color: #c7d2fe; /* Indigo-200 */
+            color: #3730a3; /* Indigo-800 */
+        }
+        .action-button {
+            padding: 0.5rem 1.5rem;
+            background-color: #4F46E5; /* Indigo-600 */
+            color: white;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 0.5rem; /* Space between buttons */
+        }
+        .action-button:hover {
+            background-color: #4338CA; /* Indigo-700 */
+        }
+        .clear-button {
+            padding: 0.5rem 1.5rem;
+            background-color: #EF4444; /* Red-500 */
+            color: white;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-top: 0.5rem; /* Space from other buttons */
+        }
+        .clear-button:hover {
+            background-color: #DC2626; /* Red-600 */
+        }
+        .control-buttons-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* Center buttons vertically */
+            gap: 1rem; /* Space between buttons */
+            margin: 0 1rem; /* Horizontal spacing for buttons between lists */
+        }
+
+        /* Multi-file specific styles */
+        .file-instance {
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            margin-bottom: 1.5rem;
+            overflow: hidden;
+        }
+        .file-header {
+            background: #f8fafc;
+            border-bottom: 1px solid #e2e8f0;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            cursor: pointer;
+        }
+        .file-header:hover {
+            background: #f1f5f9;
+        }
+        .file-title {
+            font-weight: 600;
+            color: #374151;
+            flex-grow: 1;
+        }
+        .file-controls {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .collapse-button {
+            background: none;
+            border: none;
+            color: #6b7280;
+            cursor: pointer;
+            padding: 0.25rem;
+            border-radius: 0.25rem;
+            transition: background-color 0.2s;
+        }
+        .collapse-button:hover {
+            background: #e5e7eb;
+        }
+        .remove-file-button {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 0.375rem 0.75rem;
+            border-radius: 0.375rem;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .remove-file-button:hover {
+            background: #dc2626;
+        }
+        .file-content {
+            padding: 1.5rem;
+        }
+        .file-content.collapsed {
+            display: none;
+        }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="mb-6 text-center">
+             <h1 class="text-3xl md:text-4xl font-bold text-gray-800">Multi-File ODS Data Viewer</h1>
+            <p class="text-gray-600 mt-2">Upload multiple ODS CSV files to visualize normalized time-series data with separate plotting windows.</p>
+        </header>
+
+        <!-- Main file upload section -->
+        <div class="bg-white p-6 rounded-lg shadow-lg mb-6">
+            <div class="flex flex-wrap items-center gap-4 justify-center">
+                <div>
+                    <label for="fileInput" class="file-input-label">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-2 align-middle" viewBox="0 0 20 20" fill="currentColor">
+                            <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                        </svg>
+                        Add CSV File
+                    </label>
+                    <input type="file" id="fileInput" accept=".csv" multiple>
+                    <span id="fileName" class="ml-3 text-gray-500">No files chosen</span>
+                </div>
+                <div class="text-sm text-gray-600">
+                    <p>Select one or more CSV files to create separate plotting windows</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Container for all file instances -->
+        <div id="filesContainer">
+            <!-- File instances will be dynamically created here -->
+        </div>
+
+        <footer class="text-center mt-8 text-sm text-gray-500">
+            <p>Based on ODS data format (no headers): sensor_name::sensor_id, value, timestamp, other_id</p>
+            <p>Note: Data is normalized (0-1 scale) for each sensor independently.</p>
+        </footer>
+    </div>
+
+    <script>
+        // Multi-file management system
+        let fileInstances = new Map(); // Stores all file instances with unique IDs
+        let fileIdCounter = 0; // Counter for generating unique file IDs
+
+        // File instance structure:
+        // {
+        //   id: string,
+        //   file: File,
+        //   worker: Worker,
+        //   allAvailableSensorNames: string[],
+        //   sensorsCurrentlyPlotted: Set<string>,
+        //   elements: {
+        //     container: HTMLElement,
+        //     plotContainer: HTMLElement,
+        //     messageBox: HTMLElement,
+        //     loader: HTMLElement,
+        //     sensorSelectionControls: HTMLElement,
+        //     sensorSearchInput: HTMLElement,
+        //     sensorMultiSelect: HTMLElement,
+        //     plottedSensorList: HTMLElement,
+        //     addSensorButton: HTMLElement,
+        //     removeSensorButton: HTMLElement,
+        //     clearPlotButton: HTMLElement,
+        //     plotHeightInput: HTMLElement,
+        //     applyHeightButton: HTMLElement,
+        //     removeFileButton: HTMLElement
+        //   }
+        // }
+
+        // Main file input for adding new files
+        const mainFileInput = document.getElementById('fileInput');
+        const mainFileNameDisplay = document.getElementById('fileName');
+        const filesContainer = document.getElementById('filesContainer');
+
+        // --- Event Listeners ---
+        mainFileInput.addEventListener('change', handleMultipleFileUpload);
+
+        // --- Multi-File Management Functions ---
+        function generateFileId() {
+            return `file_${++fileIdCounter}`;
+        }
+
+        function handleMultipleFileUpload(event) {
+            const files = Array.from(event.target.files);
+            if (files.length === 0) {
+                mainFileNameDisplay.textContent = 'No files chosen';
+                return;
+            }
+
+            mainFileNameDisplay.textContent = `${files.length} file(s) selected`;
+
+            files.forEach(file => {
+                if (file.name.toLowerCase().endsWith('.csv')) {
+                    createFileInstance(file);
+                } else {
+                    console.warn(`Skipping non-CSV file: ${file.name}`);
+                }
+            });
+
+            // Clear the file input to allow re-uploading the same files
+            mainFileInput.value = '';
+        }
+
+        function createFileInstance(file) {
+            const fileId = generateFileId();
+            const instance = {
+                id: fileId,
+                file: file,
+                worker: null,
+                allAvailableSensorNames: [],
+                sensorsCurrentlyPlotted: new Set(),
+                elements: {}
+            };
+
+            // Create the HTML structure for this file instance
+            const container = createFileInstanceHTML(fileId, file.name);
+            filesContainer.appendChild(container);
+
+            // Get references to all the elements
+            instance.elements = {
+                container: container,
+                plotContainer: container.querySelector('.plot-container'),
+                messageBox: container.querySelector('.message-box'),
+                loader: container.querySelector('.loader'),
+                sensorSelectionControls: container.querySelector('.sensor-selection-controls'),
+                sensorSearchInput: container.querySelector('.sensor-search-input'),
+                sensorMultiSelect: container.querySelector('.sensor-multi-select'),
+                plottedSensorList: container.querySelector('.plotted-sensor-list'),
+                addSensorButton: container.querySelector('.add-sensor-button'),
+                removeSensorButton: container.querySelector('.remove-sensor-button'),
+                clearPlotButton: container.querySelector('.clear-plot-button'),
+                plotHeightInput: container.querySelector('.plot-height-input'),
+                applyHeightButton: container.querySelector('.apply-height-button'),
+                removeFileButton: container.querySelector('.remove-file-button'),
+                collapseButton: container.querySelector('.collapse-button'),
+                fileContent: container.querySelector('.file-content')
+            };
+
+            // Set up event listeners for this instance
+            setupFileInstanceEventListeners(instance);
+
+            // Initialize worker and start processing
+            initializeFileInstanceWorker(instance);
+
+            // Store the instance
+            fileInstances.set(fileId, instance);
+
+            // Start processing the file
+            showFileInstanceLoader(instance);
+            instance.worker.postMessage({ type: 'loadFile', payload: { file: file } });
+        }
+
+        function createFileInstanceHTML(fileId, fileName) {
+            const container = document.createElement('div');
+            container.className = 'file-instance';
+            container.id = fileId;
+
+            container.innerHTML = `
+                <div class="file-header">
+                    <div class="file-title">${fileName}</div>
+                    <div class="file-controls">
+                        <button class="collapse-button" title="Collapse/Expand">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        <button class="remove-file-button" title="Remove File">Remove</button>
+                    </div>
+                </div>
+                <div class="file-content">
+                    <div class="mb-4 flex items-center justify-end">
+                        <label class="text-sm font-medium text-gray-700 mr-2">Chart Height (px):</label>
+                        <input type="number" class="plot-height-input height-control-input" value="500" min="200" max="2000" step="50">
+                        <button class="apply-height-button">Apply Height</button>
+                    </div>
+
+                    <!-- Sensor Selection Controls -->
+                    <div class="sensor-selection-controls hidden flex flex-col md:flex-row items-start md:items-center gap-4 mb-4 justify-center" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #e5e7eb;">
+                        <!-- Available Sensors List -->
+                        <div class="w-full sensor-list-wrapper">
+                            <label class="text-sm font-medium text-gray-700 block mb-1">Search Available Sensors:</label>
+                            <input type="text" class="sensor-search-input sensor-control-input mb-2" placeholder="Type to search...">
+                            <select class="sensor-multi-select sensor-control-select" multiple>
+                                <!-- Options populated by JavaScript after file upload -->
+                            </select>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="control-buttons-group">
+                            <button class="add-sensor-button action-button">
+                                Add Sensor &rarr;
+                            </button>
+                            <button class="remove-sensor-button action-button">
+                                &larr; Remove Sensor
+                            </button>
+                            <button class="clear-plot-button clear-button">Clear All</button>
+                        </div>
+
+                        <!-- Sensors to Plot List -->
+                        <div class="w-full sensor-list-wrapper">
+                            <label class="text-sm font-medium text-gray-700 block mb-1">Sensors Currently Plotted:</label>
+                            <select class="plotted-sensor-list sensor-control-select" multiple>
+                                <!-- Options populated by JavaScript -->
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="message-box hidden"></div>
+                    <div class="loader hidden" style="border: 5px solid #f3f3f3; border-top: 5px solid #4F46E5; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto;"></div>
+
+                    <div class="plot-container bg-gray-50 rounded-md" style="width: 100%; height: 500px; border: 1px solid #e5e7eb; margin-top: 1.5rem; transition: height 0.3s ease-in-out;">
+                        <div class="flex items-center justify-center h-full text-gray-400">
+                            <p>Chart will appear here once the CSV is processed and sensors are selected.</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            return container;
+        }
+
+        function setupFileInstanceEventListeners(instance) {
+            const elements = instance.elements;
+
+            // Height control
+            elements.applyHeightButton.addEventListener('click', () => updateFileInstancePlotHeight(instance));
+
+            // Sensor controls
+            elements.addSensorButton.addEventListener('click', () => addSelectedSensorsToFileInstancePlot(instance));
+            elements.removeSensorButton.addEventListener('click', () => removeSelectedPlottedSensorsFromFileInstance(instance));
+            elements.sensorSearchInput.addEventListener('input', () => filterFileInstanceSensorOptions(instance));
+            elements.clearPlotButton.addEventListener('click', () => clearFileInstancePlot(instance));
+
+            // File controls
+            elements.removeFileButton.addEventListener('click', () => removeFileInstance(instance.id));
+            elements.collapseButton.addEventListener('click', () => toggleFileInstanceCollapse(instance));
+
+            // Set initial plot height
+            elements.plotContainer.style.height = `${elements.plotHeightInput.value}px`;
+        }
+
+        function initializeFileInstanceWorker(instance) {
+            // Create a Blob URL for the inline Web Worker code (same as before)
+            const workerCode = `
+                // Import PapaParse library within the worker scope
+                importScripts('https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js');
+
+                let workerFile = null; // Stores the File object passed from the main thread
+
+                /**
+                 * Normalizes an array of numbers to a 0-1 scale using Min-Max scaling.
+                 */
+                function normalizeMinMax(values) {
+                    if (!values || values.length === 0) {
+                        return [];
+                    }
+                    const numericValues = values.filter(v => typeof v === 'number' && !isNaN(v));
+                    if (numericValues.length === 0) {
+                         return values.map(() => 0.5);
+                    }
+
+                    const min = Math.min(...numericValues);
+                    const max = Math.max(...numericValues);
+                    const range = max - min;
+
+                    if (range === 0) {
+                        return values.map(() => 0.5);
+                    }
+
+                    return values.map(value =>
+                        (typeof value === 'number' && !isNaN(value)) ? (value - min) / range : NaN
+                    );
+                }
+
+                onmessage = function(e) {
+                    const { type, payload } = e.data;
+
+                    try {
+                        switch (type) {
+                            case 'loadFile':
+                                workerFile = payload.file;
+                                scanFileForSensors(workerFile);
+                                break;
+                            case 'processAndPlot':
+                                if (workerFile) {
+                                    processDataForPlotting(workerFile, payload.selectedSensors);
+                                } else {
+                                    postMessage({ type: 'error', message: 'No file loaded in worker. Please upload a file first.' });
+                                }
+                                break;
+                            case 'clearFile':
+                                workerFile = null;
+                                break;
+                            default:
+                                postMessage({ type: 'error', message: 'Unknown message type: ' + type });
+                        }
+                    } catch (error) {
+                        postMessage({ type: 'error', message: \`Worker process error: \${error.message}\` });
+                    }
+                };
+
+                function scanFileForSensors(file) {
+                    const uniqueSensorNames = new Set();
+                    Papa.parse(file, {
+                        header: false,
+                        skipEmptyLines: true,
+                        step: function(row) {
+                            if (row.data.length < 1) return;
+                            const originalFullName = String(row.data[0]).trim();
+                            const parts = originalFullName.split('::');
+                            const extractedSensorName = parts.length > 1 ? parts[1] : originalFullName;
+                            if (extractedSensorName) {
+                                uniqueSensorNames.add(extractedSensorName);
+                            }
+                        },
+                        complete: function() {
+                            postMessage({ type: 'sensorList', sensors: Array.from(uniqueSensorNames).sort() });
+                        },
+                        error: function(error) {
+                            postMessage({ type: 'error', message: 'Error parsing CSV in worker (scan): ' + error.message });
+                        }
+                    });
+                }
+
+                function processDataForPlotting(file, selectedSensors) {
+                    const sensorData = {};
+                    const selectedSensorSet = new Set(selectedSensors);
+
+                    Papa.parse(file, {
+                        header: false,
+                        skipEmptyLines: true,
+                        step: function(row) {
+                            if (row.data.length < 3) return;
+
+                            const originalFullName = String(row.data[0]).trim();
+                            const valueStr = String(row.data[1]).trim();
+                            const timestampStr = String(row.data[2]).trim();
+
+                            const parts = originalFullName.split('::');
+                            const extractedSensorName = parts.length > 1 ? parts[1] : originalFullName;
+
+                            if (!selectedSensorSet.has(extractedSensorName)) {
+                                return;
+                            }
+
+                            const value = parseFloat(valueStr);
+                            if (isNaN(value)) {
+                                return;
+                            }
+
+                            let timestamp = new Date(timestampStr);
+                            if (!isNaN(timestampStr) && !timestampStr.includes('-') && !timestampStr.includes('/') && !timestampStr.includes(':')) {
+                                if (timestampStr.length >= 10 && timestampStr.length < 13) {
+                                     timestamp = new Date(parseFloat(timestampStr) * 1000);
+                                } else {
+                                     timestamp = new Date(parseFloat(timestampStr));
+                                }
+                            }
+                            if (isNaN(timestamp.getTime())) {
+                                return;
+                            }
+
+                            if (!sensorData[extractedSensorName]) {
+                                sensorData[extractedSensorName] = {
+                                    points: [],
+                                    name: extractedSensorName,
+                                };
+                            }
+                            sensorData[extractedSensorName].points.push({
+                                x: timestamp,
+                                y: value,
+                                fullName: originalFullName
+                            });
+                        },
+                        complete: function() {
+                            const traces = [];
+                            const layoutUpdate = {
+                                yaxis: {
+                                    title: 'Normalized Value (0-1)',
+                                    range: [0, 1],
+                                },
+                                margin: { l: 70, r: 30, b: 100, t: 50 }
+                            };
+                            let yAxisCount = 0;
+
+                            Object.values(sensorData).forEach((dataForSensor, index) => {
+                                dataForSensor.points.sort((a, b) => a.x - b.x);
+
+                                const timestamps = dataForSensor.points.map(p => p.x);
+                                const originalValues = dataForSensor.points.map(p => p.y);
+                                const normalizedValues = normalizeMinMax(originalValues);
+
+                                yAxisCount++;
+                                const yAxisId = \`y\${yAxisCount}\`;
+
+                                const trace = {
+                                    x: timestamps,
+                                    y: normalizedValues,
+                                    customdata: dataForSensor.points.map(p => ({ fullName: p.fullName, originalValue: p.y })),
+                                    mode: 'lines+markers',
+                                    name: dataForSensor.name,
+                                    type: 'scatter',
+                                    yaxis: yAxisId,
+                                    hovertemplate: \`<b>%{customdata.fullName}</b><br>\` +
+                                                   \`Time: %{x|%Y-%m-%d %H:%M:%S}<br>\` +
+                                                   \`Original Value: %{customdata.originalValue:.3f}<extra></extra>\`
+                                };
+                                traces.push(trace);
+
+                                layoutUpdate[\`yaxis\${yAxisCount}\`] = {
+                                     title: {
+                                         text: dataForSensor.name,
+                                         standoff: 5
+                                     },
+                                     range: [0, 1],
+                                     overlaying: 'y',
+                                     side: yAxisCount % 2 === 1 ? 'right' : 'left',
+                                     showgrid: false,
+                                     zeroline: false,
+                                     automargin: true,
+                                };
+                            });
+
+                            const finalLayout = {
+                                xaxis: {
+                                    title: 'Timestamp',
+                                    type: 'date',
+                                    tickformat: '%Y-%m-%d %H:%M:%S',
+                                    rangeselector: {
+                                        buttons: [
+                                            {count: 1, label: '1h', step: 'hour', stepmode: 'backward'},
+                                            {count: 6, label: '6h', step: 'hour', stepmode: 'backward'},
+                                            {count: 1, label: '1d', step: 'day', stepmode: 'backward'},
+                                            {count: 7, label: '7d', step: 'day', stepmode: 'backward'},
+                                            {count: 1, label: '1m', step: 'month', stepmode: 'backward'},
+                                            {count: 6, label: '6m', step: 'month', stepmode: 'backward'},
+                                            {count: 1, label: 'YTD', step: 'year', stepmode: 'todate'},
+                                            {count: 1, label: '1y', step: 'year', stepmode: 'backward'},
+                                            {step: 'all'}
+                                        ]
+                                    },
+                                    rangeslider: {visible: true},
+                                    domain: [0, 1]
+                                },
+                                legend: {
+                                    orientation: 'h',
+                                    yanchor: 'bottom', y: 1.02,
+                                    xanchor: 'right', x: 1
+                                },
+                                hovermode: 'closest',
+                                ...layoutUpdate
+                            };
+
+                            if (traces.length === 0) {
+                                postMessage({ type: 'error', message: 'No valid data found to plot for the selected sensors.' });
+                            } else {
+                                postMessage({ type: 'plotData', traces: traces, layout: finalLayout });
+                            }
+                        },
+                        error: function(error) {
+                            postMessage({ type: 'error', message: 'Error parsing CSV in worker (plot): ' + error.message });
+                        }
+                    });
+                }
+            `;
+
+            // Create the worker from the Blob URL
+            const blob = new Blob([workerCode], { type: 'application/javascript' });
+            instance.worker = new Worker(URL.createObjectURL(blob));
+
+            // Set up message handling for this worker
+            instance.worker.onmessage = function(e) {
+                handleFileInstanceWorkerMessage(instance, e.data);
+            };
+
+            instance.worker.onerror = function(error) {
+                hideFileInstanceLoader(instance);
+                showFileInstanceMessage(instance, `Worker Critical Error: ${error.message}`, 'error');
+                console.error('Worker Critical Error:', error);
+            };
+        }
+
+        function handleFileInstanceWorkerMessage(instance, data) {
+            const { type, message, sensors, traces, layout } = data;
+            hideFileInstanceLoader(instance);
+
+            switch (type) {
+                case 'sensorList':
+                    instance.allAvailableSensorNames = sensors;
+                    populateFileInstanceAvailableSensorSelect(instance, sensors);
+                    showFileInstanceMessage(instance, 'CSV file scanned. Use "Add Sensor" to select sensors for plotting.', 'success');
+                    instance.elements.sensorSelectionControls.classList.remove('hidden');
+                    break;
+                case 'plotData':
+                    if (traces && traces.length > 0) {
+                        Plotly.purge(instance.elements.plotContainer);
+                        Plotly.newPlot(instance.elements.plotContainer, traces, layout, { responsive: true });
+                        showFileInstanceMessage(instance, 'Normalized data plotted successfully!', 'success');
+                    } else {
+                        showFileInstanceMessage(instance, 'No data to plot for the selected sensors.', 'error');
+                        instance.elements.plotContainer.innerHTML = `<div class="flex items-center justify-center h-full text-gray-400"><p>No data to display.</p></div>`;
+                    }
+                    break;
+                case 'error':
+                    showFileInstanceMessage(instance, `Worker Error: ${message}`, 'error');
+                    console.error('Worker Error:', message);
+                    instance.elements.plotContainer.innerHTML = `<div class="flex items-center justify-center h-full text-gray-400"><p>Error displaying chart: ${message}</p></div>`;
+                    break;
+            }
+        }
+
+        // File instance UI utility functions
+        function showFileInstanceMessage(instance, message, type = 'error') {
+            const messageBox = instance.elements.messageBox;
+            messageBox.textContent = message;
+            messageBox.className = `p-4 rounded-md mt-4 font-medium ${type === 'error' ? 'message-error' : 'message-success'}`;
+            messageBox.classList.remove('hidden');
+        }
+
+        function hideFileInstanceMessage(instance) {
+            instance.elements.messageBox.classList.add('hidden');
+        }
+
+        function showFileInstanceLoader(instance) {
+            instance.elements.loader.classList.remove('hidden');
+            Plotly.purge(instance.elements.plotContainer);
+            instance.elements.plotContainer.innerHTML = `<div class="flex items-center justify-center h-full text-gray-400"><p>Processing data...</p></div>`;
+            hideFileInstanceMessage(instance);
+        }
+
+        function hideFileInstanceLoader(instance) {
+            instance.elements.loader.classList.add('hidden');
+        }
+
+        function updateFileInstancePlotHeight(instance) {
+            const newHeight = parseInt(instance.elements.plotHeightInput.value, 10);
+            if (newHeight >= 200 && newHeight <= 2000) {
+                instance.elements.plotContainer.style.height = `${newHeight}px`;
+                if (instance.elements.plotContainer.data) {
+                    Plotly.Plots.resize(instance.elements.plotContainer);
+                }
+                showFileInstanceMessage(instance, `Plot height set to ${newHeight}px.`, 'success');
+            } else {
+                showFileInstanceMessage(instance, 'Please enter a height between 200 and 2000 pixels.', 'error');
+            }
+        }
+
+        function populateFileInstanceAvailableSensorSelect(instance, sensorNames) {
+            const select = instance.elements.sensorMultiSelect;
+            select.innerHTML = '';
+            if (sensorNames.length === 0) {
+                const option = document.createElement('option');
+                option.textContent = "No sensors found";
+                option.disabled = true;
+                select.appendChild(option);
+                instance.elements.addSensorButton.disabled = true;
+                instance.elements.removeSensorButton.disabled = true;
+                return;
+            }
+
+            sensorNames.forEach(name => {
+                const option = document.createElement('option');
+                option.value = name;
+                option.textContent = name;
+                select.appendChild(option);
+            });
+            instance.elements.addSensorButton.disabled = false;
+            instance.elements.removeSensorButton.disabled = false;
+        }
+
+        function filterFileInstanceSensorOptions(instance) {
+            const searchTerm = instance.elements.sensorSearchInput.value.toLowerCase();
+            const filteredSensors = instance.allAvailableSensorNames.filter(name =>
+                name.toLowerCase().includes(searchTerm)
+            );
+            populateFileInstanceAvailableSensorSelect(instance, filteredSensors);
+        }
+
+        function renderFileInstancePlottedSensorList(instance) {
+            const select = instance.elements.plottedSensorList;
+            select.innerHTML = '';
+            if (instance.sensorsCurrentlyPlotted.size === 0) {
+                const option = document.createElement('option');
+                option.textContent = "No sensors added yet";
+                option.disabled = true;
+                select.appendChild(option);
+            } else {
+                Array.from(instance.sensorsCurrentlyPlotted).sort().forEach(name => {
+                    const option = document.createElement('option');
+                    option.value = name;
+                    option.textContent = name;
+                    select.appendChild(option);
+                });
+            }
+        }
+
+        function addSelectedSensorsToFileInstancePlot(instance) {
+            const selectedFromAvailable = Array.from(instance.elements.sensorMultiSelect.selectedOptions).map(option => option.value);
+
+            if (selectedFromAvailable.length === 0) {
+                showFileInstanceMessage(instance, 'Please select at least one sensor from the "Available Sensors" list to add.', 'error');
+                return;
+            }
+
+            selectedFromAvailable.forEach(sensorName => instance.sensorsCurrentlyPlotted.add(sensorName));
+
+            renderFileInstancePlottedSensorList(instance);
+            requestFileInstancePlotData(instance, Array.from(instance.sensorsCurrentlyPlotted));
+        }
+
+        function removeSelectedPlottedSensorsFromFileInstance(instance) {
+            const selectedToRemove = Array.from(instance.elements.plottedSensorList.selectedOptions).map(option => option.value);
+
+            if (selectedToRemove.length === 0) {
+                showFileInstanceMessage(instance, 'Please select at least one sensor from the "Sensors Currently Plotted" list to remove.', 'error');
+                return;
+            }
+
+            selectedToRemove.forEach(sensorName => instance.sensorsCurrentlyPlotted.delete(sensorName));
+
+            renderFileInstancePlottedSensorList(instance);
+            if (instance.sensorsCurrentlyPlotted.size > 0) {
+                requestFileInstancePlotData(instance, Array.from(instance.sensorsCurrentlyPlotted));
+            } else {
+                Plotly.purge(instance.elements.plotContainer);
+                instance.elements.plotContainer.innerHTML = `<div class="flex items-center justify-center h-full text-gray-400"><p>Chart will appear here once the CSV is processed and sensors are selected.</p></div>`;
+                showFileInstanceMessage(instance, 'All sensors removed. Chart cleared.', 'success');
+            }
+        }
+
+        function requestFileInstancePlotData(instance, selectedSensorNames) {
+            if (!instance.file) {
+                showFileInstanceMessage(instance, 'File not available.', 'error');
+                return;
+            }
+            if (selectedSensorNames.length === 0) {
+                return;
+            }
+
+            showFileInstanceLoader(instance);
+            instance.worker.postMessage({ type: 'processAndPlot', payload: { selectedSensors: selectedSensorNames } });
+        }
+
+        function clearFileInstancePlot(instance) {
+            Plotly.purge(instance.elements.plotContainer);
+            instance.elements.plotContainer.innerHTML = `<div class="flex items-center justify-center h-full text-gray-400"><p>Chart will appear here once the CSV is processed and sensors are selected.</p></div>`;
+            hideFileInstanceMessage(instance);
+            instance.elements.sensorMultiSelect.innerHTML = '';
+            instance.elements.plottedSensorList.innerHTML = '';
+            instance.sensorsCurrentlyPlotted.clear();
+            renderFileInstancePlottedSensorList(instance);
+            instance.elements.sensorSearchInput.value = '';
+            instance.elements.sensorSelectionControls.classList.add('hidden');
+            instance.worker.postMessage({ type: 'clearFile' });
+        }
+
+        function removeFileInstance(fileId) {
+            const instance = fileInstances.get(fileId);
+            if (!instance) return;
+
+            // Terminate the worker
+            if (instance.worker) {
+                instance.worker.terminate();
+            }
+
+            // Remove the DOM element
+            instance.elements.container.remove();
+
+            // Remove from the map
+            fileInstances.delete(fileId);
+        }
+
+        function toggleFileInstanceCollapse(instance) {
+            const content = instance.elements.fileContent;
+            const button = instance.elements.collapseButton;
+            const svg = button.querySelector('svg');
+
+            if (content.classList.contains('collapsed')) {
+                content.classList.remove('collapsed');
+                svg.style.transform = 'rotate(0deg)';
+            } else {
+                content.classList.add('collapsed');
+                svg.style.transform = 'rotate(-90deg)';
+            }
+        }
+
+        // Make charts responsive on window resize
+        window.addEventListener('resize', () => {
+            fileInstances.forEach(instance => {
+                if (instance.elements.plotContainer.data) {
+                    Plotly.Plots.resize(instance.elements.plotContainer);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

@@ -282,8 +282,8 @@ void printPsuInfo() {
   std::vector<std::pair<std::string, std::string>> psuI2cBusNums =
       getPsuI2cBuses();
   for (const auto &psuBus : psuI2cBusNums) {
-    std::cout << "POWER SUPPLY SLOT " << psuBus.first << " DETAILS"
-              << std::endl;
+    printSubHeader("POWER SUPPLY SLOT " + psuBus.first + " DETAILS");
+
     std::string device = "/dev/i2c-" + psuBus.second;
     const char *i2cDevice = device.c_str();
     int chipAddr = 0x58;

@@ -341,6 +341,13 @@ add_fbthrift_cpp_library(
     switch_config_cpp2
 )
 add_fbthrift_cpp_library(
+  agent_info_cpp2
+  fboss/agent/agent_info.thrift
+  OPTIONS
+    json
+    reflection
+)
+add_fbthrift_cpp_library(
   platform_config_cpp2
   fboss/agent/platform_config.thrift
   OPTIONS
@@ -697,6 +704,12 @@ add_fbthrift_cpp_library(
     reflection
 )
 add_fbthrift_cpp_library(
+  highfreq_cpp2
+  fboss/agent/if/highfreq.thrift
+  OPTIONS
+    json
+)
+add_fbthrift_cpp_library(
   agent_stats_cpp2
   fboss/agent/agent_stats.thrift
   OPTIONS
@@ -800,6 +813,7 @@ add_fbthrift_cpp_library(
     FbossHwCtrl
   DEPENDS
     ctrl_cpp2
+    highfreq_cpp2
     switch_state_cpp2
 )
 
@@ -994,6 +1008,7 @@ add_dependencies(fboss_platform_services
   weutil_hw_test
   platform_manager_hw_test
   cross_config_validator_test
+  fw_util_hw_test
 )
 
 add_custom_target(qsfp_targets)

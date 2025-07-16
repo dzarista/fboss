@@ -4044,7 +4044,7 @@
       },
       {
         "logicalID": 308,
-        "state": 1,
+        "state": 2,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
         "parserType": 1,
@@ -4064,7 +4064,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "eth1/59/1"
         },
         "lookupClasses": [
           
@@ -4080,7 +4080,7 @@
       },
       {
         "logicalID": 312,
-        "state": 1,
+        "state": 2,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
         "parserType": 1,
@@ -4100,7 +4100,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "eth1/59/5"
         },
         "lookupClasses": [
           
@@ -4116,7 +4116,7 @@
       },
       {
         "logicalID": 319,
-        "state": 1,
+        "state": 2,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
         "parserType": 1,
@@ -4136,7 +4136,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "eth1/58/1"
         },
         "lookupClasses": [
           
@@ -4152,7 +4152,7 @@
       },
       {
         "logicalID": 323,
-        "state": 1,
+        "state": 2,
         "minFrameSize": 64,
         "maxFrameSize": 9412,
         "parserType": 1,
@@ -4172,7 +4172,7 @@
         "sFlowEgressRate": 0,
         "loopbackMode": 0,
         "expectedLLDPValues": {
-          
+          "2": "eth1/58/5"
         },
         "lookupClasses": [
           
@@ -8436,25 +8436,20 @@
       {
         "id": 9,
         "streamType": 1,
-        "weight": 4,
-        "scheduling": 0,
+        "scheduling": 1,
         "name": "cpuQueue-high"
       },
       {
         "id": 2,
         "streamType": 1,
-        "weight": 2,
-        "scheduling": 0,
+        "scheduling": 1,
         "name": "cpuQueue-mid"
       },
       {
         "id": 1,
         "streamType": 1,
-        "weight": 1,
-        "reservedBytes": 1040,
-        "scheduling": 0,
+        "scheduling": 1,
         "name": "cpuQueue-default",
-        "sharedBytes": 10192,
         "portQueueRate": {
           "pktsPerSec": {
             "minimum": 0,
@@ -8465,11 +8460,8 @@
       {
         "id": 0,
         "streamType": 1,
-        "weight": 1,
-        "reservedBytes": 1040,
-        "scheduling": 0,
+        "scheduling": 1,
         "name": "cpuQueue-low",
-        "sharedBytes": 10192,
         "portQueueRate": {
           "pktsPerSec": {
             "minimum": 0,
@@ -8840,5 +8832,8 @@
         }
       }
     }
+  },
+  "thriftApiToRateLimitInQps": {
+    
   }
 }

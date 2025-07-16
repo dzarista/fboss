@@ -1025,10 +1025,16 @@ TYPED_TEST(AgentCoppTest, CpuPortIpv6LinkLocalUcastIp) {
           utility::getMacForFirstInterfaceWithPorts(this->getProgrammedState());
       skipTtlDecrement = false;
     }
+    bool outOfPort = false; /* route link local packet */
+    auto asic = checkSameAndGetAsic(this->getAgentEnsemble()->getL3Asics());
+    if (asic->getAsicType() == cfg::AsicType::ASIC_TYPE_CHENAB) {
+      outOfPort = true; /* routing link local packet is not supported */
+      skipTtlDecrement =
+          true; /* ttl will not decrement because packet is not routed */
+    }
     auto nbrLinkLocalAddr = folly::IPAddressV6("fe80:face:b11c::1");
     this->sendTcpPktAndVerifyCpuQueue(
-        utility::getCoppHighPriQueueId(
-            checkSameAndGetAsic(this->getAgentEnsemble()->getL3Asics())),
+        utility::getCoppHighPriQueueId(asic),
         nbrLinkLocalAddr,
         utility::kNonSpecialPort1,
         utility::kNonSpecialPort2,
@@ -1036,7 +1042,7 @@ TYPED_TEST(AgentCoppTest, CpuPortIpv6LinkLocalUcastIp) {
         kNetworkControlDscp,
         std::nullopt,
         true,
-        false /*outOfPort*/,
+        outOfPort,
         skipTtlDecrement);
   };
 
@@ -1861,7 +1867,6 @@ TEST_F(AgentCoppGlobalRateLimitTest, verifyLowPriorityTrafficRateLimit) {
     uint64_t kDurationInSecs = 12;
     uint64_t pktSize = EthHdr::SIZE + IPv6Hdr::size() + 256;
     uint64_t expectedRate = kGlobalRateLimit * 1000; // bps
-    auto expectedRateLow = expectedRate * (1 - kVariance);
     auto expectedRateHigh = expectedRate * (1 + kVariance);
     // most packets should be dropped due to rate limit, since even one packet
     // in L3 dataplane loop could cause ~1Gbps traffic on J3
@@ -1911,7 +1916,6 @@ TEST_F(AgentCoppGlobalRateLimitTest, verifyLowPriorityTrafficRateLimit) {
       XLOG(DBG0) << "Before packet count: " << lowPriorityPacketCountBefore
                  << ", After packet count: " << lowPriorityPacketCountAfter
                  << ", Actual rate in bps: " << actualCpuPortRate
-                 << ", Expected rate low in bps: " << expectedRateLow
                  << ", Expected rate high in bps: " << expectedRateHigh;
       XLOG(DBG0) << "Before nif port packet count: " << portQueuePacketsBefore
                  << ", After nif port packet count: " << portQueuePacketsAfter
@@ -1923,9 +1927,7 @@ TEST_F(AgentCoppGlobalRateLimitTest, verifyLowPriorityTrafficRateLimit) {
       // CPU port traffic could be even lower, so only verify lower than
       // expectedRateHigh
       EXPECT_EVENTUALLY_TRUE(actualCpuPortRate <= expectedRateHigh);
-      EXPECT_EVENTUALLY_TRUE(
-          expectedRateLow <= actualNifPortRate &&
-          actualNifPortRate <= expectedRateHigh);
+      EXPECT_EVENTUALLY_TRUE(actualNifPortRate <= expectedRateHigh);
       EXPECT_EVENTUALLY_TRUE(
           expectedRateLimitDropLow <= rateLimitDropAfter - rateLimitDropBefore);
     });

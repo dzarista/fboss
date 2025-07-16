@@ -15,7 +15,7 @@
 namespace showtech {
 class MeruShowtech : public Showtech {
 public:
-  MeruShowtech(bool verbose) : Showtech(verbose) {}
+  MeruShowtech() : Showtech() {}
   void printPlatformInfo() override;
   // The first CPU i2c bus is unused and takes a long time to scan,
   // so skip scanning.
@@ -31,6 +31,7 @@ protected:
 
 private:
   int numFansPerCpld = 4;
+  void printWeutilInfo();
   void printAllFpgaVersions();
   void printFanInfo();
   void printI2cInfo();
@@ -40,12 +41,12 @@ private:
 
 class Meru800BiaShowtech : public MeruShowtech {
 public:
-  Meru800BiaShowtech(bool verbose);
+  Meru800BiaShowtech();
 };
 
 class Meru800BfaShowtech : public MeruShowtech {
 public:
-  Meru800BfaShowtech(bool verbose);
+  Meru800BfaShowtech();
   std::set<int> i2cBusIgnore() override;
 
 private:
@@ -54,7 +55,7 @@ private:
 
 class Glath05a_64oShowtech : public MeruShowtech {
 public:
-  Glath05a_64oShowtech(bool verbose);
+  Glath05a_64oShowtech();
 };
 
 } // namespace showtech

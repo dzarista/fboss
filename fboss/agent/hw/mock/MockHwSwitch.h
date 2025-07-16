@@ -98,6 +98,7 @@ class MockHwSwitch : public HwSwitch {
   MOCK_CONST_METHOD0(getAclStats, AclStats());
   MOCK_CONST_METHOD0(getSwitchWatermarkStats, HwSwitchWatermarkStats());
   MOCK_CONST_METHOD0(getSwitchPipelineStats, HwSwitchPipelineStats());
+  MOCK_CONST_METHOD0(getSwitchTemperatureStats, HwSwitchTemperatureStats());
   MOCK_CONST_METHOD0(getSysPortShelState, std::map<int, cfg::PortState>());
 
   MockPlatform* getPlatform() const override {
@@ -157,6 +158,10 @@ class MockHwSwitch : public HwSwitch {
   }
 
   MOCK_CONST_METHOD0(getResourceStats, HwResourceStats());
+
+  MOCK_METHOD1(
+      getFwdSwitchingMode,
+      cfg::SwitchingMode(const RouteNextHopEntry&));
 
  private:
   MOCK_METHOD1(switchRunStateChangedImpl, void(SwitchRunState newState));

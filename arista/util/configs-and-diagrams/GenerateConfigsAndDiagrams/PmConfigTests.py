@@ -19,13 +19,17 @@ from .BaseConfigs import (
    I2cDeviceConfig,
    I2cIdProm,
    LedConfig,
+   OrderedDict,
    PciDeviceConfig,
    PlatformConfig,
    PSUBus,
    PSUUnit,
    PmUnitConfig,
    SCMUnit,
+   SMBUnit,
    Sensor,
+   SensorConfig,
+   SensorType,
    SlotConfig,
    SMBCpld,
    SpiDeviceConfig,
@@ -92,6 +96,98 @@ class PlatformConfigTest( unittest.TestCase ):
       pmConfig = json.loads( platform.pmConfigJson() )
       self.assertEqual( pmConfig[ "chassisEepromDevicePath" ], "/SMB_SLOT@0/[IDPROM]")
 
+   def testGetSlotConfigs( self ):
+      platform = PlatformConfig( "test_platform" )
+      smbUnit = PmUnitConfig( "SMB" )
+      smbUnit.addOutgoingSlotConfigs( [
+         SlotConfig( slotName="FAN_SLOT@0" ),
+         SlotConfig( slotName="PSU_SLOT@0" ),
+      ] )
+      otherUnit = PmUnitConfig( "OTHER" )
+      otherUnit.addOutgoingSlotConfigs( [ SlotConfig( slotName="FAN_SLOT@0" ) ] )
+      platform.addPmUnitConfigs( [ smbUnit, otherUnit ] )
+      slots = platform.getSlotConfigs( pmUnits=[ "SMB" ], slotTypes=[ "PSU_SLOT" ] )
+
+      self.assertIn( "SMB", slots )
+      self.assertNotIn( "OTHER", slots )
+      self.assertEqual( len( slots [ "SMB" ] ), 1 )
+      self.assertIn( "PSU_SLOT@0", slots[ "SMB" ] )
+
+   def testGetSensorConfigs( self ):
+      platform = PlatformConfig( "test_platform" )
+      scmUnit = SCMUnit()
+      scmSensor = Sensor( "0x48", "lm75", "SCM_TMP75" )
+      scmSensor.addSensorConfigs( [
+         SensorConfig( "SCM_BOARD_TEMP", "temp1_input", SensorType.TEMP )
+      ] )
+      scmUnit.addI2cDeviceConfigs( [ scmSensor ] )
+      smbUnit = PmUnitConfig( "SMB" )
+      platform.addPmUnitConfigs( [ scmUnit, smbUnit ] )
+      for pmUnit in platform.pmUnitConfigs:
+         pmUnit.populateSymlinkToDevicePaths()
+      sensors = platform.getSensorConfigs( pmUnits=[ "SCM" ] )
+
+      self.assertIn( "SCM", sensors )
+      self.assertNotIn( "SMB", sensors )
+      self.assertIn( "SCM_BOARD_TEMP", sensors[ "SCM" ] )
+
+   def testWeutilJson( self ):
+      platform_codename = "test_platform"
+      expected_scm_path = "/run/devmap/eeproms/TEST_PLATFORM_SCM_EEPROM"
+      expected_smb_path = f"/run/devmap/eeproms/TEST_PLATFORM_SMB_EEPROM"
+
+      platform_config = PlatformConfig( platform_codename, rootPmUnitName="SCM" )
+      
+      scm_unit = SCMUnit()
+      scm_unit.setSlotTypeConfig(
+         idPromConfigBusName="mock_scm_bus",
+         idPromConfigAddress="0x50",
+         idPromConfigKernelDeviceName="24c512",
+         idPromConfigOffset=15360
+      )
+      scm_idprom_instance = I2cIdProm( "0x50", "24c512", "MERU_SCM_EEPROM", hasCpuMac=True )
+      scm_unit.addI2cDeviceConfigs( [ scm_idprom_instance ] )
+
+      scm_unit.addOutgoingSlotConfigs( [ SlotConfig( slotName="SMB_SLOT@0" ) ] )
+
+      smb_unit = SMBUnit()
+      smb_unit.setSlotTypeConfig(
+         numOutgoingI2cBuses=3,
+         idPromConfigBusName="mock_bus_smb",
+         idPromConfigAddress="0x50",
+         idPromConfigKernelDeviceName="24c512",
+         idPromConfigOffset=15360
+      )
+      smb_idprom_instance = I2cIdProm( "0x50", "24c512", f"{platform_codename}_SMB_EEPROM" )
+      smb_unit.addI2cDeviceConfigs( [ smb_idprom_instance ] )
+
+      platform_config.addPmUnitConfigs( [ scm_unit, smb_unit ] )
+
+      for pm_cfg in platform_config.pmUnitConfigs:
+         pm_cfg.populateSymlinkToDevicePaths()
+
+      generated_json_str = platform_config.weutilJson()
+      generated_data = json.loads( generated_json_str, object_pairs_hook=OrderedDict )
+
+      expected_data = OrderedDict( [
+         ( "chassisEepromName", "SMB" ),
+         ( "fruEepromList", OrderedDict( [
+               ( "SCM", OrderedDict( [
+                  ("path", expected_scm_path),
+                  ("offset", 15360),
+               ] ) ),
+               ( "SMB", OrderedDict( [
+                  ("path", expected_smb_path),
+                  ("offset", 15360),
+               ] ) )
+         ] ) )
+      ] )
+      
+      expected_data_normalized = json.loads( json.dumps( expected_data ), object_pairs_hook=OrderedDict )
+
+      self.assertDictEqual( generated_data, expected_data_normalized,
+                           generated_data )
+
 
 class SlotTypeConfigTest( unittest.TestCase ):
    def testWithIdPromConfig( self ):
@@ -122,14 +218,14 @@ class SlotTypeConfigTest( unittest.TestCase ):
    def testWithInvalidIdPromConfig( self ):
       platform = PlatformConfig( "test_platform" )
       platform.addPmUnitConfigs( [ PmUnitConfig( pmUnitName="PSU" ) ] )
-      platform.pmUnitConfigs[ 0 ].setSlotTypeConfig(
-         numOutgoingI2cBuses=1,
-         idPromConfigBusName="INCOMING@7",
-         idPromConfigAddress="0x42",
-         idPromConfigOffset=13500
-      )
+      # Update: idProm won't be settable if not valid
       with self.assertRaises( AssertionError ):
-         platform.pmConfigJson()
+         platform.pmUnitConfigs[ 0 ].setSlotTypeConfig(
+            numOutgoingI2cBuses=1,
+            idPromConfigBusName="INCOMING@7",
+            idPromConfigAddress="0x42",
+            idPromConfigOffset=13500
+         )
 
 
 class PmUnitConfigTest( unittest.TestCase ):

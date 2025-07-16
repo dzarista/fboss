@@ -164,6 +164,9 @@ void fillPortStats(
   portInfo.output()->broadcastPkts() = *hwPortStats.outBroadcastPkts_();
   portInfo.output()->errors()->errors() = *hwPortStats.outErrors_();
   portInfo.output()->errors()->discards() = *hwPortStats.outDiscards_();
+  if (auto cableLen = hwPortStats.cableLengthMeters()) {
+    portInfo.cableLengthMeters() = *cableLen;
+  }
 
   for (int16_t i = 0; i < numPortQs; i++) {
     QueueStats stats;
@@ -181,9 +184,6 @@ void fillPortStats(
       *stats.outBytes() = 0;
     }
     portInfo.output()->unicast()->push_back(stats);
-  }
-  if (auto cableLen = hwPortStats.cableLengthMeters()) {
-    portInfo.cableLengthMeters() = *cableLen;
   }
 }
 
@@ -1443,7 +1443,7 @@ void ThriftHandler::setInterfacePrbs(
     std::unique_ptr<std::string> portName,
     phy::PortComponent component,
     std::unique_ptr<prbs::InterfacePrbsState> state) {
-  auto log = LOG_THRIFT_CALL_WITH_STATS(DBG1, sw_->stats());
+  auto log = LOG_THRIFT_CALL_WITH_STATS(DBG1, sw_->stats(), *portName);
   if (component != phy::PortComponent::ASIC) {
     throw FbossError("Unsupported component");
   }
@@ -3093,6 +3093,13 @@ void ThriftHandler::getHwPortStats(
   auto log = LOG_THRIFT_CALL_WITH_STATS(DBG1, sw_->stats());
   ensureConfigured(__func__);
   sw_->getAllHwPortStats(hwPortStats);
+}
+
+void ThriftHandler::getHwRouterInterfaceStats(
+    std::map<std::string, HwRouterInterfaceStats>& hwPortStats) {
+  auto log = LOG_THRIFT_CALL(DBG1);
+  ensureConfigured(__func__);
+  // TODO(pshaikh) : implement this
 }
 
 void ThriftHandler::getFabricReachabilityStats(

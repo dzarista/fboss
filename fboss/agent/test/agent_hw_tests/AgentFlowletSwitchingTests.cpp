@@ -48,11 +48,14 @@ class AgentFlowletSwitchingTest : public AgentArsBase {
         ensemble.getSw(),
         ensemble.masterLogicalPortIds(),
         true /*interfaceHasSubnet*/);
+    // TODO(ravi) fixed for SAI until spray support is available
     utility::addFlowletConfigs(
         cfg,
         ensemble.masterLogicalPortIds(),
         ensemble.isSai(),
-        cfg::SwitchingMode::PER_PACKET_QUALITY);
+        cfg::SwitchingMode::PER_PACKET_QUALITY,
+        ensemble.isSai() ? cfg::SwitchingMode::FIXED_ASSIGNMENT
+                         : cfg::SwitchingMode::PER_PACKET_RANDOM);
     return cfg;
   }
 
@@ -292,8 +295,7 @@ TEST_F(AgentFlowletSprayTest, VerifyEcmpRandomSpray) {
     // 200000 - 2000126 - DLB ECMP groups we don't care
     // 200127 - DLB ECMP group under test
     // 200128 - Random spray ECMP group under test
-    const auto kMaxDlbEcmpGroup =
-        utility::getMaxDlbEcmpGroups(getAgentEnsemble()->getL3Asics()) - 1;
+    const auto kMaxDlbEcmpGroup = getMaxDlbEcmpGroups() - 1;
     auto wrapper = getSw()->getRouteUpdater();
     std::vector<RoutePrefixV6> prefixes128 = {
         prefixes.begin(), prefixes.begin() + kMaxDlbEcmpGroup};
@@ -723,8 +725,7 @@ TEST_F(AgentFlowletAclPriorityTest, VerifyUdfAclPriorityWB) {
 TEST_F(AgentFlowletSwitchingTest, CreateMaxDlbGroups) {
   auto verify = [this] {
     generatePrefixes();
-    const auto kMaxDlbEcmpGroup =
-        utility::getMaxDlbEcmpGroups(getAgentEnsemble()->getL3Asics());
+    const auto kMaxDlbEcmpGroup = getMaxDlbEcmpGroups();
     // install 60% of max DLB ecmp groups
     {
       int count = static_cast<int>(0.6 * kMaxDlbEcmpGroup);
@@ -795,8 +796,7 @@ TEST_F(AgentFlowletSwitchingTest, ApplyDlbResourceCheck) {
   // Start with 60% ECMP groups
   auto setup = [this]() {
     generatePrefixes();
-    const auto kMaxDlbEcmpGroup =
-        utility::getMaxDlbEcmpGroups(getAgentEnsemble()->getL3Asics());
+    const auto kMaxDlbEcmpGroup = getMaxDlbEcmpGroups();
     int count = static_cast<int>(0.6 * kMaxDlbEcmpGroup);
     auto wrapper = getSw()->getRouteUpdater();
     std::vector<RoutePrefixV6> prefixes60 = {
@@ -808,8 +808,7 @@ TEST_F(AgentFlowletSwitchingTest, ApplyDlbResourceCheck) {
   // Post warmboot, dlb resource check is enforced since >75%
   auto setupPostWarmboot = [this]() {
     generatePrefixes();
-    const auto kMaxDlbEcmpGroup =
-        utility::getMaxDlbEcmpGroups(getAgentEnsemble()->getL3Asics());
+    const auto kMaxDlbEcmpGroup = getMaxDlbEcmpGroups();
     {
       auto wrapper = getSw()->getRouteUpdater();
       std::vector<RoutePrefixV6> prefixes128 = {
@@ -867,8 +866,7 @@ class AgentFlowletBcmTest : public AgentFlowletSwitchingTest {
 
 TEST_F(AgentFlowletBcmTest, VerifySwitchingModeUpdateSwState) {
   generatePrefixes();
-  const auto kMaxDlbEcmpGroup =
-      utility::getMaxDlbEcmpGroups(getAgentEnsemble()->getL3Asics());
+  const auto kMaxDlbEcmpGroup = getMaxDlbEcmpGroups();
   // Create two test prefix vectors
   std::vector<RoutePrefixV6> testPrefixes1 = {
       prefixes.begin(), prefixes.begin() + kMaxDlbEcmpGroup};
@@ -918,7 +916,7 @@ TEST_F(AgentFlowletBcmTest, VerifySwitchingModeUpdateSwState) {
         state,
         testPrefixes2,
         std::optional<cfg::SwitchingMode>(
-            cfg::SwitchingMode::FIXED_ASSIGNMENT));
+            cfg::SwitchingMode::PER_PACKET_RANDOM));
 
     // Now verify if warmboot state is updated in sw state
     verifySwitchingMode(getProgrammedState(), testPrefixes1, std::nullopt);
@@ -926,7 +924,7 @@ TEST_F(AgentFlowletBcmTest, VerifySwitchingModeUpdateSwState) {
         getProgrammedState(),
         testPrefixes2,
         std::optional<cfg::SwitchingMode>(
-            cfg::SwitchingMode::FIXED_ASSIGNMENT));
+            cfg::SwitchingMode::PER_PACKET_RANDOM));
   };
   verifyAcrossWarmBoots(setup, [] {}, [] {}, verifyPostWarmboot);
 }
