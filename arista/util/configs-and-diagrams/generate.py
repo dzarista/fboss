@@ -13,6 +13,8 @@ EXCLUDE_LIST = {
    'pm-config': [],
    'sensor-config': [],
    'bsp-mapping': [ 'RackhawkORv3' ],
+   'fan-config': [ 'Whistler', 'QuickSilverPFb', 'RackhawkORv3' ],
+   'led-config': [ 'Rackhawk', 'RackhawkORv3' ],
    'weutil-config': [ 'Rackhawk', 'RackhawkORv3' ],
 }
 
@@ -42,7 +44,22 @@ def genBspMapping( platform, aristaCodename, metaCodename, output ):
       ) as file:
          file.write( getattr( platform, output[ 'bsp-mapping' ] )() )
 
+def genLedConfig( platform, aristaCodename, metaCodename, output ):
+   if aristaCodename not in EXCLUDE_LIST.get( 'led-config', [] ):
+      with open(
+         f'../../../fboss/platform/configs/{ metaCodename }/led_manager.json', 'w'
+      ) as file:
+         file.write( getattr( platform, output[ 'led-config' ] )() )
+         file.write( '\n' )
 
+def genFanConfig( platform, aristaCodename, metaCodename, output ):
+   if aristaCodename not in EXCLUDE_LIST.get( 'fan-config', [] ):
+      with open(
+         f'../../../fboss/platform/configs/{ metaCodename }/fan_service.json', 'w'
+      ) as file:
+         file.write( getattr( platform, output[ 'fan-config' ] )() )
+         file.write( '\n' )
+        
 def genWeutilConfig( platform, aristaCodename, metaCodename, output ):
    if aristaCodename not in EXCLUDE_LIST.get( 'weutil-config', [] ):
       with open(
@@ -50,7 +67,6 @@ def genWeutilConfig( platform, aristaCodename, metaCodename, output ):
       ) as file:
          file.write( getattr( platform, output[ 'weutil-config' ] )() )
          file.write( '\n' )
-
 
 def main():
    platforms = {
@@ -66,6 +82,8 @@ def main():
       'sensor-config': 'sensorServiceJson',
       'pm-diagram': 'genDiagram',
       'bsp-mapping': 'bspMappingCsv',
+      'fan-config': 'fanJson',
+      'led-config': 'ledJson',
       'weutil-config': 'weutilJson',
    }
 
@@ -80,7 +98,8 @@ def main():
                         help='Platform name' )
    parser.add_argument( '--output',
                         choices=[ 'pm-config', 'sensor-config', 'pm-diagram',
-                                  'bsp-mapping', 'weutil-config' ],
+                                  'bsp-mapping', 'fan-config', 'led-config', 'weutil-config' ],
+
                         help='Config/diagram to generate' )
    args = parser.parse_args()
 
@@ -96,7 +115,7 @@ def main():
    elif args.platform and args.output and not args.update_all_configs:
       platform = platforms[ args.platform ]()
       result = getattr( platform, output[ args.output ] )()
-      if args.output in [ 'pm-config', 'sensor-config', 'bsp-mapping', 'weutil-config' ]:
+      if args.output in [ 'pm-config', 'sensor-config', 'bsp-mapping', 'fan-config', 'led-config', 'weutil-config' ]:
          print( result )
    else:
       parser.error( parser.description )

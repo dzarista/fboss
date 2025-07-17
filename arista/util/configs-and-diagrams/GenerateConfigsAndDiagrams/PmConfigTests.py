@@ -28,6 +28,8 @@ from .BaseConfigs import (
    SCMUnit,
    SMBUnit,
    Sensor,
+   SensorConfig,
+   SensorType,
    SlotConfig,
    SMBCpld,
    SpiDeviceConfig,
@@ -94,12 +96,47 @@ class PlatformConfigTest( unittest.TestCase ):
       pmConfig = json.loads( platform.pmConfigJson() )
       self.assertEqual( pmConfig[ "chassisEepromDevicePath" ], "/SMB_SLOT@0/[IDPROM]")
 
-   def testWeutilJson(self):
+   def testGetSlotConfigs( self ):
+      platform = PlatformConfig( "test_platform" )
+      smbUnit = PmUnitConfig( "SMB" )
+      smbUnit.addOutgoingSlotConfigs( [
+         SlotConfig( slotName="FAN_SLOT@0" ),
+         SlotConfig( slotName="PSU_SLOT@0" ),
+      ] )
+      otherUnit = PmUnitConfig( "OTHER" )
+      otherUnit.addOutgoingSlotConfigs( [ SlotConfig( slotName="FAN_SLOT@0" ) ] )
+      platform.addPmUnitConfigs( [ smbUnit, otherUnit ] )
+      slots = platform.getSlotConfigs( pmUnits=[ "SMB" ], slotTypes=[ "PSU_SLOT" ] )
+
+      self.assertIn( "SMB", slots )
+      self.assertNotIn( "OTHER", slots )
+      self.assertEqual( len( slots [ "SMB" ] ), 1 )
+      self.assertIn( "PSU_SLOT@0", slots[ "SMB" ] )
+
+   def testGetSensorConfigs( self ):
+      platform = PlatformConfig( "test_platform" )
+      scmUnit = SCMUnit()
+      scmSensor = Sensor( "0x48", "lm75", "SCM_TMP75" )
+      scmSensor.addSensorConfigs( [
+         SensorConfig( "SCM_BOARD_TEMP", "temp1_input", SensorType.TEMP )
+      ] )
+      scmUnit.addI2cDeviceConfigs( [ scmSensor ] )
+      smbUnit = PmUnitConfig( "SMB" )
+      platform.addPmUnitConfigs( [ scmUnit, smbUnit ] )
+      for pmUnit in platform.pmUnitConfigs:
+         pmUnit.populateSymlinkToDevicePaths()
+      sensors = platform.getSensorConfigs( pmUnits=[ "SCM" ] )
+
+      self.assertIn( "SCM", sensors )
+      self.assertNotIn( "SMB", sensors )
+      self.assertIn( "SCM_BOARD_TEMP", sensors[ "SCM" ] )
+
+   def testWeutilJson( self ):
       platform_codename = "test_platform"
       expected_scm_path = "/run/devmap/eeproms/TEST_PLATFORM_SCM_EEPROM"
       expected_smb_path = f"/run/devmap/eeproms/TEST_PLATFORM_SMB_EEPROM"
 
-      platform_config = PlatformConfig(platform_codename, rootPmUnitName="SCM")
+      platform_config = PlatformConfig( platform_codename, rootPmUnitName="SCM" )
       
       scm_unit = SCMUnit()
       scm_unit.setSlotTypeConfig(
