@@ -6,6 +6,7 @@ After=platform_manager.service
 [Service]
 Type=notify
 ExecStart=/opt/fboss/bin/run_sw_agent.sh
+TimeoutSec=350
 
 [Install]
 WantedBy=multi-user.target
