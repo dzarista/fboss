@@ -7623,20 +7623,6 @@
         "scope": 1
       },
       {
-        "intfID": 25,
-        "routerID": 0,
-        "vlanID": 0,
-        "ipAddresses": [
-          "2401::/64",
-          "11.0.0.0/24"
-        ],
-        "mtu": 9000,
-        "isVirtual": false,
-        "isStateSyncDisabled": true,
-        "type": 2,
-        "scope": 1
-      },
-      {
         "intfID": 30,
         "routerID": 0,
         "vlanID": 0,
@@ -7713,20 +7699,6 @@
         "ipAddresses": [
           "2407::/64",
           "17.0.0.0/24"
-        ],
-        "mtu": 9000,
-        "isVirtual": false,
-        "isStateSyncDisabled": true,
-        "type": 2,
-        "scope": 1
-      },
-      {
-        "intfID": 24,
-        "routerID": 0,
-        "vlanID": 0,
-        "ipAddresses": [
-          "2408::/64",
-          "18.0.0.0/24"
         ],
         "mtu": 9000,
         "isVirtual": false,
