@@ -367,6 +367,18 @@
                         </button>
                     </div>
                 </div>
+
+                <!-- Progress Bar -->
+                <div id="progress-container" class="mt-4 mb-2" style="display: none;">
+                    <div class="flex justify-between text-sm text-gray-600 mb-1">
+                        <span id="progress-label">Processing...</span>
+                        <span id="progress-percent">0%</span>
+                    </div>
+                    <div class="w-full bg-gray-200 rounded-full h-2">
+                        <div id="progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                    </div>
+                </div>
+
                 <p id="status-message" class="text-sm text-gray-500 mt-2 text-left"></p>
             </div>
 
@@ -609,6 +621,10 @@
         const statusMessage = document.getElementById('status-message');
         const toastNotification = document.getElementById('toast-notification');
         const dataTypeHeader = document.getElementById('data-type-header');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        const progressLabel = document.getElementById('progress-label');
+        const progressPercent = document.getElementById('progress-percent');
 
         // Row slider elements
         const rowSliderSection = document.getElementById('row-slider-section');
@@ -658,15 +674,28 @@
         function handleFile(file) {
             if (!file) return;
 
+            // Show progress bar for file upload
+            showProgress(`Reading ${file.name}...`);
+            updateProgress(10);
+
             const reader = new FileReader();
             reader.onload = function(e) {
+                updateProgress(30);
                 const content = e.target.result;
                 detectAndProcessFile(content, file.name);
             };
+
+            reader.onerror = function() {
+                hideProgress();
+                showToast('Error reading file', 5000);
+            };
+
             reader.readAsText(file);
         }
 
         function detectAndProcessFile(content, filename) {
+            updateProgress(40);
+
             // Detect file type based on content patterns
             const lines = content.split('\n').slice(0, 10); // Check first 10 lines
 
@@ -681,14 +710,18 @@
                                      content.includes('##### FANS #####');
 
             if (hasTimeSeriesPattern) {
+                updateProgress(50);
                 processTimeSeriesCSV(content, filename);
             } else if (hasShowtechPattern) {
+                updateProgress(50);
                 processShowtechLog(content, filename);
             } else {
                 // Try to auto-detect based on file extension or content structure
                 if (filename.toLowerCase().endsWith('.csv')) {
+                    updateProgress(50);
                     processTimeSeriesCSV(content, filename);
                 } else {
+                    updateProgress(50);
                     processShowtechLog(content, filename);
                 }
             }
@@ -794,28 +827,46 @@
             results.style.display = 'block';
 
             try {
+                showProgress('Parsing time series data...');
+
                 // Parse time series CSV data for all available data types
                 const transceiverDataByType = {};
                 let fanData = {};
                 let timestamps = [];
                 let totalDataPoints = 0;
 
-                Object.keys(DATA_TYPES).forEach(dataTypeKey => {
+                const dataTypeKeys = Object.keys(DATA_TYPES);
+
+                dataTypeKeys.forEach((dataTypeKey, index) => {
+                    updateProgress((index / dataTypeKeys.length) * 80); // Use 80% for extraction
+
                     try {
+                        console.log(`\n=== EXTRACTING ${dataTypeKey.toUpperCase()} DATA ===`);
                         const result = extractTimeSeriesData(content, dataTypeKey);
+
                         if (Object.keys(result.transceiverData).length > 0) {
                             transceiverDataByType[dataTypeKey] = result.transceiverData;
                             totalDataPoints += Object.keys(result.transceiverData).length;
+                            console.log(`✅ ${dataTypeKey}: Found ${Object.keys(result.transceiverData).length} ports with data`);
+
+
+
+
+
                             // Use the fan data and timestamps from any successful extraction
                             if (Object.keys(fanData).length === 0) {
                                 fanData = result.fanData;
                                 timestamps = result.timestamps;
                             }
+                        } else {
+                            console.log(`❌ ${dataTypeKey}: No data found`);
                         }
                     } catch (error) {
-                        console.log(`No ${dataTypeKey} time series data found:`, error.message);
+                        console.error(`❌ ${dataTypeKey} extraction failed:`, error.message);
                     }
                 });
+
+                updateProgress(90);
 
                 // Use selected product type
                 const selectedProduct = getSelectedProduct();
@@ -871,11 +922,17 @@
                     productSelect.value = selectedProduct;
                 }
 
+                updateProgress(100);
+
                 // Setup download and actions
                 setupActions(csvData, filename);
 
                 // Show preview
                 showPreview(csvData);
+
+                setTimeout(() => {
+                    hideProgress();
+                }, 500);
 
             } catch (error) {
                 statusBox.className = 'info-box error';
@@ -1016,9 +1073,12 @@
 
             const timeSeriesConfig = dataTypeConfig.timeSeries;
 
+            console.log(`Starting extraction for ${dataType} with pattern: ${timeSeriesConfig.metricPattern}`);
+
             const lines = content.split('\n');
             let processedLines = 0;
             let skippedLines = 0;
+            let dataTypeMatches = 0;
 
             for (const line of lines) {
                 if (!line.trim()) continue;
@@ -1059,7 +1119,14 @@
                 }
 
                 // Extract transceiver data using configurable pattern
-                const dataMatch = metric.match(new RegExp(timeSeriesConfig.metricPattern));
+                const regex = new RegExp(timeSeriesConfig.metricPattern);
+                const dataMatch = metric.match(regex);
+
+                // Check if this line contains the data type we're looking for
+                if (metric.includes(timeSeriesConfig.metricSuffix)) {
+                    dataTypeMatches++;
+                }
+
                 if (dataMatch) {
                     const portNumber = parseInt(dataMatch[2]);
 
@@ -1069,9 +1136,12 @@
                     }
 
                     // Validate data value
-                    if (value >= timeSeriesConfig.validationMin &&
-                        value <= timeSeriesConfig.validationMax) {
+                    const isValid = value >= timeSeriesConfig.validationMin &&
+                        value <= timeSeriesConfig.validationMax;
 
+
+
+                    if (isValid) {
                         // Debug logging for specific port ranges
                         if (portNumber >= 59 && portNumber <= 99) {
                             console.log(`Found port ${portNumber} with ${dataType} ${value}${dataTypeConfig.unit} from metric: ${metric}`);
@@ -1080,9 +1150,15 @@
                         if (!transceiverData[portNumber]) {
                             transceiverData[portNumber] = {};
                         }
-                        transceiverData[portNumber][timestampUnix] = value;
+                        // Convert timestamp to string for consistent object key handling
+                        const timestampKey = timestampUnix.toString();
+                        transceiverData[portNumber][timestampKey] = value;
                         timestampSet.add(timestampUnix);
                         processedLines++;
+
+
+
+
                     }
                 } else {
                     // Debug logging for lines that don't match the data pattern
@@ -1101,7 +1177,9 @@
                     if (!fanData[fanNumber]) {
                         fanData[fanNumber] = {};
                     }
-                    fanData[fanNumber][timestampUnix] = Math.min(100, Math.max(0, percentage)); // Clamp to 0-100%
+                    // Convert timestamp to string for consistent object key handling
+                    const timestampKey = timestampUnix.toString();
+                    fanData[fanNumber][timestampKey] = Math.min(100, Math.max(0, percentage)); // Clamp to 0-100%
                     timestampSet.add(timestampUnix);
                     processedLines++;
                 }
@@ -1110,8 +1188,12 @@
             // Convert timestamp set to sorted array
             const timestamps = Array.from(timestampSet).sort((a, b) => a - b);
 
-            console.log(`Processed ${processedLines} lines, skipped ${skippedLines} lines`);
-            console.log(`Found ${timestamps.length} unique timestamps`);
+            console.log(`${dataType} extraction summary:`);
+            console.log(`- Total lines processed: ${processedLines}`);
+            console.log(`- Lines skipped: ${skippedLines}`);
+            console.log(`- ${dataType} metrics found: ${dataTypeMatches}`);
+            console.log(`- Unique timestamps: ${timestamps.length}`);
+            console.log(`- Ports with ${dataType} data: ${Object.keys(transceiverData).length}`);
 
             // Enhanced port debugging
             const portNumbers = Object.keys(transceiverData).map(Number).sort((a, b) => a - b);
@@ -1147,6 +1229,8 @@
             if (timestamps.length > 0) {
                 console.log(`Sample timestamp conversion: ${timestamps[0]} -> ${formatTimestamp(timestamps[0])}`);
             }
+
+
 
             return { transceiverData, fanData, timestamps };
         }
@@ -1237,7 +1321,9 @@
             // Add headers for all available data types
             const dataHeaders = [];
             Object.entries(DATA_TYPES).forEach(([dataTypeKey, dataTypeConfig]) => {
-                if (transceiverDataByType[dataTypeKey] && Object.keys(transceiverDataByType[dataTypeKey]).length > 0) {
+                const hasData = transceiverDataByType[dataTypeKey] && Object.keys(transceiverDataByType[dataTypeKey]).length > 0;
+
+                if (hasData) {
                     for (let i = 1; i <= maxPorts; i++) {
                         dataHeaders.push(`${dataTypeConfig.csvColumnPrefix}${i}`);
                     }
@@ -1256,7 +1342,9 @@
 
                 // Add fan data
                 for (let i = 1; i <= maxFans; i++) {
-                    const fanValue = fanData[i] && fanData[i][timestamp] ? fanData[i][timestamp].toFixed(2) : '0.00';
+                    // Convert timestamp to string for consistent lookup
+                    const timestampKey = timestamp.toString();
+                    const fanValue = fanData[i] && fanData[i][timestampKey] ? fanData[i][timestampKey].toFixed(2) : '0.00';
                     dataRow.push(fanValue);
                 }
 
@@ -1265,8 +1353,11 @@
                     if (transceiverDataByType[dataTypeKey] && Object.keys(transceiverDataByType[dataTypeKey]).length > 0) {
                         const transceiverData = transceiverDataByType[dataTypeKey];
                         const defaultValue = dataTypeConfig.timeSeries.defaultValue;
+
                         for (let i = 1; i <= maxPorts; i++) {
-                            const dataValue = transceiverData[i] && transceiverData[i][timestamp] ? transceiverData[i][timestamp].toFixed(2) : defaultValue;
+                            // Convert timestamp to string for consistent lookup
+                            const timestampKey = timestamp.toString();
+                            const dataValue = transceiverData[i] && transceiverData[i][timestampKey] ? transceiverData[i][timestampKey].toFixed(2) : defaultValue;
                             dataRow.push(dataValue);
                         }
                     }
@@ -1318,6 +1409,22 @@
             setTimeout(() => {
                 toastNotification.classList.remove('show');
             }, duration);
+        }
+
+        function showProgress(label = 'Processing...') {
+            progressContainer.style.display = 'block';
+            progressLabel.textContent = label;
+            updateProgress(0);
+        }
+
+        function updateProgress(percent) {
+            const clampedPercent = Math.max(0, Math.min(100, percent));
+            progressBar.style.width = `${clampedPercent}%`;
+            progressPercent.textContent = `${Math.round(clampedPercent)}%`;
+        }
+
+        function hideProgress() {
+            progressContainer.style.display = 'none';
         }
 
         function simpleCSVParser(csvText) {

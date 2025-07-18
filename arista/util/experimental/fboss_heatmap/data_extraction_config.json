@@ -13,7 +13,7 @@
       },
       "timeSeries": {
         "metricSuffix": ".temp",
-        "metricPattern": "::qsfp_service\\.qsfp\\.interface\\.(fab1|eth1)\\/(\\d+)\\/\\d+\\.temp",
+        "metricPattern": ".*::qsfp_service\\.qsfp\\.interface\\.(fab1|eth1)\\/(\\d+)\\/\\d+\\.temp$",
         "validationMin": 0,
         "validationMax": 150,
         "defaultValue": "0.00"
@@ -42,7 +42,7 @@
       },
       "timeSeries": {
         "metricSuffix": ".vcc.mv",
-        "metricPattern": "::qsfp_service\\.qsfp\\.interface\\.(fab1|eth1)\\/(\\d+)\\/\\d+\\.vcc\\.mv",
+        "metricPattern": ".*::qsfp_service\\.qsfp\\.interface\\.(fab1|eth1)\\/(\\d+)\\/\\d+\\.vcc\\.mv$",
         "validationMin": 0,
         "validationMax": 10000,
         "defaultValue": "0.00"
