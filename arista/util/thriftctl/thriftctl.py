@@ -95,20 +95,24 @@ def list_ports():
 
 def resolve_args( client, arg ):
    '''Dynamically resolve and create Thrift struct objects.
-   e.g. {"struct": "PwmHoldRequest", "pwm": 70}'''
+   e.g. {"struct": "PwmHoldRequest", "pwm": 70}
+   e.g. {'path': 'neteng.fboss.phy.ttypes',
+         'struct':'PortPrbsState',
+         'enabled' : True}'''
    try:
       # Intrepret arg using the struct key
       if isinstance( arg, dict ) and "struct" in arg:
          struct_name = arg.pop( "struct" )
          module_name = client.__class__.__module__
+         path_name = arg.pop( "path", module_name )
 
-         thrift_module = __import__( module_name, fromlist=[ struct_name ] )
+         thrift_module = __import__( path_name, fromlist=[ struct_name ] )
          struct_class = getattr( thrift_module, struct_name, None )
 
          if struct_class:
             return struct_class( **arg )
          else:
-            raise ValueError( f'Struct "{struct_name}" not in "{module_name}"' )
+            raise ValueError( f'Struct "{struct_name}" not in "{path_name}"' )
 
       return arg
    except Exception as e:
