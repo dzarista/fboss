@@ -13,7 +13,7 @@ EXCLUDE_LIST = {
    'pm-config': [],
    'sensor-config': [],
    'bsp-mapping': [ 'RackhawkORv3' ],
-   'fan-config': [ 'Whistler', 'QuickSilverPFb', 'RackhawkORv3' ],
+   'fan-config': [ 'Rackhawk', 'RackhawkORv3' ],
    'led-config': [ 'Rackhawk', 'RackhawkORv3' ],
    'weutil-config': [ 'Rackhawk', 'RackhawkORv3' ],
 }
@@ -112,6 +112,9 @@ def main():
          genPmConfig( platform, aristaCodename, metaCodename, output )
          genSensorConfig( platform, aristaCodename, metaCodename, output )
          genBspMapping( platform, aristaCodename, metaCodename.capitalize(), output )
+         genWeutilConfig( platform, aristaCodename, metaCodename, output )
+         genLedConfig( platform, aristaCodename, metaCodename, output )
+         genFanConfig( platform, aristaCodename, metaCodename, output )
    elif args.platform and args.output and not args.update_all_configs:
       platform = platforms[ args.platform ]()
       result = getattr( platform, output[ args.output ] )()

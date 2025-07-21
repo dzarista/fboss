@@ -73,15 +73,27 @@ class FanServiceConfig:
       for pmUnitFans in fanSlots.values():
          platformFanConfigs.update( pmUnitFans )
       inverseSymlinkLookupTable = {v: k for k, v in allSymlinks.items()}
+      
+      # Determine fans per CPLD by analyzing presence file names
+      fansPerCpld = 4  # default
+      if platformFanConfigs:
+         presence_files = [slot["presenceDetection"]["sysfsFileHandle"]["presenceFileName"] 
+                          for slot in platformFanConfigs.values()]
+         fan_numbers = [int(re.search(r'fan(\d+)_present', f).group(1)) 
+                       for f in presence_files if re.search(r'fan(\d+)_present', f)]
+         if fan_numbers:
+            fansPerCpld = max(fan_numbers)
+      
       for slotName, slot in platformFanConfigs.items():
          fanIndex = int( slotName.split( '@' )[ 1 ] ) + 1
+         localFanIndex = ((fanIndex - 1) % fansPerCpld) + 1
          presenceDetection = slot[ "presenceDetection" ][ "sysfsFileHandle" ]
          symlink = inverseSymlinkLookupTable.get( presenceDetection[ "devicePath" ] )
          if symlink:
             fanData = OrderedDict()
             fanData[ "fanName" ] = f"fan_{fanIndex}"
-            fanData[ "rpmSysfsPath" ] = f"{symlink}/fan{fanIndex}_input"
-            fanData[ "pwmSysfsPath" ] = f"{symlink}/pwm{fanIndex}"
+            fanData[ "rpmSysfsPath" ] = f"{symlink}/fan{localFanIndex}_input"
+            fanData[ "pwmSysfsPath" ] = f"{symlink}/pwm{localFanIndex}"
             fanData[ "presenceSysfsPath" ] = f"{symlink}/{presenceDetection[ 'presenceFileName' ]}"
             fanData[ "ledSysfsPath" ] = f"/sys/class/leds/fan{fanIndex}::status/brightness"
             fanData[ "pwmMin" ] = 1

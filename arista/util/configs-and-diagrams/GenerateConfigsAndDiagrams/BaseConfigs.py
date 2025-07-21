@@ -315,32 +315,38 @@ class PlatformConfig:
       inverseSymlinkPaths = {v: k for k, v in self.parseSymbolicLinkToDevicePaths().items()}
       slotGroups = self.getSlotConfigs( slotTypes=[ "FAN_SLOT", "PSU_SLOT" ] )
 
+      # Collect all slots first
+      allSlots = []
       for pmUnitSlots in slotGroups.values():
          for slotName, slotData in pmUnitSlots.items():
-               # Ensure presence detection is defined for this slot
-               if "presenceDetection" not in slotData:
-                  continue
-               presenceHandle = slotData[ "presenceDetection" ][ "sysfsFileHandle" ]
-               presenceDevicePath = presenceHandle.get( "devicePath" )
-               presenceDeviceSymlink = inverseSymlinkPaths.get( presenceDevicePath )
-               if not presenceDeviceSymlink:
-                  continue
-               fruType = slotData[ "slotType" ].replace( "_SLOT", "" )
+            if "presenceDetection" in slotData:
                slotIndex = int( slotName.split( '@' )[ 1 ] )
+               slotType = slotData[ "slotType" ]
+               allSlots.append((slotIndex, slotName, slotData, slotType))
+      
+      # Sort by type first (FAN_SLOT before PSU_SLOT), then by slot index
+      allSlots.sort(key=lambda x: (x[3], x[0]))
+      
+      for slotIndex, slotName, slotData, slotType in allSlots:
+         presenceHandle = slotData[ "presenceDetection" ][ "sysfsFileHandle" ]
+         presenceDevicePath = presenceHandle.get( "devicePath" )
+         presenceDeviceSymlink = inverseSymlinkPaths.get( presenceDevicePath )
+         if not presenceDeviceSymlink:
+            continue
+         fruType = slotData[ "slotType" ].replace( "_SLOT", "" )
 
-               fruEntry = OrderedDict()
-               fruEntry[ "fruName" ] = f"{fruType}{slotIndex + 1}"
-               fruEntry[ "fruType" ] = fruType
-               fruEntry[ "presenceDetection" ] = {
-                  "sysfsFileHandle": {
-                     "presenceFilePath": f"{presenceDeviceSymlink}/{presenceHandle[ 'presenceFileName' ]}",
-                     "desiredValue": 1,
-                  }
-               }
-               fruConfigs.append( fruEntry )
-      sortedFruConfigs = sorted( fruConfigs, key=lambda x: x[ 'fruName' ] )
-      ledData[ "fruConfigs" ] = sortedFruConfigs
+         fruEntry = OrderedDict()
+         fruEntry[ "fruName" ] = f"{fruType}{slotIndex + 1}"
+         fruEntry[ "fruType" ] = fruType
+         fruEntry[ "presenceDetection" ] = {
+            "sysfsFileHandle": {
+               "presenceFilePath": f"{presenceDeviceSymlink}/{presenceHandle[ 'presenceFileName' ]}",
+               "desiredValue": 1,
+            }
+         }
+         fruConfigs.append( fruEntry )
 
+      ledData[ "fruConfigs" ] = fruConfigs
       return json.dumps( ledData, indent=2 )
 
    def getLedConfig( self, led_name: str ):
