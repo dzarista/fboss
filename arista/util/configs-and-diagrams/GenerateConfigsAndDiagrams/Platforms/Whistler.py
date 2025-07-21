@@ -319,7 +319,7 @@ class WhistlerSMB( SMBUnit ):
          SensorConfig( "VRM_OSFP_TL_VOUT_3V3", "in3_input", SensorType.VOLTAGE,
                        compute="1.2*@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=3.96, lowerCriticalVal=2.64
+                           upperCriticalVal=3.7, lowerCriticalVal=2.64
                        ) ),
          SensorConfig( "VRM_OSFP_TL_TEMP_3V3", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
@@ -339,7 +339,7 @@ class WhistlerSMB( SMBUnit ):
          SensorConfig( "VRM_OSFP_TR_VOUT_3V3", "in3_input", SensorType.VOLTAGE,
                        compute="1.2*@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=3.96, lowerCriticalVal=2.64
+                           upperCriticalVal=3.7, lowerCriticalVal=2.64
                        ) ),
          SensorConfig( "VRM_OSFP_TR_TEMP_3V3", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
@@ -359,7 +359,7 @@ class WhistlerSMB( SMBUnit ):
          SensorConfig( "VRM_OSFP_BL_VOUT_3V3", "in3_input", SensorType.VOLTAGE,
                        compute="1.2*@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=3.96, lowerCriticalVal=2.64
+                           upperCriticalVal=3.7, lowerCriticalVal=2.64
                        ) ),
          SensorConfig( "VRM_OSFP_BL_TEMP_3V3", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
@@ -379,7 +379,7 @@ class WhistlerSMB( SMBUnit ):
          SensorConfig( "VRM_OSFP_BR_VOUT_3V3", "in3_input", SensorType.VOLTAGE,
                        compute="1.2*@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=3.96, lowerCriticalVal=2.64
+                           upperCriticalVal=3.7, lowerCriticalVal=2.64
                        ) ),
          SensorConfig( "VRM_OSFP_BR_TEMP_3V3", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
