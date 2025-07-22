@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CSV Data Viewer (Normalized, Multi-Axis)</title>
+    <title>ODS Data Viewer - Multi-File Time Series Analyzer</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
@@ -13,54 +13,76 @@
             font-family: 'Inter', sans-serif;
         }
         .container {
-            max-width: 1400px; /* Increased max-width for more space */
-            margin-left: auto;
-            margin-right: auto;
+            max-width: 1400px;
+            margin: 0 auto;
             padding: 1rem 2rem 2rem 2rem;
         }
-        .file-input-label {
-            display: inline-block;
-            padding: 0.75rem 1.5rem;
-            background-color: #4F46E5; /* Indigo-600 */
-            color: white;
-            border-radius: 0.375rem; /* rounded-md */
+
+        /* Button styles */
+        .btn {
+            padding: 0.5rem 1.5rem;
+            border-radius: 0.375rem;
             cursor: pointer;
             transition: background-color 0.3s ease;
+            border: none;
+            font-weight: 500;
         }
-        .file-input-label:hover {
-            background-color: #4338CA; /* Indigo-700 */
+        .btn-primary {
+            background-color: #4F46E5;
+            color: white;
         }
+        .btn-primary:hover {
+            background-color: #4338CA;
+        }
+        .btn-success {
+            background-color: #10B981;
+            color: white;
+        }
+        .btn-success:hover {
+            background-color: #059669;
+        }
+        .btn-danger {
+            background-color: #EF4444;
+            color: white;
+        }
+        .btn-danger:hover {
+            background-color: #DC2626;
+        }
+
+        /* Input styles */
+        .form-input {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid #D1D5DB;
+            border-radius: 0.375rem;
+        }
+
+        /* File input */
         #fileInput {
             display: none;
         }
-        #plotContainer {
-            width: 100%;
-            height: 500px; /* Default height, adjustable */
-            border: 1px solid #e5e7eb; /* gray-200 */
-            border-radius: 0.375rem; /* rounded-md */
-            margin-top: 1.5rem; /* mt-6 */
-            transition: height 0.3s ease-in-out;
-            /* Reverted UI tweak: Removed flex centering */
-        }
-        #messageBox {
+
+        /* Message styles */
+        .message {
             padding: 1rem;
-            border-radius: 0.375rem; /* rounded-md */
+            border-radius: 0.375rem;
             margin-top: 1rem;
-            font-weight: 500; /* medium */
+            font-weight: 500;
         }
         .message-error {
-            background-color: #FEE2E2; /* red-100 */
-            color: #B91C1C; /* red-700 */
-            border: 1px solid #FCA5A5; /* red-300 */
+            background-color: #FEE2E2;
+            color: #B91C1C;
+            border: 1px solid #FCA5A5;
         }
         .message-success {
-            background-color: #D1FAE5; /* green-100 */
-            color: #065F46; /* green-700 */
-            border: 1px solid #6EE7B7; /* green-300 */
+            background-color: #D1FAE5;
+            color: #065F46;
+            border: 1px solid #6EE7B7;
         }
+
+        /* Loader animation */
         .loader {
-            border: 5px solid #f3f3f3; /* Light grey */
-            border-top: 5px solid #4F46E5; /* Indigo */
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #4F46E5;
             border-radius: 50%;
             width: 40px;
             height: 40px;
@@ -71,94 +93,41 @@
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
         }
-        .height-control-input {
-            padding: 0.5rem 0.75rem;
-            border: 1px solid #D1D5DB; /* gray-300 */
-            border-radius: 0.375rem; /* rounded-md */
-            width: 80px;
-            margin-left: 0.5rem;
-            margin-right: 0.5rem;
-            text-align: right;
-        }
-        .apply-height-button {
-            padding: 0.5rem 1rem;
-            background-color: #10B981; /* Emerald-500 */
-            color: white;
-            border-radius: 0.375rem; /* rounded-md */
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-        .apply-height-button:hover {
-            background-color: #059669; /* Emerald-600 */
-        }
 
-        /* Styles for sensor selection elements */
-        #sensorSelectionControls {
+        /* Sensor selection styles */
+        .sensor-controls {
             margin-top: 1.5rem;
             padding-top: 1.5rem;
             border-top: 1px solid #e5e7eb;
         }
-        .sensor-control-input, .sensor-control-select {
-            padding: 0.5rem 0.75rem;
-            border: 1px solid #D1D5DB;
-            border-radius: 0.375rem;
-            width: 100%; /* Full width within its container */
-        }
-        /* Adjusted width for sensor lists to allow side-by-side */
         .sensor-list-wrapper {
-            flex: 1; /* Allows it to grow and shrink */
-            min-width: 280px; /* Minimum width to prevent squishing */
-            max-width: 45%; /* Limits max width for two columns */
+            flex: 1;
+            min-width: 280px;
+            max-width: 45%;
         }
-        #sensorMultiSelect, #plottedSensorList {
-            min-height: 150px; /* Reverted height for better visibility of options */
+        .sensor-select {
+            min-height: 150px;
             overflow-y: auto;
             background-color: white;
-            border: 1px solid #D1D5DB;
-            border-radius: 0.375rem;
-            width: 100%; /* Ensure select fills its container */
+            width: 100%;
         }
-        #sensorMultiSelect option, #plottedSensorList option {
-            padding: 0.3rem 0.5rem; /* Reverted padding for easier clicking */
+        .sensor-select option {
+            padding: 0.3rem 0.5rem;
             cursor: pointer;
         }
-        #sensorMultiSelect option:hover, #plottedSensorList option:hover {
-            background-color: #e0e7ff; /* Indigo-100 */
+        .sensor-select option:hover {
+            background-color: #e0e7ff;
         }
-        #sensorMultiSelect option:checked, #plottedSensorList option:checked {
-            background-color: #c7d2fe; /* Indigo-200 */
-            color: #3730a3; /* Indigo-800 */
-        }
-        .action-button {
-            padding: 0.5rem 1.5rem;
-            background-color: #4F46E5; /* Indigo-600 */
-            color: white;
-            border-radius: 0.375rem;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-            margin-top: 0.5rem; /* Space between buttons */
-        }
-        .action-button:hover {
-            background-color: #4338CA; /* Indigo-700 */
-        }
-        .clear-button {
-            padding: 0.5rem 1.5rem;
-            background-color: #EF4444; /* Red-500 */
-            color: white;
-            border-radius: 0.375rem;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-            margin-top: 0.5rem; /* Space from other buttons */
-        }
-        .clear-button:hover {
-            background-color: #DC2626; /* Red-600 */
+        .sensor-select option:checked {
+            background-color: #c7d2fe;
+            color: #3730a3;
         }
         .control-buttons-group {
             display: flex;
             flex-direction: column;
-            align-items: center; /* Center buttons vertically */
-            gap: 1rem; /* Space between buttons */
-            margin: 0 1rem; /* Horizontal spacing for buttons between lists */
+            align-items: center;
+            gap: 1rem;
+            margin: 0 1rem;
         }
 
         /* Multi-file specific styles */
@@ -235,7 +204,7 @@
         <div class="bg-white p-6 rounded-lg shadow-lg mb-6">
             <div class="flex flex-wrap items-center gap-4 justify-center">
                 <div>
-                    <label for="fileInput" class="file-input-label">
+                    <label for="fileInput" class="btn btn-primary">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-2 align-middle" viewBox="0 0 20 20" fill="currentColor">
                             <path fill-rule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zM6.293 6.707a1 1 0 010-1.414l3-3a1 1 0 011.414 0l3 3a1 1 0 01-1.414 1.414L11 5.414V13a1 1 0 11-2 0V5.414L7.707 6.707a1 1 0 01-1.414 0z" clip-rule="evenodd" />
                         </svg>
@@ -355,6 +324,7 @@
                 clearPlotButton: container.querySelector('.clear-plot-button'),
                 plotHeightInput: container.querySelector('.plot-height-input'),
                 applyHeightButton: container.querySelector('.apply-height-button'),
+                visualizationMode: container.querySelector('.visualization-mode'),
                 removeFileButton: container.querySelector('.remove-file-button'),
                 collapseButton: container.querySelector('.collapse-button'),
                 fileContent: container.querySelector('.file-content')
@@ -392,45 +362,56 @@
                     </div>
                 </div>
                 <div class="file-content">
-                    <div class="mb-4 flex items-center justify-end">
-                        <label class="text-sm font-medium text-gray-700 mr-2">Chart Height (px):</label>
-                        <input type="number" class="plot-height-input height-control-input" value="500" min="200" max="2000" step="50">
-                        <button class="apply-height-button">Apply Height</button>
+                    <div class="mb-4 flex items-center justify-between">
+                        <div class="flex items-center">
+                            <label class="text-sm font-medium text-gray-700 mr-2">Visualization Mode:</label>
+                            <select class="visualization-mode form-input" style="min-width: 180px;">
+                                <option value="normalize">Normalize data (0-1)</option>
+                                <option value="zoom">Zoom</option>
+                                <option value="noresize">Noresize</option>
+                                <option value="multi-axis" selected>Multi-axis</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center">
+                            <label class="text-sm font-medium text-gray-700 mr-2">Chart Height (px):</label>
+                            <input type="number" class="plot-height-input form-input" value="500" min="200" max="2000" step="50" style="width: 80px; margin: 0 0.5rem; text-align: right;">
+                            <button class="apply-height-button btn btn-success">Apply Height</button>
+                        </div>
                     </div>
 
                     <!-- Sensor Selection Controls -->
-                    <div class="sensor-selection-controls hidden flex flex-col md:flex-row items-start md:items-center gap-4 mb-4 justify-center" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #e5e7eb;">
+                    <div class="sensor-selection-controls sensor-controls hidden flex flex-col md:flex-row items-start md:items-center gap-4 mb-4 justify-center">
                         <!-- Available Sensors List -->
                         <div class="w-full sensor-list-wrapper">
                             <label class="text-sm font-medium text-gray-700 block mb-1">Search Available Sensors:</label>
-                            <input type="text" class="sensor-search-input sensor-control-input mb-2" placeholder="Type to search...">
-                            <select class="sensor-multi-select sensor-control-select" multiple>
+                            <input type="text" class="sensor-search-input form-input mb-2" placeholder="Type to search...">
+                            <select class="sensor-multi-select sensor-select form-input" multiple>
                                 <!-- Options populated by JavaScript after file upload -->
                             </select>
                         </div>
 
                         <!-- Action Buttons -->
                         <div class="control-buttons-group">
-                            <button class="add-sensor-button action-button">
+                            <button class="add-sensor-button btn btn-primary">
                                 Add Sensor &rarr;
                             </button>
-                            <button class="remove-sensor-button action-button">
+                            <button class="remove-sensor-button btn btn-primary">
                                 &larr; Remove Sensor
                             </button>
-                            <button class="clear-plot-button clear-button">Clear All</button>
+                            <button class="clear-plot-button btn btn-danger">Clear All</button>
                         </div>
 
                         <!-- Sensors to Plot List -->
                         <div class="w-full sensor-list-wrapper">
                             <label class="text-sm font-medium text-gray-700 block mb-1">Sensors Currently Plotted:</label>
-                            <select class="plotted-sensor-list sensor-control-select" multiple>
+                            <select class="plotted-sensor-list sensor-select form-input" multiple>
                                 <!-- Options populated by JavaScript -->
                             </select>
                         </div>
                     </div>
 
-                    <div class="message-box hidden"></div>
-                    <div class="loader hidden" style="border: 5px solid #f3f3f3; border-top: 5px solid #4F46E5; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto;"></div>
+                    <div class="message-box message hidden"></div>
+                    <div class="loader hidden"></div>
 
                     <div class="plot-container bg-gray-50 rounded-md" style="width: 100%; height: 500px; border: 1px solid #e5e7eb; margin-top: 1.5rem; transition: height 0.3s ease-in-out;">
                         <div class="flex items-center justify-center h-full text-gray-400">
@@ -448,6 +429,14 @@
 
             // Height control
             elements.applyHeightButton.addEventListener('click', () => updateFileInstancePlotHeight(instance));
+
+            // Visualization mode dropdown
+            elements.visualizationMode.addEventListener('change', () => {
+                // Re-plot data when visualization mode changes
+                if (instance.sensorsCurrentlyPlotted.size > 0) {
+                    requestFileInstancePlotData(instance, Array.from(instance.sensorsCurrentlyPlotted));
+                }
+            });
 
             // Sensor controls
             elements.addSensorButton.addEventListener('click', () => addSelectedSensorsToFileInstancePlot(instance));
@@ -507,7 +496,7 @@
                                 break;
                             case 'processAndPlot':
                                 if (workerFile) {
-                                    processDataForPlotting(workerFile, payload.selectedSensors);
+                                    processDataForPlotting(workerFile, payload.selectedSensors, payload.visualizationMode);
                                 } else {
                                     postMessage({ type: 'error', message: 'No file loaded in worker. Please upload a file first.' });
                                 }
@@ -546,7 +535,7 @@
                     });
                 }
 
-                function processDataForPlotting(file, selectedSensors) {
+                function processDataForPlotting(file, selectedSensors, visualizationMode = 'normalize') {
                     const sensorData = {};
                     const selectedSensorSet = new Set(selectedSensors);
 
@@ -598,51 +587,192 @@
                         },
                         complete: function() {
                             const traces = [];
-                            const layoutUpdate = {
-                                yaxis: {
-                                    title: 'Normalized Value (0-1)',
-                                    range: [0, 1],
-                                },
-                                margin: { l: 70, r: 30, b: 100, t: 50 }
-                            };
+                            let layoutUpdate = {};
                             let yAxisCount = 0;
+                            let globalMin = Infinity;
+                            let globalMax = -Infinity;
+
+                            // Calculate global min/max for modes that need it
+                            if (visualizationMode !== 'normalize') {
+                                Object.values(sensorData).forEach(dataForSensor => {
+                                    const values = dataForSensor.points.map(p => p.y);
+                                    const min = Math.min(...values);
+                                    const max = Math.max(...values);
+                                    if (min < globalMin) globalMin = min;
+                                    if (max > globalMax) globalMax = max;
+                                });
+                            }
+
+                            // Set up layout based on visualization mode
+                            switch (visualizationMode) {
+                                case 'normalize':
+                                    layoutUpdate = {
+                                        yaxis: {
+                                            title: 'Normalized Value (0-1)',
+                                            range: [0, 1],
+                                        },
+                                        margin: { l: 70, r: 30, b: 100, t: 50 }
+                                    };
+                                    break;
+
+                                case 'zoom':
+                                    // Single axis with data min/max range (with padding)
+                                    const zoomRange = globalMax - globalMin;
+                                    const zoomPadding = zoomRange * 0.1;
+                                    layoutUpdate = {
+                                        yaxis: {
+                                            title: 'Actual Values (Zoomed)',
+                                            range: [globalMin - zoomPadding, globalMax + zoomPadding],
+                                        },
+                                        margin: { l: 70, r: 30, b: 100, t: 50 }
+                                    };
+                                    break;
+
+                                case 'noresize':
+                                    // Single axis from 0 to data maximum
+                                    layoutUpdate = {
+                                        yaxis: {
+                                            title: 'Actual Values (0 to Max)',
+                                            range: [0, globalMax * 1.1], // Add 10% padding at top
+                                        },
+                                        margin: { l: 70, r: 30, b: 100, t: 50 }
+                                    };
+                                    break;
+
+                                case 'multi-axis':
+                                    // Multi-axis with actual values
+                                    layoutUpdate = {
+                                        yaxis: {
+                                            title: 'Actual Values (Multi-axis)',
+                                        },
+                                        margin: { l: 70, r: 30, b: 100, t: 50 }
+                                    };
+                                    break;
+
+                                default:
+                                    // Fallback to normalize
+                                    layoutUpdate = {
+                                        yaxis: {
+                                            title: 'Normalized Value (0-1)',
+                                            range: [0, 1],
+                                        },
+                                        margin: { l: 70, r: 30, b: 100, t: 50 }
+                                    };
+                            }
 
                             Object.values(sensorData).forEach((dataForSensor, index) => {
                                 dataForSensor.points.sort((a, b) => a.x - b.x);
 
                                 const timestamps = dataForSensor.points.map(p => p.x);
                                 const originalValues = dataForSensor.points.map(p => p.y);
-                                const normalizedValues = normalizeMinMax(originalValues);
 
-                                yAxisCount++;
-                                const yAxisId = \`y\${yAxisCount}\`;
+                                let plotValues, yAxisId, hoverTemplate;
+
+                                switch (visualizationMode) {
+                                    case 'normalize':
+                                        // Normalized mode: each sensor gets its own axis with 0-1 values
+                                        plotValues = normalizeMinMax(originalValues);
+                                        yAxisCount++;
+                                        yAxisId = \`y\${yAxisCount}\`;
+                                        hoverTemplate = \`<b>%{customdata.fullName}</b><br>\` +
+                                                       \`Time: %{x|%Y-%m-%d %H:%M:%S}<br>\` +
+                                                       \`Original Value: %{customdata.originalValue:.3f}<br>\` +
+                                                       \`Normalized: %{y:.3f}<extra></extra>\`;
+                                        break;
+
+                                    case 'zoom':
+                                    case 'noresize':
+                                        // Single axis modes: all sensors share the same axis with actual values
+                                        plotValues = originalValues;
+                                        yAxisId = 'y';
+                                        hoverTemplate = \`<b>%{customdata.fullName}</b><br>\` +
+                                                       \`Time: %{x|%Y-%m-%d %H:%M:%S}<br>\` +
+                                                       \`Value: %{y:.3f}<extra></extra>\`;
+                                        break;
+
+                                    case 'multi-axis':
+                                        // Multi-axis mode: limit to 2 axes to avoid overlap
+                                        plotValues = originalValues;
+                                        yAxisCount++;
+                                        // Limit to 2 axes, reuse for additional sensors
+                                        if (yAxisCount <= 2) {
+                                            yAxisId = \`y\${yAxisCount}\`;
+                                        } else {
+                                            const useAxis = ((yAxisCount - 1) % 2) + 1;
+                                            yAxisId = \`y\${useAxis}\`;
+                                        }
+                                        hoverTemplate = \`<b>%{customdata.fullName}</b><br>\` +
+                                                       \`Time: %{x|%Y-%m-%d %H:%M:%S}<br>\` +
+                                                       \`Value: %{y:.3f}<extra></extra>\`;
+                                        break;
+
+                                    default:
+                                        // Fallback to normalize
+                                        plotValues = normalizeMinMax(originalValues);
+                                        yAxisCount++;
+                                        yAxisId = \`y\${yAxisCount}\`;
+                                        hoverTemplate = \`<b>%{customdata.fullName}</b><br>\` +
+                                                       \`Time: %{x|%Y-%m-%d %H:%M:%S}<br>\` +
+                                                       \`Original Value: %{customdata.originalValue:.3f}<br>\` +
+                                                       \`Normalized: %{y:.3f}<extra></extra>\`;
+                                }
 
                                 const trace = {
                                     x: timestamps,
-                                    y: normalizedValues,
+                                    y: plotValues,
                                     customdata: dataForSensor.points.map(p => ({ fullName: p.fullName, originalValue: p.y })),
                                     mode: 'lines+markers',
                                     name: dataForSensor.name,
                                     type: 'scatter',
                                     yaxis: yAxisId,
-                                    hovertemplate: \`<b>%{customdata.fullName}</b><br>\` +
-                                                   \`Time: %{x|%Y-%m-%d %H:%M:%S}<br>\` +
-                                                   \`Original Value: %{customdata.originalValue:.3f}<extra></extra>\`
+                                    hovertemplate: hoverTemplate
                                 };
                                 traces.push(trace);
 
-                                layoutUpdate[\`yaxis\${yAxisCount}\`] = {
-                                     title: {
-                                         text: dataForSensor.name,
-                                         standoff: 5
-                                     },
-                                     range: [0, 1],
-                                     overlaying: 'y',
-                                     side: yAxisCount % 2 === 1 ? 'right' : 'left',
-                                     showgrid: false,
-                                     zeroline: false,
-                                     automargin: true,
-                                };
+                                // Create multiple axes for normalize and multi-axis modes
+                                if (visualizationMode === 'normalize') {
+                                    layoutUpdate[\`yaxis\${yAxisCount}\`] = {
+                                         title: {
+                                             text: dataForSensor.name,
+                                             standoff: 5
+                                         },
+                                         range: [0, 1],
+                                         overlaying: 'y',
+                                         side: yAxisCount % 2 === 1 ? 'right' : 'left',
+                                         showgrid: false,
+                                         zeroline: false,
+                                         automargin: true,
+                                    };
+                                } else if (visualizationMode === 'multi-axis') {
+                                    // Calculate individual sensor min/max for multi-axis
+                                    const sensorMin = Math.min(...originalValues);
+                                    const sensorMax = Math.max(...originalValues);
+                                    const sensorRange = sensorMax - sensorMin;
+                                    const sensorPadding = sensorRange * 0.1;
+
+                                    // Only create axes for first two sensors to avoid overlap
+                                    if (yAxisCount <= 2) {
+                                        layoutUpdate[\`yaxis\${yAxisCount}\`] = {
+                                             title: {
+                                                 text: dataForSensor.name,
+                                                 standoff: 10
+                                             },
+                                             range: [sensorMin - sensorPadding, sensorMax + sensorPadding],
+                                             overlaying: yAxisCount === 1 ? undefined : 'y',
+                                             side: yAxisCount === 1 ? 'left' : 'right',
+                                             showgrid: yAxisCount === 1,
+                                             zeroline: false,
+                                             automargin: true,
+                                             titlefont: { size: 12 },
+                                             tickfont: { size: 10 }
+                                        };
+                                    } else {
+                                        // For additional sensors, use the closest existing axis
+                                        const useAxis = ((yAxisCount - 1) % 2) + 1;
+                                        yAxisId = \`y\${useAxis}\`;
+                                        yAxisCount--; // Don't increment for reused axes
+                                    }
+                                }
                             });
 
                             const finalLayout = {
@@ -672,6 +802,12 @@
                                     xanchor: 'right', x: 1
                                 },
                                 hovermode: 'closest',
+                                margin: {
+                                    l: 80,  // Left margin for left axis
+                                    r: 80,  // Right margin for right axis
+                                    t: 50,  // Top margin
+                                    b: 50   // Bottom margin
+                                },
                                 ...layoutUpdate
                             };
 
@@ -737,7 +873,7 @@
         function showFileInstanceMessage(instance, message, type = 'error') {
             const messageBox = instance.elements.messageBox;
             messageBox.textContent = message;
-            messageBox.className = `p-4 rounded-md mt-4 font-medium ${type === 'error' ? 'message-error' : 'message-success'}`;
+            messageBox.className = `message p-4 rounded-md mt-4 font-medium ${type === 'error' ? 'message-error' : 'message-success'}`;
             messageBox.classList.remove('hidden');
         }
 
@@ -861,8 +997,15 @@
                 return;
             }
 
+            const visualizationMode = instance.elements.visualizationMode.value;
             showFileInstanceLoader(instance);
-            instance.worker.postMessage({ type: 'processAndPlot', payload: { selectedSensors: selectedSensorNames } });
+            instance.worker.postMessage({
+                type: 'processAndPlot',
+                payload: {
+                    selectedSensors: selectedSensorNames,
+                    visualizationMode: visualizationMode
+                }
+            });
         }
 
         function clearFileInstancePlot(instance) {
