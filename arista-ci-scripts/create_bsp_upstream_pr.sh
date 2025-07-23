@@ -15,7 +15,7 @@ status_email_file=status_email_content.txt
 # Status email subject
 email_subject_file=status_email_subject.txt
 
-echo "fboss.bsp.arista pull request from $PR_BRANCH" > $email_subject_file
+echo "fboss.bsp.arista upstream pull request created from $PR_BRANCH" > $email_subject_file
 
 SCRIPT_START_DIR="$1"
 
