@@ -1,0 +1,5 @@
+# Instructions for patching Jam v2.5
+
+1. Copy jam 2.5 source and jam.patch into a directory.
+2. Run "patch -p0 < jam.patch" to apply patch.
+3. Compile the patched source using the patched Makefile.

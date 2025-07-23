@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Augment FBOSS Showtech Viewer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/js-untar@2.0.1/build/dist/untar.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .log-content pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-family: 'Menlo', 'Monaco', 'Consolas', "Liberation Mono", "Courier New", monospace;
+            transition: font-size 0.1s ease-in-out;
+        }
+        .section-header {
+            cursor: pointer;
+            user-select: none;
+        }
+        .section-content {
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+            overflow: hidden;
+        }
+        .section-content.collapsed {
+            max-height: 0 !important;
+            opacity: 0 !important;
+            padding-top: 0 !important;
+            padding-bottom: 0 !important;
+            margin-top: 0 !important;
+            margin-bottom: 0 !important;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        .file-tab.active {
+            border-bottom-color: #3b82f6;
+            color: #3b82f6;
+        }
+        .copy-feedback {
+            font-size: 0.75rem;
+            color: green;
+            margin-left: 8px;
+            display: inline-block;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        .copy-feedback.visible {
+            opacity: 1;
+        }
+        .llm-panel {
+            transition: all 0.3s ease-in-out;
+        }
+        .llm-panel.collapsed {
+            height: 40px;
+            overflow: hidden;
+        }
+        .llm-panel.expanded {
+            height: auto;
+            min-height: 400px;
+        }
+        .spinner {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #3498db;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .context-preview {
+            max-height: 200px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 8px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+        .response-content {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 12px;
+            white-space: pre-wrap;
+            font-family: system-ui, -apple-system, sans-serif;
+            line-height: 1.5;
+        }
+        .global-filter-state {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            margin-bottom: 8px;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800">
+    <div class="container mx-auto p-4 min-h-screen flex flex-col">
+        <header class="bg-slate-800 text-white p-6 rounded-lg shadow-md mb-6 flex justify-center items-center">
+            <h1 class="text-3xl font-bold text-center">Augment FBOSS Showtech Viewer</h1>
+        </header>
+
+        <section id="uploadSection" class="mb-6 p-6 bg-white rounded-lg shadow-md">
+            <h2 class="text-xl font-semibold mb-3 text-slate-700">Upload Log Files</h2>
+            <p class="text-sm text-gray-600 mb-3">Supported formats: .txt, .log, .gz, .zip, .tar, .tar.gz</p>
+            <input type="file" id="fileInput" multiple class="block w-full text-sm text-slate-500
+                file:mr-4 file:py-2 file:px-4
+                file:rounded-full file:border-0
+                file:text-sm file:font-semibold
+                file:bg-blue-50 file:text-blue-700
+                hover:file:bg-blue-100
+            "/>
+            <div id="uploadSpinner" class="hidden mt-4 flex items-center justify-center">
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Processing files...
+            </div>
+            <div id="errorMessage" class="mt-3 text-red-600 text-sm"></div>
+        </section>
+
+        <!-- Global Filter State Display -->
+        <div id="globalFilterState" class="global-filter-state mb-4 hidden">
+            <div class="flex justify-between items-center">
+                <span id="filterStateText">Global Filter: None</span>
+                <button id="clearGlobalFilter" class="text-xs bg-white bg-opacity-20 hover:bg-opacity-30 px-2 py-1 rounded">Clear</button>
+            </div>
+        </div>
+
+        <!-- LLM Query Panel -->
+        <section id="llmPanel" class="llm-panel collapsed bg-white rounded-lg shadow-md mb-6 overflow-hidden">
+            <div class="p-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white cursor-pointer" onclick="toggleLLMPanel()">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-lg font-semibold">🤖 AI Assistant</h2>
+                    <span id="llmToggleIcon">▼</span>
+                </div>
+            </div>
+            <div id="llmPanelContent" class="p-4 hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Gemini API Key</label>
+                        <input type="password" id="geminiApiKey" placeholder="Enter your Gemini API key"
+                               class="w-full p-2 border border-gray-300 rounded-md text-sm">
+                        <p class="text-xs text-gray-500 mt-1">Your API key is stored locally and never sent to our servers</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">Context Source</label>
+                        <select id="contextSource" class="w-full p-2 border border-gray-300 rounded-md text-sm">
+                            <option value="current">Current Log (Filtered Sections)</option>
+                            <option value="all">All Logs (Filtered Sections)</option>
+                            <option value="visible">All Visible Sections</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="mt-4">
+                    <label class="block text-sm font-medium mb-2">Your Question</label>
+                    <textarea id="llmQuery" placeholder="Ask a question about the log data..."
+                              class="w-full p-3 border border-gray-300 rounded-md text-sm h-24 resize-vertical"></textarea>
+                </div>
+
+                <div class="flex justify-between items-center mt-4">
+                    <button id="sendLLMQuery" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium">
+                        Send Query
+                    </button>
+                    <div id="contextStats" class="text-xs text-gray-500"></div>
+                </div>
+
+                <div id="llmResponse" class="mt-4 hidden">
+                    <h3 class="text-sm font-medium mb-2">AI Response</h3>
+                    <div id="llmResponseContent" class="response-content"></div>
+                </div>
+
+                <div id="llmLoading" class="mt-4 hidden flex items-center justify-center">
+                    <div class="spinner mr-2"></div>
+                    <span class="text-sm text-gray-600">Analyzing logs...</span>
+                </div>
+            </div>
+        </section>
+
+        <main id="mainContentArea" class="flex-grow flex flex-col lg:flex-row gap-4 overflow-hidden">
+            <div class="flex flex-col gap-4 lg:w-3/4 overflow-hidden">
+                <div id="fileTabsContainer" class="bg-white p-4 rounded-lg shadow-md overflow-y-auto flex-shrink-0 max-h-64">
+                    <h3 class="text-lg font-semibold mb-3 text-slate-700">Uploaded Files</h3>
+                    <div id="fileTabs" class="space-y-2">
+                        <p id="noFilesMessage" class="text-gray-500 text-sm">No files uploaded yet.</p>
+                    </div>
+                </div>
+
+                <div id="logContentOuterContainer" class="flex-grow bg-white p-6 rounded-lg shadow-md overflow-hidden flex flex-col">
+                    <div class="flex justify-between items-center mb-4 flex-shrink-0 flex-wrap">
+                        <h2 id="currentLogName" class="text-xl font-semibold text-slate-700 truncate mr-4">Log Content</h2>
+                        <div class="flex items-center space-x-2 flex-wrap">
+                            <button id="convertI2cBtn" class="text-xs bg-teal-500 hover:bg-teal-600 text-white py-1 px-3 rounded-md" disabled>Convert i2cdumps to JSON</button>
+                            <button id="decreaseTextSizeBtn" class="text-xs bg-gray-500 hover:bg-gray-600 text-white py-1 px-3 rounded-md">- Font</button>
+                            <button id="increaseTextSizeBtn" class="text-xs bg-gray-500 hover:bg-gray-600 text-white py-1 px-3 rounded-md">+ Font</button>
+                            <button id="expandAllBtn" class="text-xs bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded-md">Expand All</button>
+                            <button id="collapseAllBtn" class="text-xs bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded-md">Collapse All</button>
+                        </div>
+                    </div>
+                     <div id="conversionStatusMessage" class="text-sm text-green-600 mb-2 h-5"></div>
+                    <div id="logContent" class="log-content flex-grow overflow-y-auto">
+                        <p id="selectFileMessage" class="text-gray-500">Select a file to view its content.</p>
+                    </div>
+                </div>
+            </div>
+
+            <aside id="sectionsSidebar" class="bg-white p-4 rounded-lg shadow-md overflow-y-auto lg:w-1/4">
+                <h3 class="text-lg font-semibold mb-3 text-slate-700">Sections</h3>
+                <input type="text" id="sectionSearchInput" placeholder="Search sections..." class="w-full p-2 border border-gray-300 rounded-md mb-2 text-sm">
+                <div class="mb-2 flex items-center">
+                    <input type="checkbox" id="toggleAllSections" class="mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                    <label for="toggleAllSections" id="toggleAllSectionsLabel" class="text-sm font-medium">Toggle All Sections</label>
+                </div>
+                <div class="mb-2 flex items-center">
+                    <input type="checkbox" id="applyGlobalFilter" class="mr-2 h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500">
+                    <label for="applyGlobalFilter" class="text-sm font-medium text-purple-600">Apply as Global Filter</label>
+                </div>
+                <div id="sectionsList" class="space-y-1">
+                    <p id="noSectionsMessage" class="text-gray-500 text-sm">No sections found or no file selected.</p>
+                </div>
+            </aside>
+        </main>
+
+        <footer class="text-center text-sm text-gray-500 py-4 mt-auto">
+            Augment FBOSS Showtech Viewer &copy; 2024
+        </footer>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const fileInput = document.getElementById('fileInput');
+        const fileTabsContainer = document.getElementById('fileTabs');
+        const noFilesMessage = document.getElementById('noFilesMessage');
+        const logContentDiv = document.getElementById('logContent');
+        const selectFileMessage = document.getElementById('selectFileMessage');
+        const currentLogNameH2 = document.getElementById('currentLogName');
+
+        const sectionsSidebar = document.getElementById('sectionsSidebar');
+        const sectionSearchInput = document.getElementById('sectionSearchInput');
+        const sectionsListDiv = document.getElementById('sectionsList');
+        const noSectionsMessage = document.getElementById('noSectionsMessage');
+        const toggleAllSectionsCheckbox = document.getElementById('toggleAllSections');
+        const toggleAllSectionsLabel = document.getElementById('toggleAllSectionsLabel');
+        const applyGlobalFilterCheckbox = document.getElementById('applyGlobalFilter');
+
+        const expandAllBtn = document.getElementById('expandAllBtn');
+        const collapseAllBtn = document.getElementById('collapseAllBtn');
+        const increaseTextSizeBtn = document.getElementById('increaseTextSizeBtn');
+        const decreaseTextSizeBtn = document.getElementById('decreaseTextSizeBtn');
+        const convertI2cBtn = document.getElementById('convertI2cBtn');
+        const conversionStatusMessage = document.getElementById('conversionStatusMessage');
+
+        const uploadSpinner = document.getElementById('uploadSpinner');
+        const errorMessageDiv = document.getElementById('errorMessage');
+
+        const mainContentArea = document.getElementById('mainContentArea');
+        const logContentOuterContainer = document.getElementById('logContentOuterContainer');
+
+        // LLM Panel Elements
+        const llmPanel = document.getElementById('llmPanel');
+        const llmPanelContent = document.getElementById('llmPanelContent');
+        const llmToggleIcon = document.getElementById('llmToggleIcon');
+        const geminiApiKey = document.getElementById('geminiApiKey');
+        const contextSource = document.getElementById('contextSource');
+        const llmQuery = document.getElementById('llmQuery');
+        const sendLLMQuery = document.getElementById('sendLLMQuery');
+        const contextStats = document.getElementById('contextStats');
+        const llmResponse = document.getElementById('llmResponse');
+        const llmResponseContent = document.getElementById('llmResponseContent');
+        const llmLoading = document.getElementById('llmLoading');
+
+        // Global Filter Elements
+        const globalFilterState = document.getElementById('globalFilterState');
+        const filterStateText = document.getElementById('filterStateText');
+        const clearGlobalFilter = document.getElementById('clearGlobalFilter');
+
+        // --- Application State ---
+        let processedLogs = [];
+        let currentLogIndex = -1;
+        let globalCurrentFontSize = 14;
+        const MIN_FONT_SIZE = 8;
+        const MAX_FONT_SIZE = 24;
+        const FONT_SIZE_STEP = 1;
+
+        // Global filter state - persists across log switches
+        let globalFilter = {
+            searchTerm: '',
+            visibleSections: new Set(),
+            isActive: false
+        };
+
+        // --- Event Listeners ---
+        fileInput.addEventListener('change', handleFiles);
+        sectionSearchInput.addEventListener('input', handleSectionSearch);
+        toggleAllSectionsCheckbox.addEventListener('change', handleToggleAllSectionsVisibility);
+        applyGlobalFilterCheckbox.addEventListener('change', handleGlobalFilterToggle);
+        expandAllBtn.addEventListener('click', () => toggleAllSectionsCollapse(false));
+        collapseAllBtn.addEventListener('click', () => toggleAllSectionsCollapse(true));
+        increaseTextSizeBtn.addEventListener('click', () => changeFontSize(FONT_SIZE_STEP));
+        decreaseTextSizeBtn.addEventListener('click', () => changeFontSize(-FONT_SIZE_STEP));
+        convertI2cBtn.addEventListener('click', toggleI2cConversion);
+        sendLLMQuery.addEventListener('click', handleLLMQuery);
+        clearGlobalFilter.addEventListener('click', clearGlobalFilterState);
+
+        // Load saved API key
+        geminiApiKey.value = localStorage.getItem('geminiApiKey') || '';
+        geminiApiKey.addEventListener('change', () => {
+            localStorage.setItem('geminiApiKey', geminiApiKey.value);
+        });
+
+        // Update context stats when source changes
+        contextSource.addEventListener('change', updateContextStats);
+
+        // --- LLM Panel Functions ---
+        function toggleLLMPanel() {
+            const isCollapsed = llmPanel.classList.contains('collapsed');
+            if (isCollapsed) {
+                llmPanel.classList.remove('collapsed');
+                llmPanel.classList.add('expanded');
+                llmPanelContent.classList.remove('hidden');
+                llmToggleIcon.textContent = '▲';
+                updateContextStats();
+            } else {
+                llmPanel.classList.remove('expanded');
+                llmPanel.classList.add('collapsed');
+                llmPanelContent.classList.add('hidden');
+                llmToggleIcon.textContent = '▼';
+            }
+        }
+
+        function updateContextStats() {
+            const context = getContextForLLM();
+            const charCount = context.length;
+            const sectionCount = context.split('####').length - 1;
+            contextStats.textContent = `Context: ${sectionCount} sections, ${charCount.toLocaleString()} characters`;
+        }
+
+        function getContextForLLM() {
+            const source = contextSource.value;
+            let context = '';
+
+            if (source === 'current' && currentLogIndex !== -1) {
+                const log = processedLogs[currentLogIndex];
+                context = getFilteredLogContent(log);
+            } else if (source === 'all' || source === 'visible') {
+                processedLogs.forEach((log, index) => {
+                    const logContent = getFilteredLogContent(log);
+                    if (logContent.trim()) {
+                        context += `\n\n=== LOG FILE: ${log.name} ===\n${logContent}`;
+                    }
+                });
+            }
+
+            return context.trim();
+        }
+
+        function getFilteredLogContent(log) {
+            if (!log || !log.sections) return '';
+
+            let content = '';
+            log.sections.forEach(section => {
+                if (section.isVisible && !section.isCollapsed) {
+                    content += `\n#### ${section.title}\n`;
+                    content += section.headerLines.join('\n') + '\n';
+                    content += section.contentLines.join('\n') + '\n';
+                }
+            });
+
+            return content;
+        }
+
+        async function handleLLMQuery() {
+            const apiKey = geminiApiKey.value.trim();
+            const query = llmQuery.value.trim();
+
+            if (!apiKey) {
+                alert('Please enter your Gemini API key');
+                return;
+            }
+
+            if (!query) {
+                alert('Please enter a question');
+                return;
+            }
+
+            const context = getContextForLLM();
+            if (!context) {
+                alert('No context available. Please upload logs and ensure some sections are visible.');
+                return;
+            }
+
+            llmLoading.classList.remove('hidden');
+            llmResponse.classList.add('hidden');
+            sendLLMQuery.disabled = true;
+
+            try {
+                const response = await queryGemini(apiKey, query, context);
+                llmResponseContent.textContent = response;
+                llmResponse.classList.remove('hidden');
+            } catch (error) {
+                llmResponseContent.textContent = `Error: ${error.message}`;
+                llmResponse.classList.remove('hidden');
+            } finally {
+                llmLoading.classList.add('hidden');
+                sendLLMQuery.disabled = false;
+            }
+        }
+
+        async function queryGemini(apiKey, query, context) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro-latest:generateContent?key=${apiKey}`;
+
+            const prompt = `You are an expert system administrator analyzing FBOSS (Facebook Open Switching System) logs. Please analyze the following log data and answer the user's question.
+
+Context from log files:
+${context}
+
+User Question: ${query}
+
+Please provide a detailed analysis based on the log data provided. Focus on:
+1. Specific findings from the logs
+2. Potential issues or anomalies
+3. Recommendations if applicable
+4. Reference specific sections or data points from the logs in your response`;
+
+            const requestBody = {
+                contents: [{
+                    parts: [{
+                        text: prompt
+                    }]
+                }],
+                generationConfig: {
+                    temperature: 0.1,
+                    topK: 40,
+                    topP: 0.95,
+                    maxOutputTokens: 8192,
+                }
+            };
+
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestBody)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error?.message || `HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const data = await response.json();
+
+            if (!data.candidates || !data.candidates[0] || !data.candidates[0].content) {
+                throw new Error('Invalid response format from Gemini API');
+            }
+
+            return data.candidates[0].content.parts[0].text;
+        }
+
+        // --- Global Filter Functions ---
+        function handleGlobalFilterToggle() {
+            if (applyGlobalFilterCheckbox.checked) {
+                // Apply current search as global filter
+                const searchTerm = sectionSearchInput.value.trim().toLowerCase();
+                globalFilter.searchTerm = searchTerm;
+                globalFilter.isActive = true;
+
+                // Collect currently visible sections
+                if (currentLogIndex !== -1 && processedLogs[currentLogIndex]) {
+                    globalFilter.visibleSections.clear();
+                    processedLogs[currentLogIndex].sections.forEach(section => {
+                        if (section.isVisible) {
+                            globalFilter.visibleSections.add(section.title.toLowerCase());
+                        }
+                    });
+                }
+
+                updateGlobalFilterDisplay();
+                applyGlobalFilterToAllLogs();
+            } else {
+                clearGlobalFilterState();
+            }
+        }
+
+        function clearGlobalFilterState() {
+            globalFilter.isActive = false;
+            globalFilter.searchTerm = '';
+            globalFilter.visibleSections.clear();
+            applyGlobalFilterCheckbox.checked = false;
+            updateGlobalFilterDisplay();
+
+            // Reset all logs to show all sections
+            processedLogs.forEach(log => {
+                log.sections.forEach(section => {
+                    section.isVisible = true;
+                });
+            });
+
+            renderLogContent();
+            renderSectionsSidebar();
+        }
+
+        function updateGlobalFilterDisplay() {
+            if (globalFilter.isActive) {
+                globalFilterState.classList.remove('hidden');
+                const sectionCount = globalFilter.visibleSections.size;
+                const searchText = globalFilter.searchTerm ? ` "${globalFilter.searchTerm}"` : '';
+                filterStateText.textContent = `Global Filter: ${sectionCount} sections${searchText}`;
+            } else {
+                globalFilterState.classList.add('hidden');
+            }
+        }
+
+        function applyGlobalFilterToAllLogs() {
+            if (!globalFilter.isActive) return;
+
+            processedLogs.forEach(log => {
+                log.sections.forEach(section => {
+                    const titleLower = section.title.toLowerCase();
+                    let shouldShow = true;
+
+                    // Apply search term filter
+                    if (globalFilter.searchTerm) {
+                        shouldShow = titleLower.includes(globalFilter.searchTerm);
+                    }
+
+                    // Apply section visibility filter
+                    if (shouldShow && globalFilter.visibleSections.size > 0) {
+                        shouldShow = globalFilter.visibleSections.has(titleLower);
+                    }
+
+                    section.isVisible = shouldShow;
+                });
+            });
+        }
+
+        // --- Enhanced Section Search ---
+        function handleSectionSearch() {
+            const searchTerm = sectionSearchInput.value.trim().toLowerCase();
+
+            if (currentLogIndex !== -1 && processedLogs[currentLogIndex]) {
+                processedLogs[currentLogIndex].sectionSearchTerm = searchTerm;
+            }
+
+            // If global filter is active, update it
+            if (globalFilter.isActive) {
+                globalFilter.searchTerm = searchTerm;
+                applyGlobalFilterToAllLogs();
+                updateGlobalFilterDisplay();
+                renderLogContent();
+            }
+
+            renderSectionsSidebar();
+        }
+
+        // --- Text Size Control ---
+        function applyCurrentLogFontSize() {
+            if (currentLogIndex !== -1 && processedLogs[currentLogIndex]) {
+                const fontSize = processedLogs[currentLogIndex].fontSize;
+                const preElements = logContentDiv.querySelectorAll('pre');
+                preElements.forEach(pre => {
+                    pre.style.fontSize = `${fontSize}px`;
+                });
+            }
+        }
+
+        function changeFontSize(delta) {
+            if (currentLogIndex === -1 || !processedLogs[currentLogIndex]) return;
+            const logEntry = processedLogs[currentLogIndex];
+            const newSize = logEntry.fontSize + delta;
+
+            if (newSize >= MIN_FONT_SIZE && newSize <= MAX_FONT_SIZE) {
+                logEntry.fontSize = newSize;
+                applyCurrentLogFontSize();
+                logEntry.sections.forEach(section => {
+                    if (section.isVisible && !section.isCollapsed) {
+                        const sectionContainer = document.getElementById(section.id);
+                        if (sectionContainer) {
+                            const contentDiv = sectionContainer.querySelector('.section-content');
+                            if (contentDiv && !contentDiv.classList.contains('collapsed')) {
+                               requestAnimationFrame(() => {
+                                    contentDiv.style.maxHeight = contentDiv.scrollHeight + "px";
+                               });
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // --- File Handling and Processing ---
+        async function handleFiles(event) {
+            const files = Array.from(event.target.files);
+            if (files.length === 0) return;
+            uploadSpinner.classList.remove('hidden');
+            errorMessageDiv.textContent = '';
+            const newlyProcessedFileNames = [];
+            for (const file of files) {
+                try {
+                    await processSingleFileOrArchive(file);
+                    newlyProcessedFileNames.push(file.name);
+                } catch (error) {
+                    console.error(`Error processing file ${file.name}:`, error);
+                    errorMessageDiv.textContent += `Error processing ${file.name}: ${error.message}\n`;
+                }
+            }
+            uploadSpinner.classList.add('hidden');
+            if (newlyProcessedFileNames.length > 0) {
+                const firstSuccessfullyUploadedFileName = newlyProcessedFileNames[0];
+                let newLogIndexToSelect = -1;
+                for (let i = 0; i < processedLogs.length; i++) {
+                    if (processedLogs[i].name.startsWith(firstSuccessfullyUploadedFileName) || processedLogs[i].name === firstSuccessfullyUploadedFileName) {
+                        newLogIndexToSelect = i;
+                        break;
+                    }
+                }
+                if (newLogIndexToSelect !== -1) selectLog(newLogIndexToSelect);
+                else if (processedLogs.length > 0 && currentLogIndex === -1) selectLog(0);
+            } else if (processedLogs.length > 0 && currentLogIndex === -1) selectLog(0);
+            renderFileTabs();
+        }
+
+        async function processSingleFileOrArchive(file) {
+            const fileName = file.name.toLowerCase();
+            if (fileName.endsWith('.txt') || fileName.endsWith('.log')) {
+                const content = await readFileAsText(file);
+                addProcessedLog(file.name, content);
+            } else if (fileName.endsWith('.gz')) {
+                const decompressed = await decompressGzip(file);
+                addProcessedLog(file.name.replace(/\.gz$/i, ''), new TextDecoder().decode(decompressed));
+            } else if (fileName.endsWith('.zip')) {
+                await handleZipFile(file);
+            } else if (fileName.endsWith('.tar')) {
+                await handleTarFile(file, file.name);
+            } else if (fileName.endsWith('.tar.gz')) {
+                const tarData = await decompressGzip(file);
+                await handleTarFile(new Blob([tarData]), file.name.replace(/\.tar\.gz$/i, '.tar'));
+            } else {
+                console.warn(`Unsupported file type: ${file.name}`);
+                errorMessageDiv.textContent += `Unsupported file type: ${file.name}. Skipping.\n`;
+            }
+        }
+
+        function readFileAsText(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(new Error(`Error reading file ${file.name}: ${e.target.error}`));
+                reader.readAsText(file);
+            });
+        }
+
+        function readFileAsArrayBuffer(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (e) => resolve(e.target.result);
+                reader.onerror = (e) => reject(new Error(`Error reading file ${file.name} as ArrayBuffer: ${e.target.error}`));
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        async function decompressGzip(file) {
+            const arrayBuffer = await readFileAsArrayBuffer(file);
+            return pako.inflate(new Uint8Array(arrayBuffer));
+        }
+
+        async function handleZipFile(zipFile) {
+            const arrayBuffer = await readFileAsArrayBuffer(zipFile);
+            const jszip = new JSZip();
+            const zip = await jszip.loadAsync(arrayBuffer);
+            for (const [relativePath, zipEntry] of Object.entries(zip.files)) {
+                if (!zipEntry.dir) {
+                     try {
+                        const fileContent = await zipEntry.async("string");
+                        addProcessedLog(`${zipFile.name} -> ${relativePath}`, fileContent);
+                    } catch (error) {
+                        console.error(`Error processing file ${relativePath} in zip ${zipFile.name}:`, error);
+                         errorMessageDiv.textContent += `Error in ${zipFile.name} -> ${relativePath}: ${error.message}\n`;
+                    }
+                }
+            }
+        }
+
+        async function handleTarFile(tarFileOrBlob, originalTarName) {
+            try {
+                const arrayBuffer = await (tarFileOrBlob instanceof File ? readFileAsArrayBuffer(tarFileOrBlob) : tarFileOrBlob.arrayBuffer());
+                const tarEntries = await untar(arrayBuffer);
+                tarEntries.forEach(entry => {
+                    if ((entry.type === '0' || entry.type === 0) && entry.name && !entry.name.endsWith('/')) {
+                         try {
+                            const content = new TextDecoder("utf-8", { fatal: true }).decode(entry.buffer);
+                            addProcessedLog(`${originalTarName} -> ${entry.name}`, content);
+                        } catch (decodeError) {
+                             console.warn(`Skipping binary or non-UTF8 file in tar: ${originalTarName} -> ${entry.name}`);
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error(`Error processing tar file ${originalTarName}:`, error);
+                errorMessageDiv.textContent += `Error processing tar file ${originalTarName}: ${error.message}\n`;
+            }
+        }
+
+        function addProcessedLog(name, content) {
+            const existingLogIndex = processedLogs.findIndex(log => log.name === name);
+            const newLog = {
+                name: name,
+                originalContent: content,
+                currentDisplayContent: content,
+                sections: parseLogContent(content),
+                isI2cConverted: false,
+                fontSize: globalCurrentFontSize,
+                sectionSearchTerm: "" // Initialize per-log search term
+            };
+
+            // Apply global filter to new log if active
+            if (globalFilter.isActive) {
+                newLog.sections.forEach(section => {
+                    const titleLower = section.title.toLowerCase();
+                    let shouldShow = true;
+
+                    if (globalFilter.searchTerm) {
+                        shouldShow = titleLower.includes(globalFilter.searchTerm);
+                    }
+
+                    if (shouldShow && globalFilter.visibleSections.size > 0) {
+                        shouldShow = globalFilter.visibleSections.has(titleLower);
+                    }
+
+                    section.isVisible = shouldShow;
+                });
+            }
+
+            if (existingLogIndex !== -1) {
+                processedLogs[existingLogIndex] = newLog;
+            } else {
+                processedLogs.push(newLog);
+            }
+        }
+
+        function parseLogContent(content) {
+            const sections = [];
+            if (!content) return sections;
+            const lines = content.split(/\r?\n/);
+            let currentSection = null;
+            const titleLineRegex = /^#{4,}\s*([^#\s].*?)\s*#*$/;
+            const decorativeHashLineRegex = /^\s*#+\s*$/;
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i];
+                const prevLine = i > 0 ? lines[i - 1] : null;
+                const nextLine = i < lines.length - 1 ? lines[i + 1] : null;
+                const titleMatch = line.match(titleLineRegex);
+
+                if (titleMatch && prevLine && decorativeHashLineRegex.test(prevLine) && nextLine && decorativeHashLineRegex.test(nextLine)) {
+                    if (currentSection) sections.push(currentSection);
+                    let title = titleMatch[1].trim();
+                    currentSection = {
+                        id: `section-${crypto.randomUUID()}`, title: title, headerLines: [prevLine, line, nextLine],
+                        contentLines: [], isCollapsed: false, isVisible: true
+                    };
+                    i++;
+                } else if (titleMatch) {
+                    if (currentSection) sections.push(currentSection);
+                    let title = titleMatch[1].trim();
+                    currentSection = {
+                        id: `section-${crypto.randomUUID()}`, title: title, headerLines: [line],
+                        contentLines: [], isCollapsed: false, isVisible: true
+                    };
+                } else if (currentSection) {
+                    currentSection.contentLines.push(line);
+                }
+            }
+            if (currentSection) sections.push(currentSection);
+            return sections;
+        }
+
+        // --- UI Rendering ---
+        function renderFileTabs() {
+            fileTabsContainer.innerHTML = '';
+            if (processedLogs.length === 0) {
+                fileTabsContainer.appendChild(noFilesMessage);
+                noFilesMessage.classList.remove('hidden');
+                return;
+            }
+            noFilesMessage.classList.add('hidden');
+            processedLogs.forEach((log, index) => {
+                const tab = document.createElement('button');
+                tab.className = `file-tab w-full text-left p-2 rounded-md hover:bg-gray-200 focus:outline-none border-b-2 border-transparent truncate`;
+                if (index === currentLogIndex) tab.classList.add('active', 'bg-blue-100');
+                tab.textContent = log.name;
+                tab.title = log.name;
+                tab.onclick = () => selectLog(index);
+                fileTabsContainer.appendChild(tab);
+            });
+        }
+
+        function selectLog(index) {
+            if (index < 0 || index >= processedLogs.length) {
+                currentLogIndex = -1;
+                currentLogNameH2.textContent = 'Log Content';
+                logContentDiv.innerHTML = '';
+                logContentDiv.appendChild(selectFileMessage);
+                selectFileMessage.classList.remove('hidden');
+                convertI2cBtn.disabled = true;
+                convertI2cBtn.textContent = "Convert i2cdumps to JSON";
+                sectionSearchInput.value = '';
+            } else {
+                currentLogIndex = index;
+                const logEntry = processedLogs[currentLogIndex];
+                currentLogNameH2.textContent = logEntry.name;
+                selectFileMessage.classList.add('hidden');
+                convertI2cBtn.disabled = false;
+                convertI2cBtn.textContent = logEntry.isI2cConverted ? "Revert i2cdumps from JSON" : "Convert i2cdumps to JSON";
+
+                // Restore search term - use global filter if active, otherwise use log-specific term
+                if (globalFilter.isActive) {
+                    sectionSearchInput.value = globalFilter.searchTerm || '';
+                } else {
+                    sectionSearchInput.value = logEntry.sectionSearchTerm || '';
+                }
+            }
+            conversionStatusMessage.textContent = '';
+            applyCurrentLogFontSize();
+            renderLogContent();
+            renderSectionsSidebar();
+            renderFileTabs();
+            updateContextStats();
+        }
+
+        function renderLogContent() {
+            logContentDiv.innerHTML = '';
+            if (currentLogIndex === -1 || !processedLogs[currentLogIndex]) {
+                logContentDiv.appendChild(selectFileMessage);
+                selectFileMessage.classList.remove('hidden');
+                return;
+            }
+            selectFileMessage.classList.add('hidden');
+
+            const currentLog = processedLogs[currentLogIndex];
+            if (!currentLog.sections || currentLog.sections.length === 0 && currentLog.currentDisplayContent) {
+                 currentLog.sections = parseLogContent(currentLog.currentDisplayContent);
+            }
+
+            if (!currentLog.sections || currentLog.sections.length === 0) {
+                const pre = document.createElement('pre');
+                pre.textContent = currentLog.currentDisplayContent;
+                logContentDiv.appendChild(pre);
+            } else {
+                currentLog.sections.forEach(section => {
+                    if (!section.isVisible) return;
+                    const sectionContainer = document.createElement('div');
+                    sectionContainer.id = section.id;
+                    sectionContainer.className = 'mb-3 border border-gray-300 rounded-md shadow-sm bg-white';
+                    const headerFlex = document.createElement('div');
+                    headerFlex.className = 'section-header bg-gray-100 p-3 flex justify-between items-center rounded-t-md hover:bg-gray-200';
+                    const titleSpan = document.createElement('span');
+                    titleSpan.className = 'flex-grow';
+                    titleSpan.innerHTML = `<h3 class="font-semibold text-slate-600 inline">${section.title}</h3>`;
+                    const controlsSpan = document.createElement('span');
+                    controlsSpan.className = 'flex-shrink-0 flex items-center';
+                    const copyButton = document.createElement('button');
+                    copyButton.textContent = 'Copy';
+                    copyButton.className = 'text-xs bg-green-500 hover:bg-green-600 text-white py-1 px-2 rounded-md mr-2';
+                    copyButton.onclick = (e) => { e.stopPropagation(); copySectionContent(section, copyButton); };
+                    const copyFeedbackSpan = document.createElement('span');
+                    copyFeedbackSpan.className = 'copy-feedback';
+                    const collapseSpan = document.createElement('span');
+                    collapseSpan.className = 'text-sm text-gray-500 ml-2';
+                    collapseSpan.textContent = section.isCollapsed ? '▼ Expand' : '▲ Collapse';
+                    controlsSpan.appendChild(copyButton); controlsSpan.appendChild(copyFeedbackSpan); controlsSpan.appendChild(collapseSpan);
+                    headerFlex.appendChild(titleSpan); headerFlex.appendChild(controlsSpan);
+                    headerFlex.onclick = () => toggleSectionCollapse(section.id);
+
+                    const contentOuterDiv = document.createElement('div');
+                    contentOuterDiv.className = `section-content ${section.isCollapsed ? 'collapsed' : ''}`;
+                    const contentInnerDiv = document.createElement('div');
+                    contentInnerDiv.className = 'p-3';
+                    const headerPre = document.createElement('pre');
+                    headerPre.className = 'bg-gray-50 p-2 rounded-md mb-2';
+                    headerPre.textContent = section.headerLines.join('\n');
+                    contentInnerDiv.appendChild(headerPre);
+                    const contentPre = document.createElement('pre');
+                    contentPre.textContent = section.contentLines.join('\n');
+                    contentInnerDiv.appendChild(contentPre);
+                    contentOuterDiv.appendChild(contentInnerDiv);
+                    sectionContainer.appendChild(headerFlex); sectionContainer.appendChild(contentOuterDiv);
+                    logContentDiv.appendChild(sectionContainer);
+
+                    if (!section.isCollapsed) {
+                        requestAnimationFrame(() => {
+                            contentOuterDiv.style.maxHeight = contentOuterDiv.scrollHeight + "px";
+                            contentOuterDiv.style.opacity = "1";
+                        });
+                    } else {
+                        contentOuterDiv.style.maxHeight = "0px"; contentOuterDiv.style.opacity = "0";
+                    }
+                });
+            }
+            applyCurrentLogFontSize();
+        }
+
+        function renderSectionsSidebar() {
+            sectionsListDiv.innerHTML = '';
+
+            // Determine search term - use global filter if active, otherwise use current log's term
+            let searchTerm = '';
+            if (globalFilter.isActive) {
+                searchTerm = globalFilter.searchTerm || '';
+            } else if (currentLogIndex !== -1 && processedLogs[currentLogIndex]) {
+                searchTerm = processedLogs[currentLogIndex].sectionSearchTerm || '';
+            }
+
+            sectionSearchInput.value = searchTerm; // Ensure input field reflects current search term
+            const isSearchActive = searchTerm !== '';
+            toggleAllSectionsLabel.textContent = isSearchActive ? 'Toggle Matching' : 'Toggle All Sections';
+
+            if (currentLogIndex === -1 || !processedLogs[currentLogIndex] || !processedLogs[currentLogIndex].sections) {
+                sectionsListDiv.appendChild(noSectionsMessage);
+                noSectionsMessage.textContent = "No sections found or no file selected.";
+                noSectionsMessage.classList.remove('hidden');
+                toggleAllSectionsCheckbox.checked = false;
+                toggleAllSectionsCheckbox.disabled = true;
+                return;
+            }
+
+            const currentSections = processedLogs[currentLogIndex].sections;
+            const filteredSections = isSearchActive
+                ? currentSections.filter(s => s.title.toLowerCase().includes(searchTerm))
+                : currentSections;
+
+            if (filteredSections.length === 0) {
+                sectionsListDiv.appendChild(noSectionsMessage);
+                noSectionsMessage.textContent = isSearchActive ? "No sections match search." : "No sections in log.";
+                noSectionsMessage.classList.remove('hidden');
+                toggleAllSectionsCheckbox.checked = false;
+                toggleAllSectionsCheckbox.disabled = true;
+                return;
+            }
+
+            noSectionsMessage.classList.add('hidden');
+            toggleAllSectionsCheckbox.disabled = false;
+            let allFilteredVisible = true;
+            filteredSections.forEach(section => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center';
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox'; checkbox.id = `chk-${section.id}`; checkbox.checked = section.isVisible;
+                checkbox.className = 'mr-2 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500';
+                checkbox.onchange = () => toggleSectionVisibility(section.id, checkbox.checked);
+                const label = document.createElement('label');
+                label.htmlFor = `chk-${section.id}`; label.textContent = section.title;
+                label.className = 'text-sm text-gray-700 truncate'; label.title = section.title;
+                div.appendChild(checkbox); div.appendChild(label);
+                sectionsListDiv.appendChild(div);
+                if (!section.isVisible) allFilteredVisible = false;
+            });
+            toggleAllSectionsCheckbox.checked = allFilteredVisible;
+
+            // Update global filter checkbox state
+            applyGlobalFilterCheckbox.checked = globalFilter.isActive;
+        }
+
+        // --- Interactivity ---
+        function copySectionContent(section, buttonElement) {
+            const textToCopy = section.headerLines.join('\n') + '\n' + section.contentLines.join('\n');
+            const textarea = document.createElement('textarea');
+            textarea.value = textToCopy;
+            document.body.appendChild(textarea);
+            textarea.select();
+            try {
+                document.execCommand('copy');
+                const feedback = buttonElement.nextElementSibling;
+                if (feedback && feedback.classList.contains('copy-feedback')) {
+                    feedback.textContent = 'Copied!';
+                    feedback.classList.add('visible');
+                    setTimeout(() => {
+                        feedback.classList.remove('visible');
+                        feedback.textContent = '';
+                    }, 1500);
+                }
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+                const feedback = buttonElement.nextElementSibling;
+                 if (feedback && feedback.classList.contains('copy-feedback')) {
+                    feedback.textContent = 'Failed!';
+                    feedback.classList.add('visible');
+                    setTimeout(() => {
+                        feedback.classList.remove('visible');
+                        feedback.textContent = '';
+                    }, 1500);
+                }
+            }
+            document.body.removeChild(textarea);
+        }
+
+        function toggleSectionCollapse(sectionId) {
+            if (currentLogIndex === -1 || !processedLogs[currentLogIndex]) return;
+            const section = processedLogs[currentLogIndex].sections.find(s => s.id === sectionId);
+            if (section) {
+                section.isCollapsed = !section.isCollapsed;
+                const sectionContainer = document.getElementById(section.id);
+                if (sectionContainer) {
+                    const headerDiv = sectionContainer.querySelector('.section-header');
+                    const contentDiv = sectionContainer.querySelector('.section-content');
+                    headerDiv.querySelector('span:last-child').textContent = section.isCollapsed ? '▼ Expand' : '▲ Collapse';
+                    if (section.isCollapsed) {
+                        contentDiv.style.maxHeight = '0px'; contentDiv.style.opacity = '0'; contentDiv.classList.add('collapsed');
+                    } else {
+                        contentDiv.classList.remove('collapsed');
+                        requestAnimationFrame(() => {
+                             contentDiv.style.maxHeight = contentDiv.scrollHeight + "px"; contentDiv.style.opacity = '1';
+                        });
+                    }
+                }
+            }
+            updateContextStats();
+        }
+
+        function toggleAllSectionsCollapse(collapse) {
+            if (currentLogIndex === -1 || !processedLogs[currentLogIndex]) return;
+            processedLogs[currentLogIndex].sections.forEach(section => {
+                if (section.isCollapsed !== collapse) {
+                    section.isCollapsed = collapse;
+                    const sectionContainer = document.getElementById(section.id);
+                    if (sectionContainer && section.isVisible) {
+                        const headerDiv = sectionContainer.querySelector('.section-header');
+                        const contentDiv = sectionContainer.querySelector('.section-content');
+                        headerDiv.querySelector('span:last-child').textContent = section.isCollapsed ? '▼ Expand' : '▲ Collapse';
+                        if (section.isCollapsed) {
+                            contentDiv.style.maxHeight = '0px'; contentDiv.style.opacity = '0'; contentDiv.classList.add('collapsed');
+                        } else {
+                            contentDiv.classList.remove('collapsed');
+                            requestAnimationFrame(() => {
+                                contentDiv.style.maxHeight = contentDiv.scrollHeight + "px"; contentDiv.style.opacity = '1';
+                            });
+                        }
+                    }
+                }
+            });
+            updateContextStats();
+        }
+
+        function toggleSectionVisibility(sectionId, isVisible) {
+            if (currentLogIndex === -1 || !processedLogs[currentLogIndex]) return;
+            const section = processedLogs[currentLogIndex].sections.find(s => s.id === sectionId);
+            if (section) {
+                section.isVisible = isVisible;
+                renderLogContent();
+                const searchTerm = globalFilter.isActive ? globalFilter.searchTerm : (sectionSearchInput.value.trim().toLowerCase() || '');
+                const isSearchActive = searchTerm !== '';
+                const relevantSections = isSearchActive
+                    ? processedLogs[currentLogIndex].sections.filter(s => s.title.toLowerCase().includes(searchTerm))
+                    : processedLogs[currentLogIndex].sections;
+                const allRelevantVisible = relevantSections.every(s => s.isVisible);
+                toggleAllSectionsCheckbox.checked = allRelevantVisible;
+                updateContextStats();
+            }
+        }
+
+        function handleToggleAllSectionsVisibility() {
+            if (currentLogIndex === -1 || !processedLogs[currentLogIndex]) return;
+            const newState = toggleAllSectionsCheckbox.checked;
+            const searchTerm = globalFilter.isActive ? globalFilter.searchTerm : (sectionSearchInput.value.trim().toLowerCase() || '');
+            const isSearchActive = searchTerm !== '';
+            const sectionsToToggle = isSearchActive
+                ? processedLogs[currentLogIndex].sections.filter(s => s.title.toLowerCase().includes(searchTerm))
+                : processedLogs[currentLogIndex].sections;
+            sectionsToToggle.forEach(section => { section.isVisible = newState; });
+            renderLogContent();
+            renderSectionsSidebar();
+            updateContextStats();
+        }
+
+        // --- i2cdump to JSON Conversion Logic ---
+        function parse_i2cdump_block_to_json(inputText, word_size_bits) {
+            const jsonData = {};
+            const lines = inputText.trim().split('\n');
+            function formatRegisterKey(registerValue) {
+                let hexVal = registerValue.toString(16);
+                if (hexVal.length === 1 && registerValue < 0x10) hexVal = '0' + hexVal;
+                return `0x${hexVal}`;
+            }
+            if (word_size_bits === 8) {
+                for (const lineContent of lines) {
+                    const line = lineContent.trim();
+                    if (!line || !line.includes(':')) continue;
+                    const parts = line.split(':', 2);
+                    if (parts.length < 2) continue;
+                    const baseRegisterHex = parts[0].trim();
+                    if (!/^[0-9a-fA-F]+$/.test(baseRegisterHex)) continue;
+                    let baseRegister;
+                    try { baseRegister = parseInt(baseRegisterHex, 16); } catch (e) { continue; }
+                    if (isNaN(baseRegister)) continue;
+                    const valuesString = parts[1].trim();
+                    const hexPartMatch = valuesString.match(/^((?:[0-9a-fA-F]{2}|XX)(?:\s+(?:[0-9a-fA-F]{2}|XX))*)/i);
+                    let hexValuesList = [];
+                    if (hexPartMatch && hexPartMatch[1]) {
+                        const hexValuesStr = hexPartMatch[1].trim();
+                        if (hexValuesStr) hexValuesList = hexValuesStr.split(/\s+/);
+                    }
+                    hexValuesList = hexValuesList.filter(val => val);
+                    for (let index = 0; index < hexValuesList.length; index++) {
+                        const valStr = hexValuesList[index];
+                        if (valStr.toUpperCase() !== 'XX' && /^[0-9a-fA-F]{2}$/i.test(valStr)) {
+                            const currentRegister = baseRegister + index;
+                            jsonData[formatRegisterKey(currentRegister)] = `0x${valStr.toLowerCase()}`;
+                        }
+                    }
+                }
+            } else if (word_size_bits === 16) {
+                 for (const lineContent of lines) {
+                    const line = lineContent.trim();
+                    if (!line || !line.includes(':')) continue;
+                    const parts = line.split(':', 2);
+                    if (parts.length < 2) continue;
+                    const baseRegisterHex = parts[0].trim();
+                     if (!/^[0-9a-fA-F]+$/.test(baseRegisterHex)) continue;
+                    let baseRegister;
+                    try { baseRegister = parseInt(baseRegisterHex, 16); } catch (e) { continue; }
+                    if (isNaN(baseRegister)) continue;
+                    const valuesString = parts[1].trim();
+                    const allTokensOnLine = valuesString.split(/\s+/).filter(token => token.length > 0);
+                    for (let tokenIndex = 0; tokenIndex < allTokensOnLine.length; tokenIndex++) {
+                        const tokenStr = allTokensOnLine[tokenIndex];
+                        if (tokenStr.toUpperCase() !== 'XXXX' && /^[0-9a-fA-F]{4}$/i.test(tokenStr)) {
+                            const currentRegister = baseRegister + tokenIndex;
+                            jsonData[formatRegisterKey(currentRegister)] = `0x${tokenStr.toLowerCase()}`;
+                        }
+                    }
+                }
+            }
+            return jsonData;
+        }
+
+        function process_log_for_i2cdump_conversion(logContent) {
+            const header_16bit_pattern = "     0,8  1,9  2,a  3,b  4,c  5,d  6,e  7,f";
+            const header_8bit_pattern  = "     0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f    0123456789abcdef";
+            const lines_after_16bit_header = 32;
+            const lines_after_8bit_header = 16;
+            const allFileLines = logContent.split(/\r?\n/);
+            const modifiedLogLines = [];
+            const warnings = [];
+            let currentLineIndex = 0;
+
+            while (currentLineIndex < allFileLines.length) {
+                const currentLineRaw = allFileLines[currentLineIndex];
+                const is_8bit_header = currentLineRaw.trim().startsWith(header_8bit_pattern.trim());
+                const is_16bit_header = currentLineRaw.trim().startsWith(header_16bit_pattern.trim());
+
+                if (is_8bit_header || is_16bit_header) {
+                    const word_size_bits = is_8bit_header ? 8 : 16;
+                    const numDataLines = is_8bit_header ? lines_after_8bit_header : lines_after_16bit_header;
+                    const sectionTypeStr = is_8bit_header ? "8-bit" : "16-bit";
+                    modifiedLogLines.push(currentLineRaw);
+                    const startOfDataBlockIndex = currentLineIndex + 1;
+                    const endOfDataBlockIndex = startOfDataBlockIndex + numDataLines;
+                    let jsonData = {};
+                    let conversionError = false;
+
+                    if (endOfDataBlockIndex <= allFileLines.length) {
+                        const sectionDataRawLines = allFileLines.slice(startOfDataBlockIndex, endOfDataBlockIndex);
+                        const inputTextForParser = sectionDataRawLines.join('\n');
+                        if (inputTextForParser.trim()) {
+                            try { jsonData = parse_i2cdump_block_to_json(inputTextForParser, word_size_bits); }
+                            catch (e) {
+                                warnings.push(`Warning: Error parsing ${sectionTypeStr} i2cdump section after line ${currentLineIndex + 1}. Original data kept. Error: ${e.message}`);
+                                console.warn(`Parsing error for i2cdump section after line ${currentLineIndex}:`, e);
+                                conversionError = true;
+                            }
+                        }
+                        if (!conversionError) {
+                            const jsonString = JSON.stringify(jsonData, null, 2);
+                            modifiedLogLines.push(jsonString);
+                            if (Object.keys(jsonData).length === 0 && inputTextForParser.trim()) {
+                                warnings.push(`Info: All values in ${sectionTypeStr} i2cdump section after line ${currentLineIndex + 1} were 'XX'/'XXXX' or invalid; resulting JSON is empty.`);
+                            }
+                        } else {
+                            sectionDataRawLines.forEach(line => modifiedLogLines.push(line));
+                        }
+                        currentLineIndex = endOfDataBlockIndex;
+                    } else {
+                        warnings.push(`Warning: Found ${sectionTypeStr} i2cdump header at line ${currentLineIndex + 1} but not enough data lines. Section not replaced.`);
+                        currentLineIndex++;
+                    }
+                } else {
+                    modifiedLogLines.push(currentLineRaw);
+                    currentLineIndex++;
+                }
+            }
+            if(warnings.length > 0) console.log("i2cdump conversion warnings:", warnings);
+            return modifiedLogLines.join('\n');
+        }
+
+        function toggleI2cConversion() {
+            if (currentLogIndex === -1 || !processedLogs[currentLogIndex]) {
+                conversionStatusMessage.textContent = "No log selected.";
+                conversionStatusMessage.className = "text-sm text-red-600 mb-2 h-5";
+                return;
+            }
+
+            const logEntry = processedLogs[currentLogIndex];
+
+            if (logEntry.isI2cConverted) {
+                // Revert to original
+                logEntry.currentDisplayContent = logEntry.originalContent;
+                logEntry.isI2cConverted = false;
+                convertI2cBtn.textContent = "Convert i2cdumps to JSON";
+                conversionStatusMessage.textContent = "i2cdumps reverted to original view.";
+                conversionStatusMessage.className = "text-sm text-green-600 mb-2 h-5";
+            } else {
+                // Convert to JSON
+                conversionStatusMessage.textContent = "Converting i2cdumps...";
+                conversionStatusMessage.className = "text-sm text-blue-600 mb-2 h-5";
+                const convertedContent = process_log_for_i2cdump_conversion(logEntry.originalContent);
+                logEntry.currentDisplayContent = convertedContent;
+                logEntry.isI2cConverted = true;
+                convertI2cBtn.textContent = "Revert i2cdumps from JSON";
+                conversionStatusMessage.textContent = "i2cdumps converted to JSON for current view.";
+                conversionStatusMessage.className = "text-sm text-green-600 mb-2 h-5";
+            }
+
+            logEntry.sections = parseLogContent(logEntry.currentDisplayContent);
+
+            // Apply global filter to updated sections if active
+            if (globalFilter.isActive) {
+                logEntry.sections.forEach(section => {
+                    const titleLower = section.title.toLowerCase();
+                    let shouldShow = true;
+
+                    if (globalFilter.searchTerm) {
+                        shouldShow = titleLower.includes(globalFilter.searchTerm);
+                    }
+
+                    if (shouldShow && globalFilter.visibleSections.size > 0) {
+                        shouldShow = globalFilter.visibleSections.has(titleLower);
+                    }
+
+                    section.isVisible = shouldShow;
+                });
+            }
+
+            renderLogContent();
+            renderSectionsSidebar();
+            updateContextStats();
+
+            setTimeout(() => { conversionStatusMessage.textContent = ''; }, 3000);
+        }
+
+        // --- Initial Render ---
+        applyCurrentLogFontSize();
+        renderFileTabs();
+        renderLogContent();
+        renderSectionsSidebar();
+        updateContextStats();
+
+    </script>
+</body>
+</html>

@@ -1018,6 +1018,7 @@ uint32_t getRemotePortOffset(const PlatformType platformType) {
       return 0;
     case PlatformType::PLATFORM_MERU800BIA:
     case PlatformType::PLATFORM_MERU800BIAB:
+    case PlatformType::PLATFORM_MERU800BIAC:
     case PlatformType::PLATFORM_JANGA800BIC:
       return 1024;
 
@@ -1160,9 +1161,11 @@ CpuCosQueueId hwQueueIdToCpuCosQueueId(
   } else if (hwQueueId == static_cast<uint8_t>(CpuCosQueueId::DEFAULT)) {
     return CpuCosQueueId::DEFAULT;
   }
-  XLOG_EVERY_N(ERR, 10000) << "Got Invalid hwQueueId " << hwQueueId;
-  switchStats->invalidQueueRxPackets();
-  return CpuCosQueueId::LOPRI;
+  // ARISTA Hack to avoid fboss_hw_agent crash on J3.
+  // XLOG_EVERY_N(ERR, 10000) << "Got Invalid hwQueueId " << hwQueueId;
+  // switchStats->invalidQueueRxPackets();
+  // return CpuCosQueueId::LOPRI;
+  return CpuCosQueueId::DEFAULT;
 }
 
 int numFabricLevels(const std::map<int64_t, cfg::DsfNode>& dsfNodes) {

@@ -11,6 +11,8 @@
 
 #include "fboss/agent/platforms/common/PlatformMappingUtils.h"
 #include "fboss/lib/bsp/BspGenericSystemContainer.h"
+#include "fboss/lib/bsp/darwin/DarwinBspPlatformMapping.h"
+#include "fboss/lib/bsp/glath05a-64o/Glath05a-64oBspPlatformMapping.h"
 #include "fboss/lib/bsp/janga800bic/Janga800bicBspPlatformMapping.h"
 #include "fboss/lib/bsp/meru400bfu/Meru400bfuBspPlatformMapping.h"
 #include "fboss/lib/bsp/meru400bia/Meru400biaBspPlatformMapping.h"
@@ -68,11 +70,13 @@ std::unique_ptr<WedgeManager> createWedgeManager() {
       return std::make_unique<GalaxyManager>(mode, platformMapping, threads);
     case PlatformType::PLATFORM_YAMP:
       return createYampWedgeManager(platformMapping, threads);
-    case PlatformType::PLATFORM_DARWIN:
-    case PlatformType::PLATFORM_DARWIN48V:
-      return createDarwinWedgeManager(platformMapping, threads);
     case PlatformType::PLATFORM_ELBERT:
       return createElbertWedgeManager(platformMapping, threads);
+    case PlatformType::PLATFORM_DARWIN:
+    case PlatformType::PLATFORM_DARWIN48V:
+      return createBspWedgeManager<
+          DarwinBspPlatformMapping,
+          PlatformType::PLATFORM_DARWIN>(platformMapping, threads);
     case PlatformType::PLATFORM_MERU400BFU:
       return createBspWedgeManager<
           Meru400bfuBspPlatformMapping,
@@ -87,6 +91,7 @@ std::unique_ptr<WedgeManager> createWedgeManager() {
           PlatformType::PLATFORM_MERU400BIU>(platformMapping, threads);
     case PlatformType::PLATFORM_MERU800BIA:
     case PlatformType::PLATFORM_MERU800BIAB:
+    case PlatformType::PLATFORM_MERU800BIAC:
       return createBspWedgeManager<
           Meru800biaBspPlatformMapping,
           PlatformType::PLATFORM_MERU800BIA>(platformMapping, threads);
@@ -117,6 +122,10 @@ std::unique_ptr<WedgeManager> createWedgeManager() {
       return createBspWedgeManager<
           Tahan800bcBspPlatformMapping,
           PlatformType::PLATFORM_TAHAN800BC>(platformMapping, threads);
+    case PlatformType::PLATFORM_GLATH05A_64O:
+      return createBspWedgeManager<
+          Glath05a_64oBspPlatformMapping,
+          PlatformType::PLATFORM_GLATH05A_64O>(platformMapping, threads);
     case PlatformType::PLATFORM_FUJI:
     case PlatformType::PLATFORM_MINIPACK:
     case PlatformType::PLATFORM_WEDGE400:

@@ -102,7 +102,16 @@ void Port::addError(PortError error) {
 
 void Port::removeError(PortError error) {
   auto errors = getActiveErrors();
-  std::erase(errors, error);
+  // std::erase is only available in c++20, implementing with a iterator loop
+  // instead.
+  //std::erase(errors, error);
+  for (auto it = errors.begin(); it != errors.end(); ) {
+    if (*it == error) {
+      it = errors.erase(it);
+    } else {
+      ++it;
+    }
+  }
   set<switch_state_tags::activeErrors>(errors);
 }
 

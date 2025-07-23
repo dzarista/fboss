@@ -1,0 +1,48 @@
+# .github/workflows/config-tool.yml
+
+name: Config Diff Tool
+on:
+  schedule:
+    - cron: "0 17 * * *"
+  workflow_dispatch:
+jobs:
+  job:
+    runs-on: ubuntu-latest
+    if: github.event.repository.fork == false
+    steps:
+      - name: Check-out latest code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ssh-key: ${{ secrets.GIT_PRIVATE_KEY }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          
+      - name: Install deepdiff
+        run: |
+          pip install deepdiff
+        shell: bash
+
+      - name: Execute configCompare
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          ./arista/util/config-compare/compareConfigs.py --workspace "$GITHUB_WORKSPACE" > config-compare-output.txt 2>&1
+        shell: bash
+
+      - name: Print Config Compare Output
+        run: |
+          echo "--- Contents of config-compare-output.txt ---"
+          cat config-compare-output.txt
+          echo "--- End of config-compare-output.txt ---"
+        shell: bash
+
+      - name: Send mail to owners
+        if: always()
+        run: |
+          mail_to="fbosstest-dev@arista.com"
+          subject="Fboss Config Diffs between Internal and Upstream"
+          body="View the attachment for the diff"
+          attachment_path="config-compare-output.txt"
+          ./arista-ci-scripts/mailer.py --mail_to="$mail_to" --subject="$subject" --body="$body" --attachment_path="$attachment_path" --sender_mail_id="${{ secrets.GMAIL_USERNAME }}" --sender_mail_password="${{ secrets.GMAIL_PASSWORD }}"
+        shell: bash
