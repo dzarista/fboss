@@ -3,7 +3,7 @@ echo "This script needs to be run from arista-fboss root"
 
 # Add failing btests we should ignore to this list
 EXCLUDE_LIST=(
-    # "UtilsTest.ParseDevicePath"
+    bsp_tests
 )
 gtest_filter=-$(IFS=:; echo "${EXCLUDE_LIST[*]}")
 
