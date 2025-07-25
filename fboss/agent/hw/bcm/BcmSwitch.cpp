@@ -189,6 +189,23 @@ DEFINE_int32(qcm_ifp_pri, -1, "Group priority for ACL field group");
 
 DECLARE_int32(update_watermark_stats_interval_s);
 
+// The default of 1024 high frequency stats size was chosen because a serialized
+// stats object with the full set of stats is about 7 KB. With 1024 stats, we
+// use approximately 7 MB to keep it reasonably sized. This is underestimate
+// because the data is stored as C++ structs instead of serialized thrift
+// structs.
+DEFINE_int32(
+    high_freq_stats_data_size,
+    1024,
+    "The maximum number of high frequency stats data to store in memory in a "
+    "deque.");
+
+DEFINE_int32(
+    num_consecutive_high_freq_stats_collect,
+    2,
+    "Number of high frequency stats to collect consecutively for each active "
+    "stats collection period");
+
 enum : uint8_t {
   kRxCallbackPriority = 1,
 };
@@ -4342,17 +4359,18 @@ HwResourceStats BcmSwitch::getResourceStats() const {
   return bcmStatUpdater_->getHwTableStats();
 }
 
-HwHighFrequencyStats BcmSwitch::zeroTimestamp(
+HwHighFrequencyStats BcmSwitch::zeroHighFrequencyStatsTimestamp(
     const HwHighFrequencyStats& stats) {
   HwHighFrequencyStats zeroed = stats;
   zeroed.timestampUs() = 0;
   return zeroed;
 }
 
-bool BcmSwitch::highFrequencyStatsEquals(
+bool BcmSwitch::hasHighFrequencyStatsChanged(
     const HwHighFrequencyStats& statsA,
     const HwHighFrequencyStats& statsB) {
-  return zeroTimestamp(statsA) == zeroTimestamp(statsB);
+  return zeroHighFrequencyStatsTimestamp(statsA) ==
+      zeroHighFrequencyStatsTimestamp(statsB);
 }
 
 void BcmSwitch::collectHighFrequencyStats() {
@@ -4360,13 +4378,29 @@ void BcmSwitch::collectHighFrequencyStats() {
       std::chrono::microseconds(highFreqStatsThreadConfig_.schedulerConfig()
                                     ->statsCollectionDurationInMicroseconds()
                                     .value());
+  // Guard the high frequency stats data size with a hard limit of
+  // kHighFreqStatsDataMaxSize_.
+  int maxDataSize =
+      std::min(FLAGS_high_freq_stats_data_size, kHighFreqStatsDataMaxSize_);
+  {
+    // Perform a bulk delete at the front of the deque if the size is too large.
+    auto wlock = highFreqStatsData_.wlock();
+    if (wlock->size() > maxDataSize) {
+      wlock->erase(
+          wlock->begin(), wlock->begin() + (wlock->size() - maxDataSize));
+    }
+  }
+  int numConsecutiveHighFreqStatsCollect = std::min(
+      FLAGS_num_consecutive_high_freq_stats_collect,
+      kMaxConsecutiveHighFreqStatsCollect_);
   while (std::chrono::steady_clock::now() < endTime) {
-    for (int i = 0; i < 2; ++i) {
+    for (int i = 0; i < numConsecutiveHighFreqStatsCollect; ++i) {
       HwHighFrequencyStats stats = getHighFrequencyStats();
       {
         auto wlock = highFreqStatsData_.wlock();
-        if (wlock->empty() || !highFrequencyStatsEquals(wlock->back(), stats)) {
-          if (wlock->size() >= kHighFreqStatsDataMaxSize_) {
+        if (wlock->empty() ||
+            !hasHighFrequencyStatsChanged(wlock->back(), stats)) {
+          while (wlock->size() >= maxDataSize) {
             wlock->pop_front();
           }
           wlock->emplace_back(std::move(stats));
@@ -4389,10 +4423,15 @@ void BcmSwitch::updateHighFrequencyStatsThreadConfig(
   auto schedulerConfig = highFreqStatsThreadConfig_.schedulerConfig();
   if (schedulerConfig->statsWaitDurationInMicroseconds().value() <
       kHfMinWaitDurationUs_) {
+    XLOG(WARN) << "statsWaitDurationInMicroseconds is too small, updating to "
+               << kHfMinWaitDurationUs_ << " us";
     schedulerConfig->statsWaitDurationInMicroseconds() = kHfMinWaitDurationUs_;
   }
   if (schedulerConfig->statsCollectionDurationInMicroseconds().value() >
       kHfMaxCollectionDurationUs_) {
+    XLOG(WARN)
+        << "statsCollectionDurationInMicroseconds is too large, updating to "
+        << kHfMaxCollectionDurationUs_ << " us";
     schedulerConfig->statsCollectionDurationInMicroseconds() =
         kHfMaxCollectionDurationUs_;
   }
