@@ -1,0 +1,75 @@
+images:
+  kernel-6.4:
+    units:
+    - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
+      build: arista/fbossctl kernel_pull 6.4 $DESTDIR/kernel-6.4
+
+  build-floor/dnx_6.4-el9:
+    units:
+      - image: code.arista.io/os/fboss-centos%fboss-centos-image-el9
+      - image: code.arista.io/fboss/fboss-bcm-sai%sai-11.7.0-sdk-6.5.30-dnx-kernel-6.4
+      - image: code.arista.io/fboss/fboss-bcm-sdk%sdk-6.5.30-dnx-kernel-6.4
+      - image: .%kernel-6.4
+    entry:
+      mutables:
+        - /var/FBOSS
+
+  package_dnx_6.4-el9:
+    units:
+      - floor: .%build-floor/dnx_6.4-el9
+        entry:
+          env:
+            FBOSS_BARNEY_BUILD: "True"
+            FBOSS_ARTIFACTORY_TOKEN: ${secrets.fboss_artifactory_reference_token}
+        build: |
+          export PTESTDIR=$DESTDIR/usr/share/ptest-data/Fboss
+          ./build.sh --arch dnx --sai-sdk-dir /result --kernel-dir /kernel-6.4
+          ./package.sh --sai-sdk-dir /result --export-dir $PTESTDIR --compress
+          mkdir -p $PTESTDIR/RPMS/dnx/6.4
+          mv $PTESTDIR/RPMS/*.rpm $PTESTDIR/RPMS/dnx/6.4
+
+  build-floor/xgs_6.4-el9:
+    units:
+      - image: code.arista.io/os/fboss-centos%fboss-centos-image-el9
+      - image: code.arista.io/fboss/fboss-bcm-sai%sai-10.2.0-sdk-6.5.29-xgs-kernel-6.4
+      - image: code.arista.io/fboss/fboss-bcm-sdk%sdk-6.5.29-xgs-kernel-6.4
+      - image: .%kernel-6.4
+    entry:
+      mutables:
+        - /var/FBOSS
+
+  package_xgs_6.4-el9:
+    units:
+      - floor: .%build-floor/xgs_6.4-el9
+        entry:
+          env:
+            FBOSS_BARNEY_BUILD: "True"
+            FBOSS_ARTIFACTORY_TOKEN: ${secrets.fboss_artifactory_reference_token}
+        build: |
+          export PTESTDIR=$DESTDIR/usr/share/ptest-data/Fboss
+          ./build.sh --arch xgs --sai-sdk-dir /result --kernel-dir /kernel-6.4
+          ./package.sh --sai-sdk-dir /result --export-dir $PTESTDIR --compress
+          mkdir -p $PTESTDIR/RPMS/xgs/6.4
+          mv $PTESTDIR/RPMS/*.rpm $PTESTDIR/RPMS/xgs/6.4
+
+  test/package_dnx_6.4-el9:
+    description: Run swtests for package_dnx_6.4-el9 image
+    units:
+      - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
+        mappings:
+          /src/out: .%package_dnx_6.4-el9
+        build: |
+          core_rpm=/src/out/usr/share/ptest-data/Fboss/RPMS/dnx/6.4/arista-fboss-core-1-1.el9.x86_64.rpm
+          rpm2cpio $core_rpm | cpio -D /tmp -idmv
+          LD_LIBRARY_PATH=/tmp/opt/fboss/lib ./arista/core/scripts/run_sw_tests.sh /tmp/opt/fboss/bin
+
+  test/package_xgs_6.4-el9:
+    description: Run swtests for package_xgs_6.4-el9 image
+    units:
+      - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
+        mappings:
+          /src/out: .%package_xgs_6.4-el9
+        build: |
+          core_rpm=/src/out/usr/share/ptest-data/Fboss/RPMS/xgs/6.4/arista-fboss-core-1-1.el9.x86_64.rpm
+          rpm2cpio $core_rpm | cpio -D /tmp -idmv
+          LD_LIBRARY_PATH=/tmp/opt/fboss/lib ./arista/core/scripts/run_sw_tests.sh /tmp/opt/fboss/bin

@@ -1,0 +1,93 @@
+name: Upstream Subtree After PR Merge
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  diff-subtree:
+    if: github.event.repository.fork == false
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout post-merge (this commit)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ssh-key: ${{ secrets.GIT_PRIVATE_KEY }}
+
+      - name: Set SHAs
+        id: vars
+        run: |
+          # Define BASE_SHA and MERGED_SHA which can be used in the subsequent step
+          echo "BASE_SHA=$(git rev-parse ${{ github.sha }}^)" >> $GITHUB_OUTPUT
+          echo "MERGED_SHA=${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Clone repo to get pre-merge version
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.GIT_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+          # Make two copies of the arista-fboss repository - one with the pull request and one without
+          git clone git@github.com:aristanetworks/arista-fboss.git original
+          git clone git@github.com:aristanetworks/arista-fboss.git premerge
+          cd premerge
+          # Checkout arista-fboss commit before the pull request was merged
+          # Pull request will be present only in the original directory
+          git checkout ${{ steps.vars.outputs.BASE_SHA }}
+
+      - name: Diff subtree (e.g. src/component)
+        run: |
+          # We are interested only in the changes to the fboss.bsp.arista subtree
+          diff -urN premerge/fboss.bsp.arista original/fboss.bsp.arista > subtree.patch || true
+          # Extract binary file diff lines into a separate file
+          grep '^Binary files ' subtree.patch > binary_only.diff || true
+          # Create a cleaned patch file with only the real text diffs
+          grep -v '^Binary files ' subtree.patch > text_only.patch || true
+          # Rest of the workflow executes only if there was a change in the fboss.bsp.arista subtree.
+          # This is controlled through the SKIP_STEPS environment variable
+          if [ ! -s binary_only.diff ] && [ ! -s text_only.patch ]; then
+            echo "No changes to upstream. Exiting."
+            echo "SKIP_STEPS=true" >> $GITHUB_ENV
+            exit 0
+          fi
+
+      - name: Get PR source branch
+        if: env.SKIP_STEPS != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr list --state merged --base main --json number,headRefName,mergeCommit -L 10 > prs.json
+          BRANCH_NAME=$(jq -r --arg sha "${{ github.sha }}" '.[] | select(.mergeCommit.oid == $sha) | .headRefName' prs.json)
+          # Default to NULL if no branch found
+          if [ -z "$BRANCH_NAME" ]; then
+            BRANCH_NAME="NULL"
+          fi
+          echo "PR_BRANCH=$BRANCH_NAME" >> $GITHUB_ENV
+
+      - name: Run Bash script
+        if: env.SKIP_STEPS != 'true'
+        env:
+          SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.SRV_ACCOUNT_SSH_PRV_KEY }}
+          GH_TOKEN: ${{ secrets.SRV_FBOSS_ARISTA_ROBOT_TOKEN }}
+        run: |
+          echo "$SERVICE_ACCOUNT_PRIVATE_KEY" > private.key
+          sudo chmod 600 private.key
+          ./arista-ci-scripts/create_bsp_upstream_pr.sh "$PWD"
+
+      - name: Send status email
+        if: env.SKIP_STEPS != 'true'
+        run: |
+          mail_to=$(git log --format='%ae' ${{ github.event.before }}..${{ github.event.after }} | head -n 1)
+          mail_to="${mail_to},fbosstest-dev@arista.com"
+          subject=$(cat status_email_subject.txt)
+          body_text_file="status_email_content.txt"
+          attachment_path="upstream_pr_status.txt"
+          if [ -f "$body_text_file" ] && [ -f "$attachment_path" ]; then
+            ./arista-ci-scripts/mailer.py --mail_to="$mail_to" --subject="$subject" --body_text_file="$body_text_file" --attachment_path="$attachment_path" --sender_mail_id="${{ secrets.GMAIL_USERNAME }}" --sender_mail_password="${{ secrets.GMAIL_PASSWORD }}"
+          else
+            echo "Git subtree is up to date with fboss.bsp.arista."
+          fi
+        shell: bash

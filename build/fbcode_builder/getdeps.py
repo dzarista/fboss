@@ -38,6 +38,10 @@ except ImportError:
     # so allow that to fail silently
     pass
 
+### ARISTA START ###
+# Monkey patch cache_module with arista artifactory cache module
+import getdeps.aristacache as cache_module
+### ARISTA END ###
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "getdeps"))
 
