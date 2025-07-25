@@ -8,6 +8,9 @@ Elbert platform. The table below shows the programmables:
 | Aboot-norcal7-7.3.3-cb411-generic-8x1-33492597.rom     | Bootloader with support for boot methods  |
 | Aboot-norcal7-7.3.4-cb411-generic-8x1-42641583.rom     | Bootloader with support for boot methods  |
 |                                                        | including BLS UAPI support                |
+| Aboot-norcal7-7.3.5-cb411-generic-8x1-ENG-43066215.rom | Fix for issue with number of reported     |
+|                                                        | cores by dmidecode. Image is not          |
+|                                                        | qualified.                                |
 | elbert_scm.astp                                        | SCM CPLD JTAG image                       |
 | elbert_scm_dpe.astp                                    | SCM CPLD DPE JTAG image                   |
 | elbert_smb.astp                                        | SMB FPGA JTAG image                       |
@@ -27,7 +30,7 @@ The most recent version can be found in this directory.
 |----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | 7.3.3-33492597 | Experimental image with boot methods support. This does not include UAPI bootloader enhancements. Only GRUB is supported for LOCAL boot.                                                                     |
 | 7.3.4-42641583 | Qualified image with boot methods support including UAPI bootloader enhancements.                                                                                                                            |
-
+| 7.3.5-43066215 | Fix for issue with number of reported cores by dmidecode. Experimental image.                                                                                                                                |
 ## elbert_scm.astp / elbert_scm_dpe.astp
 
 | Version        | Changelog                                                                                                             |
