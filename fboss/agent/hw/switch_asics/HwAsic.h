@@ -220,6 +220,8 @@ class HwAsic {
     SAI_PORT_IN_CONGESTION_DISCARDS,
     TEMPERATURE_MONITORING,
     ROUTER_INTERFACE_STATISTICS,
+    MANAGEMENT_PORT_MULTICAST_QUEUE_ALPHA,
+    CPU_PORT_EGRESS_BUFFER_POOL,
   };
 
   enum class AsicMode {
@@ -267,6 +269,9 @@ class HwAsic {
   virtual int getDefaultNumPortQueues(
       cfg::StreamType streamType,
       cfg::PortType portType) const = 0;
+  virtual int getQueueIdStart(cfg::StreamType streamType) const {
+    return 0;
+  }
   virtual uint32_t getMaxLabelStackDepth() const = 0;
   virtual uint64_t getMMUSizeBytes() const = 0;
   virtual uint32_t getMaxMirrors() const = 0;
@@ -480,6 +485,8 @@ class HwAsic {
   virtual cfg::IpTunnelMode getTunnelDscpMode() const {
     return cfg::IpTunnelMode::PIPE;
   }
+
+  virtual uint64_t getCpuPortEgressPoolSize() const;
 
  protected:
   static cfg::Range64 makeRange(int64_t min, int64_t max);

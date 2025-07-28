@@ -1268,7 +1268,9 @@ void SaiPortManager::changeQueue(
     auto queueHandle = getQueueHandle(swId, saiQueueConfig);
     if (!queueHandle) {
       throw FbossError(
-          "unable to change non-existent queue ",
+          "unable to change non-existent ",
+          apache::thrift::util::enumNameSafe(newPortQueue->getStreamType()),
+          " queue ",
           newPortQueue->getID(),
           " of port ",
           swId);
@@ -1300,7 +1302,7 @@ void SaiPortManager::changeQueue(
       throw FbossError("Reserved bytes, scaling factor setting not supported");
     }
     managerTable_->queueManager().changeQueue(
-        queueHandle, *portQueue, swPort.get());
+        queueHandle, *portQueue, swPort.get(), swPort->getPortType());
     auto queueName = newPortQueue->getName()
         ? *newPortQueue->getName()
         : folly::to<std::string>("queue", newPortQueue->getID());

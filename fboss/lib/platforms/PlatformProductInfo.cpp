@@ -186,7 +186,7 @@ void PlatformProductInfo::initMode() {
         modelName.find("TAHAN") == 0 || modelName.find("TAHAN800BC") == 0 ||
         modelName.find("R4063-F9001-01") == 0) {
       type_ = PlatformType::PLATFORM_TAHAN800BC;
-    } else if (modelName.find("ICEPACK-TH6") == 0) {
+    } else if (modelName.find("ICECUBE") == 0) {
       type_ = PlatformType::PLATFORM_ICECUBE800BC;
     } else if (
         modelName.find("Glath05a-64o") == 0 ||
@@ -246,6 +246,8 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_WEDGE400C_FABRIC;
     } else if (FLAGS_mode == "montblanc" || FLAGS_mode == "minipack3ba") {
       type_ = PlatformType::PLATFORM_MONTBLANC;
+    } else if (FLAGS_mode == "icecube") {
+      type_ = PlatformType::PLATFORM_ICECUBE800BC;
     } else if (FLAGS_mode == "fake_sai") {
       type_ = PlatformType::PLATFORM_FAKE_SAI;
     } else if (FLAGS_mode == "janga800bic") {

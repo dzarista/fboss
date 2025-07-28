@@ -42,7 +42,7 @@ struct SaiQueueHandle {
   void resetQueue();
   std::shared_ptr<SaiScheduler> scheduler;
   std::shared_ptr<SaiWred> wredProfile;
-  std::shared_ptr<SaiBufferProfile> bufferProfile;
+  std::shared_ptr<SaiBufferProfileHandle> bufferProfile;
   std::shared_ptr<SaiQueue> queue;
 };
 
@@ -69,7 +69,8 @@ class SaiQueueManager {
       const std::optional<cfg::PortType> portType = std::nullopt);
   void changeQueueBufferProfile(
       SaiQueueHandle* queueHandle,
-      const PortQueue& newPortQueue);
+      const PortQueue& newPortQueue,
+      cfg::PortType portType);
   void changeQueueEcnWred(
       SaiQueueHandle* queueHandle,
       const PortQueue& newPortQueue);
@@ -87,7 +88,7 @@ class SaiQueueManager {
       PortSaiId portSaiId,
       const SaiQueueHandles& queueHandles,
       const QueueConfig& queues,
-      const facebook::fboss::Port* swPort = nullptr);
+      const facebook::fboss::Port* swPort);
   void updateStats(
       const std::vector<SaiQueueHandle*>& queues,
       HwPortStats& stats,

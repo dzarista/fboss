@@ -39,6 +39,40 @@ namespace facebook::fboss {
 template <typename AddrT>
 class AgentSflowMirrorTest : public AgentHwTest {
  public:
+  void applyPlatformConfigOverrides(
+      const cfg::SwitchConfig& sw,
+      cfg::PlatformConfig& config) const override {
+    // On TH5, force SDK to initialize multicast queues without an alpha
+    // setting, in order to test our multicast queue buffer config logic.
+    if (checkSameAndGetAsicType(sw) == cfg::AsicType::ASIC_TYPE_TOMAHAWK5) {
+      utility::modifyPlatformConfig(
+          config,
+          [](std::string& yamlCfg) {
+            std::string toReplace("LOSSY");
+            std::size_t pos = yamlCfg.find(toReplace);
+            if (pos != std::string::npos) {
+              yamlCfg.replace(
+                  pos,
+                  toReplace.length(),
+                  "LOSSY_AND_LOSSLESS\n      SKIP_BUFFER_RESERVATION: 1");
+            }
+            yamlCfg += R"(
+---
+device:
+  0:
+    TM_THD_MC_Q:
+      ?
+        PORT_ID: 76
+        TM_MC_Q_ID: [[0,3]]
+      :
+        DYNAMIC_SHARED_LIMITS: 0
+...
+)";
+          },
+          [](std::map<std::string, std::string>&) {});
+    }
+  }
+
   // Index in the sample ports where data traffic is expected!
   const int kDataTrafficPortIndex{0};
   std::vector<ProductionFeature> getProductionFeaturesVerified()
@@ -376,7 +410,7 @@ class AgentSflowMirrorTest : public AgentHwTest {
     std::optional<std::unique_ptr<folly::IOBuf>> capturedPktBuf;
     WITH_RETRIES({
       capturedPktBuf = snooper.waitForPacket(kTimeoutSecs);
-      EXPECT_EVENTUALLY_TRUE(capturedPktBuf.has_value());
+      ASSERT_EVENTUALLY_TRUE(capturedPktBuf.has_value());
     });
     folly::io::Cursor capturedPktCursor{capturedPktBuf->get()};
     auto capturedPkt = utility::EthFrame(capturedPktCursor);
@@ -515,8 +549,11 @@ class AgentSflowMirrorTest : public AgentHwTest {
     uint64_t expectedSampleCount = 0;
     auto port = getDataTrafficPort();
     const auto& portStats = stats.at(port);
-    expectedSampleCount = (*portStats.inUnicastPkts_() / FLAGS_sflow_test_rate);
-    XLOG(DBG2) << "total packets rx " << *portStats.inUnicastPkts_();
+    // In theory it's more correct to calcuate this based on inUnicastPkts, but
+    // Rx counters are not supported on TH5 in EDB loopback, so use Tx.
+    expectedSampleCount =
+        (*portStats.outUnicastPkts_() / FLAGS_sflow_test_rate);
+    XLOG(DBG2) << "total packets tx " << *portStats.outUnicastPkts_();
     return expectedSampleCount;
   }
 
@@ -528,7 +565,13 @@ class AgentSflowMirrorTest : public AgentHwTest {
       getAgentEnsemble()->sendPacketAsync(
           std::move(pkt), PortDescriptor(trafficPort), std::nullopt);
     }
-    getAgentEnsemble()->waitForLineRateOnPort(trafficPort);
+    const uint64_t portSpeedBps =
+        static_cast<uint64_t>(getProgrammedState()
+                                  ->getPorts()
+                                  ->getNodeIf(trafficPort)
+                                  ->getSpeed()) *
+        1000 * 1000 * 0.99; // 99% is good enough
+    getAgentEnsemble()->waitForSpecificRateOnPort(trafficPort, portSpeedBps);
 
     auto ports = getPortsForSampling();
     getAgentEnsemble()->bringDownPorts(
