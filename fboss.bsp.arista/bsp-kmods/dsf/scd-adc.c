@@ -149,24 +149,27 @@ static int scd_adc_read(struct device *dev, enum hwmon_sensor_types type,
 	}
 
 	switch (attr) {
-	case hwmon_in_input:
+	case hwmon_in_input: {
 		int raw_adc_val = FIELD_GET(ADC_VALUE_MASK,
 			ioread32(priv->mmio_csr + ADC_VALUE_REG_OFFSET));
 		*val = convert_to_millivolts(priv->subsys_id, raw_adc_val, scaling_int,
 			scaling_frac);
 		break;
-	case hwmon_in_min:
+	}
+	case hwmon_in_min: {
 		int raw_adc_under_thresh = FIELD_GET(ADC_UNDER_THRESH_MASK,
 			ioread32(priv->mmio_csr + ADC_THRESH_REG_OFFSET));
 		*val = convert_to_millivolts(priv->subsys_id, raw_adc_under_thresh,
 			scaling_int, scaling_frac);
 		break;
-	case hwmon_in_max:
+	}
+	case hwmon_in_max: {
 		int raw_adc_over_thresh = FIELD_GET(ADC_OVER_THRESH_MASK,
 			ioread32(priv->mmio_csr + ADC_THRESH_REG_OFFSET));
 		*val = convert_to_millivolts(priv->subsys_id, raw_adc_over_thresh,
 			scaling_int, scaling_frac);
 		break;
+	}
 	default:
 		ret = -EOPNOTSUPP;
 	}
