@@ -14,7 +14,7 @@
                "commit": "6a3884bee9c207d1f080805ba5f13cb31edb3840"
             },
             "code.arista.io/fboss/fboss-bcm-sdk": {
-               "commit": "d41b9fc79d537207c3e0e309d3ac763a3ee91ca8"
+               "commit": "01b4e7792f78405756dcb0fcc14a6af81a5febd5"
             }
         }
 }
