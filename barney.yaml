@@ -4,6 +4,15 @@ images:
     - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
       build: arista/fbossctl kernel_pull 6.4 $DESTDIR/kernel-6.4
 
+  bus:
+    units:
+      - image: code.arista.io/os/fboss-centos%fboss-centos-image-el9
+      - image: code.arista.io/fboss/fboss-bcm-sai%sai-11.7.0-sdk-6.5.30-dnx-kernel-6.4
+      - image: code.arista.io/fboss/fboss-bcm-sdk%sdk-6.5.30-dnx-kernel-6.4
+      - image: code.arista.io/fboss/fboss-bcm-sai%sai-10.2.0-sdk-6.5.29-xgs-kernel-6.4
+      - image: code.arista.io/fboss/fboss-bcm-sdk%sdk-6.5.29-xgs-kernel-6.4
+      - image: .%kernel-6.4
+
   build-floor/dnx_6.4-el9:
     units:
       - image: code.arista.io/os/fboss-centos%fboss-centos-image-el9
@@ -23,8 +32,8 @@ images:
             FBOSS_ARTIFACTORY_TOKEN: ${secrets.fboss_artifactory_reference_token}
         build: |
           export PTESTDIR=$DESTDIR/usr/share/ptest-data/Fboss
-          ./build.sh --arch dnx --sai-sdk-dir /result --kernel-dir /kernel-6.4
-          ./package.sh --sai-sdk-dir /result --export-dir $PTESTDIR --compress
+          ./build.sh --sai dnx-11.7 --kernel-dir /kernel-6.4
+          ./package.sh --export-dir $PTESTDIR --compress
           mkdir -p $PTESTDIR/RPMS/dnx/6.4
           mv $PTESTDIR/RPMS/*.rpm $PTESTDIR/RPMS/dnx/6.4
 
@@ -47,8 +56,8 @@ images:
             FBOSS_ARTIFACTORY_TOKEN: ${secrets.fboss_artifactory_reference_token}
         build: |
           export PTESTDIR=$DESTDIR/usr/share/ptest-data/Fboss
-          ./build.sh --arch xgs --sai-sdk-dir /result --kernel-dir /kernel-6.4
-          ./package.sh --sai-sdk-dir /result --export-dir $PTESTDIR --compress
+          ./build.sh --sai xgs-10.2 --kernel-dir /kernel-6.4
+          ./package.sh --export-dir $PTESTDIR --compress
           mkdir -p $PTESTDIR/RPMS/xgs/6.4
           mv $PTESTDIR/RPMS/*.rpm $PTESTDIR/RPMS/xgs/6.4
 

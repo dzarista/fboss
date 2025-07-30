@@ -36,6 +36,10 @@ FBOSS_SCRATCH_DIR="$FBOSS_CONTAINER_BASE/tmp_build_dir"
 KERNEL_DIR_NAME="kernel-$FBOSS_LINUX_KERNEL"
 KERNEL_PATH="$FBOSS_CONTAINER_BASE/$KERNEL_DIR_NAME"
 SAI_SDK_DIR="$FBOSS_CONTAINER_BASE/built-sai-sdk"
+# map of sai arch-version to "<Architecture> <Full SAI version> <Full SDK version>"
+declare -A SAI_MAP=( ["dnx-11.7"]="dnx 11.7.0 6.5.30"
+                     ["xgs-10.2"]="xgs 10.2.0 6.5.29"
+                     ["dnx-12.2"]="dnx 12.2.0 6.5.31" )
 
 prog="$0"
 
@@ -50,7 +54,7 @@ usage() {
    echo "      --rebuild-all: rebuild SDK and FBOSS OSS"
    echo "      --rebuild-fboss: rebuild FBOSS OSS only"
    echo "      --fboss-bins-only: rebuild only FBOSS OSS binaries (fastest)"
-   echo "      --arch: specify the SDK architecture (dnx|xgs)"
+   echo "      --sai: specify the SAI architecture-version: ${!SAI_MAP[@]}"
    echo "      --known-good-hash: build FBOSS at known good hash rather than local"
    echo "      --with-debug-symbols: Build with debug symbols."
    echo
@@ -184,18 +188,15 @@ do_build() {
             rebuild_all=1
             shift
             ;;
-         --arch)
-            if [[ "$2" == "dnx" ]]; then
-               arch="$2"
-               sdkVersion=6.5.30
-               saiVersion=11.7.0
-            elif [[ "$2" == "xgs" ]]; then
-               arch="$2"
-               sdkVersion=6.5.29
-               saiVersion=10.2.0
-            else
-               echo "Invalid architecture. Choose between: xgs dnx"; exit 1
+         --sai)
+            sai_arch_ver=${2:-None}
+            sai_info=${SAI_MAP["$sai_arch_ver"]}
+            if [ -z "$sai_info" ]; then
+               echo "Invalid SAI architecture/version. Choose between: ${!SAI_MAP[@]}"; exit 1
             fi
+            arch=$(echo $sai_info | awk '{print $1}')
+            saiVersion=$(echo $sai_info | awk '{print $2}')
+            sdkVersion=$(echo $sai_info | awk '{print $3}')
             shift; shift
             ;;
          --* | --*)
@@ -220,7 +221,7 @@ do_build() {
       run_cmd_container ./fboss-bcm-sai/build.py export -a $arch -v $saiVersion \
                         -e $FBOSS_CONTAINER_BASE/built-sai-sdk
    fi
-   run_cmd_container bash ./fboss.git/build.sh ${fboss_args[@]} --arch $arch \
+   run_cmd_container bash ./fboss.git/build.sh ${fboss_args[@]} --sai $sai_arch_ver \
                      --kernel-dir "$KERNEL_PATH" --scratch-dir "$FBOSS_SCRATCH_DIR" \
                      --sai-sdk-dir "$SAI_SDK_DIR" ${rebuild_all+--rebuild-fboss}
    # Restore files that have potentially been clobbered by the FBOSS build process.

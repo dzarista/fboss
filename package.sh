@@ -12,7 +12,6 @@ cd "$(dirname "$0")"
 fboss_spec_dir=arista/rpm
 # Default values
 scratch_dir=/var/FBOSS/tmp_build_dir
-sai_sdk_dir=/result
 export_dir=/src/dest/
 compression_level=1
 
@@ -50,6 +49,12 @@ while [[ $# -gt 0 ]]; do
 done
 
 set -ex
+
+if [[ ! -f $scratch_dir/.saisdkdir && -z $sai_sdk_dir ]]; then
+   echo "$scratch_dir/.saisdkdir does not exist. Pass sai-sdk path with --sai-sdk-dir"
+   exit 1
+fi
+sai_sdk_dir=${sai_sdk_dir:-$(cat $scratch_dir/.saisdkdir)}
 
 # Clear old fboss_bins-* dir and package
 rm -rf "$scratch_dir"/fboss_bins-1*
