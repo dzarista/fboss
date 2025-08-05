@@ -570,7 +570,7 @@
           "sysfsPath": "/run/devmap/sensors/SMB_ISL68226_OSFP_TL/in3_input",
           "type": 1,
           "thresholds": {
-            "upperCriticalVal": 3.96,
+            "upperCriticalVal": 3.7,
             "lowerCriticalVal": 2.64
           },
           "compute": "1.2*@/1000.0"
@@ -600,7 +600,7 @@
           "sysfsPath": "/run/devmap/sensors/SMB_ISL68226_OSFP_TR/in3_input",
           "type": 1,
           "thresholds": {
-            "upperCriticalVal": 3.96,
+            "upperCriticalVal": 3.7,
             "lowerCriticalVal": 2.64
           },
           "compute": "1.2*@/1000.0"
@@ -630,7 +630,7 @@
           "sysfsPath": "/run/devmap/sensors/SMB_ISL68226_OSFP_BL/in3_input",
           "type": 1,
           "thresholds": {
-            "upperCriticalVal": 3.96,
+            "upperCriticalVal": 3.7,
             "lowerCriticalVal": 2.64
           },
           "compute": "1.2*@/1000.0"
@@ -660,7 +660,7 @@
           "sysfsPath": "/run/devmap/sensors/SMB_ISL68226_OSFP_BR/in3_input",
           "type": 1,
           "thresholds": {
-            "upperCriticalVal": 3.96,
+            "upperCriticalVal": 3.7,
             "lowerCriticalVal": 2.64
           },
           "compute": "1.2*@/1000.0"

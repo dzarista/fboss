@@ -1,0 +1,227 @@
+# This file defines rules for automatic labeling of PRs.
+# See https://github.com/marketplace/actions/labeler for syntax details.
+# A basic thing to note is that any-* rules are ORed and all-* rules are ANDed.
+
+# Please keep labels in alphabetical order per label type and file glob
+# entries in alphabetical order per label.
+
+
+# Category labels: label based on general categories of code changes.
+
+# Add 'arista_bsp' label to any Arista BSP changes.
+arista_bsp:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'fboss.bsp.arista/**'
+
+# Add 'ci' label to any build/package/workflow scripts or config.
+ci:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.github/**'
+      - 'arista/build-utils/**'
+      - 'arista/core/systemd/**'
+      - arista/fbossctl
+      - 'arista/rpm/**'
+      - 'arista-ci-scripts/**'
+      - barney.yaml
+      - build.sh
+      - 'fboss.bsp.arista/rpmbuild/**'
+      - package.sh
+
+# Add 'configs' label to any platform configuration changes.
+configs:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'arista/**/config/**'
+      - 'fboss/agent/platforms/**'
+      - 'fboss/lib/bsp/**'
+      - 'fboss/platform/configs/**'
+
+# Add 'firmware' label to any firmware binary or tool changes.
+firmware:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'arista/psu-upgrade/**'
+      - 'fboss.bsp.arista/**/firmware/**'
+      - 'fboss.bsp.arista/fw-util-common/**'
+
+# Add 'kmods' label to any kmod or kmod tool changes.
+kmods:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'fboss.bsp.arista/bsp-kmods/**'
+      - 'fboss.bsp.arista/fbiob-util/**'
+
+# Add 'scripts' label to any internal script changes.
+scripts:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'arista/**/scripts/**'
+      - 'fboss.bsp.arista/scripts/**'
+
+# Add 'showtech' label to any showtech changes.
+showtech:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'fboss/platform/showtech/**'
+      - 'fboss.bsp.arista/showtech/**'
+
+# Add 'utils' label to any Arista utility changes.
+utils:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'arista/util/**'
+      - 'arista/python-config-generator/**'
+      - 'arista/python-state-sync/**'
+      - 'arista/platform/lib/**'
+
+
+# Feature labels: label based on which features are being changed.
+
+# Add 'bsp_mapping' label to any bsp_mapping changes.
+bsp_mapping:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'fboss/lib/bsp/**'
+
+# Add 'fan_service' label to any fan_service service or config changes.
+fan_service:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'fboss/platform/fan_service/**'
+      - 'fboss/platform/configs/**/fan_service.json'
+
+# Add 'fw_util' label to any fw_util service or config changes.
+fw_util:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'fboss/platform/fw_util/**'
+      - 'fboss/platform/configs/**/fw_util.json'
+
+# Add 'led_service' label to any led_service service or config changes.
+led_service:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'fboss/led_service/**'
+      - 'fboss/platform/configs/**/led_manager.json'
+
+# Add 'platform_manager' label to any PM service or config changes.
+platform_manager:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'fboss/platform/platform_manager/**'
+      - 'fboss/platform/configs/**/platform_manager.json'
+
+# Add 'platform_mapping' label to any platform_mapping changes.
+platform_mapping:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'fboss/agent/platforms/**'
+
+# Add 'rackmon' label to any rackmon service changes.
+rackmon:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'fboss/platform/rackmon/**'
+
+# Add 'sensor_service' label to any sensor_service service or config changes.
+sensor_service:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'fboss/platform/sensor_service/**'
+      - 'fboss/platform/configs/**/sensor_service.json'
+
+# Add 'weutil' label to any weutil service or config changes.
+weutil:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'fboss/platform/weutil/**'
+      - 'fboss/platform/configs/**/weutil.json'
+
+
+# Platform labels: label based on which platform has changed.
+
+# Add 'darwin' label to any darwin platform changes.
+darwin:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'arista/platform/darwin/**'
+      - 'arista/rpm/arista-fboss-platform-darwin.spec'
+      - 'arista/util/configs-and-diagrams/GenerateConfigsAndDiagrams/Platforms/Rackhawk.py'
+      - 'fboss/agent/platforms/common/darwin/**'
+      - 'fboss/lib/bsp/darwin/**'
+      - 'fboss/platform/configs/darwin/**'
+      - 'fboss.bsp.arista/bsp-kmods/darwin/**'
+      - 'fboss.bsp.arista/darwin/**'
+
+# Add 'darwin48v' label for any darwin48v platform changes.
+# There is some overlap with darwin for common configs.
+darwin48v:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'arista/platform/darwin48v/**'
+      - 'arista/rpm/arista-fboss-platform-darwin48v.spec'
+      - 'arista/util/configs-and-diagrams/GenerateConfigsAndDiagrams/Platforms/Rackhawk.py'
+      - 'fboss/agent/platforms/common/darwin/**'
+      - 'fboss/lib/bsp/darwin/**'
+      - 'fboss/platform/configs/darwin48v/**'
+      - 'fboss.bsp.arista/bsp-kmods/darwin/**'
+      - 'fboss.bsp.arista/darwin48v/**'
+
+# Add 'elbert' label for any elbert changes.
+elbert:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'fboss.bsp.arista/elbert/**'
+
+# Add 'glath05a-64o' label for any glath05a-64o platform changes.
+glath05a-64o:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'arista/platform/glath05a-64o/**'
+      - 'arista/rpm/arista-fboss-platform-glath05a-64o.spec'
+      - 'arista/util/configs-and-diagrams/GenerateConfigsAndDiagrams/Platforms/QuicksilverPFb.py'
+      - 'fboss/agent/platforms/common/glath05a-64o/**'
+      - 'fboss/lib/bsp/glath05a-64o/**'
+      - 'fboss/platform/configs/glath05a-64o/**'
+      - 'fboss.bsp.arista/bsp-kmods/glath05a-64o/**'
+      - 'fboss.bsp.arista/glath05a-64o/**'
+
+# Add 'meru800bfa' label for any meru800bfa platform changes.
+meru800bfa:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'arista/platform/meru800bfa/**'
+      - 'arista/rpm/arista-fboss-platform-meru800bfa.spec'
+      - 'arista/util/configs-and-diagrams/GenerateConfigsAndDiagrams/Platforms/Whistler.py'
+      - 'fboss/agent/platforms/common/meru800bfa/**'
+      - 'fboss/lib/bsp/meru800bfa/**'
+      - 'fboss/platform/configs/meru800bfa/**'
+      - 'fboss.bsp.arista/bsp-kmods/dsf/decker-cpld-i2c.c'
+      - 'fboss.bsp.arista/bsp-kmods/dsf/dsf-fan-cpld.c'
+      - 'fboss.bsp.arista/bsp-kmods/dsf/Makefile'
+      - 'fboss.bsp.arista/bsp-kmods/dsf/scd-adc.c'
+      - 'fboss.bsp.arista/meru800bfa/**'
+
+# Add 'meru800bia' label for any meru800bia changes.
+meru800bia:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'arista/platform/meru800bia/**'
+      - 'arista/rpm/arista-fboss-platform-meru800bia.spec'
+      - 'arista/util/configs-and-diagrams/GenerateConfigsAndDiagrams/Platforms/Viper.py'
+      - 'fboss/agent/platforms/common/meru800bia/**'
+      - 'fboss/lib/bsp/meru800bia/**'
+      - 'fboss/platform/configs/meru800bia/**'
+      - 'fboss.bsp.arista/bsp-kmods/dsf/dsf-fan-cpld.c'
+      - 'fboss.bsp.arista/bsp-kmods/dsf/Makefile'
+      - 'fboss.bsp.arista/bsp-kmods/dsf/scd-adc.c'
+      - 'fboss.bsp.arista/bsp-kmods/dsf/scd-vcpld-i2c.c'
+      - 'fboss.bsp.arista/meru800bia/**'
+
+# Add 'yamp' label for any yamp changes.
+yamp:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'fboss.bsp.arista/yamp/**'

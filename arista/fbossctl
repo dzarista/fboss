@@ -1,0 +1,336 @@
+#!/bin/bash
+
+# fbossctl
+#
+# This script allows users to build, package, and install FBOSS OSS, as well as
+# enter the containerized build environment.
+
+ARGS=("$@")
+
+DEFAULT_LINUX_KERNEL="6.4"
+if [[ -z "${FBOSS_LINUX_KERNEL}" ]]; then
+   echo "No FBOSS_LINUX_KERNEL defined in environment, using ${DEFAULT_LINUX_KERNEL}"
+   FBOSS_LINUX_KERNEL="${DEFAULT_LINUX_KERNEL}"
+fi
+
+DEFAULT_CENTOS_RELEASE="9"
+if [[ -z "${CENTOS_RELEASE}" ]]; then
+   echo "No Centos release defined in environment, using Centos${DEFAULT_CENTOS_RELEASE}"
+   CENTOS_RELEASE="${DEFAULT_CENTOS_RELEASE}"
+fi
+
+FBOSS_IMG="barney-docker.infra.corp.arista.io/code.arista.io/os/fboss-centos--fboss-centos-image-el${CENTOS_RELEASE}"
+
+DEFAULT_DOCKER_NAME="FBOSS_CENTOS${CENTOS_RELEASE}-1-${USER}"
+if [[ -z "${DOCKER_NAME}" ]]; then
+   echo "No docker container name specified. using ${DEFAULT_DOCKER_NAME}"
+   DOCKER_NAME="${DEFAULT_DOCKER_NAME}"
+fi
+
+FBOSS_CONTAINER_BASE="/var/FBOSS"
+FBOSS_REPO_DIR="$(git rev-parse --show-toplevel)"
+FBOSS_BUILD_DIR="${FBOSS_REPO_DIR}/fboss-build"
+FBOSS_HOST_DIR="${FBOSS_BUILD_DIR}/FBOSS_DIR"
+FBOSS_RPM_DIR="${FBOSS_HOST_DIR}/rpmbuild/RPMS/"
+FBOSS_SCRATCH_DIR="$FBOSS_CONTAINER_BASE/tmp_build_dir"
+KERNEL_DIR_NAME="kernel-$FBOSS_LINUX_KERNEL"
+KERNEL_PATH="$FBOSS_CONTAINER_BASE/$KERNEL_DIR_NAME"
+SAI_SDK_DIR="$FBOSS_CONTAINER_BASE/built-sai-sdk"
+# map of sai arch-version to "<Architecture> <Full SAI version> <Full SDK version>"
+declare -A SAI_MAP=( ["dnx-11.7"]="dnx 11.7.0 6.5.30"
+                     ["xgs-10.2"]="xgs 10.2.0 6.5.29"
+                     ["dnx-12.2"]="dnx 12.2.0 6.5.31" )
+
+prog="$0"
+
+usage() {
+   echo "Usage: $prog <command> [command options]"
+   echo
+   echo "Commands:"
+   echo "  shell: Enter an FBOSS OSS build container"
+   echo
+   echo "  build: Build FBOSS OSS + SAI + SDK"
+   echo "    options:"
+   echo "      --rebuild-all: rebuild SDK and FBOSS OSS"
+   echo "      --rebuild-fboss: rebuild FBOSS OSS only"
+   echo "      --fboss-bins-only: rebuild only FBOSS OSS binaries (fastest)"
+   echo "      --sai: specify the SAI architecture-version: ${!SAI_MAP[@]}"
+   echo "      --known-good-hash: build FBOSS at known good hash rather than local"
+   echo "      --with-debug-symbols: Build with debug symbols."
+   echo
+   echo "  package: Package FBOSS OSS into RPMs"
+   echo "    options:"
+   echo "      [rpm]: package only the specified RPM(s)"
+   echo
+   echo "  update-dut <dut>: copy latest RPMs to specified DUT"
+   echo
+   echo "  run_sw_tests: Run software breath tests inside container (requires prior successful build)"
+   echo
+   echo "  bsp_mapping_gen: Generate bsp mapping config based on CSV files under fboss/lib/bsp/bspmapping/input/"
+   echo
+   echo "  platform_mapping_gen: Generate platform mapping config based on CSV files under arista/platform/<platform>/config"
+   echo "    e.g. ./fbossctl platform_mapping_gen meru800bia"
+   echo
+   echo "  clean: Cleanup the FBOSS build environment"
+   echo
+   echo "  help: print this help message"
+   echo
+   echo
+}
+
+maybe_pull_docker_image() {
+   # If the docker image isn't installed locally, then pull it.
+   echo "Checking for required docker image: ${FBOSS_IMG}"
+   if [[ "$(docker images -q ${FBOSS_IMG} 2> /dev/null)" == "" ]]; then
+      echo "Cannot find ${FBOSS_IMG} locally. Pulling..."
+      docker pull "${FBOSS_IMG}"
+   fi
+}
+
+declare -A kernel_map=( ["6.4"]="FBOSS_KERNEL_SRC_6.4.3-0_fbk747_rc2_1199_ga95cd85c72c4.tar.gz" )
+kernel_pull() {
+   kerneltar=${kernel_map["$1"]}
+   if [ -z "${kerneltar}" ]; then
+      echo "Unsupported kernel version: $1"; exit 1
+   fi
+   echo "Using Linux Kernel version $1 from $kerneltar"
+   # Download the specified kernel headers from dist and extract it
+   wget http://dist.sjc.aristanetworks.com/storage/fboss/fbossImageFiles/$kerneltar -O /tmp/kernel.tar
+   mkdir -p $2
+   tar xf /tmp/kernel.tar -C $2 --strip-components 1
+}
+
+maybe_setup_build_env() {
+   # Setup the build environment by cloning SAI + SDK and creating the
+   # local FBOSS directory.
+
+   kernel_host_path="$FBOSS_HOST_DIR/$KERNEL_DIR_NAME"
+   echo $kernel_host_path
+   if [ -z ${kernel_map["$FBOSS_LINUX_KERNEL"]} ]; then
+      echo "Unsupported kernel version: $FBOSS_LINUX_KERNEL"; exit 1
+   fi
+
+   if [[ -d "${FBOSS_HOST_DIR}" ]] && [[ -d "$kernel_host_path" ]]; then
+      echo "Found build environment in ${FBOSS_HOST_DIR}, skipping setup"
+      return
+   elif [[ -d "${FBOSS_HOST_DIR}" ]] && [[ ! -d "$kernel_host_path" ]]; then
+      echo "Build environment found but has wrong linux kernel. Cleaning up and rebuilding."
+      cleanup_build_env
+   fi
+
+   echo "Creating build environment in ${FBOSS_HOST_DIR}"
+   set -ex
+   mkdir -p "${FBOSS_HOST_DIR}"
+   cd "${FBOSS_HOST_DIR}"
+
+   # Clone SAI and SDK repositories
+   git lfs install
+   git clone "ssh://$USER@gerrit.corp.arista.io:29418/fboss-bcm-sai"
+   git clone "ssh://$USER@gerrit.corp.arista.io:29418/fboss-bcm-sdk"
+
+   # Download FBOSS linux header files.
+   kernel_pull "$FBOSS_LINUX_KERNEL" "$kernel_host_path"
+}
+
+cleanup_build_env() {
+   if [[ -d "${FBOSS_HOST_DIR}" ]]; then
+      echo "Deleting "${FBOSS_HOST_DIR}" contents"
+      sudo rm -rf "${FBOSS_HOST_DIR}"
+   fi
+}
+
+setup() {
+   maybe_pull_docker_image
+   maybe_setup_build_env
+   # Docker run's volume mount can't handle symlinks, so copy the latest versions
+   # of the build scripts every time.
+   cp -f "${FBOSS_REPO_DIR}"/arista/util/bsp-mapping-gen/bspMappingGen.sh "${FBOSS_HOST_DIR}"
+   cp -f "${FBOSS_REPO_DIR}"/arista/util/platform-mapping-gen/platformMappginGen.sh "${FBOSS_HOST_DIR}"
+}
+
+run_cmd_container() {
+   # Run the given command in an FBOSS OSS build container. Note that we mount
+   # the git repo inside of the build directory: this is needed for the build
+   # scripts.
+   if [[ " ${ARGS[*]} " =~ "--non_homebus" ]]; then
+      echo "--non_homebus flag is passed"
+
+      # Filter out --non_homebus flag
+      for arg in "$@"; do
+         [[ "$arg" != "--non_homebus" ]] && filtered_args+=("$arg")
+      done
+
+      docker run -l owner="${USER}" --privileged --rm -it \
+         -v "${FBOSS_HOST_DIR}":/var/FBOSS/ \
+         -v "${FBOSS_REPO_DIR}":/var/FBOSS/fboss.git \
+         -w /var/FBOSS --name="${DOCKER_NAME}" "${FBOSS_IMG}" "${filtered_args[@]}"
+   else
+      echo "Running fbossctl on homebus"
+      docker run -l owner="${USER}" --rm -it \
+         -v "/b5/container/$(hostname)/rootfs/data${FBOSS_HOST_DIR}":/var/FBOSS/ \
+         -v "/b5/container/$(hostname)/rootfs/data${FBOSS_REPO_DIR}":/var/FBOSS/fboss.git \
+         -w /var/FBOSS --name="${DOCKER_NAME}" "${FBOSS_IMG}" "$@"
+   fi
+}
+
+enter_container_shell() {
+   setup
+   echo "Entering FBOSS OSS build container ('exit' or ctrl-d to exit)"
+   run_cmd_container bash
+}
+
+do_build() {
+   setup
+   fboss_args=()
+   while [[ $# -gt 0 ]]; do
+      case $1 in
+         --rebuild-all)
+            rebuild_all=1
+            shift
+            ;;
+         --sai)
+            sai_arch_ver=${2:-None}
+            sai_info=${SAI_MAP["$sai_arch_ver"]}
+            if [ -z "$sai_info" ]; then
+               echo "Invalid SAI architecture/version. Choose between: ${!SAI_MAP[@]}"; exit 1
+            fi
+            arch=$(echo $sai_info | awk '{print $1}')
+            saiVersion=$(echo $sai_info | awk '{print $2}')
+            sdkVersion=$(echo $sai_info | awk '{print $3}')
+            shift; shift
+            ;;
+         --* | --*)
+            fboss_args+=$1
+            shift
+            ;;
+      esac
+   done
+   set -ex
+   if ! [[ -z $rebuild_all ]]; then
+      # Clean build and export SDK
+      run_cmd_container ./fboss-bcm-sdk/build.py clean -a $arch -v $sdkVersion
+      run_cmd_container ./fboss-bcm-sdk/build.py build -a $arch -v $sdkVersion \
+                        -k "$FBOSS_LINUX_KERNEL"
+      run_cmd_container ./fboss-bcm-sdk/build.py export -a $arch -v $sdkVersion \
+                        -e $FBOSS_CONTAINER_BASE/built-sai-sdk
+
+      # Clean build and export SAI
+      run_cmd_container ./fboss-bcm-sai/build.py clean -a $arch -v $saiVersion 
+      run_cmd_container ./fboss-bcm-sai/build.py build -a $arch -v $saiVersion \
+                        -s $FBOSS_CONTAINER_BASE/fboss-bcm-sdk/sdk-$sdkVersion
+      run_cmd_container ./fboss-bcm-sai/build.py export -a $arch -v $saiVersion \
+                        -e $FBOSS_CONTAINER_BASE/built-sai-sdk
+   fi
+   run_cmd_container bash ./fboss.git/build.sh ${fboss_args[@]} --sai $sai_arch_ver \
+                     --kernel-dir "$KERNEL_PATH" --scratch-dir "$FBOSS_SCRATCH_DIR" \
+                     --sai-sdk-dir "$SAI_SDK_DIR" ${rebuild_all+--rebuild-fboss}
+   # Restore files that have potentially been clobbered by the FBOSS build process.
+   sudo git -C "$FBOSS_REPO_DIR" restore "build/*"
+}
+
+do_package() {
+   setup
+   set -ex
+   run_cmd_container bash fboss.git/package.sh --scratch-dir "$FBOSS_SCRATCH_DIR" \
+                     --sai-sdk-dir "$SAI_SDK_DIR" --export-dir "$FBOSS_CONTAINER_BASE/rpmbuild" $@
+}
+
+do_update_dut() {
+   dut="$1"
+
+   rpms=$(ls -A ${FBOSS_RPM_DIR})
+   if [[ -z "${rpms}" ]]; then
+      echo "Found no built RPMs in ${FBOSS_RPM_DIR}"
+      exit 1
+   fi
+
+   sshpass -p arastra a4 scp "${FBOSS_RPM_DIR}"/* root@"${dut}":/tmp/
+   echo "The following RPMs were copied to ${dut}:/tmp/"
+   echo "${rpms}"
+}
+
+do_sw_tests() {
+    setup
+    run_cmd_container bash -c "cd fboss.git; ./arista/core/scripts/run_sw_tests.sh"
+}
+
+do_bsp_mapping_gen() {
+    setup
+    run_cmd_container bash bspMappingGen.sh
+}
+
+do_platform_mapping_gen() {
+    setup
+    run_cmd_container bash platformMappginGen.sh $1
+}
+
+do_unit_tests() {
+    # Unit test directory
+    UNIT_TEST_DIR="$(dirname "$(realpath "$0")")/unit-tests"
+
+    echo "Running all tests in $UNIT_TEST_DIR..."
+
+    # Loop through all test files
+    for unit_test in "$UNIT_TEST_DIR"/*.py; do
+        # Check if there are no .py files
+        [ -e "$unit_test" ] || { echo "No test files found."; exit 0; }
+
+        echo "➡️ Running: $unit_test"
+        python3 "$unit_test"
+
+        # Check exit status
+        if [ $? -ne 0 ]; then
+            echo "❌ Error running $unit_test"
+            exit 1
+        else
+            echo "✅ Finished $unit_test"
+        fi
+    done
+}
+
+if [[ $# -lt 1 ]]; then
+    usage
+    exit 1
+fi
+
+command="$1"
+shift
+
+case "${command}" in
+   shell)
+      enter_container_shell
+      ;;
+   build)
+      do_build $@
+      ;;
+   package)
+      do_package $@
+      ;;
+   clean)
+      cleanup_build_env
+      ;;
+   update-dut)
+      do_update_dut $1
+      ;;
+   run_sw_tests)
+      do_sw_tests
+      ;;
+   bsp_mapping_gen)
+      do_bsp_mapping_gen
+      ;;
+   kernel_pull)
+      kernel_pull $@
+      ;;
+   platform_mapping_gen)
+      do_platform_mapping_gen $1
+      ;;
+   run_unit_tests)
+      do_unit_tests
+      ;;
+   *)
+      usage
+      exit 1
+      ;;
+esac
+
+exit $?

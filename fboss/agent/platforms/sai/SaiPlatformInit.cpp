@@ -25,6 +25,7 @@
 #include "fboss/agent/platforms/sai/SaiBcmWedge400Platform.h"
 #include "fboss/agent/platforms/sai/SaiBcmYampPlatform.h"
 #include "fboss/agent/platforms/sai/SaiFakePlatform.h"
+#include "fboss/agent/platforms/sai/SaiGlath05a-64oPlatform.h"
 #include "fboss/agent/platforms/sai/SaiJanga800bicPlatform.h"
 #include "fboss/agent/platforms/sai/SaiMeru400bfuPlatform.h"
 #include "fboss/agent/platforms/sai/SaiMeru400biaPlatform.h"
@@ -77,7 +78,8 @@ std::unique_ptr<SaiPlatform> chooseSaiPlatform(
         std::move(productInfo), localMac, platformMappingStr);
   } else if (
       productInfo->getType() == PlatformType::PLATFORM_MERU800BIA ||
-      productInfo->getType() == PlatformType::PLATFORM_MERU800BIAB) {
+      productInfo->getType() == PlatformType::PLATFORM_MERU800BIAB ||
+      productInfo->getType() == PlatformType::PLATFORM_MERU800BIAC) {
     return std::make_unique<SaiMeru800biaPlatform>(
         std::move(productInfo), localMac, platformMappingStr);
   } else if (productInfo->getType() == PlatformType::PLATFORM_MERU800BFA) {
@@ -112,6 +114,9 @@ std::unique_ptr<SaiPlatform> chooseSaiPlatform(
         std::move(productInfo), localMac, platformMappingStr);
   } else if (productInfo->getType() == PlatformType::PLATFORM_ICECUBE800BC) {
     return std::make_unique<SaiBcmIcecube800bcPlatform>(
+        std::move(productInfo), localMac, platformMappingStr);
+  } else if (productInfo->getType() == PlatformType::PLATFORM_GLATH05A_64O) {
+    return std::make_unique<SaiGlath05a_64oPlatform>(
         std::move(productInfo), localMac, platformMappingStr);
   } else if (productInfo->getType() == PlatformType::PLATFORM_FAKE_SAI) {
     return std::make_unique<SaiFakePlatform>(std::move(productInfo));
