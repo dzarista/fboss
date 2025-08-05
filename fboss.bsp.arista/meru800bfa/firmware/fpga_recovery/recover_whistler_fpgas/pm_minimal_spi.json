@@ -1,0 +1,280 @@
+{
+  "platformName": "meru800bfa",
+  "rootPmUnitName": "SCM",
+  "rootSlotType": "SCM_SLOT",
+  "slotTypeConfigs": {
+    "SCM_SLOT": {
+      "numOutgoingI2cBuses": 0,
+      "idpromConfig": {
+        "busName": "SMBus I801 adapter at 1000",
+        "address": "0x50",
+        "kernelDeviceName": "24c512",
+        "offset": 15360
+      },
+      "pmUnitName": "SCM"
+    },
+    "SMB_SLOT": {
+      "numOutgoingI2cBuses": 4,
+      "idpromConfig": {
+        "busName": "INCOMING@0",
+        "address": "0x52",
+        "kernelDeviceName": "24c512",
+        "offset": 15360
+      },
+      "pmUnitName": "SMB"
+    },
+    "PSU_SLOT": {
+      "numOutgoingI2cBuses": 1,
+      "pmUnitName": "PSU"
+    },
+    "FAN_SLOT": {
+      "numOutgoingI2cBuses": 0,
+      "pmUnitName": "FAN"
+    }
+  },
+  "pmUnitConfigs": {
+    "SCM": {
+      "pluggedInSlotType": "SCM_SLOT",
+      "i2cDeviceConfigs": [
+        {
+          "busName": "SCM_I2C_MASTER0@0",
+          "address": "0x40",
+          "kernelDeviceName": "pmbus",
+          "pmUnitScopedName": "SCM_MPS_PMBUS"
+        },
+        {
+          "busName": "SCM_I2C_MASTER0@1",
+          "address": "0x50",
+          "kernelDeviceName": "24c512",
+          "pmUnitScopedName": "SCM_IDPROM_P1",
+          "hasCpuMac": true
+        }
+      ],
+      "outgoingSlotConfigs": {
+        "SMB_SLOT@0": {
+          "slotType": "SMB_SLOT",
+          "outgoingI2cBusNames": [
+            "SCM_I2C_MASTER1@0",
+            "SCM_I2C_MASTER1@1",
+            "SCM_I2C_MASTER1@2",
+            "SCM_I2C_MASTER1@3"
+          ]
+        }
+      },
+      "pciDeviceConfigs": [
+        {
+          "pmUnitScopedName": "SCM_FPGA",
+          "vendorId": "0x3475",
+          "deviceId": "0x0001",
+          "subSystemVendorId": "0x3475",
+          "subSystemDeviceId": "0x0008",
+          "i2cAdapterConfigs": [
+            {
+              "fpgaIpBlockConfig": {
+                "pmUnitScopedName": "SCM_I2C_MASTER0",
+                "deviceName": "i2c_master",
+                "csrOffset": "0x8000"
+              },
+              "numberOfAdapters": 8
+            },
+            {
+              "fpgaIpBlockConfig": {
+                "pmUnitScopedName": "SCM_I2C_MASTER1",
+                "deviceName": "i2c_master",
+                "csrOffset": "0x8080"
+              },
+              "numberOfAdapters": 8
+            }
+          ],
+          "spiMasterConfigs": [],
+          "ledCtrlConfigs": [],
+          "xcvrCtrlConfigs": [],
+          "infoRomConfigs": [
+            {
+              "pmUnitScopedName": "SCM_FPGA_INFO_ROM",
+              "deviceName": "fpga_info_iob",
+              "csrOffset": "0x100"
+            }
+          ]
+        }
+      ],
+      "embeddedSensorConfigs": [
+        {
+          "pmUnitScopedName": "CPU_CORE_TEMP",
+          "sysfsPath": "/sys/bus/platform/devices/coretemp.0"
+        },
+        {
+          "pmUnitScopedName": "NVME_TEMP",
+          "sysfsPath": "/sys/class/nvme/nvme0"
+        }
+      ]
+    },
+    "SMB": {
+      "pluggedInSlotType": "SMB_SLOT",
+      "i2cDeviceConfigs": [],
+      "outgoingSlotConfigs": {},
+      "pciDeviceConfigs": [
+        {
+          "pmUnitScopedName": "SMB_FPGA0",
+          "vendorId": "0x3475",
+          "deviceId": "0x0001",
+          "subSystemVendorId": "0x3475",
+          "subSystemDeviceId": "0x0004",
+          "i2cAdapterConfigs": [
+          ],
+          "spiMasterConfigs": [
+            {
+              "fpgaIpBlockConfig": {
+                "pmUnitScopedName": "SMB_SPI0_MASTER0",
+                "deviceName": "spi_master",
+                "csrOffset": "0x7900"
+              },
+              "spiDeviceConfigs": [
+                {
+                  "pmUnitScopedName": "SMB_SPI0_MASTER0_DEVICE1",
+                  "chipSelect": 0,
+                  "modalias": "spidev",
+                  "maxSpeedHz": 25000000
+                }
+              ]
+            }
+          ],
+          "ledCtrlConfigs": [],
+          "xcvrCtrlConfigs": [],
+          "infoRomConfigs": []
+        },
+        {
+          "pmUnitScopedName": "SMB_FPGA1",
+          "vendorId": "0x3475",
+          "deviceId": "0x0001",
+          "subSystemVendorId": "0x3475",
+          "subSystemDeviceId": "0x0005",
+          "i2cAdapterConfigs": [
+          ],
+          "spiMasterConfigs": [
+            {
+              "fpgaIpBlockConfig": {
+                "pmUnitScopedName": "SMB_SPI1_MASTER0",
+                "deviceName": "spi_master",
+                "csrOffset": "0x7900"
+              },
+              "spiDeviceConfigs": [
+                {
+                  "pmUnitScopedName": "SMB_SPI1_MASTER0_DEVICE1",
+                  "chipSelect": 0,
+                  "modalias": "spidev",
+                  "maxSpeedHz": 25000000
+                }
+              ]
+            }
+          ],
+          "ledCtrlConfigs": [],
+          "xcvrCtrlConfigs": [],
+          "infoRomConfigs": []
+        },
+        {
+          "pmUnitScopedName": "SMB_FPGA2",
+          "vendorId": "0x3475",
+          "deviceId": "0x0001",
+          "subSystemVendorId": "0x3475",
+          "subSystemDeviceId": "0x0006",
+          "i2cAdapterConfigs": [
+          ],
+          "spiMasterConfigs": [
+            {
+              "fpgaIpBlockConfig": {
+                "pmUnitScopedName": "SMB_SPI2_MASTER0",
+                "deviceName": "spi_master",
+                "csrOffset": "0x7900"
+              },
+              "spiDeviceConfigs": [
+                {
+                  "pmUnitScopedName": "SMB_SPI2_MASTER0_DEVICE1",
+                  "chipSelect": 0,
+                  "modalias": "spidev",
+                  "maxSpeedHz": 25000000
+                }
+              ]
+            }
+          ],
+          "ledCtrlConfigs": [],
+          "xcvrCtrlConfigs": [],
+          "infoRomConfigs": []
+        },
+        {
+          "pmUnitScopedName": "SMB_FPGA3",
+          "vendorId": "0x3475",
+          "deviceId": "0x0001",
+          "subSystemVendorId": "0x3475",
+          "subSystemDeviceId": "0x0007",
+          "i2cAdapterConfigs": [],
+          "spiMasterConfigs": [
+            {
+              "fpgaIpBlockConfig": {
+                "pmUnitScopedName": "SMB_SPI3_MASTER0",
+                "deviceName": "spi_master",
+                "csrOffset": "0x7900"
+              },
+              "spiDeviceConfigs": [
+                {
+                  "pmUnitScopedName": "SMB_SPI3_MASTER0_DEVICE1",
+                  "chipSelect": 0,
+                  "modalias": "spidev",
+                  "maxSpeedHz": 25000000
+                }
+              ]
+            }
+          ],
+          "ledCtrlConfigs": [],
+          "xcvrCtrlConfigs": [],
+          "infoRomConfigs": []
+        }
+      ]
+    },
+    "PSU": {
+      "pluggedInSlotType": "PSU_SLOT",
+      "i2cDeviceConfigs": [
+        {
+          "busName": "INCOMING@0",
+          "address": "0x58",
+          "kernelDeviceName": "pmbus",
+          "pmUnitScopedName": "PSU_PMBUS"
+        }
+      ],
+      "outgoingSlotConfigs": {},
+      "pciDeviceConfigs": []
+    },
+    "FAN": {
+      "pluggedInSlotType": "FAN_SLOT",
+      "i2cDeviceConfigs": [],
+      "outgoingSlotConfigs": {},
+      "pciDeviceConfigs": []
+    }
+  },
+  "i2cAdaptersFromCpu": [
+    "SMBus I801 adapter at 1000"
+  ],
+  "symbolicLinkToDevicePath": {
+    "/run/devmap/fpgas/MERU_SCM_CPLD": "/[SCM_FPGA]",
+    "/run/devmap/fpgas/MERU_SCM_CPLD_INFO_ROM": "/[SCM_FPGA_INFO_ROM]",
+    "/run/devmap/sensors/CPU_MPS_PMBUS": "/[SCM_MPS_PMBUS]",
+    "/run/devmap/eeproms/MERU_SCM_EEPROM_P1": "/[SCM_IDPROM_P1]",
+    "/run/devmap/sensors/CPU_CORE_TEMP": "/[CPU_CORE_TEMP]",
+    "/run/devmap/sensors/NVME_TEMP": "/[NVME_TEMP]",
+    "/run/devmap/fpgas/MERU800BFA_SMB_FPGA0": "/SMB_SLOT@0/[SMB_FPGA0]",
+    "/run/devmap/fpgas/MERU800BFA_SMB_FPGA1": "/SMB_SLOT@0/[SMB_FPGA1]",
+    "/run/devmap/fpgas/MERU800BFA_SMB_FPGA2": "/SMB_SLOT@0/[SMB_FPGA2]",
+    "/run/devmap/fpgas/MERU800BFA_SMB_FPGA3": "/SMB_SLOT@0/[SMB_FPGA3]",
+    "/run/devmap/flashes/SMB_SPI0_MASTER0_DEVICE1": "/SMB_SLOT@0/[SMB_SPI0_MASTER0_DEVICE1]",
+    "/run/devmap/flashes/SMB_SPI1_MASTER0_DEVICE1": "/SMB_SLOT@0/[SMB_SPI1_MASTER0_DEVICE1]",
+    "/run/devmap/flashes/SMB_SPI2_MASTER0_DEVICE1": "/SMB_SLOT@0/[SMB_SPI2_MASTER0_DEVICE1]",
+    "/run/devmap/flashes/SMB_SPI3_MASTER0_DEVICE1": "/SMB_SLOT@0/[SMB_SPI3_MASTER0_DEVICE1]"
+  },
+  "bspKmodsRpmName": "arista_bsp_kmods",
+  "bspKmodsRpmVersion": "0.7.7-1",
+  "requiredKmodsToLoad": [
+    "spidev",
+    "i2c_i801",
+    "scd"
+  ]
+}
