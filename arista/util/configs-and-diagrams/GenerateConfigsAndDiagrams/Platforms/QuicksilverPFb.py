@@ -338,12 +338,14 @@ class QuicksilverPFb( PlatformConfig ):
       # 1. Set global PWM and control interval parameters
       fanServiceConfig.setPwmConfig(  pwmBoostOnNumDeadFan=1,
                                        pwmBoostOnNumDeadSensor=0,
-                                       pwmBoostOnNoQsfpAfterInSec=0,
-                                       pwmBoostValue=90,
+                                       pwmBoostOnNoQsfpAfterInSec=31,
+                                       pwmBoostValue=75,
                                        pwmTransitionValue=75,
                                        pwmLowerThreshold=54,
                                        pwmUpperThreshold=100 )
-      fanServiceConfig.setControlInterval( sensorReadInterval=5, pwmUpdateInterval=5 )
+      fanServiceConfig.setControlInterval(
+                                       sensorReadInterval=5, 
+                                       pwmUpdateInterval=5 )
       # 2. Define the optics group with its specific temp-to-PWM map
       opticConfig = fanServiceConfig.addOpticConfig( "osfp_group_1", "QSFP" )
       opticConfig.addTempToPwmMap( 800, {
