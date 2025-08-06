@@ -604,28 +604,31 @@ class Whistler( PlatformConfig ):
 
       # Fan Service Config
       fanServiceConfig = FanServiceConfig()
+   
       # 1. Set global PWM parameters from the JSON config
       fanServiceConfig.setPwmConfig(  pwmBoostOnNumDeadFan=1,
                                        pwmBoostOnNumDeadSensor=0,
-                                       pwmBoostOnNoQsfpAfterInSec=0,
-                                       pwmBoostValue=60,
+                                       pwmBoostOnNoQsfpAfterInSec=31,
+                                       pwmBoostValue=65,
                                        pwmTransitionValue=50,
                                        pwmLowerThreshold=7,
                                        pwmUpperThreshold=100 )
+
       # 2. Define the optics group with its specific temp-to-PWM map
       opticConfig = fanServiceConfig.addOpticConfig( "osfp_group_1", "QSFP" )
       opticConfig.addTempToPwmMap( 800, {
-          "5": 35,
+          "5": 40,
           "67": 41,
           "68": 50,
           "69": 67,
           "70": 80,
           "71": 100
       } )
+
       # 3. Define the sensors and their temp-to-PWM maps
       # Note: We use the unresolved names defined in WhistlerSMB (e.g., "INLET_TEMP")
       fanServiceConfig.addSensor( "INLET_TEMP", "THRIFT", {
-          "15": 28,
+          "15": 40,
           "110": 80
       } )
       fanServiceConfig.addSensor( "R3_0_TEMP", "THRIFT", {
@@ -638,6 +641,12 @@ class Whistler( PlatformConfig ):
           "70": 10,
           "80": 100
       } )
+      fanServiceConfig.addSensor( "CPU_PACKAGE_TEMP", "THRIFT", {
+         "15": 40,
+         "80": 60,
+         "90": 100
+      } )
+
       # 4. Define the thermal control zones
       # An ASIC zone that controls fans 1-4
       fanServiceConfig.addZone(
@@ -649,7 +658,7 @@ class Whistler( PlatformConfig ):
       # A system-wide zone that controls fans 5-12
       fanServiceConfig.addZone(
          zoneName="system_zone",
-         sensorNames=[ "INLET_TEMP", "osfp_group_1" ],
+         sensorNames=[ "CPU_PACKAGE_TEMP", "INLET_TEMP", "osfp_group_1" ],
          fanNumbers=range( 5, 13 ),  # Fans 5 through 12
          slope=3
       )
