@@ -3,7 +3,16 @@
 echo "INITIALIZING FBOSS"
 
 mkdir -p "/tmp/SWI"
-unzip -oq "/run/initramfs/overlayfs/FBOSS.swi" -d /tmp/SWI
+swiDir="/run/initramfs/overlayfs"
+swiUrl=$( grep -v '^#' $swiDir/boot-config | grep 'SWI=' | awk -F '=' '{print $2}' )
+swiRelPath=$(echo $swiUrl | sed -E "s,^(.*):/+([^/]*)+,\2,")
+if [ -z "$swiRelPath" ]; then
+   echo "Failed to parse SWI path from boot-config. Assuming FBOSS.swi"
+   swiRelPath="FBOSS.swi"
+fi
+swiPath="$swiDir/$swiRelPath"
+
+unzip -oq "$swiPath" -d /tmp/SWI
 
 swi_dir="/tmp/SWI"
 
@@ -33,9 +42,18 @@ for keyword in $core_rpm_keywords; do
     install_rpm_by_keyword "$keyword"
 done
 
+services="platform_manager \
+   sensor_service \
+   fan_service \
+   data_corral_service \
+   qsfp_service \
+   fboss_sw_agent \
+   fboss_hw_agent@0"
+
 case "$system_product" in
     "MERU800BFA")
         install_rpm_by_keyword "meru800bfa-"
+        services="$services fboss_hw_agent@1"
         ;;
     "MERU800BIA")
         install_rpm_by_keyword "meru800bia-"
@@ -48,6 +66,7 @@ case "$system_product" in
         ;;
     *)
         echo "Unknown product: $system_product. No additional RPMs installed."
+        exit 1
         ;;
 esac
 
@@ -56,5 +75,12 @@ if [ $? -ne 0 ]; then
     echo "Failed to run fboss_init.sh"
     exit 1
 fi
+
+echo -n "Starting FBOSS services..."
+for service in $services; do
+   systemctl enable $service
+   systemctl start $service
+done
+echo "Done"
 
 exit 0

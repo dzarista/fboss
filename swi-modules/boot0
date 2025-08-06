@@ -18,7 +18,8 @@ SQUASHFS_IMAGE="/tmp/${squashfs}"
 NEW_RPM_SERVICE="/tmp/${rpm_service}"
 NEW_RPM_SCRIPT="/tmp/${rpm_script}"
 
-PERSISTENT_ROOT="/mnt/flash/boot"
+MOUNT_POINT="/mnt/flash"
+PERSISTENT_ROOT="${MOUNT_POINT}/boot"
 OVERLAYFS="${PERSISTENT_ROOT}/overlayfs"
 if [ ! -d "$OVERLAYFS" ]; then
     echo "Management intf was not setup by sanitize"
@@ -39,7 +40,9 @@ chmod +x "${OVERLAYFS}/usr/bin/$rpm_script"
 mkdir -p "${OVERLAYFS}/etc/systemd/system/multi-user.target.wants"
 ln -sf "/etc/systemd/system/$rpm_service" "${OVERLAYFS}/etc/systemd/system/multi-user.target.wants/$rpm_service"
 
-KERNEL_PARAMS="root=live:LABEL=eos_flash rd.live.ram=1 rd.live.dir=/boot rd.live.overlay.overlayfs rd.live.overlay=LABEL=eos_flash:/boot/overlayfs rw biosdevname=0 crashkernel=128M fsck.repair=yes systemd.gpt_auto=0 console=ttyS0,9600 8250.nr_uarts=4 loglevel=5 printk.console_no_auto_verbose=1 nopat net.ifnames=0 msr.allow_writes=on swiotlb=4096 cma=512M@0-4G scd.lpc_irq=47 scd.lpc_res_addr=0xfe0b0000 scd.lpc_res_size=0x10000"
+consoleSpeed=$(stty speed)
+
+KERNEL_PARAMS="root=live:LABEL=eos_flash rd.live.ram=1 rd.live.dir=/boot rd.live.overlay.overlayfs rd.live.overlay=LABEL=eos_flash:/boot/overlayfs rw biosdevname=0 crashkernel=128M fsck.repair=yes systemd.gpt_auto=0 console=ttyS0,$consoleSpeed 8250.nr_uarts=4 loglevel=5 printk.console_no_auto_verbose=1 nopat net.ifnames=0 msr.allow_writes=on swiotlb=4096 cma=512M@0-4G scd.lpc_irq=47 scd.lpc_res_addr=0xfe0b0000 scd.lpc_res_size=0x10000"
 
 echo "Loading new kernel..."
 kexec -l "$NEW_KERNEL" --initrd="$NEW_INITRAMFS" --append="$KERNEL_PARAMS"
