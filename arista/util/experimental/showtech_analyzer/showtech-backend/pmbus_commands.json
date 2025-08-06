@@ -1,0 +1,2879 @@
+[
+  {
+    "code": "0x00",
+    "name": "PAGE",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7:0",
+        "name": "Page Number",
+        "description": "0x00-0x1F selects a specific page; 0xFF applies to all pages (broadcast)"
+      }
+    ]
+  },
+  {
+    "code": "0x01",
+    "name": "OPERATION",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "Output On/Off",
+        "description": "1 = Output ON, 0 = Output OFF"
+      },
+      {
+        "bits": "6",
+        "name": "Turn Off Behavior",
+        "description": "0 = Turn off immediately, 1 = Use TOFF_DELAY/TOFF_FALL; ignored if bit 7 = 1"
+      },
+      {
+        "bits": "5:4",
+        "name": "Voltage Command Source",
+        "description": "00 = VOUT_COMMAND, 01 = VOUT_MARGIN_LOW, 10 = VOUT_MARGIN_HIGH, 11 = AVSBus"
+      },
+      {
+        "bits": "3:2",
+        "name": "Margin Fault Response",
+        "description": "01 = Ignore margin faults, 10 = Act on margin faults, others reserved"
+      },
+      {
+        "bits": "1",
+        "name": "Transition Control",
+        "description": "1 = Update VOUT_COMMAND with AVSBus before switching, 0 = No update"
+      },
+      {
+        "bits": "0",
+        "name": "Reserved",
+        "description": "Reserved"
+      }
+    ]
+  },
+  {
+    "code": "0x02",
+    "name": "ON_OFF_CONFIG",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7:5",
+        "name": "Reserved",
+        "description": "Reserved for future use"
+      },
+      {
+        "bits": "4",
+        "name": "Startup Control",
+        "description": "0 = Unit powers up automatically when power is present; 1 = Requires CONTROL pin and/or OPERATION command to start"
+      },
+      {
+        "bits": "3",
+        "name": "Use OPERATION Command",
+        "description": "0 = Ignore OPERATION command for on/off; 1 = Require OPERATION command to turn on"
+      },
+      {
+        "bits": "2",
+        "name": "Use CONTROL Pin",
+        "description": "0 = Ignore CONTROL pin; 1 = Require CONTROL pin to be asserted to turn on"
+      },
+      {
+        "bits": "1",
+        "name": "CONTROL Pin Polarity",
+        "description": "0 = Active low (pull low to start); 1 = Active high (pull high to start)"
+      },
+      {
+        "bits": "0",
+        "name": "Turn-off Behavior",
+        "description": "0 = Use programmed TOFF delay and fall time; 1 = Turn off output as fast as possible"
+      }
+    ]
+  },
+  {
+    "code": "0x03",
+    "name": "CLEAR_FAULTS",
+    "smBusWrite": "Send Byte",
+    "smBusRead": "N/A",
+    "bytes": "0"
+  },
+  {
+    "code": "0x04",
+    "name": "PHASE",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7:0",
+        "name": "Phase Selection",
+        "description": "00h-7Fh = Apply subsequent commands to the selected phase; FFh = Apply to all phases (default)"
+      }
+    ]
+  },
+  {
+    "code": "0x05",
+    "name": "PAGE_PLUS_WRITE",
+    "smBusWrite": "Block Write",
+    "smBusRead": "N/A",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0x06",
+    "name": "PAGE_PLUS_READ",
+    "smBusWrite": "N/A",
+    "smBusRead": "Block Write, Block Read Process Call",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0x07",
+    "name": "ZONE_CONFIG",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2",
+    "bitRanges": [
+      {
+        "bits": "15:8",
+        "name": "Assigned Write Zone",
+        "description": "Zone number to assign for ZONE_WRITE operations. 00h-7Fh or FEh (No Zone). Must not be FFh."
+      },
+      {
+        "bits": "7:0",
+        "name": "Assigned Read Zone",
+        "description": "Zone number to assign for ZONE_READ operations. 00h-7Fh or FEh (No Zone). Must not be FFh."
+      }
+    ]
+  },
+  {
+    "code": "0x08",
+    "name": "ZONE_ACTIVE",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2",
+    "bitRanges": [
+    {
+      "bits": "15:8",
+      "name": "Active Write Zone",
+      "description": "Zone number to activate for ZONE_WRITE. 00h-7Fh or FFh (All Zone). Must not be FEh (No Zone)."
+    },
+    {
+      "bits": "7:0",
+      "name": "Active Read Zone",
+      "description": "Zone number to activate for ZONE_READ. 00h-7Fh or FFh (All Zone). Must not be FEh (No Zone)."
+    }
+    ]
+  },
+  {
+    "code": "0x09",
+    "name": "Reserved",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x0A",
+    "name": "Reserved",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x0B",
+    "name": "Reserved",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x0C",
+    "name": "Reserved",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x0D",
+    "name": "Reserved",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x0E",
+    "name": "Reserved",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x0F",
+    "name": "Reserved",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x10",
+    "name": "WRITE_PROTECT",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7:0",
+        "name": "Write Protection Level",
+        "description": "00000000 = All writes enabled;\n10000000 = Disable all writes except WRITE_PROTECT;\n01000000 = Allow OPERATION and PAGE\n; 00100000 = Also allow ON_OFF_CONFIG and VOUT_COMMAND\n; 00000001-00000011 = Manufacturer defined\n"
+      }
+    ]
+  },
+  {
+    "code": "0x11",
+    "name": "STORE_DEFAULT_ALL",
+    "smBusWrite": "Send Byte",
+    "smBusRead": "N/A",
+    "bytes": "0"
+  },
+  {
+    "code": "0x12",
+    "name": "RESTORE_DEFAULT_ALL",
+    "smBusWrite": "Send Byte",
+    "smBusRead": "N/A",
+    "bytes": "0"
+  },
+  {
+    "code": "0x13",
+    "name": "STORE_DEFAULT_code",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "N/A",
+    "bytes": "1"
+  },
+  {
+    "code": "0x14",
+    "name": "RESTORE_DEFAULT_code",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "N/A",
+    "bytes": "1"
+  },
+  {
+    "code": "0x15",
+    "name": "STORE_USER_ALL",
+    "smBusWrite": "Send Byte",
+    "smBusRead": "N/A",
+    "bytes": "0"
+  },
+  {
+    "code": "0x16",
+    "name": "RESTORE_USER_ALL",
+    "smBusWrite": "Send Byte",
+    "smBusRead": "N/A",
+    "bytes": "0"
+  },
+  {
+    "code": "0x17",
+    "name": "STORE_USER_code",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "N/A",
+    "bytes": "1"
+  },
+  {
+    "code": "0x18",
+    "name": "RESTORE_USER_code",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "N/A",
+    "bytes": "1"
+  },
+  {
+    "code": "0x19",
+    "name": "CAPABILITY",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "Packet Error Checking",
+        "description": "1 = Supported, 0 = Not supported"
+      },
+      {
+        "bits": "6:5",
+        "name": "Maximum Bus Speed",
+        "description": "00 = 100 kHz, 01 = 400 kHz, 10 = 1 MHz"
+      },
+      {
+        "bits": "4",
+        "name": "SMBALERT#",
+        "description": "1 = Device has SMBALERT# pin and supports Alert Response, 0 = No support"
+      },
+      {
+        "bits": "3",
+        "name": "Numeric Format",
+        "description": "1 = IEEE Floating Point, 0 = Linear11/Linear16/Direct"
+      },
+      {
+        "bits": "2",
+        "name": "AVSBus Support",
+        "description": "1 = Supported, 0 = Not Supported"
+      },
+      {
+        "bits": "1:0",
+        "name": "Reserved",
+        "description": "Reserved"
+      }
+    ]
+  },
+  {
+    "code": "0x1A",
+    "name": "QUERY",
+    "smBusWrite": "N/A",
+    "smBusRead": "Block Write \u2013 Block Read Process Call",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "Command Supported",
+        "description": "1 = Supported, 0 = Not supported"
+      },
+      {
+        "bits": "6",
+        "name": "Command Writable",
+        "description": "1 = Supported for write (WRITE_PROTECT settings ignored), 0 = Not supported for write"
+      },
+      {
+        "bits": "5",
+        "name": "Command Readable",
+        "description": "1 = Supported for read, 0 = Not supported for read"
+      },
+      {
+        "bits": "4:2",
+        "name": "Data Format",
+        "description": "000 = LINEAR11, LINEAR16, or SLINEAR16; 001 = 16-bit signed integer; 010 = IEEE Half Precision Floating Point; 011 = Direct Mode Format; 100 = 8-bit unsigned; 101 = VID Mode; 110 = Manufacturer specific; 111 = Command does not return numeric data"
+      },
+      {
+        "bits": "1:0",
+        "name": "Reserved",
+        "description": "Reserved"
+      }
+    ]
+  },
+  {
+    "code": "0x1B",
+    "name": "SMBALERT_MASK",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Block Write, Block Read Process Call",
+    "bytes": "2",
+    "bitRanges": [
+      {
+        "bits": "15:8",
+        "name": "STATUS_x Command Code",
+        "description": "Specifies which STATUS register the mask should apply to (e.g., STATUS_TEMPERATURE, STATUS_VOUT)."
+      },
+      {
+        "bits": "7:0",
+        "name": "Mask Byte",
+        "description": "Each bit corresponds to a bit in the specified STATUS_x register. 1 = Block SMBALERT# assertion for that bit; 0 = Allow assertion."
+      }
+    ]
+  },
+  {
+    "code": "0x1C",
+    "name": "Reserved",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x1D",
+    "name": "Reserved",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x1E",
+    "name": "Reserved",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x1F",
+    "name": "Reserved",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x20",
+    "name": "VOUT_MODE",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "Output Mode Type",
+        "description": "0 = Absolute mode; 1 = Relative mode"
+      },
+      {
+        "bits": "6:5",
+        "name": "Format",
+        "description": "Specifies output format:\n00 = ULINEAR16\n01 = VID\n10 = Direct\n11 = IEEE Half Precision Floating Point"
+      },
+      {
+        "bits": "4:0",
+        "name": "Parameter",
+        "description": "Format-specific value:\n- For ULINEAR16: 5-bit two's complement exponent\n- For VID: 5-bit VID code\n- For Direct/IEEE: always 00000b"
+      }
+    ]
+  },
+  {
+    "code": "0x21",
+    "name": "VOUT_COMMAND",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x22",
+    "name": "VOUT_TRIM",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x23",
+    "name": "VOUT_CAL_OFFSET",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x24",
+    "name": "VOUT_MAX",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x25",
+    "name": "VOUT_MARGIN_HIGH",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x26",
+    "name": "VOUT_MARGIN_LOW",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x27",
+    "name": "VOUT_TRANSITION_RATE",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x28",
+    "name": "VOUT_DROOP",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x29",
+    "name": "VOUT_SCALE_LOOP",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x2A",
+    "name": "VOUT_SCALE_MONITOR",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x2B",
+    "name": "VOUT_MIN",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x2C",
+    "name": "Reserved",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x2D",
+    "name": "Reserved",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x2E",
+    "name": "Reserved",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x2F",
+    "name": "Reserved",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x30",
+    "name": "COEFFICIENTS",
+    "smBusWrite": "N/A",
+    "smBusRead": "Block Write \u2013 Block Read Process Call",
+    "bytes": "5"
+  },
+  {
+    "code": "0x31",
+    "name": "POUT_MAX",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x32",
+    "name": "MAX_DUTY",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x33",
+    "name": "FREQUENCY_SWITCH",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x34",
+    "name": "POWER_MODE",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7:3",
+        "name": "Reserved",
+        "description": "Must be set to 0; reserved for future use"
+      },
+      {
+        "bits": "2:0",
+        "name": "Power Mode",
+        "description": "000 = Maximum Efficiency, 011 = Maximum Power, others are Reserved or Manufacturer Defined"
+      }
+    ]
+  },
+  {
+    "code": "0x35",
+    "name": "VIN_ON",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x36",
+    "name": "VIN_OFF",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x37",
+    "name": "INTERLEAVE",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2",
+    "bitRanges": [
+      {
+        "bits": "15:12",
+        "name": "Not Used",
+        "description": "Reserved bits; must be set to 0"
+      },
+      {
+        "bits": "11:8",
+        "name": "Group ID Number",
+        "description": "Group identification number (0-15); 0 means not part of any interleaved group"
+      },
+      {
+        "bits": "7:4",
+        "name": "Number In Group",
+        "description": "Number of units in the group (1-15); must be 0 if Group ID Number is 0"
+      },
+      {
+        "bits": "3:0",
+        "name": "Interleave Order",
+        "description": "Order of this unit in the group (0 to Number In Group - 1); must be 0 if Group ID Number is 0"
+      }
+    ]
+  },
+  {
+    "code": "0x38",
+    "name": "IOUT_CAL_GAIN",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x39",
+    "name": "IOUT_CAL_OFFSET",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x3A",
+    "name": "FAN_CONFIG_1_2",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "Fan 1 Installed",
+        "description": "1 = A fan is installed in Position 1; 0 = No fan installed"
+      },
+      {
+        "bits": "6",
+        "name": "Fan 1 Command Mode",
+        "description": "1 = Fan 1 is commanded in RPM; 0 = Fan 1 is commanded in duty cycle"
+      },
+      {
+        "bits": "5:4",
+        "name": "Fan 1 Tachometer Pulses Per Revolution",
+        "description": "00b = 1 pulse/rev, 01b = 2 pulses/rev, 10b = 3 pulses/rev, 11b = 4 pulses/rev"
+      },
+      {
+        "bits": "3",
+        "name": "Fan 2 Installed",
+        "description": "1 = A fan is installed in Position 2; 0 = No fan installed"
+      },
+      {
+        "bits": "2",
+        "name": "Fan 2 Command Mode",
+        "description": "1 = Fan 2 is commanded in RPM; 0 = Fan 2 is commanded in duty cycle"
+      },
+      {
+        "bits": "1:0",
+        "name": "Fan 2 Tachometer Pulses Per Revolution",
+        "description": "00b = 1 pulse/rev, 01b = 2 pulses/rev, 10b = 3 pulses/rev, 11b = 4 pulses/rev"
+      }
+    ]
+  },
+  {
+    "code": "0x3B",
+    "name": "FAN_COMMAND_1",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x3C",
+    "name": "FAN_COMMAND_2",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x3D",
+    "name": "FAN_CONFIG_3_4",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "Fan 3 Installed",
+        "description": "1 = A fan is installed in Position 3; 0 = No fan installed"
+      },
+      {
+        "bits": "6",
+        "name": "Fan 3 Command Mode",
+        "description": "1 = Fan 3 is commanded in RPM; 0 = Fan 3 is commanded in duty cycle"
+      },
+      {
+        "bits": "5:4",
+        "name": "Fan 3 Tachometer Pulses Per Revolution",
+        "description": "00b = 1 pulse/rev, 01b = 2 pulses/rev, 10b = 3 pulses/rev, 11b = 4 pulses/rev"
+      },
+      {
+        "bits": "3",
+        "name": "Fan 4 Installed",
+        "description": "1 = A fan is installed in Position 4; 0 = No fan installed"
+      },
+      {
+        "bits": "2",
+        "name": "Fan 4 Command Mode",
+        "description": "1 = Fan 4 is commanded in RPM; 0 = Fan 4 is commanded in duty cycle"
+      },
+      {
+        "bits": "1:0",
+        "name": "Fan 4 Tachometer Pulses Per Revolution",
+        "description": "00b = 1 pulse/rev, 01b = 2 pulses/rev, 10b = 3 pulses/rev, 11b = 4 pulses/rev"
+      }
+    ]
+  },
+  {
+    "code": "0x3E",
+    "name": "FAN_COMMAND_3",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x3F",
+    "name": "FAN_COMMAND_4",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x40",
+    "name": "VOUT_OV_FAULT_LIMIT",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x41",
+    "name": "VOUT_OV_FAULT_RESPONSE",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7:6",
+        "name": "Response",
+        "description": "00 = Continue operation; 01 = Continue for delay time then retry; 10 = Shutdown and use retry setting; 11 = Shutdown until fault clears"
+      },
+      {
+        "bits": "5:3",
+        "name": "Retry Setting",
+        "description": "000 = No retry; 001-110 = Retry N times (1-6); 111 = Retry indefinitely"
+      },
+      {
+        "bits": "2:0",
+        "name": "Delay Time",
+        "description": "XXX = Number of delay time units before retry or fault declaration (device-specific unit)"
+      }
+    ]
+  },
+  {
+    "code": "0x42",
+    "name": "VOUT_OV_WARN_LIMIT",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x43",
+    "name": "VOUT_UV_WARN_LIMIT",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x44",
+    "name": "VOUT_UV_FAULT_LIMIT",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x45",
+    "name": "VOUT_UV_FAULT_RESPONSE",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7:6",
+        "name": "Response",
+        "description": "00 = Continue operation; 01 = Continue for delay time then retry; 10 = Shutdown and use retry setting; 11 = Shutdown until fault clears"
+      },
+      {
+        "bits": "5:3",
+        "name": "Retry Setting",
+        "description": "000 = No retry; 001-110 = Retry N times (1-6); 111 = Retry indefinitely"
+      },
+      {
+        "bits": "2:0",
+        "name": "Delay Time",
+        "description": "XXX = Number of delay time units before retry or fault declaration (device-specific unit)"
+      }
+    ]
+  },
+  {
+    "code": "0x46",
+    "name": "IOUT_OC_FAULT_LIMIT",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x47",
+    "name": "IOUT_OC_FAULT_RESPONSE",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7:6",
+        "name": "Response",
+        "description": "00 = Operate indefinitely; 01 = Operate until voltage drops below limit then use retry setting; 10 = Operate for delay time then use retry setting; 11 = Shutdown and use retry setting"
+      },
+      {
+        "bits": "5:3",
+        "name": "Retry Setting",
+        "description": "000 = No retry; 001-110 = Retry N times (1-6); 111 = Retry indefinitely"
+      },
+      {
+        "bits": "2:0",
+        "name": "Delay Time",
+        "description": "XXX = Number of delay time units (device-specific); used before retry or shutdown"
+      }
+    ]
+  },
+  {
+    "code": "0x48",
+    "name": "IOUT_LV_FAULT_LIMIT",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x49",
+    "name": "IOUT_LV_FAULT_RESPONSE",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7:6",
+        "name": "Response",
+        "description": "00 = Operate indefinitely; 01 = Operate until current drops below limit then use retry setting; 10 = Operate for delay time then use retry setting; 11 = Shutdown and use retry setting"
+      },
+      {
+        "bits": "5:3",
+        "name": "Retry Setting",
+        "description": "000 = No retry; 001-110 = Retry N times (1-6); 111 = Retry indefinitely"
+      },
+      {
+        "bits": "2:0",
+        "name": "Delay Time",
+        "description": "XXX = Number of delay-time units (device-specific); used before retry or shutdown"
+      }
+    ]
+  },
+  {
+    "code": "0x4A",
+    "name": "IOUT_UC_FAULT_LIMIT",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x4B",
+    "name": "IOUT_UC_FAULT_RESPONSE",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2",
+    "bitRanges": [
+      {
+        "bits": "7:6",
+        "name": "Response",
+        "description": "00 = Operate indefinitely; 01 = Operate until current drops below limit then use retry setting; 10 = Operate for delay time then use retry setting; 11 = Shutdown and use retry setting"
+      },
+      {
+        "bits": "5:3",
+        "name": "Retry Setting",
+        "description": "000 = No retry; 001-110 = Retry N times (1-6); 111 = Retry indefinitely"
+      },
+      {
+        "bits": "2:0",
+        "name": "Delay Time",
+        "description": "XXX = Number of delay-time units (device-specific); used before retry or shutdown"
+      }
+    ]
+  },
+  {
+    "code": "0x4C",
+    "name": "IOUT_OC_WARN_LIMIT",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1"
+  },
+  {
+    "code": "0x4D",
+    "name": "Reserved",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x4E",
+    "name": "Reserved",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x4F",
+    "name": "OT_FAULT_LIMIT",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x50",
+    "name": "OT_FAULT_RESPONSE",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7:6",
+        "name": "Response",
+        "description": "00 = Continue operation without interruption; 01 = Continue operation for the delay time specified by bits [2:0] and the fault-specific time unit (if fault persists after delay, respond according to Retry Setting); 10 = Disable output and respond according to Retry Setting; 11 = Output disabled while fault is present, resumes when fault clears"
+      },
+      {
+        "bits": "5:3",
+        "name": "Retry Setting",
+        "description": "000 = No retry; 001-110 = Retry N times (1-6 attempts); 111 = Retry indefinitely"
+      },
+      {
+        "bits": "2:0",
+        "name": "Delay Time",
+        "description": "XXX = Number of delay time units (device-specific) used before shutdown or between retries"
+      }
+    ]
+  },
+  {
+    "code": "0x51",
+    "name": "OT_WARN_LIMIT",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x52",
+    "name": "UT_WARN_LIMIT",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x53",
+    "name": "UT_FAULT_LIMIT",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x54",
+    "name": "UT_FAULT_RESPONSE",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7:6",
+        "name": "Response",
+        "description": "00 = Continue operation without interruption; 01 = Continue operation for the delay time specified by bits [2:0] then respond according to Retry Setting; 10 = Disable output and respond according to Retry Setting; 11 = Output disabled while fault is present, resumes when the fault clears"
+      },
+      {
+        "bits": "5:3",
+        "name": "Retry Setting",
+        "description": "000 = No retry; 001-110 = Retry N times (1-6 attempts); 111 = Retry indefinitely"
+      },
+      {
+        "bits": "2:0",
+        "name": "Delay Time",
+        "description": "XXX = Number of delay-time units (device-specific) used before retry or shutdown"
+      }
+    ]
+  },
+  {
+    "code": "0x55",
+    "name": "VIN_OV_FAULT_LIMIT",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x56",
+    "name": "VIN_OV_FAULT_RESPONSE",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7:6",
+        "name": "Response",
+        "description": "00 = Continue operation without interruption; 01 = Continue operation for the delay time specified by bits [2:0] then respond according to Retry Setting; 10 = Disable output and respond according to Retry Setting; 11 = Output disabled while fault is present, resumes when the fault clears"
+      },
+      {
+        "bits": "5:3",
+        "name": "Retry Setting",
+        "description": "000 = No retry; 001-110 = Retry N times (1-6 attempts); 111 = Retry indefinitely"
+      },
+      {
+        "bits": "2:0",
+        "name": "Delay Time",
+        "description": "XXX = Number of delay-time units (device-specific) used before retry or shutdown"
+      }
+    ]
+  },
+  {
+    "code": "0x57",
+    "name": "VIN_OV_WARN_LIMIT",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x58",
+    "name": "VIN_UV_WARN_LIMIT",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x59",
+    "name": "VIN_UV_FAULT_LIMIT",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x5A",
+    "name": "VIN_UV_FAULT_RESPONSE",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7:6",
+        "name": "Response",
+        "description": "00 = Continue operation without interruption; 01 = Continue operation for the delay time specified by bits [2:0] then respond according to Retry Setting; 10 = Disable output and respond according to Retry Setting; 11 = Output disabled while fault is present, resumes when the fault clears"
+      },
+      {
+        "bits": "5:3",
+        "name": "Retry Setting",
+        "description": "000 = No retry; 001-110 = Retry N times (1-6 attempts); 111 = Retry indefinitely"
+      },
+      {
+        "bits": "2:0",
+        "name": "Delay Time",
+        "description": "XXX = Number of delay-time units (device-specific) used before retry or shutdown"
+      }
+    ]
+  },
+  {
+    "code": "0x5B",
+    "name": "IIN_OC_FAULT_LIMIT",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x5C",
+    "name": "IIN_OC_FAULT_RESPONSE",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7:6",
+        "name": "Response",
+        "description": "00 = Continue operation without interruption; 01 = Continue operation for the delay time specified by bits [2:0] then respond according to Retry Setting; 10 = Disable output and respond according to Retry Setting; 11 = Output disabled while fault is present, resumes when the fault clears"
+      },
+      {
+        "bits": "5:3",
+        "name": "Retry Setting",
+        "description": "000 = No retry; 001-110 = Retry N times (1-6 attempts); 111 = Retry indefinitely"
+      },
+      {
+        "bits": "2:0",
+        "name": "Delay Time",
+        "description": "XXX = Number of delay-time units (device-specific) used before retry or shutdown"
+      }
+    ]
+  },
+  {
+    "code": "0x5D",
+    "name": "IIN_OC_WARN_LIMIT",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x5E",
+    "name": "POWER_GOOD_ON",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x5F",
+    "name": "POWER_GOOD_OFF",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x60",
+    "name": "TON_DELAY",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x61",
+    "name": "TON_RISE",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x62",
+    "name": "TON_MAX_FAULT_LIMIT",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x63",
+    "name": "TON_MAX_FAULT_RESPONSE",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7:6",
+        "name": "Response",
+        "description": "00 = Continue operation without interruption; 01 = Continue operation for the delay time specified by bits [2:0] then respond according to Retry Setting; 10 = Disable output and respond according to Retry Setting; 11 = Output disabled while fault is present, resumes when the fault clears"
+      },
+      {
+        "bits": "5:3",
+        "name": "Retry Setting",
+        "description": "000 = No retry; 001-110 = Retry N times (1-6 attempts); 111 = Retry indefinitely"
+      },
+      {
+        "bits": "2:0",
+        "name": "Delay Time",
+        "description": "XXX = Number of delay-time units (device-specific) used before retry or shutdown"
+      }
+    ]
+  },
+  {
+    "code": "0x64",
+    "name": "TOFF_DELAY",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x65",
+    "name": "TOFF_FALL",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x66",
+    "name": "TOFF_MAX_WARN_LIMIT",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x67",
+    "name": "Reserved (Was Used In Revision 1.0)",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x68",
+    "name": "POUT_OP_FAULT_LIMIT",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x69",
+    "name": "POUT_OP_FAULT_RESPONSE",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7:6",
+        "name": "Response",
+        "description": "00 = Continue operation without interruption; 01 = Continue operation for the delay time specified by bits [2:0] then respond according to Retry Setting; 10 = Disable output and respond according to Retry Setting; 11 = Output disabled while fault is present, resumes when the fault clears"
+      },
+      {
+        "bits": "5:3",
+        "name": "Retry Setting",
+        "description": "000 = No retry; 001-110 = Retry N times (1-6 attempts); 111 = Retry indefinitely"
+      },
+      {
+        "bits": "2:0",
+        "name": "Delay Time",
+        "description": "XXX = Number of delay-time units (device-specific) used before retry or shutdown"
+      }
+    ]
+  },
+  {
+    "code": "0x6A",
+    "name": "POUT_OP_WARN_LIMIT",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x6B",
+    "name": "PIN_OP_WARN_LIMIT",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x6C",
+    "name": "Reserved",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x6D",
+    "name": "Reserved",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x6E",
+    "name": "Reserved",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x6F",
+    "name": "Reserved",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x70",
+    "name": "Reserved (Test Input Fuse A)",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x71",
+    "name": "Reserved (Test Input Fuse B)",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x72",
+    "name": "Reserved (Test Input OR-ing A)",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x73",
+    "name": "Reserved (Test Input OR-ing B)",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x74",
+    "name": "Reserved (Test Output OR-ing)",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x75",
+    "name": "Reserved",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x76",
+    "name": "Reserved",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x77",
+    "name": "Reserved",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0x78",
+    "name": "STATUS_BYTE",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "BUSY",
+        "description": "A fault was declared because the device was busy and unable to respond."
+      },
+      {
+        "bits": "6",
+        "name": "OFF",
+        "description": "This bit is asserted if the unit is not providing power to the output, regardless of the reason."
+      },
+      {
+        "bits": "5",
+        "name": "VOUT_OV_FAULT",
+        "description": "An output overvoltage fault has occurred."
+      },
+      {
+        "bits": "4",
+        "name": "IOUT_OC_FAULT",
+        "description": "An output overcurrent fault has occurred."
+      },
+      {
+        "bits": "3",
+        "name": "VIN_UV_FAULT",
+        "description": "An input undervoltage fault has occurred."
+      },
+      {
+        "bits": "2",
+        "name": "TEMPERATURE",
+        "description": "A temperature fault or warning has occurred."
+      },
+      {
+        "bits": "1",
+        "name": "CML",
+        "description": "A communications, memory, or logic fault has occurred."
+      },
+      {
+        "bits": "0",
+        "name": "NONE_OF_THE_ABOVE",
+        "description": "A fault or warning not listed in bits [7:1] has occurred."
+      }
+    ]
+  },
+  {
+    "code": "0x79",
+    "name": "STATUS_WORD",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2",
+    "bitRanges": [
+      {
+        "bits": "15",
+        "name": "VOUT",
+        "description": "An output voltage fault has occurred."
+      },
+      {
+        "bits": "14",
+        "name": "IOUT/POUT",
+        "description": "An output current or output power fault or warning has occurred."
+      },
+      {
+        "bits": "13",
+        "name": "INPUT",
+        "description": "An input voltage, input current, or input power fault or warning has occurred."
+      },
+      {
+        "bits": "12",
+        "name": "MFRSPECIFIC",
+        "description": "A manufacturer specific fault or warning has occurred."
+      },
+      {
+        "bits": "11",
+        "name": "PG_STATUS#",
+        "description": "The POWER_GOOD signal, if present, is negated."
+      },
+      {
+        "bits": "10",
+        "name": "FANS",
+        "description": "A fan or airflow fault or warning has occurred."
+      },
+      {
+        "bits": "9",
+        "name": "OTHER",
+        "description": "A bit in STATUS_OTHER is set."
+      },
+      {
+        "bits": "8",
+        "name": "UNKNOWN",
+        "description": "A fault type not given in bits [15:1] of the STATUS_WORD has been detected."
+      },
+      {
+        "bits": "7",
+        "name": "BUSY",
+        "description": "A fault was declared because the device was busy and unable to respond."
+      },
+      {
+        "bits": "6",
+        "name": "OFF",
+        "description": "This bit is asserted if the unit is not providing power to the output, regardless of the reason."
+      },
+      {
+        "bits": "5",
+        "name": "VOUT_OV_FAULT",
+        "description": "An output overvoltage fault has occurred."
+      },
+      {
+        "bits": "4",
+        "name": "IOUT_OC_FAULT",
+        "description": "An output overcurrent fault has occurred."
+      },
+      {
+        "bits": "3",
+        "name": "VIN_UV_FAULT",
+        "description": "An input undervoltage fault has occurred."
+      },
+      {
+        "bits": "2",
+        "name": "TEMPERATURE",
+        "description": "A temperature fault or warning has occurred."
+      },
+      {
+        "bits": "1",
+        "name": "CML",
+        "description": "A communications, memory or logic fault has occurred."
+      },
+      {
+        "bits": "0",
+        "name": "NONE_OF_THE_ABOVE",
+        "description": "A fault or warning not listed in bits [7:1] of this byte has occurred."
+      }
+    ]
+  },
+  {
+    "code": "0x7A",
+    "name": "STATUS_VOUT",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "VOUT_OV_FAULT",
+        "description": "Output Overvoltage Fault"
+      },
+      {
+        "bits": "6",
+        "name": "VOUT_OV_WARNING",
+        "description": "Output Overvoltage Warning"
+      },
+      {
+        "bits": "5",
+        "name": "VOUT_UV_WARNING",
+        "description": "Output Undervoltage Warning"
+      },
+      {
+        "bits": "4",
+        "name": "VOUT_UV_FAULT",
+        "description": "Output Undervoltage Fault"
+      },
+      {
+        "bits": "3",
+        "name": "VOUT_MAX_MIN Warning",
+        "description": "Voltage set higher than VOUT_MAX or lower than VOUT_MIN"
+      },
+      {
+        "bits": "2",
+        "name": "TON_MAX_FAULT",
+        "description": "Fault due to ON time limit exceeded"
+      },
+      {
+        "bits": "1",
+        "name": "TOFF_MAX_WARNING",
+        "description": "Warning due to OFF time limit exceeded"
+      },
+      {
+        "bits": "0",
+        "name": "VOUT Tracking Error",
+        "description": "Device-specific error in output voltage tracking during recent power or power-down event"
+      }
+    ]
+  },
+  {
+    "code": "0x7B",
+    "name": "STATUS_IOUT",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "IOUT_OC_FAULT",
+        "description": "Output Overcurrent Fault"
+      },
+      {
+        "bits": "6",
+        "name": "IOUT_OC_LV_FAULT",
+        "description": "Output Overcurrent And Low Voltage Fault"
+      },
+      {
+        "bits": "5",
+        "name": "IOUT_OC_WARNING",
+        "description": "Output Overcurrent Warning"
+      },
+      {
+        "bits": "4",
+        "name": "IOUT_UC_FAULT",
+        "description": "Output Undercurrent Fault"
+      },
+      {
+        "bits": "3",
+        "name": "Current Share Fault",
+        "description": "Device-specific fault indicating current sharing issue"
+      },
+      {
+        "bits": "2",
+        "name": "In Power Limiting Mode",
+        "description": "Unit is operating in constant power mode due to POUT_MAX"
+      },
+      {
+        "bits": "1",
+        "name": "POUT_OP_FAULT",
+        "description": "Output Overpower Fault"
+      },
+      {
+        "bits": "0",
+        "name": "POUT_OP_WARNING",
+        "description": "Output Overpower Warning"
+      }
+    ]
+  },
+  {
+    "code": "0x7C",
+    "name": "STATUS_INPUT",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "VIN_OV_FAULT",
+        "description": "Input Overvoltage Fault"
+      },
+      {
+        "bits": "6",
+        "name": "VIN_OV_WARNING",
+        "description": "Input Overvoltage Warning"
+      },
+      {
+        "bits": "5",
+        "name": "VIN_UV_WARNING",
+        "description": "Input Undervoltage Warning"
+      },
+      {
+        "bits": "4",
+        "name": "VIN_UV_FAULT",
+        "description": "Input Undervoltage Fault"
+      },
+      {
+        "bits": "3",
+        "name": "Unit Off For Insufficient Input Voltage",
+        "description": "Input voltage never exceeded turn-on threshold or dropped below turn-off threshold"
+      },
+      {
+        "bits": "2",
+        "name": "IIN_OC_FAULT",
+        "description": "Input Overcurrent Fault"
+      },
+      {
+        "bits": "1",
+        "name": "IIN_OC_WARNING",
+        "description": "Input Overcurrent Warning"
+      },
+      {
+        "bits": "0",
+        "name": "PIN_OP_WARNING",
+        "description": "Input Overpower Warning"
+      }
+    ]
+  },
+  {
+    "code": "0x7D",
+    "name": "STATUS_TEMPERATURE",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "OT_FAULT",
+        "description": "Overtemperature Fault"
+      },
+      {
+        "bits": "6",
+        "name": "OT_WARNING",
+        "description": "Overtemperature Warning"
+      },
+      {
+        "bits": "5",
+        "name": "UT_WARNING",
+        "description": "Undertemperature Warning"
+      },
+      {
+        "bits": "4",
+        "name": "UT_FAULT",
+        "description": "Undertemperature Fault"
+      },
+      {
+        "bits": "3",
+        "name": "Reserved",
+        "description": "Reserved"
+      },
+      {
+        "bits": "2",
+        "name": "Reserved",
+        "description": "Reserved"
+      },
+      {
+        "bits": "1",
+        "name": "Reserved",
+        "description": "Reserved"
+      },
+      {
+        "bits": "0",
+        "name": "Reserved",
+        "description": "Reserved"
+      }
+    ]
+  },
+  {
+    "code": "0x7E",
+    "name": "STATUS_CML",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "Invalid Or Unsupported Command Received",
+        "description": "The device received an invalid or unsupported command."
+      },
+      {
+        "bits": "6",
+        "name": "Invalid Or Unsupported Data Received",
+        "description": "The device received invalid or unsupported data."
+      },
+      {
+        "bits": "5",
+        "name": "Packet Error Check Failed",
+        "description": "The PEC (Packet Error Check) failed."
+      },
+      {
+        "bits": "4",
+        "name": "Memory Fault Detected",
+        "description": "A memory fault has been detected. [1]"
+      },
+      {
+        "bits": "3",
+        "name": "Processor Fault Detected",
+        "description": "A processor fault has been detected. [2]"
+      },
+      {
+        "bits": "2",
+        "name": "Reserved",
+        "description": "Reserved"
+      },
+      {
+        "bits": "1",
+        "name": "Communication Fault",
+        "description": "A communication fault other than the ones listed has occurred."
+      },
+      {
+        "bits": "0",
+        "name": "Other Memory Or Logic Fault",
+        "description": "Another memory or logic fault has occurred. [3]"
+      }
+    ]
+  },
+  {
+    "code": "0x7F",
+    "name": "STATUS_OTHER",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "Reserved",
+        "description": "Replaced by STATUS_FANS"
+      },
+      {
+        "bits": "6",
+        "name": "Reserved",
+        "description": "Replaced by STATUS_FANS"
+      },
+      {
+        "bits": "5",
+        "name": "Input A Fuse Or Circuit Breaker Fault",
+        "description": "A fault in Input A's fuse or circuit breaker was detected. [1]"
+      },
+      {
+        "bits": "4",
+        "name": "Input B Fuse Or Circuit Breaker Fault",
+        "description": "A fault in Input B's fuse or circuit breaker was detected. [1]"
+      },
+      {
+        "bits": "3",
+        "name": "Input A OR-ing Device Fault",
+        "description": "A fault was detected in the Input A OR-ing device. [2]"
+      },
+      {
+        "bits": "2",
+        "name": "Input B OR-ing Device Fault",
+        "description": "A fault was detected in the Input B OR-ing device. [2]"
+      },
+      {
+        "bits": "1",
+        "name": "Output OR-ing Device Fault",
+        "description": "A fault was detected in the output OR-ing device. [3]"
+      },
+      {
+        "bits": "0",
+        "name": "First To Assert SMBALERT#",
+        "description": "Indicates that this device was the first to assert the SMBALERT# signal."
+      }
+    ]
+  },
+  {
+    "code": "0x80",
+    "name": "STATUS_MFR_SPECIFIC",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "Manufacturer Defined",
+        "description": "Manufacturer Defined"
+      },
+      {
+        "bits": "6",
+        "name": "Manufacturer Defined",
+        "description": "Manufacturer Defined"
+      },
+      {
+        "bits": "5",
+        "name": "Manufacturer Defined",
+        "description": "Manufacturer Defined"
+      },
+      {
+        "bits": "4",
+        "name": "Manufacturer Defined",
+        "description": "Manufacturer Defined"
+      },
+      {
+        "bits": "3",
+        "name": "Manufacturer Defined",
+        "description": "Manufacturer Defined"
+      },
+      {
+        "bits": "2",
+        "name": "Manufacturer Defined",
+        "description": "Manufacturer Defined"
+      },
+      {
+        "bits": "1",
+        "name": "Manufacturer Defined",
+        "description": "Manufacturer Defined"
+      },
+      {
+        "bits": "0",
+        "name": "Manufacturer Defined",
+        "description": "Manufacturer Defined"
+      }
+    ]
+  },
+  {
+    "code": "0x81",
+    "name": "STATUS_FANS_1_2",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "Fan 1 Fault",
+        "description": "Fan 1 has failed or is unable to provide sufficient cooling. [1]"
+      },
+      {
+        "bits": "6",
+        "name": "Fan 2 Fault",
+        "description": "Fan 2 has failed or is unable to provide sufficient cooling. [1]"
+      },
+      {
+        "bits": "5",
+        "name": "Fan 1 Warning",
+        "description": "Fan 1 may need replacement due to degraded performance. [2]"
+      },
+      {
+        "bits": "4",
+        "name": "Fan 2 Warning",
+        "description": "Fan 2 may need replacement due to degraded performance. [2]"
+      },
+      {
+        "bits": "3",
+        "name": "Fan 1 Speed Overridden",
+        "description": "Fan 1 speed was set higher than commanded by PMBus. [3]"
+      },
+      {
+        "bits": "2",
+        "name": "Fan 2 Speed Overridden",
+        "description": "Fan 2 speed was set higher than commanded by PMBus. [3]"
+      },
+      {
+        "bits": "1",
+        "name": "Airflow Fault",
+        "description": "Airflow is insufficient or obstructed. [4]"
+      },
+      {
+        "bits": "0",
+        "name": "Airflow Warning",
+        "description": "Potential airflow issue detected. [4]"
+      }
+    ]
+  },
+  {
+    "code": "0x82",
+    "name": "STATUS_FANS_3_4",
+    "smBusWrite": "Write Byte",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "Fan 3 Fault",
+        "description": "Fan 3 has failed or is unable to provide sufficient cooling. [1]"
+      },
+      {
+        "bits": "6",
+        "name": "Fan 4 Fault",
+        "description": "Fan 4 has failed or is unable to provide sufficient cooling. [1]"
+      },
+      {
+        "bits": "5",
+        "name": "Fan 3 Warning",
+        "description": "Fan 3 may need replacement due to degraded performance. [2]"
+      },
+      {
+        "bits": "4",
+        "name": "Fan 4 Warning",
+        "description": "Fan 4 may need replacement due to degraded performance. [2]"
+      },
+      {
+        "bits": "3",
+        "name": "Fan 3 Speed Overridden",
+        "description": "Fan 3 speed was set higher than commanded by PMBus. [3]"
+      },
+      {
+        "bits": "2",
+        "name": "Fan 4 Speed Overridden",
+        "description": "Fan 4 speed was set higher than commanded by PMBus. [3]"
+      },
+      {
+        "bits": "1",
+        "name": "Reserved",
+        "description": "Reserved"
+      },
+      {
+        "bits": "0",
+        "name": "Reserved",
+        "description": "Reserved"
+      }
+    ]
+  },
+  {
+    "code": "0x83",
+    "name": "READ_KWH_IN",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read 32",
+    "bytes": "4"
+  },
+  {
+    "code": "0x84",
+    "name": "READ_KWH_OUT",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read 32",
+    "bytes": "4"
+  },
+  {
+    "code": "0x85",
+    "name": "READ_KWH_CONFIG",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2",
+    "bitRanges": [
+      {
+        "bits": "15",
+        "name": "READ_KWH_IN",
+        "description": "Input energy accumulator is present and supported"
+      },
+      {
+        "bits": "14:13",
+        "name": "Input Energy Units",
+        "description": "00 = mW-hours, 01 = W-hours, 10 = kW-hours, 11 = Reserved"
+      },
+      {
+        "bits": "12",
+        "name": "Input Format",
+        "description": "1 = IEEE Single Precision, 0 = Unsigned 32-bit integer"
+      },
+      {
+        "bits": "11",
+        "name": "Input Volatility",
+        "description": "1 = Volatile (reset when input power is removed), 0 = Non-volatile"
+      },
+      {
+        "bits": "10",
+        "name": "Input Resettable",
+        "description": "1 = Supports resetting by system host, 0 = Does not support resetting"
+      },
+      {
+        "bits": "9",
+        "name": "Input Rollover",
+        "description": "1 = Value has rolled over since last reset, 0 = Has not rolled over"
+      },
+      {
+        "bits": "8",
+        "name": "Input Reset Status",
+        "description": "1 = Value has been reset by system host since last power on or rollover, 0 = Has not been reset"
+      },
+      {
+        "bits": "7",
+        "name": "READ_KWH_OUT",
+        "description": "Output energy accumulator is present and supported"
+      },
+      {
+        "bits": "6:5",
+        "name": "Output Energy Units",
+        "description": "00 = mW-hours, 01 = W-hours, 10 = kW-hours, 11 = Reserved"
+      },
+      {
+        "bits": "4",
+        "name": "Output Format",
+        "description": "1 = IEEE Single Precision, 0 = Unsigned 32-bit integer"
+      },
+      {
+        "bits": "3",
+        "name": "Output Volatility",
+        "description": "1 = Volatile (reset when input power is removed), 0 = Non-volatile"
+      },
+      {
+        "bits": "2",
+        "name": "Output Resettable",
+        "description": "1 = Supports resetting by system host, 0 = Does not support resetting"
+      },
+      {
+        "bits": "1",
+        "name": "Output Rollover",
+        "description": "1 = Value has rolled over since last reset, 0 = Has not rolled over"
+      },
+      {
+        "bits": "0",
+        "name": "Output Reset Status",
+        "description": "1 = Value has been reset by system host since last power on or rollover, 0 = Has not been reset"
+      }
+    ]
+  },
+  {
+    "code": "0x86",
+    "name": "READ_EIN",
+    "smBusWrite": "N/A",
+    "smBusRead": "Block Read",
+    "bytes": "5"
+  },
+  {
+    "code": "0x87",
+    "name": "READ_EOUT",
+    "smBusWrite": "N/A",
+    "smBusRead": "Block Read",
+    "bytes": "5"
+  },
+  {
+    "code": "0x88",
+    "name": "READ_VIN",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x89",
+    "name": "READ_IIN",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x8A",
+    "name": "READ_VCAP",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x8B",
+    "name": "READ_VOUT",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x8C",
+    "name": "READ_IOUT",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x8D",
+    "name": "READ_TEMPERATURE_1",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x8E",
+    "name": "READ_TEMPERATURE_2",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x8F",
+    "name": "READ_TEMPERATURE_3",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x90",
+    "name": "READ_FAN_SPEED_1",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x91",
+    "name": "READ_FAN_SPEED_2",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x92",
+    "name": "READ_FAN_SPEED_3",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x93",
+    "name": "READ_FAN_SPEED_4",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x94",
+    "name": "READ_DUTY_CYCLE",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x95",
+    "name": "READ_FREQUENCY",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x96",
+    "name": "READ_POUT",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x97",
+    "name": "READ_PIN",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0x98",
+    "name": "PMBUS_REVISION",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Byte",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7:4",
+        "name": "PMBus Part I Revision",
+        "description": "0000b = 1.0, 0001b = 1.1, 0010b = 1.2, 0011b = 1.3"
+      },
+      {
+        "bits": "3:0",
+        "name": "PMBus Part II Revision",
+        "description": "0000b = 1.0, 0001b = 1.1, 0010b = 1.2, 0011b = 1.3"
+      }
+    ]
+  },
+  {
+    "code": "0x99",
+    "name": "MFR_ID",
+    "smBusWrite": "Block Write",
+    "smBusRead": "Block Read",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0x9A",
+    "name": "MFR_MODEL",
+    "smBusWrite": "Block Write",
+    "smBusRead": "Block Read",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0x9B",
+    "name": "MFR_REVISION",
+    "smBusWrite": "Block Write",
+    "smBusRead": "Block Read",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0x9C",
+    "name": "MFR_LOCATION",
+    "smBusWrite": "Block Write",
+    "smBusRead": "Block Read",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0x9D",
+    "name": "MFR_DATE",
+    "smBusWrite": "Block Write",
+    "smBusRead": "Block Read",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0x9E",
+    "name": "MFR_SERIAL",
+    "smBusWrite": "Block Write",
+    "smBusRead": "Block Read",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0x9F",
+    "name": "APP_PROFILE_SUPPORT",
+    "smBusWrite": "N/A",
+    "smBusRead": "Block Read",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0xA0",
+    "name": "MFR_VIN_MIN",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0xA1",
+    "name": "MFR_VIN_MAX",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0xA2",
+    "name": "MFR_IIN_MAX",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0xA3",
+    "name": "MFR_PIN_MAX",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0xA4",
+    "name": "MFR_VOUT_MIN",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0xA5",
+    "name": "MFR_VOUT_MAX",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0xA6",
+    "name": "MFR_IOUT_MAX",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0xA7",
+    "name": "MFR_POUT_MAX",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0xA8",
+    "name": "MFR_TAMBIENT_MAX",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0xA9",
+    "name": "MFR_TAMBIENT_MIN",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0xAA",
+    "name": "MFR_EFFICIENCY_LL",
+    "smBusWrite": "N/A",
+    "smBusRead": "Block Read",
+    "bytes": "14"
+  },
+  {
+    "code": "0xAB",
+    "name": "MFR_EFFICIENCY_HL",
+    "smBusWrite": "N/A",
+    "smBusRead": "Block Read",
+    "bytes": "14"
+  },
+  {
+    "code": "0xAC",
+    "name": "MFR_PIN_ACCURACY",
+    "smBusWrite": "N/A",
+    "smBusRead": "Read Byte",
+    "bytes": "1"
+  },
+  {
+    "code": "0xAD",
+    "name": "IC_DEVICE_ID",
+    "smBusWrite": "N/A",
+    "smBusRead": "Block Read",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0xAE",
+    "name": "IC_DEVICE_REV",
+    "smBusWrite": "N/A",
+    "smBusRead": "Block Read",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0xAF",
+    "name": "Reserved",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0xB0",
+    "name": "USER_DATA_00",
+    "smBusWrite": "Block Write",
+    "smBusRead": "Block Read",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0xB1",
+    "name": "USER_DATA_01",
+    "smBusWrite": "Block Write",
+    "smBusRead": "Block Read",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0xB2",
+    "name": "USER_DATA_02",
+    "smBusWrite": "Block Write",
+    "smBusRead": "Block Read",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0xB3",
+    "name": "USER_DATA_03",
+    "smBusWrite": "Block Write",
+    "smBusRead": "Block Read",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0xB4",
+    "name": "USER_DATA_04",
+    "smBusWrite": "Block Write",
+    "smBusRead": "Block Read",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0xB5",
+    "name": "USER_DATA_05",
+    "smBusWrite": "Block Write",
+    "smBusRead": "Block Read",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0xB6",
+    "name": "USER_DATA_06",
+    "smBusWrite": "Block Write",
+    "smBusRead": "Block Read",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0xB7",
+    "name": "USER_DATA_07",
+    "smBusWrite": "Block Write",
+    "smBusRead": "Block Read",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0xB8",
+    "name": "USER_DATA_08",
+    "smBusWrite": "Block Write",
+    "smBusRead": "Block Read",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0xB9",
+    "name": "USER_DATA_09",
+    "smBusWrite": "Block Write",
+    "smBusRead": "Block Read",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0xBA",
+    "name": "USER_DATA_10",
+    "smBusWrite": "Block Write",
+    "smBusRead": "Block Read",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0xBB",
+    "name": "USER_DATA_11",
+    "smBusWrite": "Block Write",
+    "smBusRead": "Block Read",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0xBC",
+    "name": "USER_DATA_12",
+    "smBusWrite": "Block Write",
+    "smBusRead": "Block Read",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0xBD",
+    "name": "USER_DATA_13",
+    "smBusWrite": "Block Write",
+    "smBusRead": "Block Read",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0xBE",
+    "name": "USER_DATA_14",
+    "smBusWrite": "Block Write",
+    "smBusRead": "Block Read",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0xBF",
+    "name": "USER_DATA_15",
+    "smBusWrite": "Block Write",
+    "smBusRead": "Block Read",
+    "bytes": "Variable"
+  },
+  {
+    "code": "0xC0",
+    "name": "MFR_MAX_TEMP_1",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0xC1",
+    "name": "MFR_MAX_TEMP_2",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0xC2",
+    "name": "MFR_MAX_TEMP_3",
+    "smBusWrite": "Write Word",
+    "smBusRead": "Read Word",
+    "bytes": "2"
+  },
+  {
+    "code": "0xC3",
+    "name": "Reserved",
+    "smBusWrite": "",
+    "smBusRead": "",
+    "bytes": ""
+  },
+  {
+    "code": "0xC4",
+    "name": "MFR_SPECIFIC_C4",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xC5",
+    "name": "MFR_SPECIFIC_C5",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xC6",
+    "name": "MFR_SPECIFIC_C6",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xC7",
+    "name": "MFR_SPECIFIC_C7",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xC8",
+    "name": "MFR_SPECIFIC_C8",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xC9",
+    "name": "MFR_SPECIFIC_C9",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xCA",
+    "name": "MFR_SPECIFIC_CA",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xCB",
+    "name": "MFR_SPECIFIC_CB",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xCC",
+    "name": "MFR_SPECIFIC_CC",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xCD",
+    "name": "MFR_SPECIFIC_CD",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xCE",
+    "name": "MFR_SPECIFIC_CE",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xCF",
+    "name": "MFR_SPECIFIC_CF",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xD0",
+    "name": "MFR_SPECIFIC_D0",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xD1",
+    "name": "MFR_SPECIFIC_D1",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xD2",
+    "name": "MFR_SPECIFIC_D2",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xD3",
+    "name": "MFR_SPECIFIC_D3",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xD4",
+    "name": "MFR_SPECIFIC_D4",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xD5",
+    "name": "MFR_SPECIFIC_D5",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xD6",
+    "name": "MFR_SPECIFIC_D6",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xD7",
+    "name": "MFR_SPECIFIC_D7",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xD8",
+    "name": "MFR_SPECIFIC_D8",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xD9",
+    "name": "MFR_SPECIFIC_D9",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xDA",
+    "name": "MFR_SPECIFIC_DA",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xDB",
+    "name": "MFR_SPECIFIC_DB",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xDC",
+    "name": "MFR_SPECIFIC_DC",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xDD",
+    "name": "MFR_SPECIFIC_DD",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xDE",
+    "name": "MFR_SPECIFIC_DE",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xDF",
+    "name": "MFR_SPECIFIC_DF",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xE0",
+    "name": "MFR_SPECIFIC_E0",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xE1",
+    "name": "MFR_SPECIFIC_E1",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xE2",
+    "name": "MFR_SPECIFIC_E2",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xE3",
+    "name": "MFR_SPECIFIC_E3",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xE4",
+    "name": "MFR_SPECIFIC_E4",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xE5",
+    "name": "MFR_SPECIFIC_E5",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xE6",
+    "name": "MFR_SPECIFIC_E6",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xE7",
+    "name": "MFR_SPECIFIC_E7",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xE8",
+    "name": "MFR_SPECIFIC_E8",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xE9",
+    "name": "MFR_SPECIFIC_E9",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xEA",
+    "name": "MFR_SPECIFIC_EA",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xEB",
+    "name": "MFR_SPECIFIC_EB",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xEC",
+    "name": "MFR_SPECIFIC_EC",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xED",
+    "name": "MFR_SPECIFIC_ED",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xEE",
+    "name": "MFR_SPECIFIC_EE",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xEF",
+    "name": "MFR_SPECIFIC_EF",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xF0",
+    "name": "MFR_SPECIFIC_F0",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xF1",
+    "name": "MFR_SPECIFIC_F1",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xF2",
+    "name": "MFR_SPECIFIC_F2",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xF3",
+    "name": "MFR_SPECIFIC_F3",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xF4",
+    "name": "MFR_SPECIFIC_F4",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xF5",
+    "name": "MFR_SPECIFIC_F5",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xF6",
+    "name": "MFR_SPECIFIC_F6",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xF7",
+    "name": "MFR_SPECIFIC_F7",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xF8",
+    "name": "MFR_SPECIFIC_F8",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xF9",
+    "name": "MFR_SPECIFIC_F9",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xFA",
+    "name": "MFR_SPECIFIC_FA",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xFB",
+    "name": "MFR_SPECIFIC_FB",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xFC",
+    "name": "MFR_SPECIFIC_FC",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xFD",
+    "name": "MFR_SPECIFIC_FD",
+    "smBusWrite": "Mfr. Defined",
+    "smBusRead": "Mfr. Defined",
+    "bytes": "Mfr. Defined"
+  },
+  {
+    "code": "0xFE",
+    "name": "MFR_SPECIFIC_COMMAND EXT",
+    "smBusWrite": "Extended Command",
+    "smBusRead": "Extended Command",
+    "bytes": "Mfr Defined"
+  },
+  {
+    "code": "0xFF",
+    "name": "PMBUS_COMMAND_EXT",
+    "smBusWrite": "Extended Command",
+    "smBusRead": "Extended Command",
+    "bytes": "Mfr Defined"
+  }
+]

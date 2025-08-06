@@ -1,0 +1,232 @@
+#!/bin/bash
+
+# Showtech Analyzer Docker Management Script
+# Usage:
+#   ./run.sh dev      # Development mode
+#   ./run.sh prod     # Production mode
+#   ./run.sh stop     # Stop and remove container
+#   ./run.sh logs     # Show logs
+#   ./run.sh help     # Show help
+
+set -e
+
+CONTAINER_NAME="showtech-analyzer"
+IMAGE_NAME="showtech-analyzer"
+MODE=${1}
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+print_status() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+}
+
+print_success() {
+    echo -e "${GREEN}[SUCCESS]${NC} $1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARNING]${NC} $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
+# Function to stop and remove existing container
+cleanup_container() {
+    if docker ps -a --format 'table {{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+        print_status "Stopping and removing existing container..."
+        docker stop $CONTAINER_NAME >/dev/null 2>&1 || true
+        docker rm $CONTAINER_NAME >/dev/null 2>&1 || true
+        print_success "Container cleaned up"
+    fi
+}
+
+# Function to build the image
+build_image() {
+    print_status "Building Showtech Analyzer Docker image..."
+    docker build -t $IMAGE_NAME . || {
+        print_error "Failed to build Docker image"
+        exit 1
+    }
+    print_success "Docker image built successfully"
+}
+
+# Function to run in production mode
+run_production() {
+    print_status "Starting Showtech Analyzer in PRODUCTION mode..."
+
+    docker run -d \
+        --name $CONTAINER_NAME \
+        -p 80:80 \
+        -v $(pwd)/data:/app/data \
+        --restart unless-stopped \
+        $IMAGE_NAME || {
+        print_error "Failed to start container in production mode"
+        exit 1
+    }
+
+    print_success "Production container started successfully!"
+    echo ""
+    echo "Frontend: http://localhost"
+    echo "Backend API: http://localhost/api/status"
+    echo "Data directory: $(pwd)/data"
+    echo ""
+    echo "Management commands:"
+    echo "  View logs: docker logs -f $CONTAINER_NAME"
+    echo "  Stop: docker stop $CONTAINER_NAME"
+    echo "  Remove: docker rm $CONTAINER_NAME"
+}
+
+# Function to run in development mode
+run_development() {
+    print_status "Starting Showtech Analyzer in DEVELOPMENT mode..."
+
+    docker run -d \
+        --name $CONTAINER_NAME \
+        -p 3000:3000 \
+        -p 5001:5001 \
+        -v $(pwd)/data:/app/data \
+        -v $(pwd)/showtech-viewer/src:/app/frontend/src \
+        -v $(pwd)/showtech-backend:/app/backend \
+        --restart unless-stopped \
+        $IMAGE_NAME dev || {
+        print_error "Failed to start container in development mode"
+        exit 1
+    }
+
+    print_success "Development container started successfully!"
+    echo ""
+    echo "DEVELOPMENT MODE ACTIVE"
+    echo "React Dev Server: http://localhost:3000"
+    echo "Backend API: http://localhost:5001/api/status"
+    echo "Data directory: $(pwd)/data"
+    echo ""
+    echo "Features:"
+    echo "  Hot reloading for React frontend"
+    echo "  Live backend code changes (restart container to apply)"
+    echo "  Volume mounts for source code"
+    echo "  No nginx - direct access to services"
+    echo ""
+    echo "Management commands:"
+    echo "  View logs: docker logs -f $CONTAINER_NAME"
+    echo "  Stop: docker stop $CONTAINER_NAME"
+    echo "  Remove: docker rm $CONTAINER_NAME"
+}
+
+# Function to show logs
+show_logs() {
+    if docker ps --format 'table {{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+        print_status "Showing logs for $CONTAINER_NAME..."
+        docker logs -f $CONTAINER_NAME
+    else
+        print_error "Container $CONTAINER_NAME is not running"
+        exit 1
+    fi
+}
+
+# Function to check health
+check_health() {
+    print_status "Checking application health..."
+
+    # Wait a moment for services to start
+    sleep 5
+
+    # Check if we're in dev or prod mode by checking which ports are exposed
+    if docker port $CONTAINER_NAME | grep -q "80/tcp"; then
+        # Production mode - test nginx endpoints
+        if curl -s http://localhost/api/status >/dev/null 2>&1; then
+            print_success "✅ Backend API is responding (via nginx)"
+        else
+            print_warning "⚠️  Backend API not responding yet (may still be starting)"
+        fi
+
+        if curl -s -I http://localhost >/dev/null 2>&1; then
+            print_success "✅ Frontend is accessible (via nginx)"
+        else
+            print_warning "⚠️  Frontend not accessible yet (may still be starting)"
+        fi
+    else
+        # Development mode - test direct endpoints
+        if curl -s http://localhost:5001/api/status >/dev/null 2>&1; then
+            print_success "✅ Backend API is responding (direct)"
+        else
+            print_warning "⚠️  Backend API not responding yet (may still be starting)"
+        fi
+
+        if curl -s -I http://localhost:3000 >/dev/null 2>&1; then
+            print_success "✅ React dev server is accessible"
+        else
+            print_warning "⚠️  React dev server not accessible yet (may still be starting)"
+        fi
+    fi
+}
+
+# Main script logic
+if [ -z "$MODE" ]; then
+    print_error "Command required. Usage: ./run.sh [dev|prod|stop|logs|help]"
+    echo ""
+    echo "Available commands:"
+    echo "  dev   - Start in development mode (ports 3000, 5001)"
+    echo "  prod  - Start in production mode (port 80)"
+    echo "  stop  - Stop and remove container"
+    echo "  logs  - Show container logs"
+    echo "  help  - Show this help message"
+    exit 1
+fi
+
+case $MODE in
+    "dev"|"development")
+        cleanup_container
+        build_image
+        run_development
+        check_health
+        ;;
+    "prod"|"production")
+        cleanup_container
+        build_image
+        run_production
+        check_health
+        ;;
+    "stop")
+        cleanup_container
+        print_success "Container stopped and removed"
+        ;;
+    "logs")
+        show_logs
+        ;;
+    "help"|"-h"|"--help")
+        echo "Showtech Analyzer Docker Management Script"
+        echo ""
+        echo "Usage: ./run.sh [COMMAND]"
+        echo ""
+        echo "Commands:"
+        echo "  dev   - Start in development mode (ports 3000, 5001)"
+        echo "  prod  - Start in production mode (port 80)"
+        echo "  stop  - Stop and remove container"
+        echo "  logs  - Show container logs"
+        echo "  help  - Show this help message"
+        echo ""
+        echo "Examples:"
+        echo "  ./run.sh dev              # Development mode"
+        echo "  ./run.sh prod             # Production mode"
+        echo "  ./run.sh stop             # Stop container"
+        echo "  ./run.sh logs             # View logs"
+        ;;
+    *)
+        print_error "Unknown command: $MODE"
+        echo ""
+        echo "Available commands:"
+        echo "  dev   - Start in development mode (ports 3000, 5001)"
+        echo "  prod  - Start in production mode (port 80)"
+        echo "  stop  - Stop and remove container"
+        echo "  logs  - Show container logs"
+        echo "  help  - Show this help message"
+        exit 1
+        ;;
+esac
