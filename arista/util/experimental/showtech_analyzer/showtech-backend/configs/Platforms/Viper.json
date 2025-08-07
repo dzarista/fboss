@@ -24,5 +24,47 @@
       "description": "ASIC0",
       "expected_speed": "Gen4x4"
     }
-  ]
+  ],
+  "system_map": {
+    "front": ["ports"],
+    "rear": ["psu", "fans"],
+    "ports": {
+      "num_ports": 38,
+      "major_order": "column",
+      "grid_rows": 4,
+      "grid_columns": 11,
+      "port_type_ranges": [
+        {
+          "port_type": "fab",
+          "ranges": [[1, 10], [29, 38]]
+        },
+        {
+          "port_type": "eth",
+          "ranges": [[11, 28]]
+        }
+      ],
+      "empty_grid_slots": [
+        [0, 2],
+        [1, 2],
+        [0, 5],
+        [1, 5],
+        [0, 8],
+        [1, 8]
+      ]
+    },
+    "fans": {
+      "major_order": "row",
+      "num_fans": 4,
+      "grid_rows": 1,
+      "grid_columns": 4
+    },
+    "psu": {
+      "major_order": "column",
+      "psu_index": [1, 2], 
+      "num_psu": 2,
+      "grid_rows": 2,
+      "grid_columns": 1
+    }
+  }
 }
+
