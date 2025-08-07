@@ -2,15 +2,13 @@
 
 This directory contains platform-specific configuration files used for hardware validation and anomaly detection.
 
-## Quick Start
+## Adding a New Platform
 
-### Adding a New Platform
-
-1. **Create platform config file** in `Platforms/YourPlatform.json`:
+1. **Create platform config file** in `Platforms/NewPlatform.json`:
 ```json
 {
-  "platform": "YourPlatform",
-  "product_name": "YOUR_PRODUCT_CODE", 
+  "platform": "NewPlatform",
+  "product_name": "NEW_PRODUCT_CODE", 
   "description": "Platform description",
   "pcie_devices": [
     {
@@ -27,7 +25,7 @@ This directory contains platform-specific configuration files used for hardware 
 2. **Update `config.json`** to map product name:
 ```json
 {
-  "PRODUCT_CODE": "platform.json"
+  "PRODUCT_CODE": "NewPlatform.json"
 }
 ```
 

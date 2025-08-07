@@ -84,9 +84,9 @@ Showtech File → Section Parsing → Product Detection → Platform Config Load
 
 1. **Section Parsing**: Each section is parsed into structured data
 2. **Product Detection**: Product name extracted from "SMB SERIAL NUMBER" section
-3. **Platform Config Loading**: Configuration loaded based on product name
+3. **Platform Config Loading**: Configuration loaded based on product name in `configs/config.json`
 4. **Anomaly Detection**: Each section is checked against its registered detectors
-5. **Error Display**: Anomalies are displayed in the frontend with navigation
+5. **Error Display**: Anomalies are displayed in the frontend
 
 ## Current Anomaly Types
 
@@ -199,10 +199,7 @@ If your anomaly needs custom navigation:
 - Implement custom highlighting if needed
 
 
-
-## Advanced Topics
-
-### Platform-Specific Detection
+## Platform-Specific Detection
 
 Some anomalies require platform configuration data (like PCIe device validation). These functions receive a `platform_config` parameter:
 

@@ -9,36 +9,31 @@ Instead of manually scanning through thousands of lines of raw text, the tool au
 **Before:** Manually searching through raw text logs, missing critical alerts, and spending hours correlating data across multiple files.
 
 **After:** Upload logs and immediately see:
-- Critical sensor alerts highlighted in red
-- Port issues automatically detected
-- I2C register data with bit-field breakdowns
+- Parsed sections with structured data easy to read
+- Anomalies in the system
 - Side-by-side file comparison
-- Interactive tables and structured data
 
-## Key Capabilities
+## Features
 
-### **Problem Detection**
-- Automatically highlights critical sensor readings
-- Identifies port configuration issues (enabled but down)
-- Centralizes all alerts in a navigable error summary
-
-### **Better Data Visualization**
+### **Data Visualization**
 - Converts raw logs into interactive tables and structured views
-- Supports dual-file comparison for analysis
-- Collapsible sections with persistent filtering preferences
+- Supports two files vieweing side by side
+- Section filtering and adapatable font sizing
 
-### **Deep I2C Analysis**
-- Parses PMBUS register dumps with detailed bit field breakdowns
-- Interactive register exploration with command descriptions
-- Supports both byte (-b) and word (-w) dump formats
+### **Anomaly Detection**
+- Catches known issues with the systems using configs
+- Highlights and summarizes the anomalies
 
-## Quick Start
+## Deployment
 
-### Docker Deployment (Recommended)
+### Prerequisites
+- Docker installed and running on your system
 
-The easiest way to get started is with Docker:
+>If you don't have Docker, install it from IntelligenceHub
 
 ```bash
+cd showtech-analyzer
+
 # Production mode (builds and runs both services)
 ./run.sh prod
 
@@ -52,56 +47,17 @@ The easiest way to get started is with Docker:
 # Stop the application
 ./run.sh stop
 ```
-
-### Manual Development Setup
-
-For development or when Docker is not available:
-
-1. **Backend**: See [`docs/backend/overview.md`](docs/backend/overview.md)
-2. **Frontend**: See [`docs/frontend/overview.md`](docs/frontend/overview.md)
-3. Access frontend at http://localhost:3000
-
-### Detailed Setup Instructions
-
-For comprehensive deployment options and troubleshooting:
-- **Complete Deployment Guide**: [`docs/deployment.md`](docs/deployment.md)
-- **Docker vs Manual Setup**: Both options covered with full instructions
-
+If interested in more details, please refer to the deployment guide: [`docs/deployment.md`](docs/deployment.md)
 
 ---
 
-## Directory Structure
+## Technologies Used
 
-```bash
-showtech-viewer/
-├── showtech-backend/        # Flask server
-├── showtech-viewer/         # React frontend
-├── docs/                    # Documentation files
-│   ├── backend/
-│   │   ├── overview.md
-│   │   ├── pipeline.md
-│   │   └── pmbus_structure.md
-│   └── frontend/
-│       └── overview.md
-├── README.md
-└── ...
-```
-
----
-
-## Technologies
-
-- **Frontend:** React, JavaScript, CSS3, Nginx (Docker)
+- **Frontend:** React, JavaScript, CSS, Nginx (Docker)
 - **Backend:** Python, Flask
 - **Deployment:** Single Docker container
-- **Parsing Tools:** PMBus spec, regex parsing, JSON conversion
 
 ---
 
 ## Documentation
-
-- **Deployment Guide**: [`docs/deployment.md`](docs/deployment.md) - Docker and manual setup instructions
-- **Main Documentation**: [`docs/index.md`](docs/index.md) - Features, architecture, and data flow
-- **Backend Details**: [`docs/backend/overview.md`](docs/backend/overview.md) - Flask server and API
-- **Frontend Details**: [`docs/frontend/overview.md`](docs/frontend/overview.md) - React components and architecture
-- **Technical Pipeline**: [`docs/backend/pipeline.md`](docs/backend/pipeline.md) - File processing pipeline
+- Documentation main page is [`docs/index.md`](docs/index.md)
