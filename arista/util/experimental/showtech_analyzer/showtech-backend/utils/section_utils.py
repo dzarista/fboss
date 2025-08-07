@@ -25,9 +25,12 @@ SECTION_TYPES = {
     'fboss2 show product': 'key_value',
     'FPGA VERSIONS': 'key_value',
     'CFM INFO': 'key_value',
-    'PSU DEBUG INFO': 'raw',
+    'PSU DEBUG INFO': 'psu_debug',
     'SMB SERIAL NUMBER': 'key_value',
     'SCM SERIAL NUMBER': 'key_value',
+    'FANS': 'fans',
+    'wedge_qsfp_util': 'qsfp_util',
+    'fboss2 show interface phy': 'fboss2_interface_phy',
 }
 
 # Load PMBUS commands from JSON
