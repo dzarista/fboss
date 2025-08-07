@@ -24,6 +24,22 @@ const getPlatformConfig = (sections) => {
   return null;
 };
 
+// Utility function to infer port type from port number
+const inferPortType = (portNum, platform = 'Viper') => {
+  // Platform-specific port type inference
+  if (platform === 'Viper') {
+    // Based on Viper platform: ports 1-10 and 29-39 are fab, ports 11-28 are eth
+    if ((portNum >= 1 && portNum <= 10) || (portNum >= 29 && portNum <= 39)) {
+      return 'fab';
+    } else if (portNum >= 11 && portNum <= 28) {
+      return 'eth';
+    }
+  }
+  // Add other platform logic here as needed
+  // If port type is unknown, assume it's disabled
+  return 'disabled';
+};
+
 // Platform config mapping (same as backend config.json)
 const getPlatformConfigByProduct = (productName) => {
   const platformConfigs = {
@@ -35,29 +51,18 @@ const getPlatformConfigByProduct = (productName) => {
         front: ['ports'],
         rear: ['psu', 'fans'],
         ports: {
-          num_ports: 38,
-          major_order: 'column',
+          num_ports: 39,
           grid_rows: 4,
-          grid_columns: 11,
-          port_type_ranges: [
-            { port_type: 'fab', ranges: [[1, 10], [29, 38]] },
-            { port_type: 'eth', ranges: [[11, 28]] }
-          ],
-          empty_grid_slots: [[0, 2], [1, 2], [0, 5], [1, 5], [0, 8], [1, 8]]
+          grid_columns: 12,
+          port_map: [
+            [1, 5, 0, 11, 15, 0, 21, 25, 0, 31, 35, 0],
+            [2, 6, 0, 12, 16, 0, 22, 26, 0, 32, 36, 0],
+            [3, 7, 9, 13, 17, 19, 23, 27, 29, 33, 37, 39],
+            [4, 8, 10, 14, 18, 20, 24, 28, 30, 34, 38, 0]
+          ]
         },
-        fans: {
-          major_order: 'row',
-          num_fans: 4,
-          grid_rows: 1,
-          grid_columns: 4
-        },
-        psu: {
-          major_order: 'column',
-          psu_index: [1, 2],
-          num_psu: 2,
-          grid_rows: 2,
-          grid_columns: 1
-        }
+        fans: 4,
+        psu: 2
       }
     },
     'MERU800BIAB': {
@@ -68,29 +73,18 @@ const getPlatformConfigByProduct = (productName) => {
         front: ['ports'],
         rear: ['psu', 'fans'],
         ports: {
-          num_ports: 38,
-          major_order: 'column',
+          num_ports: 39,
           grid_rows: 4,
-          grid_columns: 11,
-          port_type_ranges: [
-            { port_type: 'fab', ranges: [[1, 10], [29, 38]] },
-            { port_type: 'eth', ranges: [[11, 28]] }
-          ],
-          empty_grid_slots: [[0, 2], [1, 2], [0, 5], [1, 5], [0, 8], [1, 8]]
+          grid_columns: 12,
+          port_map: [
+            [1, 5, 0, 11, 15, 0, 21, 25, 0, 31, 35, 0],
+            [2, 6, 0, 12, 16, 0, 22, 26, 0, 32, 36, 0],
+            [3, 7, 9, 13, 17, 19, 23, 27, 29, 33, 37, 39],
+            [4, 8, 10, 14, 18, 20, 24, 28, 30, 34, 38, 0]
+          ]
         },
-        fans: {
-          major_order: 'row',
-          num_fans: 4,
-          grid_rows: 1,
-          grid_columns: 4
-        },
-        psu: {
-          major_order: 'column',
-          psu_index: [1, 2],
-          num_psu: 2,
-          grid_rows: 2,
-          grid_columns: 1
-        }
+        fans: 4,
+        psu: 2
       }
     },
     'MERU800BFA': {
@@ -136,30 +130,37 @@ const extractQsfpData = (sections) => {
 };
 
 // Port Grid Component
-const PortGrid = ({ portConfig, qsfpData, onPortClick }) => {
+const PortGrid = ({ portConfig, qsfpData, onPortClick, platform }) => {
   if (!portConfig) return <div className="config-missing">No port configuration available</div>;
 
-  const { grid_rows, grid_columns, major_order, empty_grid_slots = [] } = portConfig;
-  const emptySlots = new Set(empty_grid_slots.map(slot => `${slot[0]}-${slot[1]}`));
+  const { grid_rows, grid_columns, port_map } = portConfig;
 
-  // Create grid array
-  const grid = Array(grid_rows).fill(null).map(() => Array(grid_columns).fill(null));
+  // Use the explicit port_map if available, otherwise fall back to the old method
+  let grid;
+  if (port_map && Array.isArray(port_map)) {
+    grid = port_map;
+  } else {
+    // Fallback to old method for backward compatibility
+    const { major_order, empty_grid_slots = [] } = portConfig;
+    const emptySlots = new Set(empty_grid_slots.map(slot => `${slot[0]}-${slot[1]}`));
 
-  // Fill grid based on major_order
-  let portIndex = 1;
-  if (major_order === 'column') {
-    for (let col = 0; col < grid_columns; col++) {
-      for (let row = 0; row < grid_rows; row++) {
-        if (!emptySlots.has(`${row}-${col}`)) {
-          grid[row][col] = portIndex++;
+    grid = Array(grid_rows).fill(null).map(() => Array(grid_columns).fill(null));
+
+    let portIndex = 1;
+    if (major_order === 'column') {
+      for (let col = 0; col < grid_columns; col++) {
+        for (let row = 0; row < grid_rows; row++) {
+          if (!emptySlots.has(`${row}-${col}`)) {
+            grid[row][col] = portIndex++;
+          }
         }
       }
-    }
-  } else { // row major
-    for (let row = 0; row < grid_rows; row++) {
-      for (let col = 0; col < grid_columns; col++) {
-        if (!emptySlots.has(`${row}-${col}`)) {
-          grid[row][col] = portIndex++;
+    } else { // row major
+      for (let row = 0; row < grid_rows; row++) {
+        for (let col = 0; col < grid_columns; col++) {
+          if (!emptySlots.has(`${row}-${col}`)) {
+            grid[row][col] = portIndex++;
+          }
         }
       }
     }
@@ -174,7 +175,7 @@ const PortGrid = ({ portConfig, qsfpData, onPortClick }) => {
       minHeight: '200px'
     }}>
       {grid.flat().map((portNum, idx) => {
-        if (portNum === null) {
+        if (portNum === null || portNum === 0) {
           return <div key={idx} className="port-slot empty"></div>;
         }
 
@@ -184,13 +185,14 @@ const PortGrid = ({ portConfig, qsfpData, onPortClick }) => {
                            portData?.Temperature ||
                            (portData?.Temperature && parseFloat(portData.Temperature.replace(' C', '')));
         const hasQsfpData = !!portData;
+        const portType = inferPortType(portNum, platform);
 
         return (
           <div
             key={idx}
-            className={`port-slot ${hasQsfpData ? 'has-qsfp-data' : ''}`}
-            title={hasQsfpData ? `Port ${portNum}\nTemp: ${temperature || 'N/A'}°C\nClick for details` : `Port ${portNum}`}
-            onClick={hasQsfpData ? () => onPortClick(portNum, portData) : undefined}
+            className={`port-slot ${hasQsfpData ? 'has-qsfp-data' : 'inactive-port'} port-type-${portType}`}
+            title={hasQsfpData ? `Port ${portNum} (${portType})\nTemp: ${temperature || 'N/A'}°C\nClick for details` : `Port ${portNum} (${portType}) - Inactive`}
+            onClick={hasQsfpData ? () => onPortClick(portNum, portData, portType) : undefined}
             style={{ cursor: hasQsfpData ? 'pointer' : 'default' }}
           >
             <span className="port-number">{portNum}</span>
@@ -210,9 +212,12 @@ const PortGrid = ({ portConfig, qsfpData, onPortClick }) => {
 
 // PSU Grid Component
 const PSUGrid = ({ psuConfig, psuData = {}, onPsuClick }) => {
-  if (!psuConfig) return <div className="config-missing">No PSU configuration available</div>;
+  if (typeof psuConfig !== 'number') return <div className="config-missing">No PSU configuration available</div>;
 
-  const { grid_rows, grid_columns, psu_index = [] } = psuConfig;
+  const num_psu = psuConfig;
+  const grid_rows = num_psu;
+  const grid_columns = 1;
+  const psu_index = Array.from({ length: num_psu }, (_, i) => i + 1);
 
   return (
     <div className="psu-grid" style={{
@@ -275,9 +280,11 @@ const PSUGrid = ({ psuConfig, psuData = {}, onPsuClick }) => {
 
 // Fan Grid Component
 const FanGrid = ({ fanConfig, fanData = [], onFanClick }) => {
-  if (!fanConfig) return <div className="config-missing">No fan configuration available</div>;
+  if (typeof fanConfig !== 'number') return <div className="config-missing">No fan configuration available</div>;
 
-  const { grid_rows, grid_columns, num_fans } = fanConfig;
+  const num_fans = fanConfig;
+  const grid_rows = 1;
+  const grid_columns = num_fans;
 
   return (
     <div className="fan-grid" style={{
@@ -653,7 +660,7 @@ const PSUDetailView = ({ psuNum, psuData, psuDebugData, onBack }) => {
 
 
 // Port Detail View Component
-const PortDetailView = ({ portNum, portData, phyData, interfaceData, onBack }) => {
+const PortDetailView = ({ portNum, portData, phyData, interfaceData, portType, onBack }) => {
   // Start with all sections expanded
   const [expandedSections, setExpandedSections] = useState(() => {
     const allSections = new Set(['qsfp-basic']);
@@ -723,6 +730,9 @@ const PortDetailView = ({ portNum, portData, phyData, interfaceData, onBack }) =
             </svg>
           </button>
           <h3 className="section-title">Port {portNum} Details</h3>
+          <span className="port-type-badge">
+            {portType === 'eth' ? 'Ethernet' : portType === 'fab' ? 'Fabric' : 'Disabled'}
+          </span>
         </div>
       </div>
 
@@ -1122,6 +1132,7 @@ const SystemSummary = ({ sections }) => {
   const [selectedPortData, setSelectedPortData] = useState(null);
   const [selectedPhyData, setSelectedPhyData] = useState(null);
   const [selectedInterfaceData, setSelectedInterfaceData] = useState(null);
+  const [selectedPortType, setSelectedPortType] = useState(null);
   const [selectedFan, setSelectedFan] = useState(null);
   const [selectedFanData, setSelectedFanData] = useState(null);
   const [selectedPsu, setSelectedPsu] = useState(null);
@@ -1135,11 +1146,12 @@ const SystemSummary = ({ sections }) => {
   const phyData = extractPhyData(sections);
   const interfaceData = extractInterfaceData(sections);
 
-  const handlePortClick = (portNum, portData) => {
+  const handlePortClick = (portNum, portData, portType) => {
     setSelectedPort(portNum);
     setSelectedPortData(portData);
     setSelectedPhyData(phyData[portNum] || []);
     setSelectedInterfaceData(interfaceData[portNum] || {});
+    setSelectedPortType(portType);
   };
 
   const handleFanClick = (fanNum, fanData) => {
@@ -1213,6 +1225,7 @@ const SystemSummary = ({ sections }) => {
           portData={selectedPortData}
           phyData={selectedPhyData}
           interfaceData={selectedInterfaceData}
+          portType={selectedPortType}
           onBack={handleBackToSummary}
         />
       </div>
@@ -1239,6 +1252,7 @@ const SystemSummary = ({ sections }) => {
                   portConfig={systemMap.ports}
                   qsfpData={qsfpData}
                   onPortClick={handlePortClick}
+                  platform={platformConfig.platform}
                 />
               </div>
             )}
