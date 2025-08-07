@@ -40,6 +40,50 @@ const inferPortType = (portNum, platform = 'Viper') => {
   return 'disabled';
 };
 
+// Utility function to calculate percentile
+const calculatePercentile = (values, percentile) => {
+  const sorted = [...values].sort((a, b) => a - b);
+  const index = (percentile / 100) * (sorted.length - 1);
+  const lower = Math.floor(index);
+  const upper = Math.ceil(index);
+  const weight = index % 1;
+
+  if (upper >= sorted.length) return sorted[sorted.length - 1];
+  return sorted[lower] * (1 - weight) + sorted[upper] * weight;
+};
+
+// Utility function to get temperature color based on percentiles
+const getTemperatureColor = (temperature, temperaturePercentiles) => {
+  if (!temperature || !temperaturePercentiles) return null;
+
+  const temp = typeof temperature === 'number' ? temperature : parseFloat(temperature);
+  if (isNaN(temp)) return null;
+
+  const { p25, p50, p75, p90 } = temperaturePercentiles;
+
+  if (temp >= p90) return '#dc2626'; // Darker red - hottest 10%
+  if (temp >= p75) return '#ea580c'; // Darker orange - 75th-90th percentile
+  if (temp >= p50) return '#d97706'; // Darker yellow - 50th-75th percentile
+  if (temp >= p25) return '#65a30d'; // Darker light green - 25th-50th percentile
+  return '#16a34a'; // Darker green - coolest 25%
+};
+
+// Utility function to get voltage color based on percentiles
+const getVoltageColor = (voltage, voltagePercentiles) => {
+  if (!voltage || !voltagePercentiles) return null;
+
+  const volt = typeof voltage === 'number' ? voltage : parseFloat(voltage);
+  if (isNaN(volt)) return null;
+
+  const { p25, p50, p75, p90 } = voltagePercentiles;
+
+  if (volt >= p90) return '#dc2626'; // Darker red - highest 10%
+  if (volt >= p75) return '#ea580c'; // Darker orange - 75th-90th percentile
+  if (volt >= p50) return '#d97706'; // Darker yellow - 50th-75th percentile
+  if (volt >= p25) return '#65a30d'; // Darker light green - 25th-50th percentile
+  return '#16a34a'; // Darker green - lowest 25%
+};
+
 // Platform config mapping (same as backend config.json)
 const getPlatformConfigByProduct = (productName) => {
   const platformConfigs = {
@@ -130,10 +174,61 @@ const extractQsfpData = (sections) => {
 };
 
 // Port Grid Component
-const PortGrid = ({ portConfig, qsfpData, onPortClick, platform }) => {
+const PortGrid = ({ portConfig, qsfpData, onPortClick, platform, heatmapMode = 'off' }) => {
   if (!portConfig) return <div className="config-missing">No port configuration available</div>;
 
   const { grid_rows, grid_columns, port_map } = portConfig;
+
+  // Calculate temperature percentiles for color coding
+  const temperatures = Object.values(qsfpData || {})
+    .map(portData => {
+      const temp = portData?.['Global DOM Monitors']?.['Temperature (C)'] ||
+                   portData?.Temperature ||
+                   (portData?.Temperature && parseFloat(portData.Temperature.replace(' C', '')));
+      return typeof temp === 'number' ? temp :
+             typeof temp === 'string' ? parseFloat(temp.replace(' C', '')) : null;
+    })
+    .filter(temp => temp !== null && !isNaN(temp));
+
+  const temperaturePercentiles = temperatures.length > 0 ? {
+    p25: calculatePercentile(temperatures, 25),
+    p50: calculatePercentile(temperatures, 50),
+    p75: calculatePercentile(temperatures, 75),
+    p90: calculatePercentile(temperatures, 90)
+  } : null;
+
+  // Calculate voltage percentiles for color coding
+  const voltages = Object.values(qsfpData || {})
+    .map(portData => {
+      // Debug: log the structure to see what voltage fields are available
+      if (portData && Object.keys(portData).length > 0) {
+        console.log('Port data structure:', Object.keys(portData));
+        if (portData['Global DOM Monitors']) {
+          console.log('Global DOM Monitors keys:', Object.keys(portData['Global DOM Monitors']));
+        }
+      }
+
+      const voltage = portData?.['Global DOM Monitors']?.['Voltage (V)'] ||
+                     portData?.['Global DOM Monitors']?.['Voltage'] ||
+                     portData?.Voltage ||
+                     portData?.['Supply Voltage'] ||
+                     (portData?.Voltage && parseFloat(portData.Voltage.replace(' V', '')));
+
+      if (voltage) {
+        console.log('Found voltage:', voltage, 'for port data:', portData);
+      }
+
+      return typeof voltage === 'number' ? voltage :
+             typeof voltage === 'string' ? parseFloat(voltage.replace(' V', '')) : null;
+    })
+    .filter(volt => volt !== null && !isNaN(volt));
+
+  const voltagePercentiles = voltages.length > 0 ? {
+    p25: calculatePercentile(voltages, 25),
+    p50: calculatePercentile(voltages, 50),
+    p75: calculatePercentile(voltages, 75),
+    p90: calculatePercentile(voltages, 90)
+  } : null;
 
   // Use the explicit port_map if available, otherwise fall back to the old method
   let grid;
@@ -184,23 +279,67 @@ const PortGrid = ({ portConfig, qsfpData, onPortClick, platform }) => {
         const temperature = portData?.['Global DOM Monitors']?.['Temperature (C)'] ||
                            portData?.Temperature ||
                            (portData?.Temperature && parseFloat(portData.Temperature.replace(' C', '')));
+
+        // Try multiple possible voltage locations
+        const voltage = portData?.['Global DOM Monitors']?.['Voltage (V)'] ||
+                       portData?.['Global DOM Monitors']?.['Voltage'] ||
+                       portData?.Voltage ||
+                       portData?.['Supply Voltage'] ||
+                       (portData?.Voltage && parseFloat(portData.Voltage.replace(' V', '')));
+
         const hasQsfpData = !!portData;
         const portType = inferPortType(portNum, platform);
+
+        // Get color based on heatmap mode
+        let heatmapColor = null;
+        let displayValue = null;
+
+        if (hasQsfpData && heatmapMode === 'temp') {
+          heatmapColor = getTemperatureColor(temperature, temperaturePercentiles);
+          displayValue = temperature;
+        } else if (hasQsfpData && heatmapMode === 'voltage') {
+          heatmapColor = getVoltageColor(voltage, voltagePercentiles);
+          displayValue = voltage;
+        }
+
+        // Create tooltip based on heatmap mode
+        let tooltip = `Port ${portNum} (${portType})`;
+        if (hasQsfpData) {
+          if (heatmapMode === 'temp' && temperature) {
+            const tempDisplay = typeof temperature === 'number' ? `${temperature.toFixed(1)}°C` :
+                               (String(temperature).includes('°C') || String(temperature).includes('C') ? temperature : `${temperature}°C`);
+            tooltip += `\nTemp: ${tempDisplay}`;
+          } else if (heatmapMode === 'voltage' && voltage) {
+            const voltDisplay = typeof voltage === 'number' ? `${voltage.toFixed(2)}V` :
+                               (String(voltage).includes('V') ? voltage : `${voltage}V`);
+            tooltip += `\nVoltage: ${voltDisplay}`;
+          }
+          tooltip += '\nClick for details';
+        } else {
+          tooltip += ' - Inactive';
+        }
 
         return (
           <div
             key={idx}
             className={`port-slot ${hasQsfpData ? 'has-qsfp-data' : 'inactive-port'} port-type-${portType}`}
-            title={hasQsfpData ? `Port ${portNum} (${portType})\nTemp: ${temperature || 'N/A'}°C\nClick for details` : `Port ${portNum} (${portType}) - Inactive`}
+            title={tooltip}
             onClick={hasQsfpData ? () => onPortClick(portNum, portData, portType) : undefined}
-            style={{ cursor: hasQsfpData ? 'pointer' : 'default' }}
+            style={{
+              cursor: hasQsfpData ? 'pointer' : 'default',
+              backgroundColor: heatmapColor || undefined
+            }}
           >
             <span className="port-number">{portNum}</span>
-            {temperature && (
-              <span className="port-temperature">
-                {typeof temperature === 'number' ? `${temperature.toFixed(1)}°C` :
-                 typeof temperature === 'string' ? (temperature.includes('C') ? temperature : `${temperature}°C`) :
-                 `${temperature}°C`}
+            {heatmapMode !== 'off' && displayValue && (
+              <span className="port-value">
+                {heatmapMode === 'temp'
+                  ? (typeof displayValue === 'number' ? `${displayValue.toFixed(1)}°C` :
+                     (String(displayValue).includes('°C') ? displayValue :
+                      String(displayValue).includes('C') ? displayValue.replace('C', '°C') : `${displayValue}°C`))
+                  : (typeof displayValue === 'number' ? `${displayValue.toFixed(2)}V` :
+                     (String(displayValue).includes('V') ? displayValue : `${displayValue}V`))
+                }
               </span>
             )}
           </div>
@@ -1137,6 +1276,7 @@ const SystemSummary = ({ sections }) => {
   const [selectedFanData, setSelectedFanData] = useState(null);
   const [selectedPsu, setSelectedPsu] = useState(null);
   const [selectedPsuData, setSelectedPsuData] = useState(null);
+  const [heatmapMode, setHeatmapMode] = useState('off'); // 'off', 'temp', 'voltage'
 
   const platformConfig = getPlatformConfig(sections);
   const fanData = extractFanData(sections);
@@ -1244,7 +1384,32 @@ const SystemSummary = ({ sections }) => {
       {/* Front View */}
       {systemMap.front && (
         <div className="system-view front-view">
-          <h4>Front View</h4>
+          <div className="view-header">
+            <h4>Front View</h4>
+          </div>
+          <div className="heatmap-button-group">
+            <button
+              className={`heatmap-button ${heatmapMode === 'off' ? 'active' : ''}`}
+              onClick={() => setHeatmapMode('off')}
+              title="Turn off heatmap"
+            >
+              OFF
+            </button>
+            <button
+              className={`heatmap-button ${heatmapMode === 'temp' ? 'active' : ''}`}
+              onClick={() => setHeatmapMode('temp')}
+              title="Temperature heatmap"
+            >
+              °C
+            </button>
+            <button
+              className={`heatmap-button ${heatmapMode === 'voltage' ? 'active' : ''}`}
+              onClick={() => setHeatmapMode('voltage')}
+              title="Voltage heatmap"
+            >
+              V
+            </button>
+          </div>
           <div className="view-content">
             {systemMap.front.includes('ports') && (
               <div className="component-section ports-section">
@@ -1253,6 +1418,7 @@ const SystemSummary = ({ sections }) => {
                   qsfpData={qsfpData}
                   onPortClick={handlePortClick}
                   platform={platformConfig.platform}
+                  heatmapMode={heatmapMode}
                 />
               </div>
             )}

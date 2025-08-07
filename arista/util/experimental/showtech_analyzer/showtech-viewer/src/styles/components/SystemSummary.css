@@ -142,9 +142,50 @@
 
 /* Inactive port styling - similar to disabled ports in fboss2 show port */
 .port-slot.inactive-port {
-  background: #374151;
+  background: #374151 !important;
   color: #ffffff;
   opacity: 0.9;
+}
+
+/* Ensure inactive ports always have white text */
+.port-slot.inactive-port .port-number {
+  color: #ffffff !important;
+  font-weight: 900;
+}
+
+.port-slot.inactive-port .port-value {
+  color: #ffffff !important;
+  font-weight: 800;
+  font-size: 0.75rem;
+}
+
+/* Temperature-based color coding for active ports */
+.port-slot.has-qsfp-data {
+  transition: background-color 0.2s ease;
+}
+
+/* Text styling for ports */
+.port-slot .port-number {
+  color: #1f2937;
+  font-weight: 900;
+}
+
+.port-slot .port-value {
+  color: #1f2937;
+  font-weight: 800;
+  font-size: 0.75rem;
+}
+
+/* White text when heatmap colors are applied */
+.port-slot.has-qsfp-data[style*="background-color"] .port-number {
+  color: #ffffff;
+  font-weight: 900;
+}
+
+.port-slot.has-qsfp-data[style*="background-color"] .port-value {
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.75rem;
 }
 
 .port-type-badge {
@@ -157,6 +198,65 @@
   border: 1px solid var(--border-default, #e5e7eb);
   margin-left: 0.75rem;
   align-self: center;
+}
+
+/* View header styling */
+.view-header {
+  margin-bottom: 1rem;
+  position: relative;
+}
+
+.view-header h4 {
+  margin: 0;
+  text-align: center;
+}
+
+.front-view {
+  position: relative;
+}
+
+.heatmap-button-group {
+  position: absolute;
+  top: 7px;
+  right: 10px;
+  display: flex;
+  z-index: 10;
+}
+
+/* Heatmap button group */
+.heatmap-button-group {
+  border: 1px solid var(--border-default, #e5e7eb);
+  border-radius: 0.375rem;
+  overflow: hidden;
+}
+
+.heatmap-button {
+  padding: 0.375rem 0.75rem;
+  border: none;
+  background: var(--bg-primary, #fff);
+  color: var(--text-primary, #111827);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-right: 1px solid var(--border-default, #e5e7eb);
+}
+
+.heatmap-button:last-child {
+  border-right: none;
+}
+
+.heatmap-button:hover {
+  background: var(--bg-hover, #f9fafb);
+}
+
+.heatmap-button.active {
+  background: #6b7280;
+  color: white;
+}
+
+.heatmap-button.active:hover {
+  background: #4b5563;
 }
 
 .port-number {
