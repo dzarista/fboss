@@ -55,7 +55,26 @@ def parse_sections(text):
 
 def handle_single_file_upload(file_storage):
     content = file_storage.read().decode('utf-8', errors='ignore')
+
+    # Quick check: look at first 3 lines for showtech indicators
+    lines = content.split('\n')
+    first_three_lines = '\n'.join(lines[:3]).lower()
+
+    # Check if first 3 lines contain showtech indicators
+    showtech_indicators = ['showtech', 'show-tech', 'show version', 'show platform', 'fboss2', 'wedge_qsfp_util']
+    has_showtech_indicator = any(indicator in first_three_lines for indicator in showtech_indicators)
+
+    if not has_showtech_indicator:
+        print(f"Skipping file {file_storage.filename}: no showtech indicators in first 3 lines")
+        return []
+
     sections = parse_sections(content)
+
+    # Validate that the file has sufficient showtech content (at least 3 sections)
+    if not sections or len(sections) < 3:
+        print(f"Skipping file {file_storage.filename}: insufficient sections ({len(sections)} found, minimum 3 required)")
+        return []
+
     return [{
         'name': file_storage.filename,
         'metadata': {
@@ -66,35 +85,31 @@ def handle_single_file_upload(file_storage):
     }]
 
 def is_showtech_file(filename):
-    """Check if a file is likely a showtech file based on name and extension."""
-    name = filename.lower()
-
-    # Skip common non-showtech files
-    skip_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.pdf', '.doc', '.docx',
-                      '.xls', '.xlsx', '.ppt', '.pptx', '.zip', '.tar', '.gz'}
-    skip_names = {'readme', 'license', 'changelog', 'install', 'setup'}
-
-    # Check if file should be skipped
-    if any(name.endswith(ext) for ext in skip_extensions):
-        return False
-    if any(skip_name in name for skip_name in skip_names):
+    """Check if a file is likely a showtech file based on simple rules."""
+    # Skip files that start with '.'
+    if os.path.basename(filename).startswith('.'):
         return False
 
-    # Accept files with showtech-related keywords
-    showtech_keywords = ['showtech', 'show-tech', 'support', 'debug', 'diag', 'log']
-    if any(keyword in name for keyword in showtech_keywords):
-        return True
+    return True
 
-    # Accept common text file extensions
-    text_extensions = {'.txt', '.log', '.out', '.cfg', '.conf'}
-    if any(name.endswith(ext) for ext in text_extensions):
-        return True
+def validate_showtech_content(file_path):
+    """
+    Validate that a file has sufficient showtech content.
+    Requires at least 3 sections to be considered valid.
+    """
+    try:
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            content = f.read()
 
-    # Accept files without extensions (common for showtech files)
-    if '.' not in os.path.basename(name):
-        return True
+        # Parse the file to get sections
+        sections = parse_sections(content)
 
-    return False
+        # Simply check if we have at least 3 sections
+        return sections and len(sections) >= 3
+
+    except Exception as e:
+        print(f"Error validating showtech content: {e}")
+        return False
 
 def handle_zip_upload(file_storage):
     responses = []
@@ -122,9 +137,22 @@ def handle_zip_upload(file_storage):
                     with open(fpath, 'r', encoding='utf-8', errors='ignore') as f:
                         content = f.read()
 
+                    # Quick check: look at first 3 lines for showtech indicators
+                    lines = content.split('\n')
+                    first_three_lines = '\n'.join(lines[:3]).lower()
+
+                    # Check if first 3 lines contain showtech indicators
+                    showtech_indicators = ['showtech', 'show-tech', 'show version', 'show platform', 'fboss2', 'wedge_qsfp_util']
+                    has_showtech_indicator = any(indicator in first_three_lines for indicator in showtech_indicators)
+
+                    if not has_showtech_indicator:
+                        print(f"Skipping file {fname}: no showtech indicators in first 3 lines")
+                        continue
+
                     # Only process files that actually contain showtech-like content
+                    # Require at least 3 sections to be considered valid showtech
                     sections = parse_sections(content)
-                    if sections and len(sections) > 0:
+                    if sections and len(sections) >= 3:
                         # Use relative path from ZIP root for the name
                         relative_path = os.path.relpath(fpath, tmpdir)
                         display_name = relative_path.replace('\\', '/')  # Normalize path separators

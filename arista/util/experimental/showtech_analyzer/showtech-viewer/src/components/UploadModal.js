@@ -27,6 +27,8 @@ export default function UploadModal({ onClose, onFilesProcessed }) {
     return isZip || isText || hasShowtechKeywords;
   };
 
+
+
   const addFilesWithoutDuplicates = (newFiles) => {
     setSelectedFiles((prev) => {
       const existingNames = new Set(prev.map(file => file.name));
@@ -138,7 +140,9 @@ export default function UploadModal({ onClose, onFilesProcessed }) {
 
           // Brief completion message before closing
           setTimeout(() => {
-            onFilesProcessed(uploaded);
+            if (uploaded && uploaded.length > 0) {
+              onFilesProcessed(uploaded);
+            }
             onClose();
           }, 800);
 
@@ -147,11 +151,20 @@ export default function UploadModal({ onClose, onFilesProcessed }) {
           setUploadProgress('Processing file...');
           const uploaded = await uploadFiles(selectedFiles);
 
-          setUploadProgress('Upload complete!');
-          setTimeout(() => {
-            onFilesProcessed(uploaded);
-            onClose();
-          }, 500);
+          // Check if any files were actually processed
+          if (uploaded && uploaded.length > 0) {
+            setUploadProgress('Upload complete!');
+            setTimeout(() => {
+              onFilesProcessed(uploaded);
+              onClose();
+            }, 500);
+          } else {
+            // No valid showtech files found - just close quietly
+            setUploadProgress('No valid showtech files found');
+            setTimeout(() => {
+              onClose();
+            }, 1000);
+          }
         }
 
     } catch (err) {

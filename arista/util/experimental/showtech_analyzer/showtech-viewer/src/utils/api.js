@@ -35,8 +35,25 @@ export const uploadFiles = async (filesArray) => {
   });
 
   if (!res.ok) {
-    const msg = await res.text();
-    throw new Error(`Upload failed: ${msg || res.statusText}`);
+    let errorMessage = 'Upload failed';
+    try {
+      const errorData = await res.json();
+      if (errorData.error === 'No files could be processed' && errorData.details) {
+        // Extract the actual error messages from the details
+        const errorMessages = errorData.details.map(detail => {
+          // Extract the message after the filename
+          const match = detail.match(/File '.*?': (.+)/);
+          return match ? match[1] : detail;
+        });
+        errorMessage = errorMessages.join('\n');
+      } else {
+        errorMessage = errorData.error || 'Upload failed';
+      }
+    } catch (parseError) {
+      // If JSON parsing fails, use status text
+      errorMessage = `Upload failed: ${res.statusText}`;
+    }
+    throw new Error(errorMessage);
   }
   return res.json();
 };
@@ -70,8 +87,25 @@ export const uploadFilesWithProgress = async (filesArray, onProgress) => {
     });
 
     if (!res.ok) {
-      const msg = await res.text();
-      throw new Error(`Upload failed for ${file.name}: ${msg || res.statusText}`);
+      let errorMessage = `Upload failed for ${file.name}`;
+      try {
+        const errorData = await res.json();
+        if (errorData.error === 'No files could be processed' && errorData.details) {
+          // Extract the actual error messages from the details
+          const errorMessages = errorData.details.map(detail => {
+            // Extract the message after the filename
+            const match = detail.match(/File '.*?': (.+)/);
+            return match ? match[1] : detail;
+          });
+          errorMessage = `${file.name}: ${errorMessages.join(', ')}`;
+        } else {
+          errorMessage = `${file.name}: ${errorData.error || 'Upload failed'}`;
+        }
+      } catch (parseError) {
+        // If JSON parsing fails, use status text
+        errorMessage = `Upload failed for ${file.name}: ${res.statusText}`;
+      }
+      throw new Error(errorMessage);
     }
 
     const result = await res.json();

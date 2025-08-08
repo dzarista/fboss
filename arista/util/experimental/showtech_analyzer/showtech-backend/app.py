@@ -25,11 +25,21 @@ def upload_files():
         return jsonify({'error': 'No file uploaded'}), 400
 
     all_responses = []
+
     for f in files:
-        if f.filename.lower().endswith('.zip'):
-            all_responses.extend(handle_zip_upload(f))
-        else:
-            all_responses.extend(handle_single_file_upload(f))
+        try:
+            if f.filename.lower().endswith('.zip'):
+                all_responses.extend(handle_zip_upload(f))
+            else:
+                all_responses.extend(handle_single_file_upload(f))
+        except Exception as e:
+            # Handle unexpected errors (but not validation errors - those return empty lists)
+            print(f"Unexpected error processing {f.filename}: {str(e)}")
+            continue
+
+    # If no files were successfully processed, return empty response
+    if not all_responses:
+        return jsonify([]), 200
 
     output_data = {
         'timestamp': datetime.now().isoformat(),
