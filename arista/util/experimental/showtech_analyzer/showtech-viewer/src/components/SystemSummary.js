@@ -8,10 +8,11 @@ const getPlatformConfig = (sections) => {
   if (productSection && productSection.parsed_data?.type === 'key_value') {
     const productName = productSection.parsed_data.data?.Product;
     if (productName) {
-      return getPlatformConfigByProduct(productName);
+      const config = getPlatformConfigByProduct(productName);
+      if (config) return config;
     }
   }
-  
+
   // Fallback to SMB SERIAL NUMBER
   const smbSection = sections.find(s => s.title === 'SMB SERIAL NUMBER');
   if (smbSection && smbSection.parsed_data?.type === 'key_value') {
@@ -20,7 +21,7 @@ const getPlatformConfig = (sections) => {
       return getPlatformConfigByProduct(productName);
     }
   }
-  
+
   return null;
 };
 
@@ -138,7 +139,23 @@ const getPlatformConfigByProduct = (productName) => {
       system_map: {
         front: ['ports'],
         rear: ['psu', 'fans'],
-        // Add Whistler specific config when needed
+        ports: {
+          num_ports: 128,
+          grid_rows: 8,
+          grid_columns: 16,
+          port_map: [
+            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+            [17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32],
+            [33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48],
+            [49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64],
+            [65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80],
+            [81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96],
+            [97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112],
+            [113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128]
+          ]
+        },
+        fans: 12,
+        psu: 4
       }
     },
     'GLATH05a-64o': {
@@ -153,7 +170,9 @@ const getPlatformConfigByProduct = (productName) => {
     }
   };
   
-  return platformConfigs[productName] || null;
+  const result = platformConfigs[productName] || null;
+  console.log('getPlatformConfigByProduct result for', productName, ':', !!result);
+  return result;
 };
 
 // Extract QSFP util data from sections
@@ -200,23 +219,11 @@ const PortGrid = ({ portConfig, qsfpData, onPortClick, platform, heatmapMode = '
   // Calculate voltage percentiles for color coding
   const voltages = Object.values(qsfpData || {})
     .map(portData => {
-      // Debug: log the structure to see what voltage fields are available
-      if (portData && Object.keys(portData).length > 0) {
-        console.log('Port data structure:', Object.keys(portData));
-        if (portData['Global DOM Monitors']) {
-          console.log('Global DOM Monitors keys:', Object.keys(portData['Global DOM Monitors']));
-        }
-      }
-
       const voltage = portData?.['Global DOM Monitors']?.['Voltage (V)'] ||
                      portData?.['Global DOM Monitors']?.['Voltage'] ||
                      portData?.Voltage ||
                      portData?.['Supply Voltage'] ||
                      (portData?.Voltage && parseFloat(portData.Voltage.replace(' V', '')));
-
-      if (voltage) {
-        console.log('Found voltage:', voltage, 'for port data:', portData);
-      }
 
       return typeof voltage === 'number' ? voltage :
              typeof voltage === 'string' ? parseFloat(voltage.replace(' V', '')) : null;
@@ -354,18 +361,10 @@ const PSUGrid = ({ psuConfig, psuData = {}, onPsuClick }) => {
   if (typeof psuConfig !== 'number') return <div className="config-missing">No PSU configuration available</div>;
 
   const num_psu = psuConfig;
-  const grid_rows = num_psu;
-  const grid_columns = 1;
   const psu_index = Array.from({ length: num_psu }, (_, i) => i + 1);
 
   return (
-    <div className="psu-grid" style={{
-      display: 'grid',
-      gridTemplateRows: `repeat(${grid_rows}, 1fr)`,
-      gridTemplateColumns: `repeat(${grid_columns}, 1fr)`,
-      gap: '8px',
-      minHeight: '100px'
-    }}>
+    <div className="psu-grid">
       {psu_index.map((psuNum, idx) => {
         const psuInfo = psuData[`PSU${psuNum}`];
 
@@ -422,17 +421,9 @@ const FanGrid = ({ fanConfig, fanData = [], onFanClick }) => {
   if (typeof fanConfig !== 'number') return <div className="config-missing">No fan configuration available</div>;
 
   const num_fans = fanConfig;
-  const grid_rows = 1;
-  const grid_columns = num_fans;
 
   return (
-    <div className="fan-grid" style={{
-      display: 'grid',
-      gridTemplateRows: `repeat(${grid_rows}, 1fr)`,
-      gridTemplateColumns: `repeat(${grid_columns}, 1fr)`,
-      gap: '8px',
-      minHeight: '80px'
-    }}>
+    <div className="fan-grid">
       {Array.from({ length: num_fans }, (_, idx) => {
         const fanNum = idx + 1;
 

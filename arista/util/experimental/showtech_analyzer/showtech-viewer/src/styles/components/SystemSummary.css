@@ -62,9 +62,9 @@
   gap: 12px;
 }
 
-/* Rear view uses row flex layout - PSU on left, fans on right */
+/* Rear view uses column flex layout - fans on top, PSUs below */
 .rear-flex {
-  flex-direction: row !important;
+  flex-direction: column !important;
   gap: 12px;
 }
 
@@ -74,13 +74,13 @@
   border: 1px solid var(--border-color);
 }
 
-/* In rear view, PSU gets 1 part, fans get 4 parts (relative sizing) */
+/* In rear view, both sections take full width */
 .rear-flex .psu-section {
-  flex: 1;
+  flex: none;
 }
 
 .rear-flex .fans-section {
-  flex: 4;
+  flex: none;
 }
 
 .component-section h5 {
@@ -273,9 +273,16 @@
 
 /* PSU Grid Styles */
 .psu-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
   background: var(--bg-primary);
   border-radius: 4px;
   padding: 10px;
+  justify-content: flex-start;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .psu-slot {
@@ -285,7 +292,10 @@
   border: 2px solid var(--border-color);
   border-radius: 6px;
   padding: 10px;
-  min-height: 60px;
+  min-height: 80px;
+  min-width: 200px;
+  max-width: 300px;
+  flex: 1 1 200px;
   cursor: pointer;
   transition: all 0.2s ease;
   color: var(--text-primary);
@@ -394,12 +404,16 @@
 /* Fan Grid Styles */
 .fan-grid {
   display: flex;
+  flex-wrap: wrap;
   background: var(--bg-primary);
   border-radius: 4px;
   padding: 15px;
   gap: 12px;
-  justify-content: space-evenly;
+  justify-content: flex-start;
   align-items: center;
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .fan-slot {
@@ -409,11 +423,13 @@
   border: 2px solid var(--border-color);
   border-radius: 8px;
   padding: 12px;
-  min-height: 130px;
+  min-height: 140px;
+  min-width: 200px;
+  max-width: 300px;
+  flex: 1 1 200px;
   cursor: pointer;
   transition: all 0.2s ease;
   color: var(--text-primary);
-  min-width: 100px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   position: relative;
 }
