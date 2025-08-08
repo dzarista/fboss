@@ -74,6 +74,14 @@
   border: 1px solid var(--border-color);
 }
 
+/* Ports section container */
+.component-section.ports-section {
+  display: flex;
+  flex-direction: column;
+  max-height: 700px;
+  overflow: hidden;
+}
+
 /* In rear view, both sections take full width */
 .rear-flex .psu-section {
   flex: none;
@@ -96,6 +104,9 @@
   background: var(--bg-primary);
   border-radius: 4px;
   padding: 10px;
+  overflow: auto;
+  max-width: 100%;
+  max-height: 600px;
 }
 
 .port-slot {
@@ -156,7 +167,6 @@
 .port-slot.inactive-port .port-value {
   color: #ffffff !important;
   font-weight: 800;
-  font-size: 0.75rem;
 }
 
 /* Temperature-based color coding for active ports */
@@ -173,7 +183,6 @@
 .port-slot .port-value {
   color: #1f2937;
   font-weight: 800;
-  font-size: 0.75rem;
 }
 
 /* White text when heatmap colors are applied */
@@ -185,7 +194,6 @@
 .port-slot.has-qsfp-data[style*="background-color"] .port-value {
   color: #ffffff;
   font-weight: 800;
-  font-size: 0.75rem;
 }
 
 .port-type-badge {
@@ -283,6 +291,7 @@
   max-width: 100%;
   width: 100%;
   box-sizing: border-box;
+  overflow: auto;
 }
 
 .psu-slot {
@@ -293,9 +302,8 @@
   border-radius: 6px;
   padding: 10px;
   min-height: 80px;
-  min-width: 200px;
-  max-width: 300px;
-  flex: 1 1 200px;
+  width: 160px;
+  flex: 0 0 160px;
   cursor: pointer;
   transition: all 0.2s ease;
   color: var(--text-primary);
@@ -414,6 +422,7 @@
   max-width: 100%;
   width: 100%;
   box-sizing: border-box;
+  overflow: auto;
 }
 
 .fan-slot {
@@ -424,9 +433,8 @@
   border-radius: 8px;
   padding: 12px;
   min-height: 140px;
-  min-width: 200px;
-  max-width: 300px;
-  flex: 1 1 200px;
+  width: 150px;
+  flex: 0 0 150px;
   cursor: pointer;
   transition: all 0.2s ease;
   color: var(--text-primary);
