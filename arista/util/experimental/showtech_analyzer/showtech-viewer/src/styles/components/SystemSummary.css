@@ -62,10 +62,12 @@
   gap: 12px;
 }
 
-/* Rear view uses column flex layout - fans on top, PSUs below */
+/* Rear view uses row flex layout - components side by side in specified order */
 .rear-flex {
-  flex-direction: column !important;
+  flex-direction: row !important;
   gap: 12px;
+  align-items: stretch;
+  justify-content: space-around;
 }
 
 .component-section {
@@ -82,13 +84,26 @@
   overflow: hidden;
 }
 
-/* In rear view, both sections take full width */
+/* In rear view, sections use flex ratios */
+.rear-flex .psu_left-section,
+.rear-flex .psu_right-section,
 .rear-flex .psu-section {
-  flex: none;
+  flex: 1;
+  min-width: 0;
+  max-height: 500px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .rear-flex .fans-section {
-  flex: none;
+  flex: 4;
+  min-width: 0;
+  min-height: 0;
+  max-height: 500px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .component-section h5 {
@@ -281,17 +296,15 @@
 
 /* PSU Grid Styles */
 .psu-grid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
   background: var(--bg-primary);
   border-radius: 4px;
-  padding: 10px;
-  justify-content: flex-start;
-  max-width: 100%;
-  width: 100%;
+  padding: 15px;
   box-sizing: border-box;
   overflow: auto;
+  width: 100%;
+  height: 100%;
+  justify-items: center;
+  align-items: center;
 }
 
 .psu-slot {
@@ -300,10 +313,11 @@
   background: var(--bg-secondary);
   border: 2px solid var(--border-color);
   border-radius: 6px;
-  padding: 10px;
+  padding: 10px 10px 6px 10px;
   min-height: 80px;
-  width: 160px;
-  flex: 0 0 160px;
+  min-width: 80px;
+  width: 100%;
+  height: 100%;
   cursor: pointer;
   transition: all 0.2s ease;
   color: var(--text-primary);
@@ -411,18 +425,15 @@
 
 /* Fan Grid Styles */
 .fan-grid {
-  display: flex;
-  flex-wrap: wrap;
   background: var(--bg-primary);
   border-radius: 4px;
   padding: 15px;
-  gap: 12px;
-  justify-content: flex-start;
-  align-items: center;
-  max-width: 100%;
-  width: 100%;
   box-sizing: border-box;
   overflow: auto;
+  width: 100%;
+  height: 100%;
+  justify-items: center;
+  align-items: center;
 }
 
 .fan-slot {
@@ -431,15 +442,18 @@
   background: var(--bg-secondary);
   border: 2px solid var(--border-color);
   border-radius: 8px;
-  padding: 12px;
-  min-height: 140px;
-  width: 150px;
-  flex: 0 0 150px;
+  padding: 8px;
+  aspect-ratio: 1;
+  min-width: 60px;
+  min-height: 60px;
+  width: 100%;
+  height: 100%;
   cursor: pointer;
   transition: all 0.2s ease;
   color: var(--text-primary);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
   position: relative;
+  font-size: 0.7rem;
 }
 
 .fan-slot:hover {

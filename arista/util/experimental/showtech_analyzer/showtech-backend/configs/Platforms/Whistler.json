@@ -55,7 +55,7 @@
   ],
   "system_map": {
     "front": ["ports"],
-    "rear": ["psu", "fans"],
+    "rear": ["psu_left", "fans", "psu_right"],
     "ports": {
       "num_ports": 128,
       "grid_rows": 16,
@@ -79,7 +79,27 @@
         [121, 122, 123, 124, 125, 126, 127, 128]
       ]
     },
-    "fans": 12,
-    "psu": 4
+    "fans": {
+      "num_fans": 12,
+      "grid_rows": 3,
+      "grid_columns": 4,
+      "fan_slots": [[1, 2, 3, 4],
+                    [5, 6, 7, 8],
+                    [9, 10, 11, 12]]
+    },
+    "psu_left": {
+      "num_psu": 2,
+      "grid_rows": 2,
+      "grid_columns": 1,
+      "psu_slots": [[1], 
+                    [2]]
+    },
+    "psu_right": {
+      "num_psu": 2,
+      "grid_rows": 2,
+      "grid_columns": 1,
+      "psu_slots": [[3], 
+                    [4]]
+    }
   }
 }

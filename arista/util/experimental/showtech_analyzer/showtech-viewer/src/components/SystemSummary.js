@@ -106,8 +106,19 @@ const getPlatformConfigByProduct = (productName) => {
             [4, 8, 10, 14, 18, 20, 24, 28, 30, 34, 38, 0]
           ]
         },
-        fans: 4,
-        psu: 2
+        fans: {
+          num_fans: 4,
+          grid_rows: 1,
+          grid_columns: 4,
+          fan_slots: [[1, 2, 3, 4]]
+        },
+        psu: {
+          num_psu: 2,
+          grid_rows: 2,
+          grid_columns: 1,
+          psu_slots: [[1],
+                      [2]]
+        }
       }
     },
     'MERU800BIAB': {
@@ -128,8 +139,19 @@ const getPlatformConfigByProduct = (productName) => {
             [4, 8, 10, 14, 18, 20, 24, 28, 30, 34, 38, 0]
           ]
         },
-        fans: 4,
-        psu: 2
+        fans: {
+          num_fans: 4,
+          grid_rows: 1,
+          grid_columns: 4,
+          fan_slots: [[1, 2, 3, 4]]
+        },
+        psu: {
+          num_psu: 2,
+          grid_rows: 2,
+          grid_columns: 1,
+          psu_slots: [[1],
+                      [2]]
+        }
       }
     },
     'MERU800BFA': {
@@ -138,7 +160,7 @@ const getPlatformConfigByProduct = (productName) => {
       description: 'Whistler platform configuration',
       system_map: {
         front: ['ports'],
-        rear: ['psu', 'fans'],
+        rear: ['psu_left', 'fans', 'psu_right'],
         ports: {
           num_ports: 128,
           grid_rows: 8,
@@ -154,8 +176,28 @@ const getPlatformConfigByProduct = (productName) => {
             [113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128]
           ]
         },
-        fans: 12,
-        psu: 4
+        fans: {
+          num_fans: 12,
+          grid_rows: 3,
+          grid_columns: 4,
+          fan_slots: [[1, 2, 3, 4],
+                      [5, 6, 7, 8],
+                      [9, 10, 11, 12]]
+        },
+        psu_left: {
+          num_psu: 2,
+          grid_rows: 2,
+          grid_columns: 1,
+          psu_slots: [[1],
+                      [2]]
+        },
+        psu_right: {
+          num_psu: 2,
+          grid_rows: 2,
+          grid_columns: 1,
+          psu_slots: [[1],
+                      [2]]
+        }
       }
     },
     'GLATH05a-64o': {
@@ -358,15 +400,30 @@ const PortGrid = ({ portConfig, qsfpData, onPortClick, platform, heatmapMode = '
 
 // PSU Grid Component
 const PSUGrid = ({ psuConfig, psuData = {}, onPsuClick }) => {
-  if (typeof psuConfig !== 'number') return <div className="config-missing">No PSU configuration available</div>;
+  if (!psuConfig || typeof psuConfig !== 'object') return <div className="config-missing">No PSU configuration available</div>;
 
-  const num_psu = psuConfig;
-  const psu_index = Array.from({ length: num_psu }, (_, i) => i + 1);
+  const { num_psu, grid_rows, grid_columns, psu_slots = [] } = psuConfig;
 
   return (
-    <div className="psu-grid">
-      {psu_index.map((psuNum, idx) => {
-        const psuInfo = psuData[`PSU${psuNum}`];
+    <div
+      className="psu-grid"
+      style={{
+        display: 'grid',
+        gridTemplateRows: `repeat(${grid_rows}, 1fr)`,
+        gridTemplateColumns: `repeat(${grid_columns}, 1fr)`,
+        gap: '20px',
+        height: '100%'
+      }}
+    >
+      {psu_slots.length > 0 ? psu_slots.flat().map((slotNum, idx) => {
+        // For psu_left and psu_right, we need to map slot numbers to actual PSU numbers
+        // psu_left uses PSU1, PSU2; psu_right uses PSU3, PSU4
+        let actualPsuNum = slotNum;
+        if (psuConfig.section_type === 'psu_right') {
+          actualPsuNum = slotNum + 2; // psu_right slots 1,2 map to PSU3,PSU4
+        }
+
+        const psuInfo = psuData[`PSU${actualPsuNum}`];
 
         const status = psuInfo?.status || 'Unknown';
         const voltageIn = psuInfo?.voltage_in || 'N/A';
@@ -383,8 +440,8 @@ const PSUGrid = ({ psuConfig, psuData = {}, onPsuClick }) => {
           <div
             key={idx}
             className={`psu-slot psu-${status.toLowerCase()}`}
-            title={`PSU ${psuNum}: ${status}\nVin: ${voltageIn}, Vout: ${voltageOut}\nPower: ${powerOut}\nFans: ${fanSpeedText}\nClick for details`}
-            onClick={() => onPsuClick && onPsuClick(psuNum, psuInfo)}
+            title={`PSU ${actualPsuNum}: ${status}\nVin: ${voltageIn}, Vout: ${voltageOut}\nPower: ${powerOut}\nFans: ${fanSpeedText}\nClick for details`}
+            onClick={() => onPsuClick && onPsuClick(actualPsuNum, psuInfo)}
             style={{ cursor: onPsuClick ? 'pointer' : 'default' }}
           >
             <div className="psu-icon">
@@ -394,7 +451,7 @@ const PSUGrid = ({ psuConfig, psuData = {}, onPsuClick }) => {
             </div>
             <div className="psu-content">
               <div className="psu-header">
-                <div className="psu-label">PSU{psuNum}</div>
+                <div className="psu-label">PSU{actualPsuNum}</div>
               </div>
               <div className="psu-data-row">
                 <div className="psu-voltage">In: {voltageIn}</div>
@@ -411,21 +468,29 @@ const PSUGrid = ({ psuConfig, psuData = {}, onPsuClick }) => {
             </div>
           </div>
         );
-      })}
+      }) : <div className="config-missing">No PSU slots configured</div>}
     </div>
   );
 };
 
 // Fan Grid Component
 const FanGrid = ({ fanConfig, fanData = [], onFanClick }) => {
-  if (typeof fanConfig !== 'number') return <div className="config-missing">No fan configuration available</div>;
+  if (!fanConfig || typeof fanConfig !== 'object') return <div className="config-missing">No fan configuration available</div>;
 
-  const num_fans = fanConfig;
+  const { num_fans, grid_rows, grid_columns, fan_slots = [] } = fanConfig;
 
   return (
-    <div className="fan-grid">
-      {Array.from({ length: num_fans }, (_, idx) => {
-        const fanNum = idx + 1;
+    <div
+      className="fan-grid"
+      style={{
+        display: 'grid',
+        gridTemplateRows: `repeat(${grid_rows}, 1fr)`,
+        gridTemplateColumns: `repeat(${grid_columns}, 1fr)`,
+        gap: '20px',
+        height: '100%'
+      }}
+    >
+      {fan_slots.length > 0 ? fan_slots.flat().map((fanNum, idx) => {
 
         // Find fan data for this fan number
         const fanInfo = fanData.find(f => {
@@ -462,7 +527,7 @@ const FanGrid = ({ fanConfig, fanData = [], onFanClick }) => {
             </div>
           </div>
         );
-      })}
+      }) : <div className="config-missing">No fan slots configured</div>}
     </div>
   );
 };
@@ -1422,16 +1487,35 @@ const SystemSummary = ({ sections }) => {
         <div className="system-view rear-view">
           <h4>Rear View</h4>
           <div className="view-content rear-flex">
-            {systemMap.rear.includes('psu') && (
-              <div className="component-section psu-section">
-                <PSUGrid psuConfig={systemMap.psu} psuData={psuData} onPsuClick={handlePsuClick} />
-              </div>
-            )}
-            {systemMap.rear.includes('fans') && (
-              <div className="component-section fans-section">
-                <FanGrid fanConfig={systemMap.fans} fanData={fanData} onFanClick={handleFanClick} />
-              </div>
-            )}
+            {systemMap.rear.map((componentType, index) => {
+              // Determine component width based on type
+              const getComponentWidth = (type) => {
+                if (type.startsWith('psu')) return '20%';
+                if (type === 'fans') return '60%';
+                return 'auto';
+              };
+
+              // Render component based on type
+              const renderComponent = (type) => {
+                if (type.startsWith('psu')) {
+                  const psuConfig = { ...systemMap[type], section_type: type };
+                  return <PSUGrid psuConfig={psuConfig} psuData={psuData} onPsuClick={handlePsuClick} />;
+                } else if (type === 'fans') {
+                  return <FanGrid fanConfig={systemMap.fans} fanData={fanData} onFanClick={handleFanClick} />;
+                }
+                return null;
+              };
+
+              return (
+                <div
+                  key={index}
+                  className={`component-section ${componentType}-section`}
+                  style={{ width: getComponentWidth(componentType) }}
+                >
+                  {renderComponent(componentType)}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
