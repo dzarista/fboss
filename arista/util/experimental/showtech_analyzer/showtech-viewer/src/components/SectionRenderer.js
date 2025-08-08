@@ -1,5 +1,6 @@
 import { forwardRef, useState } from 'react';
 import { getRowStyling } from './ErrorDetection';
+import { BackArrowIcon, ChevronDownIcon } from '../assets/icons/Icon';
 
 // Section Content Renderer Component
 export const SectionContentRenderer = ({ section, sectionIndex }) => {
@@ -109,16 +110,7 @@ export const SectionContentRenderer = ({ section, sectionIndex }) => {
                 className="back-button"
                 onClick={() => setSelectedI2CEntry(null)}
               >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <polyline points="15,18 9,12 15,6"></polyline>
-                </svg>
+                <BackArrowIcon />
               </button>
               <div className="bit-ranges-title">
                 Bit Fields for {selectedI2CEntry.address} ({selectedI2CEntry.data.command}) - Value: {selectedI2CEntry.data.value}
@@ -584,16 +576,7 @@ export const CollapsibleSection = forwardRef(({ title, children, isExpanded, onT
             title={isExpanded ? "Collapse section" : "Expand section"}
             aria-label={isExpanded ? "Collapse section" : "Expand section"}
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <polyline points="6,9 12,15 18,9"></polyline>
-            </svg>
+            <ChevronDownIcon />
           </button>
         </div>
       </div>

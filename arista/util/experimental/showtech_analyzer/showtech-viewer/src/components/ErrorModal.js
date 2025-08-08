@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { ErrorTriangleIcon, ChevronDownIcon } from '../assets/icons/Icon';
 
 const getErrorTypeDisplay = (errorType) => {
   switch (errorType) {
@@ -27,17 +28,7 @@ export const ErrorIndicator = ({ errorCount, onClick }) => {
       aria-label={`${errorCount} critical items detected`}
     >
       <div className="error-triangle">
-        <svg
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="none"
-        >
-          <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" fill="white" stroke="#ef4444" strokeWidth="1"/>
-          <line x1="12" y1="7" x2="12" y2="14" stroke="#ef4444" strokeWidth="2"/>
-          <circle cx="12" cy="17" r="1" fill="#ef4444"/>
-        </svg>
+        <ErrorTriangleIcon />
       </div>
       <span className="error-count">{errorCount}</span>
     </button>
@@ -126,24 +117,12 @@ export const ErrorSummaryModal = ({ errors, isOpen, onClose, onNavigateToSection
                       onClick={() => toggleSectionCollapse(sectionTitle)}
                       aria-label={isCollapsed ? 'Expand section' : 'Collapse section'}
                     >
-                      <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        fill="none"
+                      <ChevronDownIcon
                         style={{
                           transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)',
                           transition: 'transform 0.2s ease'
                         }}
-                      >
-                        <path
-                          d="M6 9l6 6 6-6"
-                          stroke="currentColor"
-                          strokeWidth="2"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
+                      />
                     </button>
                   </div>
                   {!isCollapsed && (

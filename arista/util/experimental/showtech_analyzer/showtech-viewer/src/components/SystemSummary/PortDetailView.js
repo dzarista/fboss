@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { BackArrowIcon } from '../../assets/icons/Icon';
 import { CollapsibleSection } from '../SectionRenderer';
 
 const PortDetailView = ({ portNum, portData, phyData, interfaceData, portType, onBack }) => {
@@ -35,9 +36,7 @@ const PortDetailView = ({ portNum, portData, phyData, interfaceData, portType, o
       <div className="section-header">
         <div className="section-header-left">
           <button className="back-button" onClick={onBack}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="15,18 9,12 15,6"></polyline>
-            </svg>
+            <BackArrowIcon />
           </button>
           <h3 className="section-title">Port {portNum} Details</h3>
           <span className="port-type-badge">{portType === 'eth' ? 'Ethernet' : portType === 'fab' ? 'Fabric' : 'Disabled'}</span>

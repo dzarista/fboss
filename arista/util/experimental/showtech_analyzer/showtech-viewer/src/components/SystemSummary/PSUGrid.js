@@ -1,4 +1,5 @@
 import React, { memo } from 'react';
+import { PSUIcon } from '../../assets/icons/Icon';
 
 const PSUGrid = memo(function PSUGrid({ psuConfig, psuData = {}, onPsuClick }) {
   if (!psuConfig || typeof psuConfig !== 'object') return <div className="config-missing">No PSU configuration available</div>;
@@ -30,9 +31,7 @@ const PSUGrid = memo(function PSUGrid({ psuConfig, psuData = {}, onPsuClick }) {
                 style={{ cursor: onPsuClick ? 'pointer' : 'default' }}
               >
                 <div className="psu-icon">
-                  <svg width="16" height="16" viewBox="0 0 120 120" fill="black">
-                    <path d="M80 10 L30 70 H55 L45 110 L95 50 H65 L80 10 Z" />
-                  </svg>
+                  <PSUIcon />
                 </div>
                 <div className="psu-content">
                   <div className="psu-header">
