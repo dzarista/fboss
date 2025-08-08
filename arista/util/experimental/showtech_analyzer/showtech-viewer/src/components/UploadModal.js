@@ -10,67 +10,20 @@ export default function UploadModal({ onClose, onFilesProcessed }) {
   const [currentFile, setCurrentFile] = useState(0);
   const [totalFiles, setTotalFiles] = useState(0);
   const [error, setError] = useState('');
-  const [isWarning, setIsWarning] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
 
   const handleChooseClick = () => fileInputRef.current?.click();
 
-  // Check if a file is likely a showtech file or ZIP
-  const isValidFile = (file) => {
-    const name = file.name.toLowerCase();
-    const isZip = name.endsWith('.zip');
-    const isText = name.endsWith('.txt') || name.endsWith('.log') || !name.includes('.');
-    const hasShowtechKeywords = name.includes('showtech') || name.includes('show-tech') ||
-                                name.includes('support') || name.includes('debug');
-
-    // Accept ZIP files or text files that might be showtech files
-    return isZip || isText || hasShowtechKeywords;
-  };
-
-
-
-  const addFilesWithoutDuplicates = (newFiles) => {
-    setSelectedFiles((prev) => {
-      const existingNames = new Set(prev.map(file => file.name));
-
-      // Filter for valid files first, then remove duplicates
-      const validFiles = newFiles.filter(file => isValidFile(file));
-      const uniqueFiles = validFiles.filter(file => !existingNames.has(file.name));
-
-      const duplicateCount = validFiles.length - uniqueFiles.length;
-      const invalidCount = newFiles.length - validFiles.length;
-
-      // Show feedback for filtered files
-      let messages = [];
-      if (invalidCount > 0) {
-        messages.push(`${invalidCount} non-showtech file${invalidCount !== 1 ? 's' : ''} were skipped`);
-      }
-      if (duplicateCount > 0) {
-        messages.push(`${duplicateCount} duplicate file${duplicateCount !== 1 ? 's' : ''} were skipped`);
-      }
-
-      if (messages.length > 0) {
-        setError(messages.join(', '));
-        setIsWarning(true);
-        // Clear the message after 4 seconds
-        setTimeout(() => {
-          setError('');
-          setIsWarning(false);
-        }, 4000);
-      }
-
-      return [...prev, ...uniqueFiles];
-    });
+  // Simple function to add all files without any filtering
+  const addFiles = (newFiles) => {
+    setSelectedFiles((prev) => [...prev, ...newFiles]);
   };
 
   const handleFileChange = (e) => {
     const newFiles = Array.from(e.target.files);
     if (newFiles.length) {
-      addFilesWithoutDuplicates(newFiles);
-      // Only clear error if it's not a warning (duplicate message)
-      if (!isWarning) {
-        setError('');
-      }
+      addFiles(newFiles);
+      setError('');
     }
     e.target.value = '';
   };
@@ -101,11 +54,8 @@ export default function UploadModal({ onClose, onFilesProcessed }) {
 
     const droppedFiles = Array.from(e.dataTransfer.files);
     if (droppedFiles.length) {
-      addFilesWithoutDuplicates(droppedFiles);
-      // Only clear error if it's not a warning (duplicate message)
-      if (!isWarning) {
-        setError('');
-      }
+      addFiles(droppedFiles);
+      setError('');
     }
   };
 
@@ -113,7 +63,6 @@ export default function UploadModal({ onClose, onFilesProcessed }) {
     if (!selectedFiles.length) return;
     setIsUploading(true);
     setError('');
-    setIsWarning(false);
     setProgressPercent(0);
     setCurrentFile(0);
     setTotalFiles(selectedFiles.length);
@@ -198,7 +147,6 @@ export default function UploadModal({ onClose, onFilesProcessed }) {
     } catch (err) {
         console.error(err);
         setError(err.message);
-        setIsWarning(false); // Real errors are not warnings
         setUploadProgress('');
         setProgressPercent(0);
         setCurrentFile(0);
@@ -215,7 +163,6 @@ export default function UploadModal({ onClose, onFilesProcessed }) {
         <input
           type="file"
           multiple
-          accept=".txt,.log,.zip"
           ref={fileInputRef}
           style={{ display: 'none' }}
           onChange={handleFileChange}
@@ -234,7 +181,7 @@ export default function UploadModal({ onClose, onFilesProcessed }) {
                 {isDragOver ? 'Drop files here' : 'No files selected'}
               </p>
               <p className="drop-zone-hint">
-                Drag and drop showtech files or ZIP archives here, or click Browse
+                Drag and drop files or ZIP archives here, or click Browse
               </p>
             </div>
           ) : (
@@ -260,7 +207,7 @@ export default function UploadModal({ onClose, onFilesProcessed }) {
           )}
         </div>
 
-        {error && <p className={isWarning ? "warning-text" : "error-text"}>{error}</p>}
+        {error && <p className="error-text">{error}</p>}
         {isUploading && uploadProgress && (
           <div className="upload-progress">
             <div className="upload-spinner"></div>
