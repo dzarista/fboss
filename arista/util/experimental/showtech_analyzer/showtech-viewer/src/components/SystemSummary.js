@@ -119,8 +119,11 @@ const SystemSummary = ({ sections }) => {
   return (
     <div className="system-summary-container">
       <div className="system-summary-header">
-        <h3>System Overview</h3>
-        <p>Platform configuration loaded from processed data</p>
+        <h3>
+          System Overview - {systemMap.platform_name || 'Unknown Platform'}
+          {systemMap.product_name && ` (${systemMap.product_name})`}
+        </h3>
+        <p>{systemMap.description || 'Platform configuration loaded from processed data'}</p>
       </div>
 
       {systemMap.front && (

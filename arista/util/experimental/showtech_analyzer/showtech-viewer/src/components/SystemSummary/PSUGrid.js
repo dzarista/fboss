@@ -11,8 +11,8 @@ const PSUGrid = memo(function PSUGrid({ psuConfig, psuData = {}, onPsuClick }) {
     >
       {psu_slots.length > 0
         ? psu_slots.flat().map((slotNum, idx) => {
-            let actualPsuNum = slotNum;
-            if (psuConfig.section_type === 'psu_right') actualPsuNum = slotNum + 2; // right maps to PSU3/4
+            // Use the slot number directly from the configuration
+            const actualPsuNum = slotNum;
             const psuInfo = psuData[`PSU${actualPsuNum}`];
             const status = psuInfo?.status || 'Unknown';
             const voltageIn = psuInfo?.voltage_in || 'N/A';
