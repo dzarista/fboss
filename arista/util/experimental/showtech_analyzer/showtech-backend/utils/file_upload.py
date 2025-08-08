@@ -10,45 +10,6 @@ from .section_parsers import parse_content_by_type
 from .section_utils import determine_section_type
 from .log_sanity import perform_sanity_checks
 
-def is_showtech_file(filename=None, content=None, file_path=None):
-    """
-    Simple check if a file is a showtech file.
-
-    Args:
-        filename (str, optional): The filename to check
-        content (str, optional): The file content to check
-        file_path (str, optional): Path to file to read and validate
-
-    Returns:
-        bool: True if file appears to be a showtech file, False otherwise
-    """
-    # Basic filename checks
-    if filename:
-        # Skip files that start with '.'
-        if os.path.basename(filename).startswith('.'):
-            return False
-
-    # If file_path is provided, read the content
-    if file_path and not content:
-        try:
-            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
-                content = f.read()
-        except Exception as e:
-            print(f"Error reading file {file_path}: {e}")
-            return False
-
-    # Content-based validation
-    if content:
-        # Quick check: look at first 3 lines for showtech
-        lines = content.split('\n')
-        first_three_lines = '\n'.join(lines[:3]).lower()
-
-        if "showtech" not in first_three_lines:
-            return False
-
-    # If only filename provided and no content checks needed, assume it's valid
-    return True
-
 def parse_sections(text):
     lines = text.splitlines()
     sections = []
@@ -95,12 +56,24 @@ def parse_sections(text):
 def handle_single_file_upload(file_storage):
     content = file_storage.read().decode('utf-8', errors='ignore')
 
-    if not is_showtech_file(filename=file_storage.filename, content=content):
-        print(f"Skipping file {file_storage.filename}: not a valid showtech file")
+    # Quick check: look at first 3 lines for showtech indicators
+    lines = content.split('\n')
+    first_three_lines = '\n'.join(lines[:3]).lower()
+
+    # Check if first 3 lines contain showtech indicators
+    showtech_indicators = ['showtech', 'show-tech', 'show version', 'show platform', 'fboss2', 'wedge_qsfp_util']
+    has_showtech_indicator = any(indicator in first_three_lines for indicator in showtech_indicators)
+
+    if not has_showtech_indicator:
+        print(f"Skipping file {file_storage.filename}: no showtech indicators in first 3 lines")
         return []
 
-    # Parse sections (we know it's valid from the check above)
     sections = parse_sections(content)
+
+    # Validate that the file has sufficient showtech content (at least 3 sections)
+    if not sections or len(sections) < 3:
+        print(f"Skipping file {file_storage.filename}: insufficient sections ({len(sections)} found, minimum 3 required)")
+        return []
 
     return [{
         'name': file_storage.filename,
@@ -111,53 +84,85 @@ def handle_single_file_upload(file_storage):
         'sections': sections
     }]
 
+class FileWrapper:
+    """Wrapper to make file content behave like a file storage object."""
+    def __init__(self, filename, content, source_zip=None):
+        self.filename = filename
+        self.content = content
+        self.source_zip = source_zip
+        self._position = 0
 
+    def read(self):
+        return self.content.encode('utf-8')
 
-def handle_zip_upload(file_storage):
-    responses = []
-    with tempfile.TemporaryDirectory() as tmpdir:
-        zip_path = os.path.join(tmpdir, file_storage.filename)
-        file_storage.save(zip_path)
+    def seek(self, position):
+        self._position = position
 
-        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
-            zip_ref.extractall(tmpdir)
+def is_showtech_content(content):
+    """Check if content has showtech indicators in first 3 lines."""
+    lines = content.split('\n')
+    first_three_lines = '\n'.join(lines[:3]).lower()
+    return "showtech" in first_three_lines
 
-        # Walk through all files and subdirectories
-        for root, dirs, files in os.walk(tmpdir):
-            for fname in files:
-                fpath = os.path.join(root, fname)
+def expand_and_validate_files(files):
+    """Expand zip files and validate all files for showtech content."""
+    all_files_to_process = []
 
-                # Skip the original ZIP file
-                if fname == file_storage.filename:
+    for f in files:
+        try:
+            if f.filename.lower().endswith('.zip'):
+                # Expand zip file
+                with tempfile.TemporaryDirectory() as tmpdir:
+                    zip_path = os.path.join(tmpdir, f.filename)
+                    f.save(zip_path)
+
+                    with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                        zip_ref.extractall(tmpdir)
+
+                    # Walk through all files and collect valid showtech files
+                    for root, dirs, files_in_dir in os.walk(tmpdir):
+                        for fname in files_in_dir:
+                            fpath = os.path.join(root, fname)
+
+                            # Skip the original ZIP file
+                            if fname == f.filename:
+                                continue
+
+                            # Skip files that start with '.'
+                            if os.path.basename(fname).startswith('.'):
+                                continue
+
+                            try:
+                                # Read content and check for showtech
+                                with open(fpath, 'r', encoding='utf-8', errors='ignore') as file_handle:
+                                    content = file_handle.read()
+
+                                if is_showtech_content(content):
+                                    # Use relative path from ZIP root for the name
+                                    relative_path = os.path.relpath(fpath, tmpdir)
+                                    display_name = relative_path.replace('\\', '/')  # Normalize path separators
+
+                                    file_wrapper = FileWrapper(display_name, content, f.filename)
+                                    all_files_to_process.append(file_wrapper)
+
+                            except Exception as e:
+                                print(f"Skipping file {fname}: {e}")
+                                continue
+            else:
+                # Handle single file
+                # Skip files that start with '.'
+                if os.path.basename(f.filename).startswith('.'):
                     continue
 
-                # Check if this is a valid showtech file (filename + content validation)
-                if not is_showtech_file(filename=fname, file_path=fpath):
-                    continue
+                content = f.read().decode('utf-8', errors='ignore')
+                f.seek(0)  # Reset file pointer
 
-                try:
-                    # Read content and parse sections (we know it's valid from the check above)
-                    with open(fpath, 'r', encoding='utf-8', errors='ignore') as f:
-                        content = f.read()
+                if is_showtech_content(content):
+                    all_files_to_process.append(f)
 
-                    sections = parse_sections(content)
+        except Exception as e:
+            print(f"Error processing {f.filename}: {str(e)}")
+            continue
 
-                    # Use relative path from ZIP root for the name
-                    relative_path = os.path.relpath(fpath, tmpdir)
-                    display_name = relative_path.replace('\\', '/')  # Normalize path separators
+    return all_files_to_process
 
-                    responses.append({
-                        'name': display_name,
-                        'metadata': {
-                            'source_file': display_name,
-                            'total_sections': len(sections),
-                            'extracted_from': file_storage.filename
-                        },
-                        'sections': sections
-                    })
-                except Exception as e:
-                    # Skip files that can't be read or processed
-                    print(f"Skipping file {fname}: {e}")
-                    continue
-
-    return responses

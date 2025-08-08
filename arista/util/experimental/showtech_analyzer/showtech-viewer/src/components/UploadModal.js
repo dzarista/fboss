@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { uploadFiles, uploadFilesWithProgress } from '../utils/api';
+import { uploadFiles, uploadFilesWithProgress, unrollZips } from '../utils/api';
 
 export default function UploadModal({ onClose, onFilesProcessed }) {
   const fileInputRef = useRef(null);
@@ -119,22 +119,50 @@ export default function UploadModal({ onClose, onFilesProcessed }) {
     setTotalFiles(selectedFiles.length);
 
     try {
-        const fileCount = selectedFiles.length;
         const hasZipFiles = selectedFiles.some(file => file.name.toLowerCase().endsWith('.zip'));
 
-        // Use progress-enabled upload for multiple files or when we want detailed feedback
-        if (fileCount > 1 || hasZipFiles) {
-          const uploaded = await uploadFilesWithProgress(selectedFiles, (progress) => {
+        // Step 1: If there are zip files, unroll them first
+        let filesToProcess = [...selectedFiles];
+
+        if (hasZipFiles) {
+          setUploadProgress('Extracting zip files...');
+
+          const unrollResult = await unrollZips(selectedFiles);
+
+          // Remove zip files from the list
+          filesToProcess = filesToProcess.filter(file =>
+            !unrollResult.files_to_remove.includes(file.name)
+          );
+
+          // Add individual files from zips
+          const extractedFiles = unrollResult.files_to_add.map(fileInfo => {
+            // Create a File-like object from the extracted content
+            const blob = new Blob([fileInfo.content], { type: 'text/plain' });
+            const file = new File([blob], fileInfo.name, { type: 'text/plain' });
+            file.extracted_from = fileInfo.extracted_from;
+            return file;
+          });
+
+          filesToProcess.push(...extractedFiles);
+
+          // Update the selected files list to show extracted files
+          setSelectedFiles(filesToProcess);
+          setTotalFiles(filesToProcess.length);
+        }
+
+        // Step 2: Process all individual files
+        if (filesToProcess.length > 1) {
+          const uploaded = await uploadFilesWithProgress(filesToProcess, (progress) => {
             setCurrentFile(progress.currentFile);
             setTotalFiles(progress.totalFiles);
             setProgressPercent(progress.percent);
 
             if (progress.fileName === 'Complete') {
               setUploadProgress('Upload complete!');
-            } else if (hasZipFiles && progress.fileName.toLowerCase().endsWith('.zip')) {
-              setUploadProgress(`Extracting ${progress.fileName}... (${progress.currentFile} of ${progress.totalFiles})`);
+            } else if (progress.fileName === 'No valid files found') {
+              setUploadProgress('No valid showtech files found');
             } else {
-              setUploadProgress(`Processing ${progress.fileName}... (${progress.currentFile} of ${progress.totalFiles})`);
+              setUploadProgress(`Processing ${progress.fileName}... (${progress.currentFile} of ${progress.totalFiles} files)`);
             }
           });
 
@@ -149,7 +177,7 @@ export default function UploadModal({ onClose, onFilesProcessed }) {
         } else {
           // Single file - use simpler progress
           setUploadProgress('Processing file...');
-          const uploaded = await uploadFiles(selectedFiles);
+          const uploaded = await uploadFiles(filesToProcess);
 
           // Check if any files were actually processed
           if (uploaded && uploaded.length > 0) {
