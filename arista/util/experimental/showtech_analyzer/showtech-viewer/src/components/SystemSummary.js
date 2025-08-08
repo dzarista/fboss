@@ -84,7 +84,7 @@ const SystemSummary = ({ sections }) => {
   if (selectedFan) {
     return (
       <div className="system-summary-container">
-        <FanDetailView fanNum={selectedFan} fanData={selectedFanData} onBack={handleBackToSummary} />
+        <FanDetailView fanNum={selectedFan} fanData={selectedFanData} sections={sections} onBack={handleBackToSummary} />
       </div>
     );
   }
@@ -92,7 +92,7 @@ const SystemSummary = ({ sections }) => {
   if (selectedPsu) {
     return (
       <div className="system-summary-container">
-        <PSUDetailView psuNum={selectedPsu} psuData={selectedPsuData} psuDebugData={psuDebugData} onBack={handleBackToSummary} />
+        <PSUDetailView psuNum={selectedPsu} psuData={selectedPsuData} psuDebugData={psuDebugData} sections={sections} onBack={handleBackToSummary} />
       </div>
     );
   }

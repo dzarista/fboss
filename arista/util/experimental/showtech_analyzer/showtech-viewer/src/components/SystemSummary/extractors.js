@@ -21,52 +21,65 @@ export const extractFanData = (sections) => {
 };
 
 export const extractPsuData = (sections) => {
-  const sensorSection = sections.find((s) => s.title === 'fboss2 show environment sensor');
-  if (!sensorSection || sensorSection.parsed_data?.type !== 'table') return {};
-
-  const rows = sensorSection.parsed_data.rows || [];
+  // Get PSU debug info as primary source
+  const psuDebugSection = sections.find((s) => s.title === 'PSU debug info');
   const psuData = {};
 
-  rows.forEach((row) => {
-    const sensor = row.Sensor || '';
-    const value = row.Value || '';
-    const health = row.SensorHealth || '';
-    const psuMatch = sensor.match(/^PSU(\d+)_(.+)$/);
-    if (!psuMatch) return;
+  if (psuDebugSection && psuDebugSection.parsed_data?.type === 'psu_debug') {
+    const psuSlots = psuDebugSection.parsed_data.psu_slots || [];
 
-    const psuNum = psuMatch[1];
-    const metric = psuMatch[2];
-    const key = `PSU${psuNum}`;
+    psuSlots.forEach((psuSlot) => {
+      const psuNum = psuSlot.slot;
+      const key = `PSU${psuNum}`;
+      const properties = psuSlot.properties || {};
 
-    if (!psuData[key]) {
+      // Create PSU data from debug info properties - include all data
       psuData[key] = {
         name: key,
-        status: 'Good',
-        fans: {},
-        voltage_in: null,
-        voltage_out: null,
-        power_in: null,
-        power_out: null,
-        temperatures: {},
+        ...properties // Include all properties from PSU debug info
       };
-    }
+    });
+  }
 
-    const psu = psuData[key];
-    if (health && health !== 'Good') psu.status = health;
+  // Supplement with sensor data if available
+  const sensorSection = sections.find((s) => s.title === 'fboss2 show environment sensor');
+  if (sensorSection && sensorSection.parsed_data?.type === 'table') {
+    const rows = sensorSection.parsed_data.rows || [];
 
-    if (metric.includes('FAN') && metric.includes('RPM')) psu.fans[metric] = `${value} RPM`;
-    else if (metric === 'VIN') psu.voltage_in = `${value}V`;
-    else if (metric === 'VOUT') psu.voltage_out = `${value}V`;
-    else if (metric === 'PIN') psu.power_in = `${value}W`;
-    else if (metric === 'POUT') psu.power_out = `${value}W`;
-    else if (metric.includes('TEMP')) psu.temperatures[metric] = `${value}°C`;
-  });
+    rows.forEach((row) => {
+      const sensor = row.Sensor || '';
+      const value = row.Value || '';
+      const psuMatch = sensor.match(/^PSU(\d+)_(.+)$/);
+      if (!psuMatch) return;
+
+      const psuNum = psuMatch[1];
+      const metric = psuMatch[2];
+      const key = `PSU${psuNum}`;
+
+      // Initialize PSU if not exists from debug info
+      if (!psuData[key]) {
+        psuData[key] = {
+          name: key
+        };
+      }
+
+      const psu = psuData[key];
+
+      // Add sensor data with original metric names (no prefix)
+      psu[metric] = value;
+    });
+  }
 
   return psuData;
 };
 
 export const extractPsuDebugData = (sections) => {
-  const psuDebugSection = sections.find((s) => s.title === 'PSU debug info');
+  // Look for PSU debug section with various possible titles
+  const psuDebugSection = sections.find((s) =>
+    s.title === 'PSU DEBUG INFO' ||
+    s.title === 'PSU debug info' ||
+    s.title === 'psu debug info'
+  );
   if (!psuDebugSection || psuDebugSection.parsed_data?.type !== 'psu_debug') return {};
   const psuSlots = psuDebugSection.parsed_data.psu_slots || [];
   const psuDebugData = {};

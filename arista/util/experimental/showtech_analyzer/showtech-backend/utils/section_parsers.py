@@ -213,65 +213,71 @@ def parse_lspci(content: str):
 
 def parse_fans(content: str):
     """
-    Parse fans section with format:
-    FAN 1: Present: 1, RPM: 2504 (10%)
-    FAN 2: Present: 1, RPM: 2523 (10%)
-    ...
+    Parse fans section with general format:
+    Split by commas first, then by colons for key-value pairs.
+    Creates dynamic table structure based on found keys.
     """
     try:
         lines = content.strip().split('\n')
         fans = []
+        all_keys = set()
 
         for line in lines:
             line = line.strip()
-            if not line or not line.startswith('FAN'):
+            if not line:
                 continue
 
-            # Parse: FAN 1: Present: 1, RPM: 2504 (10%)
-            parts = line.split(':')
-            if len(parts) < 3:
+            # Look for fan indicators (case insensitive, flexible naming)
+            fan_match = re.match(r'^(FAN[_\s]*\d+|Fan[_\s]*\d+)', line, re.IGNORECASE)
+            if not fan_match:
                 continue
 
-            fan_name = parts[0].strip()  # "FAN 1"
-            present_part = parts[1].strip()  # "Present"
-            rpm_part = ':'.join(parts[2:]).strip()  # "1, RPM: 2504 (10%)"
+            fan_name = fan_match.group(1).strip()
 
-            # Extract present status
-            present_match = rpm_part.split(',')[0].strip()
-            present = present_match == '1'
+            # Get the rest of the line after fan name
+            rest_of_line = line[len(fan_name):].strip()
+            if rest_of_line.startswith(':'):
+                rest_of_line = rest_of_line[1:].strip()
 
-            # Extract RPM and percentage
-            rpm = None
-            percentage = None
-            if 'RPM:' in rpm_part:
-                rpm_section = rpm_part.split('RPM:')[1].strip()
-                # Extract RPM number
-                rpm_match = rpm_section.split('(')[0].strip()
-                try:
-                    rpm = int(rpm_match)
-                except ValueError:
-                    rpm = rpm_match
+            # Initialize fan data with the fan name
+            fan_data = {'Name': fan_name}
 
-                # Extract percentage
-                if '(' in rpm_section and ')' in rpm_section:
-                    percentage_str = rpm_section.split('(')[1].split(')')[0].strip()
-                    if percentage_str.endswith('%'):
-                        try:
-                            percentage = int(percentage_str[:-1])
-                        except ValueError:
-                            percentage = percentage_str
+            # Split by commas first to get individual key-value pairs
+            comma_parts = [part.strip() for part in rest_of_line.split(',')]
 
-            fans.append({
-                'Name': fan_name,
-                'Present': 'Yes' if present else 'No',
-                'RPM': rpm if rpm is not None else 'N/A',
-                'Percentage': f"{percentage}%" if percentage is not None else 'N/A',
-                'Status': 'Good' if present and rpm and rpm > 0 else 'Unknown'
-            })
+            for part in comma_parts:
+                if not part:
+                    continue
+
+                # Split by colon to get key-value pairs
+                if ':' in part:
+                    key_value = part.split(':', 1)
+                    if len(key_value) == 2:
+                        key = key_value[0].strip()
+                        value = key_value[1].strip()
+
+                        # Store the value as-is, including any parentheses content
+                        fan_data[key] = value
+                        all_keys.add(key)
+
+            # Only add if we found some data beyond just the name
+            if len(fan_data) > 1:
+                fans.append(fan_data)
+
+        # Create headers list starting with Name, then all other keys found
+        headers = ['Name']
+        other_keys = sorted([key for key in all_keys if key != 'Name'])
+        headers.extend(other_keys)
+
+        # Ensure all fan entries have all keys (fill missing with 'N/A')
+        for fan in fans:
+            for key in headers:
+                if key not in fan:
+                    fan[key] = 'N/A'
 
         return {
             'type': 'fans',
-            'headers': ['Name', 'Present', 'RPM', 'Percentage', 'Status'],
+            'headers': headers,
             'rows': fans
         }
 

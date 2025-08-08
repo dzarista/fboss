@@ -17,15 +17,50 @@ const FanGrid = memo(function FanGrid({ fanConfig, fanData = [], onFanClick }) {
               const match = name.match(/(\d+)$/);
               return match && parseInt(match[1], 10) === fanNum;
             });
-            const status = fanInfo?.Status || 'Unknown';
-            const rpm = fanInfo?.RPM || 'N/A';
-            const percentage = fanInfo?.Percentage || 'N/A';
+
+            // Extract dynamic data from fanInfo
+            const getDisplayValue = (value) => {
+              if (!value || value === 'N/A') return 'N/A';
+              return value;
+            };
+
+
+
+            // Get all display fields dynamically (show everything except Name)
+            const getAllFields = () => {
+              if (!fanInfo) return [];
+
+              // Skip 'Name' and show all other fields
+              const excludeKeys = ['Name'];
+              const availableKeys = Object.keys(fanInfo).filter(key => !excludeKeys.includes(key));
+
+              // Return all fields for display
+              return availableKeys.map(key => ({
+                key,
+                value: getDisplayValue(fanInfo[key])
+              }));
+            };
+
+            const displayFields = getAllFields();
+
+            // Create tooltip with all available data
+            const createTooltip = () => {
+              if (!fanInfo) return `Fan ${fanNum}: No data available`;
+              const lines = [`Fan ${fanNum}:`];
+              Object.entries(fanInfo).forEach(([key, value]) => {
+                if (key !== 'Name') {
+                  lines.push(`${key}: ${value}`);
+                }
+              });
+              lines.push('Click for details');
+              return lines.join('\n');
+            };
 
             return (
               <div
                 key={idx}
-                className={`fan-slot fan-${String(status).toLowerCase()}`}
-                title={`Fan ${fanNum}: ${status}, RPM: ${rpm}, Load: ${percentage}\nClick for details`}
+                className={`fan-slot`}
+                title={createTooltip()}
                 onClick={() => onFanClick && onFanClick(fanNum, fanInfo)}
                 style={{ cursor: onFanClick ? 'pointer' : 'default' }}
               >
@@ -37,8 +72,14 @@ const FanGrid = memo(function FanGrid({ fanConfig, fanData = [], onFanClick }) {
                     <div className="fan-label">Fan{fanNum}</div>
                   </div>
                   <div className="fan-data-row">
-                    <div className="fan-speed">Speed: {rpm} RPM</div>
-                    <div className="fan-percentage">PWM: {percentage}</div>
+                    {displayFields.map((field, fieldIdx) => (
+                      <div key={fieldIdx} className="fan-field">
+                        {field.key}: {field.value}
+                      </div>
+                    ))}
+                    {displayFields.length === 0 && (
+                      <div className="fan-field">No data</div>
+                    )}
                   </div>
                 </div>
               </div>

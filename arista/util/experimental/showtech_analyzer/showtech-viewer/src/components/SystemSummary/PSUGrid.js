@@ -15,18 +15,42 @@ const PSUGrid = memo(function PSUGrid({ psuConfig, psuData = {}, onPsuClick }) {
             // Use the slot number directly from the configuration
             const actualPsuNum = slotNum;
             const psuInfo = psuData[`PSU${actualPsuNum}`];
-            const status = psuInfo?.status || 'Unknown';
-            const voltageIn = psuInfo?.voltage_in || 'N/A';
-            const voltageOut = psuInfo?.voltage_out || 'N/A';
-            const powerOut = psuInfo?.power_out || 'N/A';
-            const fanSpeeds = psuInfo?.fans || {};
-            const fanSpeedText = Object.keys(fanSpeeds).length > 0 ? Object.values(fanSpeeds).join(', ') : 'N/A';
+
+            // Get all display fields dynamically (show everything except name)
+            const getAllFields = () => {
+              if (!psuInfo) return [];
+
+              // Skip 'name' and show all other fields
+              const excludeKeys = ['name'];
+              const availableKeys = Object.keys(psuInfo).filter(key => !excludeKeys.includes(key));
+
+              // Return all fields for display
+              return availableKeys.map(key => ({
+                key,
+                value: psuInfo[key] || 'N/A'
+              }));
+            };
+
+            const displayFields = getAllFields();
+
+            // Create tooltip with all available data
+            const createTooltip = () => {
+              if (!psuInfo) return `PSU ${actualPsuNum}: No data available`;
+              const lines = [`PSU ${actualPsuNum}:`];
+              Object.entries(psuInfo).forEach(([key, value]) => {
+                if (key !== 'name') {
+                  lines.push(`${key}: ${value}`);
+                }
+              });
+              lines.push('Click for details');
+              return lines.join('\n');
+            };
 
             return (
               <div
                 key={idx}
-                className={`psu-slot psu-${String(status).toLowerCase()}`}
-                title={`PSU ${actualPsuNum}: ${status}\nVin: ${voltageIn}, Vout: ${voltageOut}\nPower: ${powerOut}\nFans: ${fanSpeedText}\nClick for details`}
+                className={`psu-slot psu-normal`}
+                title={createTooltip()}
                 onClick={() => onPsuClick && onPsuClick(actualPsuNum, psuInfo)}
                 style={{ cursor: onPsuClick ? 'pointer' : 'default' }}
               >
@@ -38,15 +62,14 @@ const PSUGrid = memo(function PSUGrid({ psuConfig, psuData = {}, onPsuClick }) {
                     <div className="psu-label">PSU{actualPsuNum}</div>
                   </div>
                   <div className="psu-data-row">
-                    <div className="psu-voltage">In: {voltageIn}</div>
-                    <div className="psu-voltage">Out: {voltageOut}</div>
-                    <div className="psu-power">Power: {powerOut}</div>
-                    {Object.keys(fanSpeeds).length > 0 &&
-                      Object.entries(fanSpeeds).map(([fanName, speed], fanIdx) => (
-                        <div key={fanIdx} className="psu-fan-speed">
-                          {fanName.replace('_RPM', '')}: {speed}
-                        </div>
-                      ))}
+                    {displayFields.map((field, fieldIdx) => (
+                      <div key={fieldIdx} className="psu-field">
+                        {field.key}: {field.value}
+                      </div>
+                    ))}
+                    {displayFields.length === 0 && (
+                      <div className="psu-field">No data</div>
+                    )}
                   </div>
                 </div>
               </div>

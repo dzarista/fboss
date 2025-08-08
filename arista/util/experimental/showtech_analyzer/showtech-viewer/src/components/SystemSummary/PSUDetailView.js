@@ -2,13 +2,35 @@ import React, { useState } from 'react';
 import { BackArrowIcon } from '../../assets/icons/Icon';
 import { CollapsibleSection } from '../SectionRenderer';
 
-const PSUDetailView = ({ psuNum, psuData, psuDebugData, onBack }) => {
+const PSUDetailView = ({ psuNum, psuData, psuDebugData, onBack, sections }) => {
   const [expandedSections, setExpandedSections] = useState(new Set(['psu-debug', 'psu-sensors', 'no-data']));
   const [activeSection, setActiveSection] = useState(null);
   const toggleSection = (k) => setExpandedSections((prev) => { const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n; });
   const activateSection = (k) => setActiveSection(k);
 
   const debugInfo = psuDebugData?.[`PSU${psuNum}`]?.properties || {};
+
+  // Get the full sensor table data for this PSU
+  const getSensorTableData = () => {
+    const sensorSection = sections?.find((s) => s.title === 'fboss2 show environment sensor');
+    if (!sensorSection || sensorSection.parsed_data?.type !== 'table') return null;
+
+    const allRows = sensorSection.parsed_data.rows || [];
+    const headers = sensorSection.parsed_data.headers || [];
+
+    // Filter rows that belong to this PSU
+    const psuRows = allRows.filter(row => {
+      const sensor = row.Sensor || '';
+      return sensor.match(new RegExp(`^PSU${psuNum}_`));
+    });
+
+    return {
+      headers,
+      rows: psuRows
+    };
+  };
+
+  const sensorTableData = getSensorTableData();
 
   return (
     <div className="port-detail-view">
@@ -24,7 +46,7 @@ const PSUDetailView = ({ psuNum, psuData, psuDebugData, onBack }) => {
       <div className="sections-container">
         {Object.keys(debugInfo).length > 0 && (
           <CollapsibleSection
-            title={`PSU debug info - PSU ${psuNum}`}
+            title={`PSU Debug Info - PSU ${psuNum}`}
             isExpanded={expandedSections.has('psu-debug')}
             onToggle={() => toggleSection('psu-debug')}
             isActive={activeSection === 'psu-debug'}
@@ -45,7 +67,7 @@ const PSUDetailView = ({ psuNum, psuData, psuDebugData, onBack }) => {
           </CollapsibleSection>
         )}
 
-        {psuData && (
+        {sensorTableData && sensorTableData.rows.length > 0 && (
           <CollapsibleSection
             title={`fboss2 show environment sensor - PSU ${psuNum}`}
             isExpanded={expandedSections.has('psu-sensors')}
@@ -56,19 +78,19 @@ const PSUDetailView = ({ psuNum, psuData, psuDebugData, onBack }) => {
             <div className="table-container">
               <table className="section-table">
                 <thead>
-                  <tr><th>Property</th><th>Value</th></tr>
+                  <tr>
+                    {sensorTableData.headers.map((header, idx) => (
+                      <th key={idx}>{header}</th>
+                    ))}
+                  </tr>
                 </thead>
                 <tbody>
-                  <tr><td><strong>Status</strong></td><td>{psuData.status}</td></tr>
-                  {psuData.voltage_in && (<tr><td><strong>Voltage In</strong></td><td>{psuData.voltage_in}</td></tr>)}
-                  {psuData.voltage_out && (<tr><td><strong>Voltage Out</strong></td><td>{psuData.voltage_out}</td></tr>)}
-                  {psuData.power_in && (<tr><td><strong>Power In</strong></td><td>{psuData.power_in}</td></tr>)}
-                  {psuData.power_out && (<tr><td><strong>Power Out</strong></td><td>{psuData.power_out}</td></tr>)}
-                  {Object.entries(psuData.fans || {}).map(([fanKey, fanValue]) => (
-                    <tr key={fanKey}><td><strong>{fanKey}</strong></td><td>{fanValue}</td></tr>
-                  ))}
-                  {Object.entries(psuData.temperatures || {}).map(([tempKey, tempValue]) => (
-                    <tr key={tempKey}><td><strong>{tempKey}</strong></td><td>{tempValue}</td></tr>
+                  {sensorTableData.rows.map((row, rowIdx) => (
+                    <tr key={rowIdx}>
+                      {sensorTableData.headers.map((header, colIdx) => (
+                        <td key={colIdx}>{row[header] || ''}</td>
+                      ))}
+                    </tr>
                   ))}
                 </tbody>
               </table>
@@ -76,7 +98,7 @@ const PSUDetailView = ({ psuNum, psuData, psuDebugData, onBack }) => {
           </CollapsibleSection>
         )}
 
-        {Object.keys(debugInfo).length === 0 && !psuData && (
+        {Object.keys(debugInfo).length === 0 && (!sensorTableData || sensorTableData.rows.length === 0) && (
           <CollapsibleSection
             title="No Data Available"
             isExpanded={expandedSections.has('no-data')}
