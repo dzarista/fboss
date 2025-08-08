@@ -6,7 +6,7 @@ from datetime import datetime
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-from utils.file_upload import handle_single_file_upload, expand_and_validate_files, FileWrapper, expand_and_validate_files, FileWrapper
+from utils.file_upload import handle_single_file_upload, expand_and_validate_files, FileWrapper
 
 # App initialization
 app = Flask(__name__)
