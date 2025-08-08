@@ -40,3 +40,53 @@ export const uploadFiles = async (filesArray) => {
   }
   return res.json();
 };
+
+// Upload files with progress tracking - processes files individually
+export const uploadFilesWithProgress = async (filesArray, onProgress) => {
+  const allResults = [];
+  const totalFiles = filesArray.length;
+
+  for (let i = 0; i < filesArray.length; i++) {
+    const file = filesArray[i];
+    const currentFileNum = i + 1;
+
+    // Update progress
+    if (onProgress) {
+      onProgress({
+        currentFile: currentFileNum,
+        totalFiles: totalFiles,
+        fileName: file.name,
+        percent: Math.round((i / totalFiles) * 100)
+      });
+    }
+
+    // Upload single file
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const res = await fetch(`${API_ENDPOINT}/upload`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const msg = await res.text();
+      throw new Error(`Upload failed for ${file.name}: ${msg || res.statusText}`);
+    }
+
+    const result = await res.json();
+    allResults.push(...result);
+  }
+
+  // Final progress update
+  if (onProgress) {
+    onProgress({
+      currentFile: totalFiles,
+      totalFiles: totalFiles,
+      fileName: 'Complete',
+      percent: 100
+    });
+  }
+
+  return allResults;
+};

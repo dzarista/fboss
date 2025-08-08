@@ -1,20 +1,74 @@
 import React, { useRef, useState } from 'react';
-import { uploadFiles } from '../utils/api';
+import { uploadFiles, uploadFilesWithProgress } from '../utils/api';
 
 export default function UploadModal({ onClose, onFilesProcessed }) {
   const fileInputRef = useRef(null);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState('');
+  const [progressPercent, setProgressPercent] = useState(0);
+  const [currentFile, setCurrentFile] = useState(0);
+  const [totalFiles, setTotalFiles] = useState(0);
   const [error, setError] = useState('');
+  const [isWarning, setIsWarning] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
 
   const handleChooseClick = () => fileInputRef.current?.click();
 
+  // Check if a file is likely a showtech file or ZIP
+  const isValidFile = (file) => {
+    const name = file.name.toLowerCase();
+    const isZip = name.endsWith('.zip');
+    const isText = name.endsWith('.txt') || name.endsWith('.log') || !name.includes('.');
+    const hasShowtechKeywords = name.includes('showtech') || name.includes('show-tech') ||
+                                name.includes('support') || name.includes('debug');
+
+    // Accept ZIP files or text files that might be showtech files
+    return isZip || isText || hasShowtechKeywords;
+  };
+
+  const addFilesWithoutDuplicates = (newFiles) => {
+    setSelectedFiles((prev) => {
+      const existingNames = new Set(prev.map(file => file.name));
+
+      // Filter for valid files first, then remove duplicates
+      const validFiles = newFiles.filter(file => isValidFile(file));
+      const uniqueFiles = validFiles.filter(file => !existingNames.has(file.name));
+
+      const duplicateCount = validFiles.length - uniqueFiles.length;
+      const invalidCount = newFiles.length - validFiles.length;
+
+      // Show feedback for filtered files
+      let messages = [];
+      if (invalidCount > 0) {
+        messages.push(`${invalidCount} non-showtech file${invalidCount !== 1 ? 's' : ''} were skipped`);
+      }
+      if (duplicateCount > 0) {
+        messages.push(`${duplicateCount} duplicate file${duplicateCount !== 1 ? 's' : ''} were skipped`);
+      }
+
+      if (messages.length > 0) {
+        setError(messages.join(', '));
+        setIsWarning(true);
+        // Clear the message after 4 seconds
+        setTimeout(() => {
+          setError('');
+          setIsWarning(false);
+        }, 4000);
+      }
+
+      return [...prev, ...uniqueFiles];
+    });
+  };
+
   const handleFileChange = (e) => {
     const newFiles = Array.from(e.target.files);
     if (newFiles.length) {
-      setSelectedFiles((prev) => [...prev, ...newFiles]);
-      setError('');
+      addFilesWithoutDuplicates(newFiles);
+      // Only clear error if it's not a warning (duplicate message)
+      if (!isWarning) {
+        setError('');
+      }
     }
     e.target.value = '';
   };
@@ -45,8 +99,11 @@ export default function UploadModal({ onClose, onFilesProcessed }) {
 
     const droppedFiles = Array.from(e.dataTransfer.files);
     if (droppedFiles.length) {
-      setSelectedFiles((prev) => [...prev, ...droppedFiles]);
-      setError('');
+      addFilesWithoutDuplicates(droppedFiles);
+      // Only clear error if it's not a warning (duplicate message)
+      if (!isWarning) {
+        setError('');
+      }
     }
   };
 
@@ -54,15 +111,57 @@ export default function UploadModal({ onClose, onFilesProcessed }) {
     if (!selectedFiles.length) return;
     setIsUploading(true);
     setError('');
+    setIsWarning(false);
+    setProgressPercent(0);
+    setCurrentFile(0);
+    setTotalFiles(selectedFiles.length);
 
     try {
-        const uploaded = await uploadFiles(selectedFiles); // ← helper uses API_ENDPOINT
-        onFilesProcessed(uploaded);
-        onClose();
+        const fileCount = selectedFiles.length;
+        const hasZipFiles = selectedFiles.some(file => file.name.toLowerCase().endsWith('.zip'));
+
+        // Use progress-enabled upload for multiple files or when we want detailed feedback
+        if (fileCount > 1 || hasZipFiles) {
+          const uploaded = await uploadFilesWithProgress(selectedFiles, (progress) => {
+            setCurrentFile(progress.currentFile);
+            setTotalFiles(progress.totalFiles);
+            setProgressPercent(progress.percent);
+
+            if (progress.fileName === 'Complete') {
+              setUploadProgress('Upload complete!');
+            } else if (hasZipFiles && progress.fileName.toLowerCase().endsWith('.zip')) {
+              setUploadProgress(`Extracting ${progress.fileName}... (${progress.currentFile} of ${progress.totalFiles})`);
+            } else {
+              setUploadProgress(`Processing ${progress.fileName}... (${progress.currentFile} of ${progress.totalFiles})`);
+            }
+          });
+
+          // Brief completion message before closing
+          setTimeout(() => {
+            onFilesProcessed(uploaded);
+            onClose();
+          }, 800);
+
+        } else {
+          // Single file - use simpler progress
+          setUploadProgress('Processing file...');
+          const uploaded = await uploadFiles(selectedFiles);
+
+          setUploadProgress('Upload complete!');
+          setTimeout(() => {
+            onFilesProcessed(uploaded);
+            onClose();
+          }, 500);
+        }
+
     } catch (err) {
         console.error(err);
         setError(err.message);
-    } finally {
+        setIsWarning(false); // Real errors are not warnings
+        setUploadProgress('');
+        setProgressPercent(0);
+        setCurrentFile(0);
+        setTotalFiles(0);
         setIsUploading(false);
     }
     };
@@ -75,6 +174,7 @@ export default function UploadModal({ onClose, onFilesProcessed }) {
         <input
           type="file"
           multiple
+          accept=".txt,.log,.zip"
           ref={fileInputRef}
           style={{ display: 'none' }}
           onChange={handleFileChange}
@@ -93,26 +193,52 @@ export default function UploadModal({ onClose, onFilesProcessed }) {
                 {isDragOver ? 'Drop files here' : 'No files selected'}
               </p>
               <p className="drop-zone-hint">
-                Drag and drop files here or click Browse
+                Drag and drop showtech files or ZIP archives here, or click Browse
               </p>
             </div>
           ) : (
-            selectedFiles.map((file, idx) => (
-              <div className="file-card" key={idx}>
-                <span>{file.name}</span>
-                <button
-                  className="remove-icon"
-                  onClick={() => handleRemove(idx)}
-                  aria-label="Remove"
-                >
-                  &times;
-                </button>
-              </div>
-            ))
+            selectedFiles.map((file, idx) => {
+              const isZip = file.name.toLowerCase().endsWith('.zip');
+              return (
+                <div className="file-card" key={idx}>
+                  <div className="file-info">
+                    <span className="file-name">{file.name}</span>
+                    {isZip && <span className="file-type-badge">ZIP</span>}
+                  </div>
+                  <button
+                    className="remove-icon"
+                    onClick={() => handleRemove(idx)}
+                    aria-label="Remove"
+                    disabled={isUploading}
+                  >
+                    &times;
+                  </button>
+                </div>
+              );
+            })
           )}
         </div>
 
-        {error && <p className="error-text">{error}</p>}
+        {error && <p className={isWarning ? "warning-text" : "error-text"}>{error}</p>}
+        {isUploading && uploadProgress && (
+          <div className="upload-progress">
+            <div className="upload-spinner"></div>
+            <div className="progress-content">
+              <p className="progress-text">{uploadProgress}</p>
+              {totalFiles > 1 && (
+                <div className="progress-bar-container">
+                  <div className="progress-bar">
+                    <div
+                      className="progress-bar-fill"
+                      style={{ width: `${progressPercent}%` }}
+                    ></div>
+                  </div>
+                  <span className="progress-percentage">{progressPercent}%</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Footer buttons */}
         <div className="upload-footer">
@@ -127,15 +253,19 @@ export default function UploadModal({ onClose, onFilesProcessed }) {
 
         {/* Right-side Add + Upload */}
         <div style={{ display: 'flex', gap: '0.75rem' }}>
-            <button className="upload-button" onClick={handleChooseClick}>
-            Browse
+            <button
+              className="upload-button"
+              onClick={handleChooseClick}
+              disabled={isUploading}
+            >
+              Browse
             </button>
             <button
-            className="upload-button"
-            onClick={handleUpload}
-            disabled={isUploading || !selectedFiles.length}
+              className="upload-button"
+              onClick={handleUpload}
+              disabled={isUploading || !selectedFiles.length}
             >
-            {isUploading ? 'Uploading…' : 'Upload'}
+              {isUploading ? 'Processing…' : 'Upload'}
             </button>
         </div>
         </div>

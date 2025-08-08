@@ -65,6 +65,37 @@ def handle_single_file_upload(file_storage):
         'sections': sections
     }]
 
+def is_showtech_file(filename):
+    """Check if a file is likely a showtech file based on name and extension."""
+    name = filename.lower()
+
+    # Skip common non-showtech files
+    skip_extensions = {'.jpg', '.jpeg', '.png', '.gif', '.pdf', '.doc', '.docx',
+                      '.xls', '.xlsx', '.ppt', '.pptx', '.zip', '.tar', '.gz'}
+    skip_names = {'readme', 'license', 'changelog', 'install', 'setup'}
+
+    # Check if file should be skipped
+    if any(name.endswith(ext) for ext in skip_extensions):
+        return False
+    if any(skip_name in name for skip_name in skip_names):
+        return False
+
+    # Accept files with showtech-related keywords
+    showtech_keywords = ['showtech', 'show-tech', 'support', 'debug', 'diag', 'log']
+    if any(keyword in name for keyword in showtech_keywords):
+        return True
+
+    # Accept common text file extensions
+    text_extensions = {'.txt', '.log', '.out', '.cfg', '.conf'}
+    if any(name.endswith(ext) for ext in text_extensions):
+        return True
+
+    # Accept files without extensions (common for showtech files)
+    if '.' not in os.path.basename(name):
+        return True
+
+    return False
+
 def handle_zip_upload(file_storage):
     responses = []
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -74,19 +105,42 @@ def handle_zip_upload(file_storage):
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(tmpdir)
 
-        for fname in os.listdir(tmpdir):
-            fpath = os.path.join(tmpdir, fname)
-            if os.path.isfile(fpath) and fname != file_storage.filename:
-                with open(fpath, 'r', encoding='utf-8', errors='ignore') as f:
-                    content = f.read()
-                sections = parse_sections(content)
-                responses.append({
-                    'name': fname,
-                    'metadata': {
-                        'source_file': fname,
-                        'total_sections': len(sections)
-                    },
-                    'sections': sections
-                })
+        # Walk through all files and subdirectories
+        for root, dirs, files in os.walk(tmpdir):
+            for fname in files:
+                fpath = os.path.join(root, fname)
+
+                # Skip the original ZIP file
+                if fname == file_storage.filename:
+                    continue
+
+                # Only process files that look like showtech files
+                if not is_showtech_file(fname):
+                    continue
+
+                try:
+                    with open(fpath, 'r', encoding='utf-8', errors='ignore') as f:
+                        content = f.read()
+
+                    # Only process files that actually contain showtech-like content
+                    sections = parse_sections(content)
+                    if sections and len(sections) > 0:
+                        # Use relative path from ZIP root for the name
+                        relative_path = os.path.relpath(fpath, tmpdir)
+                        display_name = relative_path.replace('\\', '/')  # Normalize path separators
+
+                        responses.append({
+                            'name': display_name,
+                            'metadata': {
+                                'source_file': display_name,
+                                'total_sections': len(sections),
+                                'extracted_from': file_storage.filename
+                            },
+                            'sections': sections
+                        })
+                except Exception as e:
+                    # Skip files that can't be read or processed
+                    print(f"Skipping file {fname}: {e}")
+                    continue
 
     return responses
