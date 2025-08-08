@@ -80,6 +80,7 @@
 .component-section.ports-section {
   display: flex;
   flex-direction: column;
+  align-items: center;
   max-height: 90vh; /* Maximum height limit */
   overflow: hidden;
 }
