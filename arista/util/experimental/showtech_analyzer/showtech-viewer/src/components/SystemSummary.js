@@ -1,29 +1,7 @@
 import React, { useState } from 'react';
 import { CollapsibleSection } from './SectionRenderer';
 
-// Helper function to extract platform config (same logic as anomaly detection)
-const getPlatformConfig = (sections) => {
-  // Look for product name in fboss2 show product section
-  const productSection = sections.find(s => s.title === 'fboss2 show product');
-  if (productSection && productSection.parsed_data?.type === 'key_value') {
-    const productName = productSection.parsed_data.data?.Product;
-    if (productName) {
-      const config = getPlatformConfigByProduct(productName);
-      if (config) return config;
-    }
-  }
 
-  // Fallback to SMB SERIAL NUMBER
-  const smbSection = sections.find(s => s.title === 'SMB SERIAL NUMBER');
-  if (smbSection && smbSection.parsed_data?.type === 'key_value') {
-    const productName = smbSection.parsed_data.data?.['Product Name'];
-    if (productName) {
-      return getPlatformConfigByProduct(productName);
-    }
-  }
-
-  return null;
-};
 
 // Utility function to infer port type from port number
 const inferPortType = (portNum, platform = 'Viper') => {
@@ -85,138 +63,6 @@ const getVoltageColor = (voltage, voltagePercentiles) => {
   return '#16a34a'; // Darker green - lowest 25%
 };
 
-// Platform config mapping (same as backend config.json)
-const getPlatformConfigByProduct = (productName) => {
-  const platformConfigs = {
-    'MERU800BIA': {
-      platform: 'Viper',
-      product_name: 'MERU800BIA',
-      description: 'Viper platform configuration',
-      system_map: {
-        front: ['ports'],
-        rear: ['psu', 'fans'],
-        ports: {
-          num_ports: 39,
-          grid_rows: 4,
-          grid_columns: 12,
-          port_map: [
-            [1, 5, 0, 11, 15, 0, 21, 25, 0, 31, 35, 0],
-            [2, 6, 0, 12, 16, 0, 22, 26, 0, 32, 36, 0],
-            [3, 7, 9, 13, 17, 19, 23, 27, 29, 33, 37, 39],
-            [4, 8, 10, 14, 18, 20, 24, 28, 30, 34, 38, 0]
-          ]
-        },
-        fans: {
-          num_fans: 4,
-          grid_rows: 1,
-          grid_columns: 4,
-          fan_slots: [[1, 2, 3, 4]]
-        },
-        psu: {
-          num_psu: 2,
-          grid_rows: 2,
-          grid_columns: 1,
-          psu_slots: [[1],
-                      [2]]
-        }
-      }
-    },
-    'MERU800BIAB': {
-      platform: 'Viper',
-      product_name: 'MERU800BIAB',
-      description: 'Viper platform configuration',
-      system_map: {
-        front: ['ports'],
-        rear: ['psu', 'fans'],
-        ports: {
-          num_ports: 39,
-          grid_rows: 4,
-          grid_columns: 12,
-          port_map: [
-            [1, 5, 0, 11, 15, 0, 21, 25, 0, 31, 35, 0],
-            [2, 6, 0, 12, 16, 0, 22, 26, 0, 32, 36, 0],
-            [3, 7, 9, 13, 17, 19, 23, 27, 29, 33, 37, 39],
-            [4, 8, 10, 14, 18, 20, 24, 28, 30, 34, 38, 0]
-          ]
-        },
-        fans: {
-          num_fans: 4,
-          grid_rows: 1,
-          grid_columns: 4,
-          fan_slots: [[1, 2, 3, 4]]
-        },
-        psu: {
-          num_psu: 2,
-          grid_rows: 2,
-          grid_columns: 1,
-          psu_slots: [[1],
-                      [2]]
-        }
-      }
-    },
-    'MERU800BFA': {
-      platform: 'Whistler',
-      product_name: 'MERU800BFA',
-      description: 'Whistler platform configuration',
-      system_map: {
-        front: ['ports'],
-        rear: ['psu_left', 'fans', 'psu_right'],
-        ports: {
-          num_ports: 128,
-          grid_rows: 8,
-          grid_columns: 16,
-          port_map: [
-            [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
-            [17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32],
-            [33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48],
-            [49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64],
-            [65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80],
-            [81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96],
-            [97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112],
-            [113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128]
-          ]
-        },
-        fans: {
-          num_fans: 12,
-          grid_rows: 3,
-          grid_columns: 4,
-          fan_slots: [[1, 2, 3, 4],
-                      [5, 6, 7, 8],
-                      [9, 10, 11, 12]]
-        },
-        psu_left: {
-          num_psu: 2,
-          grid_rows: 2,
-          grid_columns: 1,
-          psu_slots: [[1],
-                      [2]]
-        },
-        psu_right: {
-          num_psu: 2,
-          grid_rows: 2,
-          grid_columns: 1,
-          psu_slots: [[1],
-                      [2]]
-        }
-      }
-    },
-    'GLATH05a-64o': {
-      platform: 'QuicksilverPFb',
-      product_name: 'GLATH05a-64o',
-      description: 'Quicksilver platform configuration',
-      system_map: {
-        front: ['ports'],
-        rear: ['psu', 'fans'],
-        // Add Quicksilver specific config when needed
-      }
-    }
-  };
-  
-  const result = platformConfigs[productName] || null;
-  console.log('getPlatformConfigByProduct result for', productName, ':', !!result);
-  return result;
-};
-
 // Extract QSFP util data from sections
 const extractQsfpData = (sections) => {
   const qsfpData = {};
@@ -235,7 +81,7 @@ const extractQsfpData = (sections) => {
 };
 
 // Port Grid Component
-const PortGrid = ({ portConfig, qsfpData, onPortClick, platform, heatmapMode = 'off' }) => {
+const PortGrid = ({ portConfig, qsfpData, onPortClick, heatmapMode = 'off' }) => {
   if (!portConfig) return <div className="config-missing">No port configuration available</div>;
 
   const { grid_rows, grid_columns, port_map } = portConfig;
@@ -337,7 +183,7 @@ const PortGrid = ({ portConfig, qsfpData, onPortClick, platform, heatmapMode = '
                        (portData?.Voltage && parseFloat(portData.Voltage.replace(' V', '')));
 
         const hasQsfpData = !!portData;
-        const portType = inferPortType(portNum, platform);
+        const portType = inferPortType(portNum);
 
         // Get color based on heatmap mode
         let heatmapColor = null;
@@ -1323,6 +1169,10 @@ const extractInterfaceData = (sections) => {
 
 // Main System Summary Component
 const SystemSummary = ({ sections }) => {
+  // Extract system_map from sections if available
+  const systemMapSection = sections.find(s => s.title === 'system_map');
+  const systemMap = systemMapSection?.parsed_data?.data || null;
+
   const [selectedPort, setSelectedPort] = useState(null);
   const [selectedPortData, setSelectedPortData] = useState(null);
   const [selectedPhyData, setSelectedPhyData] = useState(null);
@@ -1334,7 +1184,6 @@ const SystemSummary = ({ sections }) => {
   const [selectedPsuData, setSelectedPsuData] = useState(null);
   const [heatmapMode, setHeatmapMode] = useState('off'); // 'off', 'temp', 'voltage'
 
-  const platformConfig = getPlatformConfig(sections);
   const fanData = extractFanData(sections);
   const psuData = extractPsuData(sections);
   const psuDebugData = extractPsuDebugData(sections);
@@ -1371,15 +1220,14 @@ const SystemSummary = ({ sections }) => {
     setSelectedPsuData(null);
   };
 
-  if (!platformConfig) {
+  // Show error if no system map available
+  if (!systemMap) {
     return (
       <div className="system-summary-container">
-        <div className="system-summary-header">
-          <h3>System Summary</h3>
-          <p>Unable to detect platform configuration</p>
-        </div>
-        <div className="no-platform-message">
-          <p>No platform configuration found. Please ensure the file contains product information.</p>
+        <div className="error-message">
+          <h3>System Configuration Not Available</h3>
+          <p>No system map found in the processed data.</p>
+          <p>Please ensure the platform is supported and the file was processed correctly.</p>
         </div>
       </div>
     );
@@ -1428,13 +1276,24 @@ const SystemSummary = ({ sections }) => {
     );
   }
 
-  const systemMap = platformConfig.system_map || {};
+  // Show error if no system map available
+  if (!systemMap) {
+    return (
+      <div className="system-summary-container">
+        <div className="error-message">
+          <h3>System Configuration Not Available</h3>
+          <p>No system map found in the processed data.</p>
+          <p>Please ensure the platform is supported and the file was processed correctly.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="system-summary-container">
       <div className="system-summary-header">
-        <h3>System Overview - {platformConfig.platform}</h3>
-        <p>{platformConfig.description}</p>
+        <h3>System Overview</h3>
+        <p>Platform configuration loaded from processed data</p>
       </div>
 
       {/* Front View */}
@@ -1473,7 +1332,6 @@ const SystemSummary = ({ sections }) => {
                   portConfig={systemMap.ports}
                   qsfpData={qsfpData}
                   onPortClick={handlePortClick}
-                  platform={platformConfig.platform}
                   heatmapMode={heatmapMode}
                 />
               </div>

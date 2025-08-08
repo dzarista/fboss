@@ -80,7 +80,7 @@
 .component-section.ports-section {
   display: flex;
   flex-direction: column;
-  max-height: 700px;
+  max-height: 90vh; /* Maximum height limit */
   overflow: hidden;
 }
 
@@ -118,10 +118,12 @@
 .port-grid {
   background: var(--bg-primary);
   border-radius: 4px;
-  padding: 10px;
-  overflow: auto;
-  max-width: 100%;
-  max-height: 600px;
+  padding: 6px;
+  overflow: auto;    /* Allow scrolling within the grid */
+  width: 98%;
+  max-height: 85vh;  /* Maximum height before scrolling */
+  box-sizing: border-box;
+  /* No fixed height - let it size to content */
 }
 
 .port-slot {
@@ -132,7 +134,9 @@
   background: var(--bg-secondary);
   border: 2px solid var(--border-color);
   border-radius: 4px;
-  min-height: 40px;
+  min-height: 30px;  /* Minimum size for readability */
+  min-width: 35px;   /* Minimum size for readability */
+  /* No max-height/max-width - allow scaling up as large as needed */
   font-size: 0.8em;
   font-weight: 600;
   cursor: pointer;
