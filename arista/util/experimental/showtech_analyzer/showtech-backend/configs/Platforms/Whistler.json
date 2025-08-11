@@ -1,0 +1,56 @@
+{
+  "platform": "Whistler",
+  "product_name": "MERU800BFA",
+  "description": "Whistler platform configuration for PCIE device validation",
+  "pcie_devices": [
+    {
+      "slot": "07:00.0",
+      "location": "SCM",
+      "device_type": "FPGA",
+      "description": "SCM FPGA",
+      "expected_speed": "Gen1x1"
+    },
+    {
+      "slot": "02:00.0",
+      "location": "SMB",
+      "device_type": "FPGA",
+      "description": "SMB FPGA0",
+      "expected_speed": "Gen1x1"
+    },
+    {
+      "slot": "01:00.0",
+      "location": "SMB",
+      "device_type": "FPGA",
+      "description": "SMB FPGA1",
+      "expected_speed": "Gen1x1"
+    },
+    {
+      "slot": "03:00.0",
+      "location": "SMB",
+      "device_type": "FPGA",
+      "description": "SMB FPGA2",
+      "expected_speed": "Gen1x1"
+    },
+    {
+      "slot": "04:00.0",
+      "location": "SMB",
+      "device_type": "FPGA",
+      "description": "SMB FPGA3",
+      "expected_speed": "Gen1x1"
+    },
+    {
+      "slot": "15:00.0",
+      "location": "ASIC0",
+      "device_type": "ASIC",
+      "description": "ASIC0",
+      "expected_speed": "Gen4x4"
+    },
+    {
+      "slot": "16:00.0",
+      "location": "ASIC1",
+      "device_type": "ASIC",
+      "description": "ASIC1",
+      "expected_speed": "Gen4x4"
+    }
+  ]
+}
