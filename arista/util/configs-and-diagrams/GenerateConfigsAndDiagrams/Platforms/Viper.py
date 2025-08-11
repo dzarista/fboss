@@ -404,8 +404,8 @@ class Viper( PlatformConfig ):
       # Creates top variables
       fanServiceConfig.setPwmConfig(  pwmBoostOnNumDeadFan = 1,
                                        pwmBoostOnNumDeadSensor = 0,
-                                       pwmBoostOnNoQsfpAfterInSec = 0,
-                                       pwmBoostValue = 60,
+                                       pwmBoostOnNoQsfpAfterInSec = 31,
+                                       pwmBoostValue = 73,
                                        pwmTransitionValue = 50,
                                        pwmLowerThreshold = 30,
                                        pwmUpperThreshold = 100 )
