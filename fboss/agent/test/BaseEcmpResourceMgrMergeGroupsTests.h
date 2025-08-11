@@ -14,7 +14,7 @@
 
 namespace facebook::fboss {
 
-class EcmpResourceMgrMergeGroupsTest : public BaseEcmpResourceManagerTest {
+class BaseEcmpResourceMgrMergeGroupsTest : public BaseEcmpResourceManagerTest {
  private:
   void setupFlags() const override;
 
@@ -27,10 +27,8 @@ class EcmpResourceMgrMergeGroupsTest : public BaseEcmpResourceManagerTest {
     return std::nullopt;
   }
   std::shared_ptr<EcmpResourceManager> makeResourceMgr() const override {
-    return std::make_shared<EcmpResourceManager>(
-        sw_->getEcmpResourceManager()->getMaxPrimaryEcmpGroups(),
-        getEcmpCompressionThresholdPct(),
-        getBackupEcmpSwitchingMode());
+    return makeEcmpResourceManager(
+        sw_->getState(), sw_->getHwAsicTable()->getL3Asics().front());
   }
   static constexpr auto kNumStartRoutes = 5;
   int numStartRoutes() const override {

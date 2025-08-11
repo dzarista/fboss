@@ -17,7 +17,7 @@ scratch_dir=/var/FBOSS/tmp_build_dir
 kernel_dir=/kernel-6.4
 getdeps=build/fbcode_builder/getdeps.py
 # map of sai arch-version to "<OCP SAI version> <SAI Version flag forom SaiVersion.h>"
-declare -A sai_map=( ["dnx-11.7"]=" " # Build defaults to dnx-11.7 without setup
+declare -A sai_map=( ["dnx-11.7"]="1.14.0 " # Build defaults to dnx-11.7 without setup
                      ["xgs-10.2"]="1.13.2 SAI_VERSION_10_2_0_0_ODP"
                      ["dnx-12.2"]="1.16.0 SAI_VERSION_12_2_0_0_DNX_ODP" )
 

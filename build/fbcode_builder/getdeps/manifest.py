@@ -21,6 +21,7 @@ from .builder import (
     NinjaBootstrap,
     NopBuilder,
     OpenSSLBuilder,
+    SetupPyBuilder,
     SqliteBuilder,
     SystemdBuilder,
 )
@@ -49,6 +50,7 @@ SCHEMA = {
             "shipit_project": OPTIONAL,
             "shipit_fbcode_builder": OPTIONAL,
             "use_shipit": OPTIONAL,
+            "shipit_external_branch": OPTIONAL,
         },
     },
     "dependencies": {"optional_section": True, "allow_values": False},
@@ -113,6 +115,7 @@ SCHEMA = {
     "subprojects": {"optional_section": True},
     # fb-only
     "sandcastle": {"optional_section": True, "fields": {"run_tests": OPTIONAL}},
+    "setup-py.test": {"optional_section": True, "fields": {"python_script": REQUIRED}},
 }
 
 # These sections are allowed to vary for different platforms
@@ -250,6 +253,11 @@ class ManifestParser(object):
             raise Exception(
                 "filename of the manifest '%s' does not match the manifest name '%s'"
                 % (file_name, self.name)
+            )
+
+        if "." in self.name:
+            raise Exception(
+                f"manifest name ({self.name}) must not contain the '.' character (it is incompatible with github actions)"
             )
 
     def get(self, section, key, defval=None, ctx=None):
@@ -428,7 +436,11 @@ class ManifestParser(object):
             and real_shipit_available
         ):
             # We can use the code from fbsource
-            return ShipitTransformerFetcher(build_options, self.shipit_project)
+            return ShipitTransformerFetcher(
+                build_options,
+                self.shipit_project,
+                self.get("manifest", "shipit_external_branch"),
+            )
 
         # If both of these are None, the package can only be coming from
         # preinstalled toolchain or system packages
@@ -669,6 +681,18 @@ class ManifestParser(object):
 
         if builder == "systemd":
             return SystemdBuilder(
+                loader,
+                dep_manifests,
+                build_options,
+                ctx,
+                self,
+                src_dir,
+                build_dir,
+                inst_dir,
+            )
+
+        if builder == "setup-py":
+            return SetupPyBuilder(
                 loader,
                 dep_manifests,
                 build_options,

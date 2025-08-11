@@ -293,11 +293,19 @@ void BaseEcmpResourceManagerTest::SetUp() {
   sw_ = handle_->getSw();
   ASSERT_NE(sw_->getEcmpResourceManager(), nullptr);
   // Taken from mock asic
+  auto asic = *sw_->getHwAsicTable()->getL3Asics().begin();
+  int asicMaxEcmpGroups, maxPct;
   if (getBackupEcmpSwitchingMode()) {
-    EXPECT_EQ(sw_->getEcmpResourceManager()->getMaxPrimaryEcmpGroups(), 5);
+    asicMaxEcmpGroups = *asic->getMaxDlbEcmpGroups();
+    maxPct = FLAGS_ars_resource_percentage;
   } else {
-    EXPECT_EQ(sw_->getEcmpResourceManager()->getMaxPrimaryEcmpGroups(), 18);
+    asicMaxEcmpGroups = *asic->getMaxEcmpGroups();
+    maxPct = FLAGS_ecmp_resource_percentage;
   }
+  EXPECT_EQ(
+      sw_->getEcmpResourceManager()->getMaxPrimaryEcmpGroups(),
+      std::floor(asicMaxEcmpGroups * maxPct / 100.0) -
+          FLAGS_ecmp_resource_manager_make_before_break_buffer);
   // Backup ecmp group type will come from default flowlet confg
   std::optional<cfg::SwitchingMode> expectedBackupSwitchingMode;
   if (cfg.flowletSwitchingConfig() &&
@@ -420,6 +428,28 @@ BaseEcmpResourceManagerTest::getNhopId(const RouteNextHopSet& nhops) const {
     nhopId = nitr->second;
   }
   return nhopId;
+}
+
+void BaseEcmpResourceManagerTest::addOrUpdateRoute(
+    const RoutePrefixV6& prefix6,
+    const RouteNextHopSet& nhops) {
+  auto newRoute = makeRoute(prefix6, nhops);
+  auto newState = state_->clone();
+  auto fib6 = fib(newState);
+  if (fib6->getNodeIf(prefix6.str())) {
+    fib6->updateNode(prefix6.str(), std::move(newRoute));
+  } else {
+    fib6->addNode(prefix6.str(), std::move(newRoute));
+  }
+  newState->publish();
+  consolidate(newState);
+}
+void BaseEcmpResourceManagerTest::rmRoute(const RoutePrefixV6& prefix6) {
+  auto newState = state_->clone();
+  auto fib6 = fib(newState);
+  fib6->removeNode(prefix6.str());
+  newState->publish();
+  consolidate(newState);
 }
 
 TEST_F(BaseEcmpResourceManagerTest, noFibsDelta) {

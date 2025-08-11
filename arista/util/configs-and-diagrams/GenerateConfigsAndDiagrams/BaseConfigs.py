@@ -35,12 +35,6 @@ BSP_MAPPING_KEYS = [
    "LedYellowPath",
 ]
 
-def reformatOneElementLists( jsonDump ):
-   pattern = re.compile( r'\[\s*(-?\d+)\s*\]' )
-   output_string = pattern.sub( r'[\1]', jsonDump )
-   return output_string
-
-
 def constructHelper( currDevice, currPath, outputList ):
    '''Return full device path from the root PM unit
 
@@ -226,8 +220,7 @@ class PlatformConfig:
       jsonDict[ "requiredKmodsToLoad" ] = self.kmodsSettings[ "requiredKmodsToLoad" ]
 
       jsonDump = json.dumps( jsonDict, indent=2 )
-      output = reformatOneElementLists( jsonDump )
-      return output
+      return jsonDump
 
    def weutilJson( self ):
       weutil_data = OrderedDict()
@@ -1477,9 +1470,7 @@ class LedConfig:
             "pmUnitScopedName": name.upper(),
             "deviceName": deviceName,
             "csrOffset": offset.lower()
-         },
-         "portNumber": -1,
-         "ledId": statusLedNumbers[ deviceName ]
+         }
       }
 
       return led

@@ -331,10 +331,10 @@ TYPED_TEST(SubscribableStorageTests, PublishPatchesFromPureCowStorage) {
     Patch patch = patches.front();
     if (isInitial) {
       // make sure Patch.PatchNode has a value
-      auto rootPatch = patch.patch()->val_ref();
+      auto rootPatch = patch.patch()->val();
       EXPECT_TRUE(rootPatch);
     } else {
-      auto rootPatch = patch.patch()->struct_node_ref();
+      auto rootPatch = patch.patch()->struct_node();
       EXPECT_TRUE(rootPatch);
     }
     return patch;
@@ -1407,7 +1407,7 @@ TYPED_TEST(SubscribableStorageTests, PatchInvalidDeltaPath) {
 
   // should fail gracefully
   delta.changes() = {unit};
-  EXPECT_EQ(storage.patch(delta)->code(), StorageError::Code::INVALID_PATH);
+  EXPECT_EQ(storage.patch(delta), StorageError::INVALID_PATH);
 
   // partially valid path should still fail
   unit.path()->raw() = {"inlineStruct", "invalid", "path"};

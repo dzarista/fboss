@@ -662,6 +662,7 @@ void SaiSwitch::rollback(const StateDelta& delta) noexcept {
     // so set the bootType to warm boot for duration of roll back. We
     // will restore it once we are done with roll back.
     bootType_ = BootType::WARM_BOOT;
+    rollbackInProgress_ = true;
     initStoreAndManagersLocked(
         lockPolicy.lock(),
         // We are being strict here in the sense of not allowing any HW
@@ -680,6 +681,7 @@ void SaiSwitch::rollback(const StateDelta& delta) noexcept {
     saiStore_->printWarmbootHandles();
     saiStore_->removeUnexpectedUnclaimedWarmbootHandles();
     bootType_ = curBootType;
+    rollbackInProgress_ = false;
   } catch (const std::exception& ex) {
     // Rollback failed. Fail hard.
     XLOG(FATAL) << " Roll back failed with : " << ex.what();
@@ -2367,7 +2369,7 @@ void SaiSwitch::gracefulExitLocked(const std::lock_guard<std::mutex>& lock) {
         saiSwitchId_, restartIssu);
 #endif
   }
-#if defined(TAJO_SDK_VERSION_1_42_8)
+#if defined(TAJO_SDK_VERSION_1_42_8) || defined(TAJO_SDK_VERSION_24_8_3001)
   checkAndSetSdkDowngradeVersion();
 #endif
   folly::dynamic follySwitchState = folly::dynamic::object;
