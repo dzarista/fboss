@@ -948,17 +948,15 @@ AgentStats SwSwitch::fillFsdbStats() {
       for (auto&& statEntry :
            *hwSwitchStats.switchTemperatureStats()->value()) {
         auto temp = *hwSwitchStats.switchTemperatureStats()->timeStamp();
-        facebook::fboss::platform::sensor_service::SensorData sensorData;
+        facebook::fboss::asic_temp::AsicTempData sensorData;
         sensorData.name() =
-            "sensor_" + std::to_string(switchIdx) + "_" + statEntry.first;
+            "asic_temp_" + std::to_string(switchIdx) + "_" + statEntry.first;
         sensorData.value() = statEntry.second;
         sensorData.timeStamp() =
             (*hwSwitchStats.switchTemperatureStats()->timeStamp())
                 .at(statEntry.first);
         agentStats.asicTemp()->insert(
-            std::pair<
-                std::string,
-                facebook::fboss::platform::sensor_service::SensorData>(
+            std::pair<std::string, facebook::fboss::asic_temp::AsicTempData>(
                 sensorData.name().value(), sensorData));
         XLOG(DBG5) << "add tempeture info to fsdb," << sensorData.name().value()
                    << "," << statEntry.second << ","
@@ -1337,43 +1335,9 @@ std::shared_ptr<SwitchState> SwSwitch::preInit(SwitchFlags flags) {
     auto l3Asics = hwAsicTable_->getL3Asics();
     if (l3Asics.size()) {
       auto asic = checkSameAndGetAsic(l3Asics);
-      auto maxEcmpGroups = FLAGS_flowletSwitchingEnable
-          ? asic->getMaxDlbEcmpGroups()
-          : asic->getMaxEcmpGroups();
-      std::optional<cfg::SwitchingMode> switchingMode;
-      std::optional<int32_t> ecmpCompressionPenaltyThresholPct;
-      if (auto flowletSwitchingConfig = state->getFlowletSwitchingConfig()) {
-        switchingMode = flowletSwitchingConfig->getBackupSwitchingMode();
-      }
-      if (auto switchId = asic->getSwitchId()) {
-        const auto& switchSettings =
-            state->getSwitchSettings()->getSwitchSettings(HwSwitchMatcher(
-                std::unordered_set<SwitchID>({SwitchID(*switchId)})));
-        if (switchSettings) {
-          ecmpCompressionPenaltyThresholPct =
-              switchSettings->getEcmpCompressionThresholdPct();
-        }
-      }
-      if (maxEcmpGroups.has_value()) {
-        auto percentage = FLAGS_flowletSwitchingEnable
-            ? FLAGS_ars_resource_percentage
-            : FLAGS_ecmp_resource_percentage;
-        auto maxEcmps = std::floor(
-            *maxEcmpGroups * static_cast<double>(percentage) / 100.0);
-        XLOG(DBG2) << " Creating ecmp resource manager with max ECMP groups: "
-                   << maxEcmps << " and backup group type: "
-                   << (switchingMode.has_value()
-                           ? apache::thrift::util::enumNameSafe(*switchingMode)
-                           : "None");
-
-        ecmpResourceManager_ = std::make_unique<EcmpResourceManager>(
-            maxEcmps,
-            ecmpCompressionPenaltyThresholPct.value_or(0),
-            switchingMode,
-            stats());
-        registerStateModifier(
-            ecmpResourceManager_.get(), "Ecmp Resource Manager");
-      }
+      ecmpResourceManager_ = makeEcmpResourceManager(state, asic, stats());
+      registerStateModifier(
+          ecmpResourceManager_.get(), "Ecmp Resource Manager");
     }
   }
   if (!hwAsicTable_->getVoqAsics().empty()) {

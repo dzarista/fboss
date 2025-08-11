@@ -1,0 +1,66 @@
+import React, { useState } from 'react';
+import UploadIcon from './icons/UploadIcon';
+
+export default function Sidebar({
+  logs,
+  onSelect,
+  onUploadClick,
+  onRemoveFile,
+}) {
+  const [collapsed, setCollapsed] = useState(false);
+
+  return (
+    <div className={`sidebar${collapsed ? ' collapsed' : ''}`}>
+      {/* collapse handle */}
+      <div
+        className="sidebar-collapse-handle"
+        onClick={() => setCollapsed(c => !c)}
+        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      />
+
+      {/* all of this hides when collapsed */}
+      {!collapsed && (
+        <>
+          <button
+            className="upload-icon-button"
+            onClick={onUploadClick}
+            title="Upload Files"
+          >
+            <UploadIcon />
+          </button>
+
+          <div className="sidebar-title-row">
+            <h2 className="sidebar-title">Files</h2>
+          </div>
+
+          <div className="sidebar-files">
+            {logs.length === 0 ? (
+              <p className="placeholder-text">No files uploaded</p>
+            ) : (
+              logs.map((log, idx) => (
+                <div
+                  key={idx}
+                  className="file-tab"
+                >
+                  <span
+                    className="file-name"
+                    onDoubleClick={() => onSelect(idx)}
+                  >
+                    {log.name}
+                  </span>
+                  <button
+                    className="remove-file-button"
+                    onClick={() => onRemoveFile(idx)}
+                    aria-label={`Remove ${log.name}`}
+                  >
+                    &times;
+                  </button>
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}

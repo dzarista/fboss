@@ -6,6 +6,7 @@ Wants=platform_manager.service
 
 [Service]
 ExecStart=/opt/fboss/bin/run_fan_service.sh
+TimeoutSec=60
 
 [Install]
 WantedBy=multi-user.target

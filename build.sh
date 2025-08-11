@@ -17,7 +17,7 @@ scratch_dir=/var/FBOSS/tmp_build_dir
 kernel_dir=/kernel-6.4
 getdeps=build/fbcode_builder/getdeps.py
 # map of sai arch-version to "<OCP SAI version> <SAI Version flag forom SaiVersion.h>"
-declare -A sai_map=( ["dnx-11.7"]=" " # Build defaults to dnx-11.7 without setup
+declare -A sai_map=( ["dnx-11.7"]="1.14.0 " # Build defaults to dnx-11.7 without setup
                      ["xgs-10.2"]="1.13.2 SAI_VERSION_10_2_0_0_ODP"
                      ["dnx-12.2"]="1.16.0 SAI_VERSION_12_2_0_0_DNX_ODP" )
 
@@ -120,8 +120,8 @@ tar -xvf fboss/oss/stable_commits/latest_stable_hashes.tar.gz --no-same-owner
 # Copy and install SAI/SDK artifacts for fboss
 ocp_sai_version=$(echo $sai_info | awk '{print $1}')
 sai_sdk_dir=${sai_sdk_dir:-"/saisdk-$sai_ver"}
-fboss/oss/scripts/arista-build-helper.py $sai_sdk_dir/libraries/libsai_impl.a \
-   $sai_sdk_dir/include/ /tmp/sai_impl_output $ocp_sai_version
+fboss/oss/scripts/arista-build-helper.py $sai_sdk_dir/libsai_impl.tar.gz \
+   `cat $sai_sdk_dir/checksum` /tmp/sai_impl_output $ocp_sai_version
 $getdeps build --scratch-path $scratch_dir sai_impl \
    --extra-cmake-defines='{"CMAKE_CXX_STANDARD":"20"}'
 echo $sai_sdk_dir > $scratch_dir/.saisdkdir
