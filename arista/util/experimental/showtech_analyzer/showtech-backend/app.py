@@ -2,16 +2,21 @@ import os
 import zipfile
 import tempfile
 import json
+import uuid
 from datetime import datetime
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-from utils.file_upload import handle_single_file_upload, expand_and_validate_files, FileWrapper
+from utils.file_upload import handle_single_file_upload, expand_and_validate_files, FileWrapper, decompress_raw_content
 
 # App initialization
 app = Flask(__name__)
 
 CORS(app, resources={r"/api/*": {"origins": "*"}})
+
+# In-memory storage for processed files (for raw data access)
+# In production, this should be replaced with a proper cache/database
+processed_files_cache = {}
 
 @app.route('/api/status')
 def get_status():
@@ -37,9 +42,16 @@ def upload_files():
         try:
             result = handle_single_file_upload(file_obj)
             if result:
-                # Add source zip info if it came from a zip
-                if hasattr(file_obj, 'source_zip') and file_obj.source_zip:
-                    for item in result:
+                # Add unique file ID and store in cache for raw data access
+                for item in result:
+                    file_id = str(uuid.uuid4())
+                    item['file_id'] = file_id
+
+                    # Store in cache for raw data access
+                    processed_files_cache[file_id] = item
+
+                    # Add source zip info if it came from a zip
+                    if hasattr(file_obj, 'source_zip') and file_obj.source_zip:
                         item['metadata']['extracted_from'] = file_obj.source_zip
                 all_responses.extend(result)
         except Exception as e:
@@ -113,6 +125,43 @@ def unroll_zips():
                 continue
 
     return jsonify(result), 200
+
+@app.route('/api/section-raw', methods=['POST'])
+def get_section_raw():
+    """Get raw (decompressed) content for a specific section."""
+    data = request.get_json()
+
+    if not data:
+        return jsonify({'error': 'No JSON data provided'}), 400
+
+    file_id = data.get('file_id')
+    section_index = data.get('section_index')
+
+    if not file_id or section_index is None:
+        return jsonify({'error': 'file_id and section_index are required'}), 400
+
+    # Check if file exists in cache
+    if file_id not in processed_files_cache:
+        return jsonify({'error': 'File not found in cache'}), 404
+
+    file_data = processed_files_cache[file_id]
+    sections = file_data.get('sections', [])
+
+    # Check if section index is valid
+    if section_index < 0 or section_index >= len(sections):
+        return jsonify({'error': 'Invalid section index'}), 400
+
+    section = sections[section_index]
+    compressed_raw = section.get('raw_content_compressed', '')
+
+    # Decompress the raw content
+    raw_content = decompress_raw_content(compressed_raw)
+
+    return jsonify({
+        'raw_content': raw_content,
+        'section_title': section.get('title', ''),
+        'section_type': section.get('section_type', '')
+    }), 200
 
 
 if __name__ == '__main__':

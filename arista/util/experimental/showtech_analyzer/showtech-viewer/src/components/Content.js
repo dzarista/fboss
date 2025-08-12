@@ -3,26 +3,34 @@ import { detectAllErrors } from './ErrorDetection';
 import { ErrorIndicator, ErrorSummaryModal } from './ErrorModal';
 import { SectionContentRenderer, CollapsibleSection } from './SectionRenderer';
 import SystemSummary from './SystemSummary';
+import { getSectionRaw } from '../utils/api';
 
 export default function Content({ log, onClose, visibleSections, onJumpToSection, fontSize, onFontSizeChange, slotIndex, isActive, onActivate }) {
   const [expandedSections, setExpandedSections] = useState(new Set());
-  const [allExpanded, setAllExpanded] = useState(true);
+  const [allExpanded, setAllExpanded] = useState(false);
   const [activeSection, setActiveSection] = useState(null);
   const [detectedErrors, setDetectedErrors] = useState([]);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [showSystemSummary, setShowSystemSummary] = useState(false);
+  const [rawModeSections, setRawModeSections] = useState(new Set()); // Track which sections are in raw mode
+  const [rawDataCache, setRawDataCache] = useState({}); // Cache raw data to avoid repeated API calls
+  const [loadingRawSections, setLoadingRawSections] = useState(new Set()); // Track which sections are loading raw data
   const sectionRefs = useRef({});
 
 
 
-  // Initialize all sections as expanded when log changes
+  // Initialize all sections as collapsed when log changes
   useEffect(() => {
     if (log?.sections) {
-      const allSectionIds = new Set(log.sections.map((_, idx) => idx));
-      setExpandedSections(allSectionIds);
-      setAllExpanded(true);
+      setExpandedSections(new Set()); // Start with all sections collapsed
+      setAllExpanded(false);
       // Initialize refs
       sectionRefs.current = {};
+
+      // Reset raw mode state when log changes
+      setRawModeSections(new Set());
+      setRawDataCache({});
+      setLoadingRawSections(new Set());
 
       // Detect errors in the log
       const errors = detectAllErrors(log);
@@ -72,6 +80,62 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
 
   const activateSection = (sectionIdx) => {
     setActiveSection(sectionIdx);
+  };
+
+  // Handle raw mode toggle for a section
+  const toggleRawMode = async (sectionIdx) => {
+    const isCurrentlyRaw = rawModeSections.has(sectionIdx);
+
+    if (isCurrentlyRaw) {
+      // Switch back to structured mode
+      const newRawSections = new Set(rawModeSections);
+      newRawSections.delete(sectionIdx);
+      setRawModeSections(newRawSections);
+    } else {
+      // Switch to raw mode - fetch raw data if not cached
+      const cacheKey = `${log.file_id}_${sectionIdx}`;
+
+      if (!log.file_id) {
+        console.error('No file_id found in log object:', log);
+        return;
+      }
+
+      if (!rawDataCache[cacheKey]) {
+        // Add to loading state
+        const newLoadingSections = new Set(loadingRawSections);
+        newLoadingSections.add(sectionIdx);
+        setLoadingRawSections(newLoadingSections);
+
+        try {
+          const rawData = await getSectionRaw(log.file_id, sectionIdx);
+
+          // Cache the raw data
+          setRawDataCache(prev => ({
+            ...prev,
+            [cacheKey]: rawData.raw_content
+          }));
+
+          // Add to raw mode sections
+          const newRawSections = new Set(rawModeSections);
+          newRawSections.add(sectionIdx);
+          setRawModeSections(newRawSections);
+
+        } catch (error) {
+          console.error('Failed to fetch raw data:', error);
+          // Could show an error message to user here
+        } finally {
+          // Remove from loading state
+          const newLoadingSections = new Set(loadingRawSections);
+          newLoadingSections.delete(sectionIdx);
+          setLoadingRawSections(newLoadingSections);
+        }
+      } else {
+        // Data is cached, just toggle mode
+        const newRawSections = new Set(rawModeSections);
+        newRawSections.add(sectionIdx);
+        setRawModeSections(newRawSections);
+      }
+    }
   };
 
   // Create a navigation handler that's bound to THIS specific component
@@ -329,8 +393,21 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
                       onToggle={() => toggleSection(idx)}
                       isActive={activeSection === idx}
                       onActivate={() => activateSection(idx)}
+                      isRawMode={rawModeSections.has(idx)}
+                      onToggleRaw={
+                        // Only show raw toggle for sections with structured data (not plain raw)
+                        sec.parsed_data?.type !== 'raw'
+                          ? () => toggleRawMode(idx)
+                          : null
+                      }
                     >
-                      <SectionContentRenderer section={sec} sectionIndex={idx} />
+                      <SectionContentRenderer
+                        section={sec}
+                        sectionIndex={idx}
+                        isRawMode={rawModeSections.has(idx)}
+                        rawContent={rawDataCache[`${log.file_id}_${idx}`]}
+                        isLoadingRaw={loadingRawSections.has(idx)}
+                      />
                     </CollapsibleSection>
                   ))
               )}

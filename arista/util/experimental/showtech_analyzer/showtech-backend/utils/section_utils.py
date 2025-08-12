@@ -31,6 +31,17 @@ SECTION_TYPES = {
     'FANS': 'fans',
     'wedge_qsfp_util': 'qsfp_util',
     'fboss2 show interface phy': 'fboss2_interface_phy',
+    # Auto-compressed sections
+    'DEBUG LOGS': 'auto_compressed',
+    'SENSORS LOG': 'auto_compressed',
+    'FAN LOG': 'auto_compressed',
+    'DATA CORRAL LOG': 'auto_compressed',
+    'QSFP LOG': 'auto_compressed',
+    'SW AGENT LOG': 'auto_compressed',
+    'HW AGENT LOG': 'auto_compressed',
+    'DMESG LOG': 'auto_compressed',
+    'BOOT CONSOLE LOG': 'auto_compressed',
+    'LINUX MESSAGES LOG': 'auto_compressed',
 }
 
 # Load PMBUS commands from JSON
@@ -54,6 +65,8 @@ def load_pmbus_commands():
     return commands
 
 PMBUS_COMMANDS = load_pmbus_commands()
+
+
 
 
 def determine_section_type(title: str):

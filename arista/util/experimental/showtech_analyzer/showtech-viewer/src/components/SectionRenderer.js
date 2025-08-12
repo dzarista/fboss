@@ -1,17 +1,39 @@
 import { forwardRef, useState } from 'react';
 import { getRowStyling } from './ErrorDetection';
 import { BackArrowIcon, ChevronDownIcon } from '../assets/icons/Icon';
+import LoadingSpinner from './LoadingSpinner';
 
 // Section Content Renderer Component
-export const SectionContentRenderer = ({ section, sectionIndex }) => {
+export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawContent, isLoadingRaw }) => {
   const [selectedI2CEntry, setSelectedI2CEntry] = useState(null);
 
   try {
+    // Handle raw mode
+    if (isRawMode) {
+      if (isLoadingRaw) {
+        return <LoadingSpinner message="Fetching raw data..." size="medium" />;
+      }
+      if (rawContent) {
+        return <pre className="section-text-content">{rawContent}</pre>;
+      }
+      return <div className="section-text-content">No raw content available</div>;
+    }
+
     if (!section || !section.parsed_data) {
       return <div className="section-text-content">No content available</div>;
     }
 
     const { parsed_data } = section;
+
+  // Handle auto-compressed sections
+  if (parsed_data.type === 'auto_compressed') {
+    return (
+      <div className="section-text-content auto-compressed-message">
+        <p>{parsed_data.message}</p>
+        <p><em>Content size: {parsed_data.content_size?.toLocaleString()} characters</em></p>
+      </div>
+    );
+  }
 
   if (parsed_data.type === 'raw') {
     return <pre className="section-text-content">{parsed_data.data || 'No content available'}</pre>;
@@ -551,10 +573,21 @@ export const SectionContentRenderer = ({ section, sectionIndex }) => {
 };
 
 // Collapsible Section Component
-export const CollapsibleSection = forwardRef(({ title, children, isExpanded, onToggle, isActive, onActivate }, ref) => {
+export const CollapsibleSection = forwardRef(({ title, children, isExpanded, onToggle, isActive, onActivate, isRawMode, onToggleRaw }, ref) => {
   const handleToggleExpanded = (e) => {
     e.stopPropagation();
+    // Activate the section when expand/collapse is clicked
+    onActivate();
     onToggle();
+  };
+
+  const handleToggleRaw = (e) => {
+    e.stopPropagation();
+    // Activate the section when raw toggle is clicked
+    onActivate();
+    if (onToggleRaw) {
+      onToggleRaw();
+    }
   };
 
   const handleSectionClick = () => {
@@ -570,6 +603,16 @@ export const CollapsibleSection = forwardRef(({ title, children, isExpanded, onT
       <div className="section-header">
         <h3 className="section-title">{title}</h3>
         <div className="section-header-controls">
+          {onToggleRaw && (
+            <button
+              className="control-button"
+              onClick={handleToggleRaw}
+              title={isRawMode ? "Show structured data" : "Show raw data"}
+              aria-label={isRawMode ? "Show structured data" : "Show raw data"}
+            >
+              {isRawMode ? 'Show Structured' : 'Show Raw'}
+            </button>
+          )}
           <button
             className={`section-toggle ${isExpanded ? 'expanded' : 'collapsed'}`}
             onClick={handleToggleExpanded}
@@ -582,7 +625,7 @@ export const CollapsibleSection = forwardRef(({ title, children, isExpanded, onT
       </div>
       <div className={`section-content-wrapper ${isExpanded ? 'expanded' : 'collapsed'}`}>
         <div className="section-content">
-          {children}
+          {isExpanded ? children : null}
         </div>
       </div>
     </div>

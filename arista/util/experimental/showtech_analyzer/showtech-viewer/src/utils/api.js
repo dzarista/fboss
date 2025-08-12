@@ -175,3 +175,23 @@ export const uploadFilesWithProgress = async (filesArray, onProgress) => {
 
   return allResults;
 };
+
+// Get raw content for a specific section
+export const getSectionRaw = async (fileId, sectionIndex) => {
+  const res = await fetch(`${API_ENDPOINT}/section-raw`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      file_id: fileId,
+      section_index: sectionIndex,
+    }),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Failed to get raw section data: ${res.statusText}`);
+  }
+
+  return res.json();
+};

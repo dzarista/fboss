@@ -6,9 +6,35 @@ import os
 import tempfile
 import zipfile
 import re
+import gzip
+import base64
 from .section_parsers import parse_content_by_type
 from .section_utils import determine_section_type
 from .log_sanity import perform_sanity_checks
+
+def compress_raw_content(content):
+    """Compress raw content using gzip and encode as base64 for JSON serialization."""
+    if not content:
+        return ""
+
+    # Compress the content
+    compressed = gzip.compress(content.encode('utf-8'))
+    # Encode as base64 for JSON serialization
+    return base64.b64encode(compressed).decode('ascii')
+
+def decompress_raw_content(compressed_content):
+    """Decompress base64-encoded gzipped content."""
+    if not compressed_content:
+        return ""
+
+    try:
+        # Decode from base64
+        compressed = base64.b64decode(compressed_content.encode('ascii'))
+        # Decompress
+        return gzip.decompress(compressed).decode('utf-8')
+    except Exception as e:
+        print(f"Error decompressing content: {e}")
+        return ""
 
 def parse_sections(text):
     lines = text.splitlines()
@@ -24,11 +50,13 @@ def parse_sections(text):
                 raw_content = '\n'.join(current['content']).rstrip()
                 section_type = determine_section_type(current['title'])
                 parsed_content = parse_content_by_type(section_type, raw_content)
+                compressed_raw = compress_raw_content(raw_content)
 
                 sections.append({
                     'title': current['title'],
                     'section_type': section_type,
-                    'parsed_data': parsed_content
+                    'parsed_data': parsed_content,
+                    'raw_content_compressed': compressed_raw
                 })
             title = re.sub(r"^#+", "", stripped)
             title = re.sub(r"#+$", "", title).strip()
@@ -40,11 +68,13 @@ def parse_sections(text):
         raw_content = '\n'.join(current['content']).rstrip()
         section_type = determine_section_type(current['title'])
         parsed_content = parse_content_by_type(section_type, raw_content)
+        compressed_raw = compress_raw_content(raw_content)
 
         sections.append({
             'title': current['title'],
             'section_type': section_type,
-            'parsed_data': parsed_content
+            'parsed_data': parsed_content,
+            'raw_content_compressed': compressed_raw
         })
 
     # Perform sanity checks on all parsed sections
