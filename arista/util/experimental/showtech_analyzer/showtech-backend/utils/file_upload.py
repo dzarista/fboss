@@ -56,6 +56,7 @@ def parse_sections(text):
 def handle_single_file_upload(file_storage):
     content = file_storage.read().decode('utf-8', errors='ignore')
     sections = parse_sections(content)
+
     return [{
         'name': file_storage.filename,
         'metadata': {
@@ -65,28 +66,91 @@ def handle_single_file_upload(file_storage):
         'sections': sections
     }]
 
-def handle_zip_upload(file_storage):
-    responses = []
+class FileWrapper:
+    """Wrapper to make file content behave like a file storage object."""
+    def __init__(self, filename, content, source_zip=None):
+        self.filename = filename
+        self.content = content
+        self.source_zip = source_zip
+        self._position = 0
+
+    def read(self):
+        return self.content.encode('utf-8')
+
+    def seek(self, position):
+        self._position = position
+
+def is_valid_showtech_file(filename, content):
+    """Check if a file is valid showtech file based on filename and content rules."""
+    # Skip files that start with '.'
+    if os.path.basename(filename).startswith('.'):
+        return False
+
+    # Check if content has showtech indicators in first 3 lines
+    lines = content.split('\n')
+    first_three_lines = '\n'.join(lines[:3]).lower()
+    return "showtech" in first_three_lines
+
+def expand_zip_file(zip_file):
+    """Extract and validate files from a zip archive."""
+    extracted_files = []
+
     with tempfile.TemporaryDirectory() as tmpdir:
-        zip_path = os.path.join(tmpdir, file_storage.filename)
-        file_storage.save(zip_path)
+        zip_path = os.path.join(tmpdir, zip_file.filename)
+        zip_file.save(zip_path)
 
         with zipfile.ZipFile(zip_path, 'r') as zip_ref:
             zip_ref.extractall(tmpdir)
 
-        for fname in os.listdir(tmpdir):
-            fpath = os.path.join(tmpdir, fname)
-            if os.path.isfile(fpath) and fname != file_storage.filename:
-                with open(fpath, 'r', encoding='utf-8', errors='ignore') as f:
-                    content = f.read()
-                sections = parse_sections(content)
-                responses.append({
-                    'name': fname,
-                    'metadata': {
-                        'source_file': fname,
-                        'total_sections': len(sections)
-                    },
-                    'sections': sections
-                })
+        # Walk through all files and collect valid showtech files
+        for root, dirs, files_in_dir in os.walk(tmpdir):
+            for fname in files_in_dir:
+                fpath = os.path.join(root, fname)
 
-    return responses
+                # Skip the original ZIP file
+                if fname == zip_file.filename:
+                    continue
+
+                try:
+                    # Read content and validate file
+                    with open(fpath, 'r', encoding='utf-8', errors='ignore') as file_handle:
+                        content = file_handle.read()
+
+                    if is_valid_showtech_file(fname, content):
+                        # Use relative path from ZIP root for the name
+                        relative_path = os.path.relpath(fpath, tmpdir)
+                        display_name = relative_path.replace('\\', '/')  # Normalize path separators
+
+                        file_wrapper = FileWrapper(display_name, content, zip_file.filename)
+                        extracted_files.append(file_wrapper)
+
+                except Exception as e:
+                    print(f"Skipping file {fname}: {e}")
+                    continue
+
+    return extracted_files
+
+def expand_and_validate_files(files):
+    """Expand zip files and validate all files for showtech content."""
+    all_files_to_process = []
+
+    for f in files:
+        try:
+            if f.filename.lower().endswith('.zip'):
+                # Expand zip file and add all valid files
+                extracted_files = expand_zip_file(f)
+                all_files_to_process.extend(extracted_files)
+            else:
+                # Handle single file
+                content = f.read().decode('utf-8', errors='ignore')
+                f.seek(0)  # Reset file pointer
+
+                if is_valid_showtech_file(f.filename, content):
+                    all_files_to_process.append(f)
+
+        except Exception as e:
+            print(f"Error processing {f.filename}: {str(e)}")
+            continue
+
+    return all_files_to_process
+
