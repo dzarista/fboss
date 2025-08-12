@@ -5,6 +5,7 @@
 #include "CfmShowtech.h"
 #include "PsuShowtech.h"
 #include "ShowtechUtils.h"
+#include <array>
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
@@ -280,6 +281,18 @@ void MeruShowtech::printCfmShowtechInfo() {
   printCfmInfo();
 }
 
+void MeruShowtech::printNvmeInfo() {
+  printMainHeader("NVME INFO");
+
+  std::array<std::string, 3> cmds{"nvme smart-log /dev/nvme0n1",
+                                  "nvme error-log /dev/nvme0n1",
+                                  "nvme id-ctrl /dev/nvme0n1"};
+  for (const auto &cmd : cmds) {
+    printSubHeader(cmd);
+    std::cout << run_cmd_no_check(cmd) << std::endl;
+  }
+}
+
 void MeruShowtech::printPlatformInfo() {
   printWeutilInfo();
   printAllFpgaVersions();
@@ -289,6 +302,7 @@ void MeruShowtech::printPlatformInfo() {
     printCfmShowtechInfo();
   }
   printI2cInfo();
+  printNvmeInfo();
 }
 
 } // namespace showtech

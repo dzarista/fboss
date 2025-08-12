@@ -37,6 +37,7 @@ private:
   void printI2cInfo();
   void printPsuShowtechInfo();
   void printCfmShowtechInfo();
+  void printNvmeInfo();
 };
 
 class Meru800BiaShowtech : public MeruShowtech {
