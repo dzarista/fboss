@@ -1,0 +1,243 @@
+/* -------- Modal Backdrop -------- */
+.upload-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+}
+
+/* -------- Modal Box -------- */
+.upload-modal {
+  background: #fff;
+  padding: 2rem;
+  border-radius: 0.5rem;
+  width: 400px;
+  max-width: 90%;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+/* Buttons */
+.upload-button {
+  background: var(--accent-button-bg);
+  color: var(--accent-button);
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.upload-button:hover { background: var(--accent-button-hover); }
+
+.error-text {
+  color: var(--accent-error);
+  margin-top: 0.5rem;
+}
+
+.warning-text {
+  color: var(--text-warning, #d97706);
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+}
+
+/* File list with drag and drop */
+.upload-preview-box {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  background: var(--bg-subtle);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  border: 2px dashed transparent;
+  transition: all 0.2s ease;
+  min-height: 120px;
+  max-height: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
+}
+
+.upload-preview-box.drag-over {
+  border-color: var(--accent-button, #2563eb);
+  background: var(--accent-button-bg, #eff6ff);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+}
+
+.drop-zone-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-grow: 1;
+  text-align: center;
+}
+
+.drop-zone-hint {
+  font-size: 0.875rem;
+  color: var(--text-muted, #6b7280);
+  margin-top: 0.5rem;
+  margin-bottom: 0;
+}
+
+.upload-file-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.upload-actions { display: flex; gap: 0.5rem; }
+
+/* Footer */
+.upload-footer {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.file-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border-default, #e5e7eb);
+  border-radius: 0.5rem;
+  background: var(--bg-primary, #fff);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-type-badge {
+  background: var(--accent-button-bg, #eff6ff);
+  color: var(--accent-button, #2563eb);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.file-type-badge.extracted {
+  background: #6b7280;
+  color: white;
+  font-style: italic;
+  text-transform: none;
+  font-weight: normal;
+}
+
+.file-card:hover {
+  background: var(--bg-hover, #f9fafb);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+/* This rule is now integrated into the main .upload-preview-box rule above */
+
+.remove-icon {
+  background: transparent;
+  border: none;
+  font-size: 1.1rem;
+  color: var(--text-muted, #6b7280);
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.remove-icon:hover {
+  color: var(--accent-error, #b91c1c);
+}
+
+.remove-icon:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Upload Progress Indicator */
+.upload-progress {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding: 0.75rem;
+  background: var(--bg-subtle, #f9fafb);
+  border-radius: 0.5rem;
+  border: 1px solid var(--border-default, #e5e7eb);
+}
+
+.progress-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.upload-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border-default, #e5e7eb);
+  border-top: 2px solid var(--accent-button, #2563eb);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.progress-text {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-primary, #111827);
+  font-weight: 500;
+}
+
+/* Progress Bar */
+.progress-bar-container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.progress-bar {
+  flex: 1;
+  height: 8px;
+  background: var(--border-default, #e5e7eb);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent-button, #2563eb);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-percentage {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted, #6b7280);
+  min-width: 3rem;
+  text-align: right;
+}

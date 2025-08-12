@@ -1,0 +1,9 @@
+@import './themes.css';
+
+/* -------- Base Styles -------- */
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+}

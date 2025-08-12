@@ -1,0 +1,13 @@
+# Sample ODS time-series data for testing
+host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/1/1.temp,56.2,"Thu, 08 May 25 00:00:00 -0700",1746687600
+host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/1/1.vcc.mv,3299.33,"Thu, 08 May 25 00:00:00 -0700",1746687600
+host123.n123.c123.abc1::sensor_service.sensor_read.FAN1_RPM.value,5600,"Thu, 08 May 25 00:00:00 -0700",1746687600
+host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/1/1.temp,57.1,"Thu, 08 May 25 00:01:00 -0700",1746687660
+host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/1/1.vcc.mv,3301.15,"Thu, 08 May 25 00:01:00 -0700",1746687660
+host123.n123.c123.abc1::sensor_service.sensor_read.FAN1_RPM.value,5650,"Thu, 08 May 25 00:01:00 -0700",1746687660
+host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/1/2.temp,58.5,"Thu, 08 May 25 00:02:00 -0700",1746687720
+host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/1/2.vcc.mv,3295.88,"Thu, 08 May 25 00:02:00 -0700",1746687720
+host123.n123.c123.abc1::sensor_service.sensor_read.FAN2_RPM.value,5580,"Thu, 08 May 25 00:02:00 -0700",1746687720
+host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/1/1.temp,55.8,"Thu, 08 May 25 00:03:00 -0700",1746687780
+host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/1/1.vcc.mv,3302.44,"Thu, 08 May 25 00:03:00 -0700",1746687780
+host123.n123.c123.abc1::sensor_service.sensor_read.FAN1_RPM.value,5620,"Thu, 08 May 25 00:03:00 -0700",1746687780
