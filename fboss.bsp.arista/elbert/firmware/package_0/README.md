@@ -1,7 +1,4 @@
-# Elbert Firmware Programmables
-
-This directory contains the firmware programmable binaries for the
-Elbert platform. The table below shows the programmables:
+# Firmware Package #0
 
 | Programmable Name                                      | Description                               |
 |--------------------------------------------------------|-------------------------------------------|
@@ -21,17 +18,21 @@ Elbert platform. The table below shows the programmables:
 | elbert_pim8ddm.abin                                    | PIM8DDM SPI image                         |
 | elbert_th4_qspi.abin                                   | TH4 QSPI image                            |
 
-The table below show the released version history for each programmable.
-The most recent version can be found in this directory.
+# Changelogs
 
-## Aboot-norcal7-7.3.3-cb411-generic-8x1-33492597.rom
+The tables below show the released version history for each
+programmable. The most recent version can be found in this
+directory.
+
+## Changes From Last Package
+N/A
+
+## BIOS
 
 | Version        | Changelog                                                                                                                                                                                                    |
 |----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | 7.3.3-33492597 | Experimental image with boot methods support. This does not include UAPI bootloader enhancements. Only GRUB is supported for LOCAL boot.                                                                     |
-| 7.3.4-42641583 | Qualified image with boot methods support including UAPI bootloader enhancements.                                                                                                                            |
-| 7.3.5-43066215 | Fix for issue with number of reported cores by dmidecode. Experimental image.                                                                                                                                |
-## elbert_scm.astp / elbert_scm_dpe.astp
+## SCM / SCM DPE
 
 | Version        | Changelog                                                                                                             |
 |----------------|-----------------------------------------------------------------------------------------------------------------------|
@@ -41,7 +42,7 @@ The most recent version can be found in this directory.
 | 2.13           | SCM has a new CPLD register for DPE mode. Added register 0x7000: write 32-bit 0xDEAD0000 to issue a FBOSS self reset. |
 | 2.14           | Improve reset timing.                                                                                                 |
 
-## elbert_smb.astp
+## SMB
 
 | Version        | Changelog                |
 |----------------|--------------------------|
@@ -51,14 +52,14 @@ The most recent version can be found in this directory.
 | 3.7            | No SW-visible change.    |
 | 3.14           | No SW-visible change.    |
 
-## elbert_smb_cpld.astp
+## SMB CPLD
 
 | Version        | Changelog                |
 |----------------|--------------------------|
 | 5.0            | Initial P2 SMB image.    |
 | 5.1            | No SW-visible change.    |
 
-## elbert_fan.astp
+## FAN
 
 | Version        | Changelog                                     |
 |----------------|-----------------------------------------------|
@@ -68,14 +69,14 @@ The most recent version can be found in this directory.
 | 1.11           | LED register definition change.               |
 | 1.15           | Added SMBus timeout and improved reset logic. |
 
-## elbert_pim_base.astp
+## PIM BASE
 
 | Version        | Changelog                           |
 |----------------|-------------------------------------|
 | 1.1            | Initial PIM base image.             |
 | 1.3            | Added debug LED during PIM loading. |
 
-## elbert_pim16q.astp
+## PIM 16Q
 
 | Version        | Changelog                                                                                                                                            |
 |----------------|------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -85,7 +86,7 @@ The most recent version can be found in this directory.
 | 7.4            | Blue/Green/Red LED control bits moved to 29:27 respectively, in all LED control registers. Status LED register default value changed to 0x3800_6d91. |
 | 7.7            | Added PIM16Q2 support.                                                                                                                               |
 
-## elbert_pim8ddm.abin
+## PIM 8DDM
 
 | Version        | Changelog                                                                                                                                                                          |
 |----------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -96,7 +97,7 @@ The most recent version can be found in this directory.
 | 8.5            | Fixed LED are dim red instead of off when PIM powered off. No SW impact.                                                                                                           |
 | 8.7            | No SW-visible change.                                                                                                                                                              |
 
-## elbert_th4_qspi.abin
+## THQ QSPI 
 
 | Version        | Changelog                |
 |----------------|--------------------------|
