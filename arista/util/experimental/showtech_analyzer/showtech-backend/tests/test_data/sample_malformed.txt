@@ -1,0 +1,26 @@
+### SMB SERIAL NUMBER ###
+Product Name: TestSwitch
+Serial Number: TST99999999
+This line has no colon so should be ignored
+
+### BROKEN TABLE SECTION ###
+Name                AdminState    LinkState
+-----------------------------------------
+eth1/1              Enabled       Up           ExtraColumn
+eth1/2              Enabled
+eth1/3              TooManyColumns Here Are Extra Columns
+
+### EMPTY SECTION ###
+
+### SECTION WITH NO DATA ###
+Just some random text
+No structure at all
+Random content here
+
+### MIXED FORMAT SECTION ###
+Key1: Value1
+Key2: Value2
+Name    Status
+--------------
+port1   Up
+Key3: Value3

@@ -1,5 +1,6 @@
 import { forwardRef, useState } from 'react';
 import { getRowStyling } from './ErrorDetection';
+import { BackArrowIcon, ChevronDownIcon } from '../assets/icons/Icon';
 
 // Section Content Renderer Component
 export const SectionContentRenderer = ({ section, sectionIndex }) => {
@@ -109,16 +110,7 @@ export const SectionContentRenderer = ({ section, sectionIndex }) => {
                 className="back-button"
                 onClick={() => setSelectedI2CEntry(null)}
               >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <polyline points="15,18 9,12 15,6"></polyline>
-                </svg>
+                <BackArrowIcon />
               </button>
               <div className="bit-ranges-title">
                 Bit Fields for {selectedI2CEntry.address} ({selectedI2CEntry.data.command}) - Value: {selectedI2CEntry.data.value}
@@ -224,6 +216,324 @@ export const SectionContentRenderer = ({ section, sectionIndex }) => {
     );
   }
 
+  if (parsed_data.type === 'fans') {
+    const headers = parsed_data.headers || [];
+    const rows = parsed_data.rows || [];
+
+    if (rows.length === 0) {
+      return <div className="section-text-content">No fan data available</div>;
+    }
+
+    return (
+      <div className="table-container">
+        <table className="section-table">
+          <thead>
+            <tr>
+              {headers.map((header, idx) => (
+                <th key={idx}>{header}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, idx) => (
+              <tr key={idx} className={getRowStyling(row, sectionIndex)}>
+                {headers.map((header, headerIdx) => (
+                  <td key={headerIdx}>
+                    {header === 'Status' ? (
+                      <span className={`status-indicator ${row[header]?.toLowerCase()}`}>
+                        {row[header]}
+                      </span>
+                    ) : (
+                      row[header] || 'N/A'
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  if (parsed_data.type === 'qsfp_util') {
+    const ports = parsed_data.ports || [];
+
+    if (ports.length === 0) {
+      return <div className="section-text-content">No QSFP data available</div>;
+    }
+
+    return (
+      <div className="section-text-content">
+        {ports.map((portData, idx) => (
+          <div key={idx} className="qsfp-port-section">
+            <div className="qsfp-port-header">
+              <span className="qsfp-port-id">Port {portData.port}</span>
+            </div>
+
+            {/* Basic Properties Table */}
+            <div className="table-container">
+              <table className="section-table">
+                <thead>
+                  <tr>
+                    <th>Property</th>
+                    <th>Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(portData).map(([key, value]) => {
+                    // Skip port number and complex objects
+                    if (key === 'port' || typeof value === 'object') return null;
+
+                    return (
+                      <tr key={key}>
+                        <td><strong>{key}</strong></td>
+                        <td>{value}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Lane Data Tables */}
+            {Object.entries(portData).map(([sectionName, sectionData]) => {
+              // Only show sections that contain lane data (objects with arrays)
+              if (typeof sectionData !== 'object' || !sectionData ||
+                  !Object.values(sectionData).some(val => Array.isArray(val))) {
+                return null;
+              }
+
+              // Get the number of lanes from the first array
+              const firstArray = Object.values(sectionData).find(val => Array.isArray(val));
+              const numLanes = firstArray ? firstArray.length : 8;
+
+              return (
+                <div key={sectionName} className="table-container">
+                  <h4 className="table-title">{sectionName}</h4>
+                  <table className="section-table">
+                    <thead>
+                      <tr>
+                        <th>Property</th>
+                        {Array.from({length: numLanes}, (_, i) => (
+                          <th key={i}>Lane {i + 1}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {Object.entries(sectionData).map(([property, values]) => (
+                        <tr key={property}>
+                          <td><strong>{property}</strong></td>
+                          {Array.isArray(values) ? values.map((value, valueIdx) => (
+                            <td key={valueIdx}>{value}</td>
+                          )) : (
+                            // If not an array, show the single value in first column, N/A in others
+                            Array.from({length: numLanes}, (_, i) => (
+                              <td key={i}>{i === 0 ? values : 'N/A'}</td>
+                            ))
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (parsed_data.type === 'fboss2_interface_phy') {
+    const interfaces = parsed_data.interfaces || [];
+
+    if (interfaces.length === 0) {
+      return <div className="section-text-content">No PHY interface data available</div>;
+    }
+
+    return (
+      <div className="section-text-content">
+        {interfaces.map((interfaceData, idx) => (
+          <div key={idx} className="qsfp-port-section">
+            <div className="qsfp-port-header">
+              <span className="qsfp-port-id">Interface {interfaceData.interface}</span>
+            </div>
+
+            {/* Basic Properties Table */}
+            <div className="table-container">
+              <table className="section-table">
+                <thead>
+                  <tr>
+                    <th>Property</th>
+                    <th>Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(interfaceData).map(([key, value]) => {
+                    // Skip interface name and sections object
+                    if (key === 'interface' || key === 'sections') return null;
+
+                    return (
+                      <tr key={key}>
+                        <td><strong>{key}</strong></td>
+                        <td>{value}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* PHY Sections */}
+            {interfaceData.sections && Object.entries(interfaceData.sections).map(([sectionName, sectionData]) => {
+              if (sectionName === 'RS FEC') {
+                // RS FEC section with key-value pairs and codeword stats table
+                return (
+                  <div key={sectionName} className="table-container">
+                    <h4 className="table-title">{sectionName}</h4>
+
+                    {/* Key-value pairs */}
+                    <table className="section-table">
+                      <thead>
+                        <tr>
+                          <th>Property</th>
+                          <th>Value</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(sectionData).map(([key, value]) => {
+                          if (key === 'codeword_stats') return null;
+                          return (
+                            <tr key={key}>
+                              <td><strong>{key}</strong></td>
+                              <td>{value}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+
+                    {/* Codeword stats table */}
+                    {sectionData.codeword_stats && (
+                      <table className="section-table">
+                        <thead>
+                          <tr>
+                            <th>Symbol Errors</th>
+                            <th># of codewords</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {sectionData.codeword_stats.map((row, idx) => (
+                            <tr key={idx}>
+                              <td>{row['Symbol Errors']}</td>
+                              <td>{row['# of codewords']}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                );
+              } else if (Array.isArray(sectionData)) {
+                // RX PMD or TX PMD sections with lane data
+                if (sectionData.length === 0) return null;
+
+                const headers = Object.keys(sectionData[0]);
+
+                return (
+                  <div key={sectionName} className="table-container">
+                    <h4 className="table-title">{sectionName}</h4>
+                    <table className="section-table">
+                      <thead>
+                        <tr>
+                          {headers.map((header, idx) => (
+                            <th key={idx}>{header}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {sectionData.map((row, idx) => (
+                          <tr key={idx}>
+                            {headers.map((header, headerIdx) => (
+                              <td key={headerIdx}>{row[header] || 'N/A'}</td>
+                            ))}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              } else {
+                // Other sections with simple key-value pairs
+                return (
+                  <div key={sectionName} className="table-container">
+                    <h4 className="table-title">{sectionName}</h4>
+                    <table className="section-table">
+                      <thead>
+                        <tr>
+                          <th>Property</th>
+                          <th>Value</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {Object.entries(sectionData).map(([key, value]) => (
+                          <tr key={key}>
+                            <td><strong>{key}</strong></td>
+                            <td>{value}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              }
+            })}
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (parsed_data.type === 'psu_debug') {
+    const psuSlots = parsed_data.psu_slots || [];
+
+    if (psuSlots.length === 0) {
+      return <div className="section-text-content">No PSU debug data available</div>;
+    }
+
+    return (
+      <div className="psu-debug-container">
+        {psuSlots.map((psuSlot, idx) => (
+          <div key={idx} className="psu-debug-slot">
+            <div className="psu-debug-header">
+              <h4 className="psu-slot-title">Power Supply Slot {psuSlot.slot}</h4>
+            </div>
+
+            <div className="table-container">
+              <table className="section-table">
+                <thead>
+                  <tr>
+                    <th>Property</th>
+                    <th>Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(psuSlot.properties || {}).map(([key, value]) => (
+                    <tr key={key}>
+                      <td className="psu-property-key">{key}</td>
+                      <td className="psu-property-value">{value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
     // Fallback for unknown format
     return <pre className="section-text-content">No content available</pre>;
   } catch (error) {
@@ -241,15 +551,10 @@ export const SectionContentRenderer = ({ section, sectionIndex }) => {
 };
 
 // Collapsible Section Component
-export const CollapsibleSection = forwardRef(({ title, children, isExpanded, onToggle, isFullscreen, onFullscreenToggle, isActive, onActivate }, ref) => {
+export const CollapsibleSection = forwardRef(({ title, children, isExpanded, onToggle, isActive, onActivate }, ref) => {
   const handleToggleExpanded = (e) => {
     e.stopPropagation();
     onToggle();
-  };
-
-  const handleFullscreenToggle = (e) => {
-    e.stopPropagation();
-    onFullscreenToggle();
   };
 
   const handleSectionClick = () => {
@@ -259,52 +564,20 @@ export const CollapsibleSection = forwardRef(({ title, children, isExpanded, onT
   return (
     <div
       ref={ref}
-      className={`section-card ${isFullscreen ? 'fullscreen' : ''} ${isActive ? 'active' : ''}`}
+      className={`section-card ${isActive ? 'active' : ''}`}
       onClick={handleSectionClick}
     >
       <div className="section-header">
         <h3 className="section-title">{title}</h3>
         <div className="section-header-controls">
           <button
-            className="fullscreen-button"
-            onClick={handleFullscreenToggle}
-            title={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
-            aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+            className={`section-toggle ${isExpanded ? 'expanded' : 'collapsed'}`}
+            onClick={handleToggleExpanded}
+            title={isExpanded ? "Collapse section" : "Expand section"}
+            aria-label={isExpanded ? "Collapse section" : "Expand section"}
           >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              {isFullscreen ? (
-                <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3" />
-              ) : (
-                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
-              )}
-            </svg>
+            <ChevronDownIcon />
           </button>
-          {!isFullscreen && (
-            <button
-              className={`section-toggle ${isExpanded ? 'expanded' : 'collapsed'}`}
-              onClick={handleToggleExpanded}
-              title={isExpanded ? "Collapse section" : "Expand section"}
-              aria-label={isExpanded ? "Collapse section" : "Expand section"}
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-              >
-                <polyline points="6,9 12,15 18,9"></polyline>
-              </svg>
-            </button>
-          )}
         </div>
       </div>
       <div className={`section-content-wrapper ${isExpanded ? 'expanded' : 'collapsed'}`}>

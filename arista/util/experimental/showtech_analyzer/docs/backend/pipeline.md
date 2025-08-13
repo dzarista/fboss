@@ -39,29 +39,6 @@ Section Type Detection
     - Accept individual or ZIP file uploads.
     - Call the appropriate file handler based on file type.
     - Return structured JSON containing parsed sections.
-
----
-
-### File Processing Helpers
-
-### `handle_single_file_upload`
-
-- **Purpose:** Helper function for processing individual text files.
-- **Process:**
-    - Accepts an individual text log file.
-    - Reads and decodes the content.
-    - Calls `parse_sections()` to parse content.
-    - Wraps the result in metadata including filename and section count.
-
-### `handle_zip_upload`
-
-- **Purpose:** Helper function for processing ZIP archives.
-- **Process:**
-    - Accepts a `.zip` archive of multiple log files.
-    - Extracts files in a temporary directory.
-    - For each valid file, reads content and parses via `parse_sections()`.
-    - Returns a list of processed file data blocks.
-
 ---
 
 ### Section Processing
@@ -230,13 +207,6 @@ After parsing, the system performs sanity checks and anomaly detection on the st
     3. **Section Analysis**: Runs registered detection functions on relevant sections
     4. **Anomaly Integration**: Adds detected anomalies to section's `parsed_data.anomalies`
 
-### Anomaly Types
-
-- **Critical Sensors**: Detects "critical" values in sensor tables
-- **Port Issues**: Identifies ports that are enabled, present, but down
-- **Missing Devices**: Finds expected PCIe devices not present in LSPCI output
-- **Speed Mismatches**: Detects PCIe devices running at incorrect speeds
-
 ### Output Integration
 
 Anomalies are added to each section's parsed data:
@@ -280,24 +250,6 @@ Anomalies are added to each section's parsed data:
 - Parse `i2cdump` outputs to memory-mapped hex tables.
 
 ---
-
-## Error Handling & Fallbacks
-
-- Malformed files → Raw parser
-- Unknown section types → Raw parser
-- Missing PMBus commands → Values set to null
-
----
-
-## Quick Reference
-
-| Section Type | Input Format | Output Structure | Anomaly Detection |
-| --- | --- | --- | --- |
-| table | ASCII table | Headers + Rows | Critical sensors, port issues |
-| i2c_dump | i2cdump hex output | Addressed commands | None |
-| key_value | Colon-delimited text | Dictionary | None |
-| lspci | `lspci -vvv` output | Slot/Class/Details list | Missing devices, speed mismatches |
-| raw | Fallback | Text block | None |
 
 ### Pipeline Summary
 

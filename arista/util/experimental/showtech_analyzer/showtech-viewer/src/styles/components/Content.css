@@ -25,7 +25,7 @@
   padding: 0.5rem 0.75rem;
   background: var(--bg-primary, #ffffff);
   border-bottom: 1px solid var(--border-default, #e5e7eb);
-  border-radius: 0.5rem 0.5rem 0 0;
+  border-radius: 8px 8px 0 0;
   flex-shrink: 0;
   min-height: fit-content;
 }
@@ -175,6 +175,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.5em 0.75em;
+  border-top-left-radius: 0.5em;
+  border-top-right-radius: 0.5em;
   background: var(--bg-subtle);
   border-bottom: 1px solid var(--border-default, #e5e7eb);
   user-select: none;
@@ -221,23 +223,7 @@
   transform: rotate(-90deg);
 }
 
-.fullscreen-button {
-  background: none;
-  border: none;
-  color: var(--text-muted, #6b7280);
-  cursor: pointer;
-  padding: 0.25em;
-  border-radius: 0.25em;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
 
-.fullscreen-button:hover {
-  background: var(--bg-hover, #f3f4f6);
-  color: var(--text-primary, #111827);
-}
 
 .section-content-wrapper {
   overflow: hidden;
@@ -245,7 +231,7 @@
 }
 
 .section-content-wrapper.expanded {
-  max-height: 30em;
+  max-height: calc(100vh - 180px); /* Take full window height minus comfortable space for header/topbar and section titles */
   opacity: 1;
   overflow-y: hidden; /* Default to no scrolling */
 }
@@ -258,40 +244,18 @@
 .section-content-wrapper.collapsed {
   max-height: 0;
   opacity: 0;
+  overflow: hidden;
+}
+
+.section-content-wrapper.collapsed .section-content {
+  display: none;
 }
 
 .section-content {
   padding: 0.75em;
 }
 
-/* Fullscreen within content window styling */
-.content {
-  position: relative;
-}
 
-.sections-container.has-fullscreen {
-  position: relative;
-  padding: 1em;
-}
-
-.section-card.fullscreen {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 100;
-  margin: 1em;
-  display: flex;
-  flex-direction: column;
-}
-
-.section-card.fullscreen .section-content-wrapper.expanded {
-  flex: 1;
-  max-height: none;
-  overflow-y: auto; /* Always allow scrolling in fullscreen */
-  min-height: 0;
-}
 
 .section-text-content {
   margin: 0;
@@ -877,4 +841,115 @@
   color: var(--text-muted, #6b7280);
   font-size: 0.75rem;
   text-transform: capitalize;
+}
+
+/* QSFP Util Styles - LSPCI-like device styling */
+.qsfp-port-section {
+  border: 1px solid var(--border-default, #e5e7eb);
+  border-radius: 0.375rem;
+  background: var(--bg-primary, #ffffff);
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.qsfp-port-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: var(--bg-subtle, #f9fafb);
+  border-bottom: 1px solid var(--border-default, #e5e7eb);
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.qsfp-port-id {
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
+  color: var(--text-accent, #3b82f6);
+  min-width: 6rem;
+  font-size: 0.9em;
+}
+
+.qsfp-port-section .table-container {
+  margin: 0 15px 0px 15px;
+}
+
+.qsfp-port-section .table-container:last-child {
+  margin: 0 15px 0 15px;
+}
+
+.qsfp-port-section .section-table {
+  margin: 10px 0;
+}
+
+.table-title {
+  margin: 0 0 10px 0;
+  color: var(--text-primary);
+  font-size: 1em;
+  font-weight: 600;
+  padding: 8px 12px;
+  background: var(--bg-subtle, #f9fafb);
+  border-bottom: 1px solid var(--border-default, #e5e7eb);
+}
+
+/* -------- PSU Debug Section Styling -------- */
+
+.psu-debug-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.psu-debug-slot {
+  border: 1px solid var(--border-default, #e5e7eb);
+  border-radius: 0.375rem;
+  background: var(--bg-primary, #ffffff);
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+.psu-debug-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem;
+  background: var(--bg-subtle, #f9fafb);
+  border-bottom: 1px solid var(--border-default, #e5e7eb);
+  flex-wrap: wrap;
+  margin: 0;
+}
+
+.psu-slot-title {
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
+  color: var(--text-accent, #3b82f6);
+  min-width: 6rem;
+  font-size: 0.9em;
+  margin: 0;
+}
+
+.psu-debug-slot .table-container {
+  margin: 0 15px 0px 15px;
+}
+
+.psu-debug-slot .table-container:last-child {
+  margin: 0 15px 0 15px;
+}
+
+.psu-debug-slot .section-table {
+  margin: 10px 0;
+}
+
+.psu-property-key {
+  font-weight: 600;
+  color: var(--text-secondary, #374151);
+  background: var(--bg-subtle, #f9fafb);
+  white-space: nowrap;
+}
+
+.psu-property-value {
+  font-family: var(--font-mono, monospace);
+  color: var(--text-primary, #111827);
+  word-break: break-word;
 }

@@ -277,6 +277,27 @@ def perform_sanity_checks(parsed_sections):
             # Load platform configuration if product name exists
             platform_config = load_platform_config(product_name)
 
+    # Add system_map to parsed_sections if platform config is available
+    if platform_config and 'system_map' in platform_config:
+        # Create enhanced system_map with platform information
+        enhanced_system_map = platform_config['system_map'].copy()
+
+        # Add platform information to the system_map
+        enhanced_system_map['platform_name'] = platform_config.get('platform', 'Unknown')
+        enhanced_system_map['product_name'] = platform_config.get('product_name', 'Unknown')
+        enhanced_system_map['description'] = platform_config.get('description', '')
+
+        # Add system_map as a new section to the parsed sections
+        system_map_section = {
+            'title': 'system_map',
+            'content': '',
+            'parsed_data': {
+                'type': 'system_map',
+                'data': enhanced_system_map
+            }
+        }
+        parsed_sections.append(system_map_section)
+
     # Now perform anomaly detection only on sections that need it
     for section_title, detector_funcs in SECTION_ANOMALY_DETECTORS.items():
         if section_title in section_map:

@@ -1,0 +1,19 @@
+### SMB SERIAL NUMBER ###
+Product Name: TestSwitch
+Serial Number: TST12345678
+MAC Address: 00:1c:73:ab:cd:ef
+Hardware Revision: 02.00
+
+### fboss2 show port ###
+Name                AdminState    LinkState    Transceiver    Speed
+-----------------------------------------------------------------
+eth1/1              Enabled       Up           Present        100G
+eth1/2              Enabled       Up           Present        100G
+eth1/3              Disabled      Down         NotPresent     N/A
+
+### fboss2 show environment sensor ###
+Sensor                  Value    Status    Threshold
+-------------------------------------------------
+Temperature             45.5     OK        85.0
+Voltage                 12.0     OK        15.0
+Current                 2.5      OK        5.0

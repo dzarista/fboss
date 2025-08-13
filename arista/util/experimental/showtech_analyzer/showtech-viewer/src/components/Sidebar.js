@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import UploadIcon from './icons/UploadIcon';
+import { UploadIcon } from '../assets/icons/Icon';
 
 export default function Sidebar({
   logs,
