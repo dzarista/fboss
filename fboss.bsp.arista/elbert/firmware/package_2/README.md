@@ -9,7 +9,6 @@
 |                                                        | cores by dmidecode. Image is not          |
 |                                                        | qualified.                                |
 | elbert_scm.astp                                        | SCM CPLD JTAG image                       |
-| elbert_scm_dpe.astp                                    | SCM CPLD DPE JTAG image                   |
 | elbert_smb.astp                                        | SMB FPGA JTAG image                       |
 | elbert_smb_cpld.astp                                   | SMB CPLD JTAG image                       |
 | elbert_fan.astp                                        | FAN CPLD JTAG image                       |
@@ -34,7 +33,7 @@ N/A
 | 7.3.3-33492597 | Experimental image with boot methods support. This does not include UAPI bootloader enhancements. Only GRUB is supported for LOCAL boot.                                                                     |
 | 7.3.4-42641583 | Qualified image with boot methods support including UAPI bootloader enhancements.                                                                                                                            |
 | 7.3.5-43066215 | Fix for issue with number of reported cores by dmidecode. Experimental image.                                                                                                                                |
-## SCM / SCM DPE
+## SCM
 
 | Version        | Changelog                                                                                                             |
 |----------------|-----------------------------------------------------------------------------------------------------------------------|

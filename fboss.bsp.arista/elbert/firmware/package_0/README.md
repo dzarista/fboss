@@ -3,13 +3,7 @@
 | Programmable Name                                      | Description                               |
 |--------------------------------------------------------|-------------------------------------------|
 | Aboot-norcal7-7.3.3-cb411-generic-8x1-33492597.rom     | Bootloader with support for boot methods  |
-| Aboot-norcal7-7.3.4-cb411-generic-8x1-42641583.rom     | Bootloader with support for boot methods  |
-|                                                        | including BLS UAPI support                |
-| Aboot-norcal7-7.3.5-cb411-generic-8x1-ENG-43066215.rom | Fix for issue with number of reported     |
-|                                                        | cores by dmidecode. Image is not          |
-|                                                        | qualified.                                |
 | elbert_scm.astp                                        | SCM CPLD JTAG image                       |
-| elbert_scm_dpe.astp                                    | SCM CPLD DPE JTAG image                   |
 | elbert_smb.astp                                        | SMB FPGA JTAG image                       |
 | elbert_smb_cpld.astp                                   | SMB CPLD JTAG image                       |
 | elbert_fan.astp                                        | FAN CPLD JTAG image                       |
@@ -32,7 +26,7 @@ N/A
 | Version        | Changelog                                                                                                                                                                                                    |
 |----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | 7.3.3-33492597 | Experimental image with boot methods support. This does not include UAPI bootloader enhancements. Only GRUB is supported for LOCAL boot.                                                                     |
-## SCM / SCM DPE
+## SCM
 
 | Version        | Changelog                                                                                                             |
 |----------------|-----------------------------------------------------------------------------------------------------------------------|
