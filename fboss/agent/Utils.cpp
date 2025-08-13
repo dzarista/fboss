@@ -81,6 +81,7 @@ DEFINE_bool(
     allow_eventor_send_packet,
     false,
     "A test-only flag to allow sending packets directly out of the eventor");
+DEFINE_int32(sflow_egress_port_id, 0, "Force sflow to egress from a port");
 
 namespace facebook::fboss {
 
@@ -948,7 +949,6 @@ cfg::SwitchDrainState computeActualSwitchDrainState(
       break;
     case cfg::SwitchDrainState::DRAINED_DUE_TO_ASIC_ERROR:
       throw FbossError("Valid desired DRAINED states are {DRAINED, UNDRAINED}");
-      break;
   }
 
   return newSwitchDrainState;
@@ -1025,7 +1025,6 @@ uint32_t getRemotePortOffset(const PlatformType platformType) {
     default:
       return 0;
   }
-  return 0;
 }
 
 std::string runShellCmd(const std::string& cmd) {

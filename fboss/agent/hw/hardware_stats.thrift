@@ -99,6 +99,7 @@ struct HwPortStats {
   65: map<i16, i64> pgInCongestionDiscards_ = {};
   66: optional i64 pfcDeadlockDetection_;
   67: optional i64 pfcDeadlockRecovery_;
+  68: map<i16, bool> pgInCongestionDiscardSeen_ = {};
 }
 
 struct HwSysPortStats {
@@ -368,6 +369,7 @@ struct HwSwitchDramStats {
   1: optional i64 dramEnqueuedBytes;
   2: optional i64 dramDequeuedBytes;
   3: optional i64 dramBlockedTimeNsec;
+  4: optional i64 dramQuarantinedBufferCount;
 }
 
 struct HwSwitchCreditStats {
@@ -441,6 +443,7 @@ struct HwSwitchFb303GlobalStats {
   35: optional i64 interrupt_masked_events;
   36: optional i64 asic_revision;
   37: optional i64 sram_low_buffer_limit_hit_count;
+  38: optional i64 dram_quarantined_buffer_count;
 }
 
 struct HwFlowletStats {

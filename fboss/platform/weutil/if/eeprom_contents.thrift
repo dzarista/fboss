@@ -1,5 +1,8 @@
 namespace cpp2 facebook.fboss.platform
+namespace hack NetengFbossPlatform
 namespace py3 facebook.fboss.platform
+
+include "thrift/annotation/hack.thrift"
 
 // This is a common thrift struct for both V5 and V6 EEPROMs
 // See https://facebook.github.io/fboss/docs/platform/meta_eeprom_format_v6/ for details.
@@ -32,6 +35,15 @@ struct EepromContents {
   26: string crc16;
 }
 
+@hack.Attributes{
+  attributes = [
+    "\Oncalls('net_ui')",
+    "\JSEnum",
+    "\GraphQLEnum('NetengFbossPlatformProductionState')",
+    "\SelfDescriptive",
+    "\RelayFlowEnum",
+  ],
+}
 enum ProductionState {
   EVT = 1,
   DVT = 2,

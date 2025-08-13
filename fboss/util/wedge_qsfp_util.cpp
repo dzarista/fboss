@@ -4359,7 +4359,8 @@ std::pair<std::unique_ptr<TransceiverI2CApi>, int> getTransceiverAPI() {
       auto ioBus = std::make_unique<BspIOBus>(systemContainer);
       return std::make_pair(std::move(ioBus), 0);
     } else if (
-        FLAGS_platform == "meru800bia" || FLAGS_platform == "meru800biab") {
+        FLAGS_platform == "meru800bia" || FLAGS_platform == "meru800biab" ||
+        FLAGS_platform == "meru800biac") {
       auto systemContainer =
           BspGenericSystemContainer<Meru800biaBspPlatformMapping>::getInstance()
               .get();
@@ -4449,7 +4450,8 @@ std::pair<std::unique_ptr<TransceiverI2CApi>, int> getTransceiverAPI() {
     return std::make_pair(std::move(ioBus), 0);
   } else if (
       mode == PlatformType::PLATFORM_MERU800BIA ||
-      mode == PlatformType::PLATFORM_MERU800BIAB) {
+      mode == PlatformType::PLATFORM_MERU800BIAB ||
+      mode == PlatformType::PLATFORM_MERU800BIAC) {
     auto systemContainer =
         BspGenericSystemContainer<Meru800biaBspPlatformMapping>::getInstance()
             .get();
@@ -4590,7 +4592,8 @@ getTransceiverPlatformAPI(TransceiverI2CApi* i2cBus) {
         std::make_unique<BspTransceiverApi>(systemContainer), 0);
   } else if (
       mode == PlatformType::PLATFORM_MERU800BIA ||
-      mode == PlatformType::PLATFORM_MERU800BIAB) {
+      mode == PlatformType::PLATFORM_MERU800BIAB ||
+      mode == PlatformType::PLATFORM_MERU800BIAC) {
     auto systemContainer =
         BspGenericSystemContainer<Meru800biaBspPlatformMapping>::getInstance()
             .get();
