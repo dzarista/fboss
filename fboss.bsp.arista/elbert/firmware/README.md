@@ -6,13 +6,14 @@ The firmware binary must follow the nomenclature `P_<supported_platform_names>_F
 ## Organization
 Use a directory structure with numbered packages (e.g., package_0, package_1, etc.) where the highest number always represents the latest firmware drop. it should look something like the one below.
 
-```
-ls -lah fboss.bsp.arista/elbert/firmware
-
+```bash
+bash-5.1$ ls -lah fboss.bsp.arista/elbert/firmware
 total 4.0K
-drwxr-xr-x. 1 tharish tharish   70 Aug 13 16:49 .
-drwxr-xr-x. 1 tharish tharish   34 Aug 11 17:15 ..
--rw-r--r--. 1 tharish tharish 1.1K Aug 13 16:52 README.md
-drwxr-xr-x. 1 tharish tharish  704 Aug 13 16:47 firmware_dowgrade
-drwxr-xr-x. 1 tharish tharish  952 Aug 12 16:05 package_0
+drwxr-xr-x. 1 tharish tharish 106 Aug 13 17:43 .
+drwxr-xr-x. 1 tharish tharish  34 Aug 11 17:15 ..
+-rw-r--r--. 1 tharish tharish 986 Aug 13 16:56 README.md
+drwxr-xr-x. 1 tharish tharish 704 Aug 13 16:47 firmware_dowgrade
+drwxr-xr-x. 1 tharish tharish 672 Aug 13 17:42 package_0
+drwxr-xr-x. 1 tharish tharish 672 Aug 13 17:43 package_1
+drwxr-xr-x. 1 tharish tharish 952 Aug 13 17:42 package_2
 ```

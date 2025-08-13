@@ -1,4 +1,4 @@
-# Firmware Package #0
+# Firmware Package #2
 
 | Programmable Name                                      | Description                               |
 |--------------------------------------------------------|-------------------------------------------|
