@@ -625,7 +625,7 @@ export const CollapsibleSection = forwardRef(({ title, children, isExpanded, onT
       </div>
       <div className={`section-content-wrapper ${isExpanded ? 'expanded' : 'collapsed'}`}>
         <div className="section-content">
-          {isExpanded ? children : null}
+          {children}
         </div>
       </div>
     </div>

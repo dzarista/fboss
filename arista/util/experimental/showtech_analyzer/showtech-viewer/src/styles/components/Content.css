@@ -247,7 +247,9 @@
 }
 
 .section-content-wrapper.collapsed .section-content {
-  display: none;
+  visibility: hidden;
+  height: 0;
+  padding: 0;
 }
 
 .section-content {

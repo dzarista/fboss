@@ -15,11 +15,7 @@ import {
   extractPortTypes,
 } from './SystemSummary/extractors';
 
-const SystemSummary = ({ sections }) => {
-  const systemMap = useMemo(() => {
-    const systemMapSection = sections.find((s) => s.title === 'system_map');
-    return systemMapSection?.parsed_data?.data || null;
-  }, [sections]);
+const SystemSummary = ({ sections, systemMap }) => {
 
   const qsfpData = useMemo(() => extractQsfpData(sections), [sections]);
   const fanData = useMemo(() => extractFanData(sections), [sections]);

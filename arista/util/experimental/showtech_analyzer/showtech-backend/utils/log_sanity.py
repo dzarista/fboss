@@ -277,26 +277,7 @@ def perform_sanity_checks(parsed_sections):
             # Load platform configuration if product name exists
             platform_config = load_platform_config(product_name)
 
-    # Add system_map to parsed_sections if platform config is available
-    if platform_config and 'system_map' in platform_config:
-        # Create enhanced system_map with platform information
-        enhanced_system_map = platform_config['system_map'].copy()
 
-        # Add platform information to the system_map
-        enhanced_system_map['platform_name'] = platform_config.get('platform', 'Unknown')
-        enhanced_system_map['product_name'] = platform_config.get('product_name', 'Unknown')
-        enhanced_system_map['description'] = platform_config.get('description', '')
-
-        # Add system_map as a new section to the parsed sections
-        system_map_section = {
-            'title': 'system_map',
-            'content': '',
-            'parsed_data': {
-                'type': 'system_map',
-                'data': enhanced_system_map
-            }
-        }
-        parsed_sections.append(system_map_section)
 
     # Now perform anomaly detection only on sections that need it
     for section_title, detector_funcs in SECTION_ANOMALY_DETECTORS.items():
@@ -325,3 +306,93 @@ def perform_sanity_checks(parsed_sections):
                 section['parsed_data']['anomalies'] = anomalies
 
     return parsed_sections
+
+
+def get_system_map_data(parsed_sections):
+    """
+    Extract system map data from platform configuration if available.
+    Returns enhanced system_map data or None.
+    """
+    # Create a lookup map for faster section access
+    section_map = {section.get('title', ''): section for section in parsed_sections}
+    product_name = None
+    platform_config = None
+
+    # First, extract product name from fboss2 show product section
+    if 'fboss2 show product' in section_map:
+        section = section_map['fboss2 show product']
+        parsed_data = section.get('parsed_data', {})
+        if parsed_data.get('type') == 'key_value':
+            product_data = parsed_data.get('data', {})
+            product_name = product_data.get('Product', '').strip()
+
+            # Load platform configuration if product name exists
+            platform_config = load_platform_config(product_name)
+
+    if not platform_config and 'SMB SERIAL NUMBER' in section_map:
+        section = section_map['SMB SERIAL NUMBER']
+        parsed_data = section.get('parsed_data', {})
+        if parsed_data.get('type') == 'key_value':
+            product_data = parsed_data.get('data', {})
+            product_name = product_data.get('Product Name', '').strip()
+
+            # Load platform configuration if product name exists
+            platform_config = load_platform_config(product_name)
+
+    if platform_config and 'system_map' in platform_config:
+        # Create enhanced system_map with platform information
+        enhanced_system_map = platform_config['system_map'].copy()
+
+        # Add platform information to the system_map
+        enhanced_system_map['platform_name'] = platform_config.get('platform', 'Unknown')
+        enhanced_system_map['product_name'] = platform_config.get('product_name', 'Unknown')
+        enhanced_system_map['description'] = platform_config.get('description', '')
+
+        return enhanced_system_map
+
+    return None
+
+
+def get_system_map_data(parsed_sections):
+    """
+    Extract system map data from platform configuration if available.
+    Returns enhanced system_map data or None.
+    """
+    # Create a lookup map for faster section access
+    section_map = {section.get('title', ''): section for section in parsed_sections}
+    product_name = None
+    platform_config = None
+
+    # First, extract product name from fboss2 show product section
+    if 'fboss2 show product' in section_map:
+        section = section_map['fboss2 show product']
+        parsed_data = section.get('parsed_data', {})
+        if parsed_data.get('type') == 'key_value':
+            product_data = parsed_data.get('data', {})
+            product_name = product_data.get('Product', '').strip()
+
+            # Load platform configuration if product name exists
+            platform_config = load_platform_config(product_name)
+
+    if not platform_config and 'SMB SERIAL NUMBER' in section_map:
+        section = section_map['SMB SERIAL NUMBER']
+        parsed_data = section.get('parsed_data', {})
+        if parsed_data.get('type') == 'key_value':
+            product_data = parsed_data.get('data', {})
+            product_name = product_data.get('Product Name', '').strip()
+
+            # Load platform configuration if product name exists
+            platform_config = load_platform_config(product_name)
+
+    if platform_config and 'system_map' in platform_config:
+        # Create enhanced system_map with platform information
+        enhanced_system_map = platform_config['system_map'].copy()
+
+        # Add platform information to the system_map
+        enhanced_system_map['platform_name'] = platform_config.get('platform', 'Unknown')
+        enhanced_system_map['product_name'] = platform_config.get('product_name', 'Unknown')
+        enhanced_system_map['description'] = platform_config.get('description', '')
+
+        return enhanced_system_map
+
+    return None

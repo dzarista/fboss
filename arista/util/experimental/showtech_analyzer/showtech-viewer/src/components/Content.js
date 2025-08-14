@@ -3,6 +3,7 @@ import { detectAllErrors } from './ErrorDetection';
 import { ErrorIndicator, ErrorSummaryModal } from './ErrorModal';
 import { SectionContentRenderer, CollapsibleSection } from './SectionRenderer';
 import SystemSummary from './SystemSummary';
+import LoadingSpinner from './LoadingSpinner';
 import { getSectionRaw } from '../utils/api';
 
 export default function Content({ log, onClose, visibleSections, onJumpToSection, fontSize, onFontSizeChange, slotIndex, isActive, onActivate }) {
@@ -15,15 +16,20 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
   const [rawModeSections, setRawModeSections] = useState(new Set()); // Track which sections are in raw mode
   const [rawDataCache, setRawDataCache] = useState({}); // Cache raw data to avoid repeated API calls
   const [loadingRawSections, setLoadingRawSections] = useState(new Set()); // Track which sections are loading raw data
+  const [isLoadingFile, setIsLoadingFile] = useState(false); // Track if file is loading
   const sectionRefs = useRef({});
 
 
 
-  // Initialize all sections as collapsed when log changes
+  // Initialize all sections as expanded when log changes
   useEffect(() => {
     if (log?.sections) {
-      setExpandedSections(new Set()); // Start with all sections collapsed
-      setAllExpanded(false);
+      // Show loading spinner when file changes
+      setIsLoadingFile(true);
+
+      const allSectionIds = new Set(log.sections.map((_, idx) => idx));
+      setExpandedSections(allSectionIds); // Start with all sections expanded
+      setAllExpanded(true);
       // Initialize refs
       sectionRefs.current = {};
 
@@ -35,6 +41,15 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
       // Detect errors in the log
       const errors = detectAllErrors(log);
       setDetectedErrors(errors);
+
+      // Hide loading spinner after a short delay to allow components to render
+      const timer = setTimeout(() => {
+        setIsLoadingFile(false);
+      }, 800); // Increased to 800ms to give more time for complex sections to render
+
+      return () => clearTimeout(timer);
+    } else {
+      setIsLoadingFile(false);
     }
   }, [log]);
 
@@ -368,10 +383,17 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
               </div>
             </div>
             <div className="sections-container" style={{ fontSize: `${fontSize}px` }}>
-              {showSystemSummary ? (
+              {isLoadingFile ? (
+                // Show loading spinner while file is loading
+                <LoadingSpinner
+                  message="Loading file sections..."
+                  size="large"
+                />
+              ) : showSystemSummary ? (
                 // Show System Summary
                 <SystemSummary
                   sections={log.sections || []}
+                  systemMap={log.system_map || null}
                 />
               ) : log.sections?.length === 0 ? (
                 <p className="placeholder-text">No sections found in this log</p>
