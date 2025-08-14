@@ -24,7 +24,11 @@ programmable. The most recent version can be found in this
 directory.
 
 ## Changes From Last Package
-N/A
+| Programmable Name                                      | Description                               |
+|--------------------------------------------------------|-------------------------------------------|
+| Aboot-norcal7-7.3.5-cb411-generic-8x1-ENG-43066215.rom | Fix for issue with number of reported     |
+|                                                        | cores by dmidecode. Image is not          |
+|                                                        | qualified.                                |
 
 ## BIOS
 

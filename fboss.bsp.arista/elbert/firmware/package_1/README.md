@@ -21,7 +21,9 @@ programmable. The most recent version can be found in this
 directory.
 
 ## Changes From Last Package
-N/A
+| Programmable Name                                      | Description                               |
+|--------------------------------------------------------|-------------------------------------------|
+| Aboot-norcal7-7.3.4-cb411-generic-8x1-42641583.rom     | Bootloader with support for boot methods  |
 
 ## BIOS
 
