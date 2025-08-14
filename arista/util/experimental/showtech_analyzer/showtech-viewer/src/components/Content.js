@@ -6,7 +6,7 @@ import SystemSummary from './SystemSummary';
 import LoadingSpinner from './LoadingSpinner';
 import { getSectionRaw } from '../utils/api';
 
-export default function Content({ log, onClose, visibleSections, onJumpToSection, fontSize, onFontSizeChange, slotIndex, isActive, onActivate }) {
+export default function Content({ log, onClose, visibleSections, onJumpToSection, fontSize, onFontSizeChange, slotIndex, isActive, onActivate, isLoadingFromApp }) {
   const [expandedSections, setExpandedSections] = useState(new Set());
   const [allExpanded, setAllExpanded] = useState(false);
   const [activeSection, setActiveSection] = useState(null);
@@ -16,7 +16,6 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
   const [rawModeSections, setRawModeSections] = useState(new Set()); // Track which sections are in raw mode
   const [rawDataCache, setRawDataCache] = useState({}); // Cache raw data to avoid repeated API calls
   const [loadingRawSections, setLoadingRawSections] = useState(new Set()); // Track which sections are loading raw data
-  const [isLoadingFile, setIsLoadingFile] = useState(false); // Track if file is loading
   const sectionRefs = useRef({});
 
 
@@ -24,9 +23,6 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
   // Initialize all sections as expanded when log changes
   useEffect(() => {
     if (log?.sections) {
-      // Show loading spinner when file changes
-      setIsLoadingFile(true);
-
       const allSectionIds = new Set(log.sections.map((_, idx) => idx));
       setExpandedSections(allSectionIds); // Start with all sections expanded
       setAllExpanded(true);
@@ -41,15 +37,6 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
       // Detect errors in the log
       const errors = detectAllErrors(log);
       setDetectedErrors(errors);
-
-      // Hide loading spinner after a short delay to allow components to render
-      const timer = setTimeout(() => {
-        setIsLoadingFile(false);
-      }, 800); // Increased to 800ms to give more time for complex sections to render
-
-      return () => clearTimeout(timer);
-    } else {
-      setIsLoadingFile(false);
     }
   }, [log]);
 
@@ -383,10 +370,10 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
               </div>
             </div>
             <div className="sections-container" style={{ fontSize: `${fontSize}px` }}>
-              {isLoadingFile ? (
+              {(isLoadingFromApp || !log.sections) ? (
                 // Show loading spinner while file is loading
                 <LoadingSpinner
-                  message="Loading file sections..."
+                  message="Loading file..."
                   size="large"
                 />
               ) : showSystemSummary ? (
@@ -416,6 +403,7 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
                       isActive={activeSection === idx}
                       onActivate={() => activateSection(idx)}
                       isRawMode={rawModeSections.has(idx)}
+                      isLoadingRaw={loadingRawSections.has(idx)}
                       onToggleRaw={
                         // Only show raw toggle for sections with structured data (not plain raw)
                         sec.parsed_data?.type !== 'raw'

@@ -34,6 +34,7 @@ function App() {
   const [activeFilterTab, setActiveFilterTab] = useState(0); // Which file's filters to show
   const [activeWindow, setActiveWindow] = useState(0); // Which content window is active (0 or 1)
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loadingFiles, setLoadingFiles] = useState([false, false]); // Track which slots are loading
 
   // On startup: check backend connection and load cached files
   useEffect(() => {
@@ -85,7 +86,7 @@ function App() {
     }
   };
 
-  const handleOpenFile = (idx) => {
+  const handleOpenFile = async (idx) => {
     const file = logs[idx];
 
     // Check if file is already open
@@ -108,32 +109,74 @@ function App() {
       slotIndex = activeWindow;
     }
 
-    // Update opened files
+    // IMMEDIATELY set loading state and open window with placeholder
+    const newLoadingFiles = [...loadingFiles];
+    newLoadingFiles[slotIndex] = true;
+    setLoadingFiles(newLoadingFiles);
+
+    // Create a placeholder file object to show loading state
+    const placeholderFile = {
+      name: file.name,
+      file_id: file.file_id,
+      sections: null, // This will trigger loading state
+      isLoading: true
+    };
+
+    // Update opened files with placeholder
     const newOpenedFiles = [...openedFiles];
-    newOpenedFiles[slotIndex] = file;
+    newOpenedFiles[slotIndex] = placeholderFile;
     setOpenedFiles(newOpenedFiles);
 
-    // Load cached filter state or initialize all sections as visible
-    if (file?.sections) {
-      const cachedFilterState = getFilterState(file.name);
-      const newVisibleSections = [...visibleSections];
+    // Simulate progressive loading - in a real scenario, this would be actual data loading
+    try {
+      // Small delay to ensure UI updates
+      await new Promise(resolve => setTimeout(resolve, 100));
 
-      if (cachedFilterState && cachedFilterState.size > 0) {
-        // Use cached filter state
-        newVisibleSections[slotIndex] = cachedFilterState;
-        console.log(`Loaded filter state for "${file.name}": ${cachedFilterState.size} sections visible`);
-      } else {
-        // Default: all sections visible
-        const allSectionIds = new Set(file.sections.map((_, sectionIdx) => sectionIdx));
-        newVisibleSections[slotIndex] = allSectionIds;
+      // Now load the actual file data
+      const actualFile = { ...file };
 
-        // Save the default state to cache
-        if (isStorageAvailable()) {
-          saveFilterState(file.name, allSectionIds);
+      // Load cached filter state or initialize all sections as visible
+      if (actualFile?.sections) {
+        const cachedFilterState = getFilterState(actualFile.name);
+        const newVisibleSections = [...visibleSections];
+
+        if (cachedFilterState && cachedFilterState.size > 0) {
+          // Use cached filter state
+          newVisibleSections[slotIndex] = cachedFilterState;
+          console.log(`Loaded filter state for "${actualFile.name}": ${cachedFilterState.size} sections visible`);
+        } else {
+          // Default: all sections visible
+          const allSectionIds = new Set(actualFile.sections.map((_, sectionIdx) => sectionIdx));
+          newVisibleSections[slotIndex] = allSectionIds;
+
+          // Save the default state to cache
+          if (isStorageAvailable()) {
+            saveFilterState(actualFile.name, allSectionIds);
+          }
         }
+
+        setVisibleSections(newVisibleSections);
       }
 
-      setVisibleSections(newVisibleSections);
+      // Simulate loading time for sections to be processed
+      await new Promise(resolve => setTimeout(resolve, 1200));
+
+      // Update with actual file data
+      const finalOpenedFiles = [...openedFiles];
+      finalOpenedFiles[slotIndex] = actualFile;
+      setOpenedFiles(finalOpenedFiles);
+
+      // Clear loading state
+      const finalLoadingFiles = [...loadingFiles];
+      finalLoadingFiles[slotIndex] = false;
+      setLoadingFiles(finalLoadingFiles);
+
+    } catch (error) {
+      console.error('Error loading file:', error);
+      // Clear loading state on error
+      const errorLoadingFiles = [...loadingFiles];
+      errorLoadingFiles[slotIndex] = false;
+      setLoadingFiles(errorLoadingFiles);
     }
 
     // Set active filter tab and active window to the newly opened file
@@ -145,14 +188,17 @@ function App() {
     const newOpenedFiles = [...openedFiles];
     const newVisibleSections = [...visibleSections];
     const newFontSizes = [...fontSizes];
+    const newLoadingFiles = [...loadingFiles];
 
     newOpenedFiles[slotIndex] = null;
     newVisibleSections[slotIndex] = new Set();
     newFontSizes[slotIndex] = 12; // Reset to default font size
+    newLoadingFiles[slotIndex] = false; // Reset loading state
 
     setOpenedFiles(newOpenedFiles);
     setVisibleSections(newVisibleSections);
     setFontSizes(newFontSizes);
+    setLoadingFiles(newLoadingFiles);
 
     // If we closed the active filter tab, switch to the other one if it exists
     if (activeFilterTab === slotIndex) {
@@ -307,6 +353,7 @@ function App() {
               slotIndex={0}
               isActive={activeWindow === 0}
               onActivate={() => handleWindowActivation(0)}
+              isLoadingFromApp={loadingFiles[0]}
             />
           )}
 
@@ -321,6 +368,7 @@ function App() {
               slotIndex={1}
               isActive={activeWindow === 1}
               onActivate={() => handleWindowActivation(1)}
+              isLoadingFromApp={loadingFiles[1]}
             />
           )}
 

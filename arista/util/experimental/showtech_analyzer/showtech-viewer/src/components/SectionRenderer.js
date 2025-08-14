@@ -573,7 +573,7 @@ export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawCo
 };
 
 // Collapsible Section Component
-export const CollapsibleSection = forwardRef(({ title, children, isExpanded, onToggle, isActive, onActivate, isRawMode, onToggleRaw }, ref) => {
+export const CollapsibleSection = forwardRef(({ title, children, isExpanded, onToggle, isActive, onActivate, isRawMode, isLoadingRaw, onToggleRaw }, ref) => {
   const handleToggleExpanded = (e) => {
     e.stopPropagation();
     // Activate the section when expand/collapse is clicked
@@ -607,10 +607,18 @@ export const CollapsibleSection = forwardRef(({ title, children, isExpanded, onT
             <button
               className="control-button"
               onClick={handleToggleRaw}
-              title={isRawMode ? "Show structured data" : "Show raw data"}
-              aria-label={isRawMode ? "Show structured data" : "Show raw data"}
+              title={isLoadingRaw ? "Loading data..." : (isRawMode ? "Show structured data" : "Show raw data")}
+              aria-label={isLoadingRaw ? "Loading data..." : (isRawMode ? "Show structured data" : "Show raw data")}
+              disabled={isLoadingRaw}
             >
-              {isRawMode ? 'Show Structured' : 'Show Raw'}
+              {isLoadingRaw ? (
+                <span className="button-loading">
+                  <span className="button-spinner"></span>
+                  Loading data...
+                </span>
+              ) : (
+                isRawMode ? 'Show Structured' : 'Show Raw'
+              )}
             </button>
           )}
           <button
