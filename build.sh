@@ -134,7 +134,8 @@ export BUILD_FBOSS_CLI=1
 export IS_OSS=1
 export SAI_SDK_VERSION=$(echo $sai_info | awk '{print $2}')
 unset DESTDIR
-export CCACHE_DISABLE="true"
+# Configure ccache for compiler level caching
+export CCACHE_CONFIGPATH=$(realpath arista/build-utils/ccache.conf)
 
 echo "==== Building fboss ===="
 time $getdeps build --allow-system-packages --num-jobs 40 \

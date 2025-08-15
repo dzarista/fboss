@@ -4,7 +4,19 @@ images:
     - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
       build: arista/fbossctl kernel_pull 6.4 $DESTDIR/kernel-6.4
 
+  internal/build-env:
+    entry:
+      env:
+        FBOSS_BARNEY_BUILD: "True"
+        FBOSS_ARTIFACTORY_TOKEN: ${secrets.fboss_artifactory_reference_token}
+        CCACHE_SECONDARY_STORAGE: ${fboss_ccache_remote_storage_url:-redis://fboss-ccache-redis.infra.corp.arista.io:65530}
+      mutables:
+        - /var/FBOSS
+
   bus:
+    entry:
+      env:
+        CCACHE_SECONDARY_STORAGE: "${fboss_ccache_remote_storage_url:-redis://fboss-ccache-redis.infra.corp.arista.io:65530}|read-only=true"
     units:
       - image: code.arista.io/os/fboss-centos%fboss-centos-image-el9
       - image: code.arista.io/fboss/fboss-bcm-sai%sai-11.7.0-sdk-6.5.30-dnx-kernel-6.4
@@ -19,17 +31,11 @@ images:
       - image: code.arista.io/fboss/fboss-bcm-sai%sai-11.7.0-sdk-6.5.30-dnx-kernel-6.4
       - image: code.arista.io/fboss/fboss-bcm-sdk%sdk-6.5.30-dnx-kernel-6.4
       - image: .%kernel-6.4
-    entry:
-      mutables:
-        - /var/FBOSS
+      - image: .%internal/build-env
 
   package_dnx_6.4-el9:
     units:
       - floor: .%build-floor/dnx_6.4-el9
-        entry:
-          env:
-            FBOSS_BARNEY_BUILD: "True"
-            FBOSS_ARTIFACTORY_TOKEN: ${secrets.fboss_artifactory_reference_token}
         build: |
           export PTESTDIR=$DESTDIR/usr/share/ptest-data/Fboss
           ./build.sh --sai dnx-11.7 --kernel-dir /kernel-6.4
@@ -43,17 +49,11 @@ images:
       - image: code.arista.io/fboss/fboss-bcm-sai%sai-10.2.0-sdk-6.5.29-xgs-kernel-6.4
       - image: code.arista.io/fboss/fboss-bcm-sdk%sdk-6.5.29-xgs-kernel-6.4
       - image: .%kernel-6.4
-    entry:
-      mutables:
-        - /var/FBOSS
+      - image: .%internal/build-env
 
   package_xgs_6.4-el9:
     units:
       - floor: .%build-floor/xgs_6.4-el9
-        entry:
-          env:
-            FBOSS_BARNEY_BUILD: "True"
-            FBOSS_ARTIFACTORY_TOKEN: ${secrets.fboss_artifactory_reference_token}
         build: |
           export PTESTDIR=$DESTDIR/usr/share/ptest-data/Fboss
           ./build.sh --sai xgs-10.2 --kernel-dir /kernel-6.4
