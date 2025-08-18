@@ -121,7 +121,7 @@ export default function UploadModal({ onClose, onFilesProcessed }) {
               onFilesProcessed(uploaded);
             }
             onClose();
-          }, 800);
+          }, 100);
 
         } else {
           // Single file - use simpler progress
@@ -134,13 +134,13 @@ export default function UploadModal({ onClose, onFilesProcessed }) {
             setTimeout(() => {
               onFilesProcessed(uploaded);
               onClose();
-            }, 500);
+            }, 100);
           } else {
             // No valid showtech files found - just close quietly
             setUploadProgress('No valid showtech files found');
             setTimeout(() => {
               onClose();
-            }, 1000);
+            }, 200);
           }
         }
 

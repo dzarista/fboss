@@ -4,6 +4,8 @@ Section parser tests - Essential parsing functionality
 import pytest
 from utils.section_parsers import parse_table, parse_key_value, parse_content_by_type, parse_i2c_dump, parse_fboss2_interface_phy, parse_psu_debug
 from utils.section_utils import parse_byte_dump, parse_word_dump
+from utils.file_upload import parse_sections
+from utils.file_upload import parse_sections
 
 
 class TestParseTable:
@@ -605,3 +607,104 @@ READ_VIN: 50.9375"""
 
         assert result['type'] == 'psu_debug'
         assert result['psu_count'] == 1
+
+
+class TestRawContentPopulation:
+    """Test that raw_content field is properly populated in all section types"""
+
+    def test_raw_content_populated_for_table_sections(self):
+        """Test that table sections have raw_content field populated"""
+        sample_content = """############ Test Table Section ############
+Column1    Column2    Column3
+Value1     Value2     Value3
+Value4     Value5     Value6
+"""
+
+        sections = parse_sections(sample_content)
+
+        # Filter out empty sections
+        non_empty_sections = [s for s in sections if s['title'] is not None]
+        assert len(non_empty_sections) == 1
+        section = non_empty_sections[0]
+
+        # Check section structure
+        assert section['title'] == 'Test Table Section'
+        assert 'parsed_data' in section
+        assert 'raw_content' in section
+
+        # Check raw_content is populated
+        assert section['raw_content'] is not None
+        assert 'Column1    Column2    Column3' in section['raw_content']
+        assert 'Value1     Value2     Value3' in section['raw_content']
+
+        # Check parsed_data structure exists (type may be 'raw' if table parsing fails)
+        assert section['parsed_data']['type'] in ['table', 'raw']
+
+    def test_raw_content_preserves_formatting(self):
+        """Test that raw_content preserves special characters and formatting"""
+        sample_content = """############ Special Characters Test ############
+Line with tabs:	tab1	tab2	tab3
+Line with spaces:    multiple    spaces    here
+Special chars: !@#$%^&*()_+-=[]{}|;:'"<>?,.
+Empty line below:
+
+Line after empty line
+"""
+
+        sections = parse_sections(sample_content)
+
+        # Filter out empty sections
+        non_empty_sections = [s for s in sections if s['title'] is not None]
+        assert len(non_empty_sections) == 1
+        section = non_empty_sections[0]
+
+        raw_content = section['raw_content']
+
+        # Check tabs are preserved
+        assert '\t' in raw_content
+        assert 'tab1\ttab2\ttab3' in raw_content
+
+        # Check multiple spaces are preserved
+        assert 'multiple    spaces    here' in raw_content
+
+        # Check special characters are preserved
+        assert '!@#$%^&*()_+-=[]{}|;:\'"<>?,' in raw_content
+
+        # Check empty lines are preserved
+        lines = raw_content.split('\n')
+        empty_line_exists = any(line.strip() == '' for line in lines)
+        assert empty_line_exists
+
+    def test_multiple_sections_all_have_raw_content(self):
+        """Test that all sections in a multi-section file have raw_content populated"""
+        sample_content = """############ First Section ############
+Key1: Value1
+Key2: Value2
+
+############ Second Section ############
+Column1    Column2
+Data1      Data2
+Data3      Data4
+
+############ Third Section ############
+This is raw content
+With multiple lines
+And various formatting
+"""
+
+        sections = parse_sections(sample_content)
+
+        # Filter out empty sections
+        non_empty_sections = [s for s in sections if s['title'] is not None]
+        assert len(non_empty_sections) == 3
+
+        # Check all sections have raw_content
+        for i, section in enumerate(non_empty_sections):
+            assert 'raw_content' in section, f"Section {i} missing raw_content"
+            assert section['raw_content'] is not None, f"Section {i} has null raw_content"
+            assert len(section['raw_content'].strip()) > 0, f"Section {i} has empty raw_content"
+
+        # Check specific content for each section
+        assert 'Key1: Value1' in non_empty_sections[0]['raw_content']
+        assert 'Column1    Column2' in non_empty_sections[1]['raw_content']
+        assert 'This is raw content' in non_empty_sections[2]['raw_content']

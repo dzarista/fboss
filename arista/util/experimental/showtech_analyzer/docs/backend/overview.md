@@ -11,7 +11,6 @@ The backend accepts both individual text log files and `.zip` archives. It detec
 
 - **`/api/upload` (POST):** Accepts file uploads (text or ZIP), parses them, and returns structured JSON for each log file.
 For more details, read [`docs/backend/pipeline.md`](pipeline.md).
-- **`/api/section-raw` (POST):** Accepts file_id and section_index, returns decompressed raw content for a specific section.
 - **`/api/status` (GET):** Returns a simple JSON response for health checks and connection testing.
 
 ---

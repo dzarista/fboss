@@ -65,7 +65,7 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
           newSectionsEl.scrollTop = savedScrollPos;
         }
         // Hide spinner after everything is done
-        setTimeout(() => setIsToggling(false), 100);
+        setTimeout(() => setIsToggling(false), 10);
       });
     } else {
       // Switching from sections to system summary
@@ -90,7 +90,7 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
           newSystemSummaryEl.scrollTop = savedScrollPos;
         }
         // Hide spinner after everything is done
-        setTimeout(() => setIsToggling(false), 100);
+        setTimeout(() => setIsToggling(false), 10);
       });
     }
   };
@@ -268,7 +268,7 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
               setTimeout(() => {
                 deviceElement.style.backgroundColor = '';
                 deviceElement.style.borderColor = '';
-              }, 3000);
+              }, 500);
             } else {
               console.error(`Device element not found: section-${sectionIndex}-device-${deviceIndex}`);
             }
@@ -305,16 +305,16 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
               rowElement.style.transition = 'background-color 0.3s ease';
               setTimeout(() => {
                 rowElement.style.backgroundColor = '';
-              }, 2000);
+              }, 500);
             } else {
               console.error(`Row element not found: section-${sectionIndex}-row-${rowIndex}`);
             }
           }
-        }, 300); // Increased timeout to allow section positioning to complete
+        }, 50); // Fast timeout to allow section positioning to complete
       } else {
         console.error(`Section ref not found for index ${sectionIndex}`);
       }
-    }, 100);
+    }, 10);
   }, [log, expandedSections, visibleSections, onActivate]);
 
 
@@ -421,16 +421,8 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
                 zIndex: 1000,
                 backdropFilter: 'blur(2px)'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '18px', color: '#fff' }}>
-                  <div style={{
-                    width: '24px',
-                    height: '24px',
-                    border: '3px solid rgba(255, 255, 255, 0.3)',
-                    borderTop: '3px solid #fff',
-                    borderRadius: '50%',
-                    animation: 'spin 1s linear infinite'
-                  }}></div>
-                  Loading...
+                <div style={{ color: '#fff' }}>
+                  <LoadingSpinner size="medium" />
                 </div>
               </div>
 
