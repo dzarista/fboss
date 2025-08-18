@@ -1,61 +1,10 @@
-/* -------- Main Layout & Header -------- */
+/* -------- Main Layout -------- */
 .app-container {
   height: 100vh;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
 }
-
-.header {
-  background-color: var(--bg-dark);
-  color: var(--text-inverse);
-  padding: 0.5rem;
-  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1),
-              0 2px 4px -1px rgba(0,0,0,0.06);
-  text-align: center;
-  position: relative;
-}
-
-.header h1 {
-  font-size: 1.1rem;
-  font-weight: bold;
-}
-
-/* -------- Header Indicators -------- */
-.header-indicators {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-}
-
-.cache-indicator {
-  font-size: 0.875rem;
-  color: var(--text-inverse);
-  opacity: 0.8;
-  cursor: help;
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.cache-indicator:hover {
-  opacity: 1;
-}
-
-/* -------- Status Light -------- */
-.status-indicator {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  cursor: help;
-}
-
-.status-indicator.success { background: var(--accent-success); box-shadow: 0 0 8px var(--accent-success); }
-.status-indicator.error   { background: var(--accent-error);   box-shadow: 0 0 8px var(--accent-error); }
-.status-indicator.loading { background: var(--accent-warning); box-shadow: 0 0 8px var(--accent-warning); }
 
 /* -------- Split Body -------- */
 .body {

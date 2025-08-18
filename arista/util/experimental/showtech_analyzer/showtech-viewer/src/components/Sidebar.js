@@ -6,6 +6,8 @@ export default function Sidebar({
   onSelect,
   onUploadClick,
   onRemoveFile,
+  statusClass,
+  statusTitle,
 }) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -21,6 +23,11 @@ export default function Sidebar({
       {/* all of this hides when collapsed */}
       {!collapsed && (
         <>
+          <div className="sidebar-header">
+            <h1 className="app-title">Showtech Viewer</h1>
+            <div className={`status-indicator ${statusClass}`} title={statusTitle}></div>
+          </div>
+
           <button
             className="upload-icon-button"
             onClick={onUploadClick}

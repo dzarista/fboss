@@ -283,27 +283,14 @@ function App() {
 
   return (
     <div className="app-container">
-      <header className="header">
-        <h1>Showtech Viewer</h1>
-        <div className="header-indicators">
-          {cacheInfo && (
-            <div
-              className="cache-indicator"
-              title={`${cacheInfo.fileCount} files cached (${cacheInfo.sizeInKB} KB)`}
-            >
-              📁 {cacheInfo.fileCount}
-            </div>
-          )}
-          <div className={`status-indicator ${statusClass}`} title={statusTitle}></div>
-        </div>
-      </header>
-
       <div className="body">
         <Sidebar
           logs={logs}
           onSelect={handleOpenFile}
           onUploadClick={() => setIsModalOpen(true)}
           onRemoveFile={handleRemoveFile}
+          statusClass={statusClass}
+          statusTitle={statusTitle}
         />
 
         <div className="content-area">
