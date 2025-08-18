@@ -1,18 +1,15 @@
 import { forwardRef, useState } from 'react';
 import { getRowStyling } from './ErrorDetection';
 import { BackArrowIcon, ChevronDownIcon } from '../assets/icons/Icon';
-import LoadingSpinner from './LoadingSpinner';
+
 
 // Section Content Renderer Component
-export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawContent, isLoadingRaw }) => {
+export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawContent }) => {
   const [selectedI2CEntry, setSelectedI2CEntry] = useState(null);
 
   try {
     // Handle raw mode
     if (isRawMode) {
-      if (isLoadingRaw) {
-        return <LoadingSpinner message="Fetching raw data..." size="medium" />;
-      }
       if (rawContent) {
         return <pre className="section-text-content">{rawContent}</pre>;
       }
@@ -26,7 +23,7 @@ export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawCo
     const { parsed_data } = section;
 
   if (parsed_data.type === 'raw') {
-    return <pre className="section-text-content">{parsed_data.data || 'No content available'}</pre>;
+    return <pre className="section-text-content">{rawContent || 'No content available'}</pre>;
   }
 
   if (parsed_data.type === 'key_value') {
@@ -563,7 +560,7 @@ export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawCo
 };
 
 // Collapsible Section Component
-export const CollapsibleSection = forwardRef(({ title, children, isExpanded, onToggle, isActive, onActivate, isRawMode, isLoadingRaw, onToggleRaw }, ref) => {
+export const CollapsibleSection = forwardRef(({ title, children, isExpanded, onToggle, isActive, onActivate, isRawMode, onToggleRaw }, ref) => {
   const handleToggleExpanded = (e) => {
     e.stopPropagation();
     // Activate the section when expand/collapse is clicked
@@ -597,18 +594,10 @@ export const CollapsibleSection = forwardRef(({ title, children, isExpanded, onT
             <button
               className="control-button"
               onClick={handleToggleRaw}
-              title={isLoadingRaw ? "Loading data..." : (isRawMode ? "Show structured data" : "Show raw data")}
-              aria-label={isLoadingRaw ? "Loading data..." : (isRawMode ? "Show structured data" : "Show raw data")}
-              disabled={isLoadingRaw}
+              title={isRawMode ? "Show structured data" : "Show raw data"}
+              aria-label={isRawMode ? "Show structured data" : "Show raw data"}
             >
-              {isLoadingRaw ? (
-                <span className="button-loading">
-                  <span className="button-spinner"></span>
-                  Loading data...
-                </span>
-              ) : (
-                isRawMode ? 'Show Structured' : 'Show Raw'
-              )}
+              {isRawMode ? 'Show Structured' : 'Show Raw'}
             </button>
           )}
           <button

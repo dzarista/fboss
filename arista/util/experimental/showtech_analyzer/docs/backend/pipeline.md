@@ -52,11 +52,9 @@ Section Type Detection
     3. For each section:
         - Extracts raw content.
         - Detects its type using `determine_section_type()`.
-        - Compresses raw content using gzip and base64 encoding.
-        - Checks if section should be auto-compressed using `should_auto_compress_section()`.
-        - For auto-compressed sections: stores metadata instead of parsing.
-        - For normal sections: applies the appropriate parser via `parse_content_by_type()`.
-    4. Returns a list of structured section objects with compressed raw data.
+        - Applies the appropriate parser via `parse_content_by_type()`.
+        - Stores both structured and raw content.
+    4. Returns a list of section objects with both parsed data and raw content.
 
 ---
 

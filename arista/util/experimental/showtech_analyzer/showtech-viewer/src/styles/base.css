@@ -55,25 +55,4 @@ body {
   100% { transform: rotate(360deg); }
 }
 
-/* Auto-compressed section message styles */
-.auto-compressed-message {
-  background-color: #f8f9fa;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-  padding: 1rem;
-  margin: 0.5rem 0;
-  color: #6c757d;
-  font-style: italic;
-}
 
-.auto-compressed-message p {
-  margin: 0.5rem 0;
-}
-
-.auto-compressed-message p:first-child {
-  margin-top: 0;
-}
-
-.auto-compressed-message p:last-child {
-  margin-bottom: 0;
-}

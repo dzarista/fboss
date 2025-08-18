@@ -4,7 +4,7 @@ import { ErrorIndicator, ErrorSummaryModal } from './ErrorModal';
 import { SectionContentRenderer, CollapsibleSection } from './SectionRenderer';
 import SystemSummary from './SystemSummary';
 import LoadingSpinner from './LoadingSpinner';
-import { getSectionRaw } from '../utils/api';
+
 
 export default function Content({ log, onClose, visibleSections, onJumpToSection, fontSize, onFontSizeChange, slotIndex, isActive, onActivate, isLoadingFromApp }) {
   const [expandedSections, setExpandedSections] = useState(new Set());
@@ -14,8 +14,6 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [showSystemSummary, setShowSystemSummary] = useState(false);
   const [rawModeSections, setRawModeSections] = useState(new Set()); // Track which sections are in raw mode
-  const [rawDataCache, setRawDataCache] = useState({}); // Cache raw data to avoid repeated API calls
-  const [loadingRawSections, setLoadingRawSections] = useState(new Set()); // Track which sections are loading raw data
   const sectionRefs = useRef({});
 
 
@@ -31,8 +29,6 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
 
       // Reset raw mode state when log changes
       setRawModeSections(new Set());
-      setRawDataCache({});
-      setLoadingRawSections(new Set());
 
       // Detect errors in the log
       const errors = detectAllErrors(log);
@@ -85,59 +81,19 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
   };
 
   // Handle raw mode toggle for a section
-  const toggleRawMode = async (sectionIdx) => {
+  const toggleRawMode = (sectionIdx) => {
     const isCurrentlyRaw = rawModeSections.has(sectionIdx);
+    const newRawSections = new Set(rawModeSections);
 
     if (isCurrentlyRaw) {
       // Switch back to structured mode
-      const newRawSections = new Set(rawModeSections);
       newRawSections.delete(sectionIdx);
-      setRawModeSections(newRawSections);
     } else {
-      // Switch to raw mode - fetch raw data if not cached
-      const cacheKey = `${log.file_id}_${sectionIdx}`;
-
-      if (!log.file_id) {
-        console.error('No file_id found in log object:', log);
-        return;
-      }
-
-      if (!rawDataCache[cacheKey]) {
-        // Add to loading state
-        const newLoadingSections = new Set(loadingRawSections);
-        newLoadingSections.add(sectionIdx);
-        setLoadingRawSections(newLoadingSections);
-
-        try {
-          const rawData = await getSectionRaw(log.file_id, sectionIdx);
-
-          // Cache the raw data
-          setRawDataCache(prev => ({
-            ...prev,
-            [cacheKey]: rawData.raw_content
-          }));
-
-          // Add to raw mode sections
-          const newRawSections = new Set(rawModeSections);
-          newRawSections.add(sectionIdx);
-          setRawModeSections(newRawSections);
-
-        } catch (error) {
-          console.error('Failed to fetch raw data:', error);
-          // Could show an error message to user here
-        } finally {
-          // Remove from loading state
-          const newLoadingSections = new Set(loadingRawSections);
-          newLoadingSections.delete(sectionIdx);
-          setLoadingRawSections(newLoadingSections);
-        }
-      } else {
-        // Data is cached, just toggle mode
-        const newRawSections = new Set(rawModeSections);
-        newRawSections.add(sectionIdx);
-        setRawModeSections(newRawSections);
-      }
+      // Switch to raw mode
+      newRawSections.add(sectionIdx);
     }
+
+    setRawModeSections(newRawSections);
   };
 
   // Create a navigation handler that's bound to THIS specific component
@@ -403,7 +359,6 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
                       isActive={activeSection === idx}
                       onActivate={() => activateSection(idx)}
                       isRawMode={rawModeSections.has(idx)}
-                      isLoadingRaw={loadingRawSections.has(idx)}
                       onToggleRaw={
                         // Only show raw toggle for sections with structured data (not plain raw)
                         sec.parsed_data?.type !== 'raw'
@@ -415,8 +370,7 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
                         section={sec}
                         sectionIndex={idx}
                         isRawMode={rawModeSections.has(idx)}
-                        rawContent={rawDataCache[`${log.file_id}_${idx}`]}
-                        isLoadingRaw={loadingRawSections.has(idx)}
+                        rawContent={sec.raw_content}
                       />
                     </CollapsibleSection>
                   ))

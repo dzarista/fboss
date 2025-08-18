@@ -41,10 +41,8 @@ This is the main documentation page for the Showtech Fiewer tool, covering archi
   "section_type": "table|i2c_dump|key_value|lspci|raw",
   "parsed_data": {
     // Specific structure based on section type
-    // For auto-compressed sections: {"type": "auto_compressed", "message": "...", "content_size": 12345}
   },
-  "raw_content_compressed": "base64-encoded-gzipped-content",
-  "auto_compressed": false
+  "raw_content": "original raw text content"
 }
 ```
 ## Feature Documentation
