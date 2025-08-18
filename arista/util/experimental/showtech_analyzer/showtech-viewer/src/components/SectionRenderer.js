@@ -652,6 +652,7 @@ const renderStructuredContent = (
 // Collapsible Section Component
 export const CollapsibleSection = forwardRef(
   ({ title, children, isExpanded, onToggle, isActive, onActivate, isRawMode, onToggleRaw, isVisible = true }, ref) => {
+    const [isToggling, setIsToggling] = useState(false);
     const handleToggleExpanded = (e) => {
       e.stopPropagation();
       onActivate();
@@ -661,7 +662,14 @@ export const CollapsibleSection = forwardRef(
     const handleToggleRaw = (e) => {
       e.stopPropagation();
       onActivate();
-      if (onToggleRaw) onToggleRaw();
+      if (onToggleRaw) {
+        setIsToggling(true);
+        // Show spinner briefly, then toggle
+        setTimeout(() => {
+          onToggleRaw();
+          setTimeout(() => setIsToggling(false), 50);
+        }, 10);
+      }
     };
 
     const handleSectionClick = () => {
@@ -680,12 +688,17 @@ export const CollapsibleSection = forwardRef(
           <div className="section-header-controls">
             {onToggleRaw && (
               <button
-                className="control-button"
+                className={`raw-toggle-button ${isRawMode ? 'active' : ''} ${isToggling ? 'toggling' : ''}`}
                 onClick={handleToggleRaw}
                 title={isRawMode ? 'Show structured data' : 'Show raw data'}
                 aria-label={isRawMode ? 'Show structured data' : 'Show raw data'}
+                disabled={isToggling}
               >
-                {isRawMode ? 'Show Structured' : 'Show Raw'}
+                {isToggling ? (
+                  <div className="raw-button-spinner"></div>
+                ) : (
+                  'raw'
+                )}
               </button>
             )}
             <button

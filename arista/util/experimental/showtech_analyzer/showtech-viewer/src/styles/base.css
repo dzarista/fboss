@@ -92,4 +92,55 @@ body {
   overflow-y: auto;
 }
 
+/* Raw toggle button */
+.raw-toggle-button {
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 20px;
+  color: #6c757d;
+  padding: 6px 0px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: lowercase;
+  min-width: 50px;
+}
+
+.raw-toggle-button:hover {
+  background: #e9ecef;
+  border-color: #adb5bd;
+  color: #495057;
+}
+
+.raw-toggle-button.active {
+  background: #007bff;
+  border-color: #007bff;
+  color: white;
+}
+
+.raw-toggle-button.active:hover {
+  background: #0056b3;
+  border-color: #0056b3;
+}
+
+.raw-toggle-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.raw-toggle-button.toggling {
+  pointer-events: none;
+}
+
+.raw-button-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto;
+}
+
 
