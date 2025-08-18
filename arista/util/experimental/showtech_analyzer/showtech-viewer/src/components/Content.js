@@ -13,59 +13,84 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
   const [detectedErrors, setDetectedErrors] = useState([]);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [showSystemSummary, setShowSystemSummary] = useState(false);
+  const [isToggling, setIsToggling] = useState(false); // Simple loading state
   const [rawModeSections, setRawModeSections] = useState(new Set()); // Track which sections are in raw mode
   const sectionRefs = useRef({});
 
-  // Scroll positions for main content views
-  const [systemSummaryScrollPosition, setSystemSummaryScrollPosition] = useState(0);
-  const [sectionsScrollPosition, setSectionsScrollPosition] = useState(0);
+  // Scroll positions for main content views - per file using slotIndex
+  const [systemSummaryScrollPosition, setSystemSummaryScrollPosition] = useState(() => {
+    if (!window.scrollPositions) window.scrollPositions = {};
+    return window.scrollPositions[`${slotIndex}_summary`] || 0;
+  });
+  const [sectionsScrollPosition, setSectionsScrollPosition] = useState(() => {
+    if (!window.scrollPositions) window.scrollPositions = {};
+    return window.scrollPositions[`${slotIndex}_sections`] || 0;
+  });
 
   // Custom toggle function that preserves scroll positions
   const toggleSystemSummary = () => {
-    // Try multiple possible selectors to find the actual scrolling containers
-    const systemSummaryEl = document.querySelector('.system-summary-container') ||
-                           document.querySelector('.system-summary-view') ||
-                           document.querySelector('.content-view.system-summary-view');
+    // Show spinner immediately
+    setIsToggling(true);
 
-    const sectionsContainerEl = document.querySelector('.sections-container') ||
-                               document.querySelector('.sections-view') ||
-                               document.querySelector('.content-view.sections-view');
+    // Find scrolling containers specific to THIS file using the current component's DOM
+    const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
+    const systemSummaryEl = currentContent?.querySelector('.system-summary-container') ||
+                           currentContent?.querySelector('.system-summary-view') ||
+                           currentContent?.querySelector('.content-view.system-summary-view');
+
+    const sectionsContainerEl = currentContent?.querySelector('.sections-container') ||
+                               currentContent?.querySelector('.sections-view') ||
+                               currentContent?.querySelector('.content-view.sections-view');
 
     if (showSystemSummary) {
       // Switching from system summary to sections
-      // Save system summary scroll position
+      // Save system summary scroll position for this file
       if (systemSummaryEl) {
-        setSystemSummaryScrollPosition(systemSummaryEl.scrollTop);
+        const scrollPos = systemSummaryEl.scrollTop;
+        setSystemSummaryScrollPosition(scrollPos);
+        if (!window.scrollPositions) window.scrollPositions = {};
+        window.scrollPositions[`${slotIndex}_summary`] = scrollPos;
       }
 
       setShowSystemSummary(false);
 
-      // Restore sections scroll position
+      // Restore sections scroll position for this file
       requestAnimationFrame(() => {
-        const newSectionsEl = document.querySelector('.sections-container') ||
-                             document.querySelector('.sections-view') ||
-                             document.querySelector('.content-view.sections-view');
+        const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
+        const newSectionsEl = currentContent?.querySelector('.sections-container') ||
+                             currentContent?.querySelector('.sections-view') ||
+                             currentContent?.querySelector('.content-view.sections-view');
         if (newSectionsEl) {
-          newSectionsEl.scrollTop = sectionsScrollPosition;
+          const savedScrollPos = window.scrollPositions?.[`${slotIndex}_sections`] || sectionsScrollPosition;
+          newSectionsEl.scrollTop = savedScrollPos;
         }
+        // Hide spinner after everything is done
+        setTimeout(() => setIsToggling(false), 100);
       });
     } else {
       // Switching from sections to system summary
-      // Save sections scroll position
+      // Save sections scroll position for this file
       if (sectionsContainerEl) {
-        setSectionsScrollPosition(sectionsContainerEl.scrollTop);
+        const scrollPos = sectionsContainerEl.scrollTop;
+        setSectionsScrollPosition(scrollPos);
+        if (!window.scrollPositions) window.scrollPositions = {};
+        window.scrollPositions[`${slotIndex}_sections`] = scrollPos;
       }
 
       setShowSystemSummary(true);
 
-      // Restore system summary scroll position
+      // Restore system summary scroll position for this file
       requestAnimationFrame(() => {
-        const newSystemSummaryEl = document.querySelector('.system-summary-container') ||
-                                  document.querySelector('.system-summary-view') ||
-                                  document.querySelector('.content-view.system-summary-view');
+        const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
+        const newSystemSummaryEl = currentContent?.querySelector('.system-summary-container') ||
+                                  currentContent?.querySelector('.system-summary-view') ||
+                                  currentContent?.querySelector('.content-view.system-summary-view');
         if (newSystemSummaryEl) {
-          newSystemSummaryEl.scrollTop = systemSummaryScrollPosition;
+          const savedScrollPos = window.scrollPositions?.[`${slotIndex}_summary`] || systemSummaryScrollPosition;
+          newSystemSummaryEl.scrollTop = savedScrollPos;
         }
+        // Hide spinner after everything is done
+        setTimeout(() => setIsToggling(false), 100);
       });
     }
   };
@@ -313,6 +338,8 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
 
   return (
     <div className={`content ${isActive ? 'active' : ''}`} style={{ fontSize: `${fontSize}px` }} onClick={onActivate}>
+
+
       <div className="log-display-section">
         {!log ? (
           <p className="placeholder-text">Double-click a file to open it</p>
@@ -379,7 +406,34 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
                 </div>
               </div>
             </div>
-            <div className="sections-container" style={{ fontSize: `${fontSize}px` }}>
+            <div className="sections-container" style={{ fontSize: `${fontSize}px`, position: 'relative' }}>
+              {/* Transparent Grey Loading Overlay - Covers sections area */}
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(128, 128, 128, 0.7)',
+                display: isToggling ? 'flex' : 'none',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000,
+                backdropFilter: 'blur(2px)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '18px', color: '#fff' }}>
+                  <div style={{
+                    width: '24px',
+                    height: '24px',
+                    border: '3px solid rgba(255, 255, 255, 0.3)',
+                    borderTop: '3px solid #fff',
+                    borderRadius: '50%',
+                    animation: 'spin 1s linear infinite'
+                  }}></div>
+                  Loading...
+                </div>
+              </div>
+
               {/*
                 PRE-RENDERING OPTIMIZATION:
                 All views (loading, system summary, sections) are pre-rendered and controlled via display: none/block.
