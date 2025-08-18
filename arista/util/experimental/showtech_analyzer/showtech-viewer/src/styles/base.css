@@ -69,6 +69,17 @@ body {
   width: 100%;
 }
 
+/* Structured view scrolling */
+.section-content-view.structured-view {
+  max-height: 60vh;
+  overflow-y: hidden; /* Default to no scrolling */
+}
+
+/* Only allow scrolling in active sections */
+.section-card.active .section-content-view.structured-view {
+  overflow-y: auto;
+}
+
 /* I2C sections always use max height */
 .i2c-dump-container {
   height: calc(100vh - 200px);

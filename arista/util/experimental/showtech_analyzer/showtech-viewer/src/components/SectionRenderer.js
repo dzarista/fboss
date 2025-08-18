@@ -8,43 +8,101 @@ import { BackArrowIcon, ChevronDownIcon } from '../assets/icons/Icon';
 export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawContent }) => {
   const [selectedI2CEntry, setSelectedI2CEntry] = useState(null);
 
-  // Single scroller that contains BOTH the main table and the overlay
-  const structuredScrollerRef = useRef(null);
-  const rawScrollerRef = useRef(null);
+  // === Raw vs Structured independent scrolling ===
+  const rawRef = useRef(null);
+  const structuredRef = useRef(null);
 
-  // Independent scroll memories for the two modes shown inside the same scroller
+  // synchronous scroll memory (don't use state)
+  const rawYRef = useRef(0);
+  const structYRef = useRef(0);
+
+  const onRawScroll = (e) => { rawYRef.current = e.currentTarget.scrollTop; };
+  const onStructuredScroll = (e) => { structYRef.current = e.currentTarget.scrollTop; };
+
+  // restore when the visible pane changes
+  useLayoutEffect(() => {
+    if (isRawMode) {
+      const y = rawYRef.current || 0;
+      if (rawRef.current) {
+        rawRef.current.scrollTop = y;
+        requestAnimationFrame(() => { if (rawRef.current) rawRef.current.scrollTop = y; });
+      }
+    } else {
+      const y = structYRef.current || 0;
+      if (structuredRef.current) {
+        structuredRef.current.scrollTop = y;
+        requestAnimationFrame(() => { if (structuredRef.current) structuredRef.current.scrollTop = y; });
+      }
+    }
+  }, [isRawMode]);
+
+  // === I2C overlay vs table with anchor-based scroll restoration ===
   const i2cMainYRef = useRef(0);
   const i2cOverlayYRef = useRef(0);
+  const i2cContainerRef = useRef(null);
 
-  // Independent scroll memories for raw vs structured views
-  const rawScrollYRef = useRef(0);
-  const structuredScrollYRef = useRef(0);
+  // Track previous selectedI2CEntry to know the transition direction
+  const prevSelectedRef = useRef(null);
 
-  // Switch main -> overlay: save main position, then show overlay
   const openI2COverlay = (entry) => {
-    const sc = structuredScrollerRef.current;
-    if (sc) i2cMainYRef.current = sc.scrollTop;
+    // Save main table scroll position from the actual scroll container
+    const sc = i2cContainerRef.current;
+    if (sc) {
+      console.log('openI2COverlay: scroll container info', {
+        scrollTop: sc.scrollTop,
+        scrollHeight: sc.scrollHeight,
+        clientHeight: sc.clientHeight,
+        className: sc.className,
+        hasOverflow: sc.scrollHeight > sc.clientHeight
+      });
+      i2cMainYRef.current = sc.scrollTop;
+      console.log('openI2COverlay: saved main scroll position =', i2cMainYRef.current);
+    } else {
+      console.log('openI2COverlay: no i2c scroll container found');
+    }
     setSelectedI2CEntry(entry);
   };
 
-  // Switch overlay -> main: save overlay position, then show main
   const backToI2CMain = () => {
-    const sc = structuredScrollerRef.current;
-    if (sc) i2cOverlayYRef.current = sc.scrollTop;
+    // Save overlay scroll position before hiding it
+    const sc = i2cContainerRef.current;
+    if (sc) {
+      i2cOverlayYRef.current = sc.scrollTop;
+      console.log('backToI2CMain: saved overlay scroll position =', i2cOverlayYRef.current);
+    }
     setSelectedI2CEntry(null);
   };
 
-  // On every flip, restore the scroller to the last saved position for that view
   useLayoutEffect(() => {
-    const sc = structuredScrollerRef.current;
+    if (isRawMode) return;                 // overlay/table live inside structured pane
+    const sc = i2cContainerRef.current;
     if (!sc) return;
-    const y = selectedI2CEntry ? i2cOverlayYRef.current : i2cMainYRef.current;
-    sc.scrollTop = y || 0;
-    // A second pass next frame helps if layout shifts on toggle
-    requestAnimationFrame(() => {
-      if (structuredScrollerRef.current) structuredScrollerRef.current.scrollTop = y || 0;
+
+    const prev = prevSelectedRef.current;  // was overlay shown previously?
+    console.log('useLayoutEffect: transition check', {
+      selectedI2CEntry: !!selectedI2CEntry,
+      prev: !!prev,
+      isRawMode
     });
-  }, [selectedI2CEntry]);
+
+    if (selectedI2CEntry && !prev) {
+      // Transition: MAIN → OVERLAY
+      // First time overlay shows: default to 0; otherwise restore last overlay Y
+      const y = i2cOverlayYRef.current || 0;
+      console.log('MAIN → OVERLAY: setting scroll to', y);
+      sc.scrollTop = y;
+      requestAnimationFrame(() => { if (i2cContainerRef.current) i2cContainerRef.current.scrollTop = y; });
+    } else if (!selectedI2CEntry && prev) {
+      // Transition: OVERLAY → MAIN
+      // Restore main table scroll position. Do NOT run on initial mount.
+      const y = i2cMainYRef.current || 0;
+      console.log('OVERLAY → MAIN: restoring main scroll to', y);
+      sc.scrollTop = y;
+      requestAnimationFrame(() => { if (i2cContainerRef.current) i2cContainerRef.current.scrollTop = y; });
+    }
+    // update prev after we handled the transition
+    prevSelectedRef.current = selectedI2CEntry;
+  }, [selectedI2CEntry, isRawMode]);
 
   try {
     if (!section || !section.parsed_data) {
@@ -59,19 +117,22 @@ export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawCo
 
     return (
       <div className="section-content-container">
-        {/* Raw View */}
+        {/* RAW VIEW — give it its own scroller */}
         <div
+          ref={rawRef}
           className="section-content-view raw-view"
           style={{ display: isRawMode ? 'block' : 'none' }}
+          onScroll={onRawScroll}
         >
           <pre className="section-text-content">{rawContent || 'No raw content available'}</pre>
         </div>
 
-        {/* Structured View: THIS is the scroller */}
+        {/* STRUCTURED VIEW — its own scroller, independent from raw */}
         <div
-          ref={structuredScrollerRef}
+          ref={structuredRef}
           className="section-content-view structured-view"
           style={{ display: isRawMode ? 'none' : 'block' }}
+          onScroll={onStructuredScroll}
         >
           {renderStructuredContent(
             parsed_data,
@@ -79,7 +140,8 @@ export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawCo
             openI2COverlay,
             backToI2CMain,
             sectionIndex,
-            section
+            section,
+            i2cContainerRef
           )}
         </div>
       </div>
@@ -105,7 +167,8 @@ const renderStructuredContent = (
   openI2COverlay,
   backToI2CMain,
   sectionIndex,
-  section
+  section,
+  i2cContainerRef
 ) => {
   if (parsed_data.type === 'key_value') {
     const data = parsed_data.data || {};
@@ -184,7 +247,7 @@ const renderStructuredContent = (
     }
 
     return (
-      <div className="i2c-dump-container">
+      <div ref={i2cContainerRef} className="i2c-dump-container">
         {/* Overlay content (bit ranges) */}
         <div className="i2c-view overlay-view" style={{ display: selectedI2CEntry ? 'block' : 'none' }}>
           {selectedI2CEntry && (
