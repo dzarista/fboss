@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 import { checkBackendStatus } from './utils/api';
+import packageJson from '../package.json';
 import {
   getCachedFiles,
   addFilesToCache,
@@ -283,27 +284,15 @@ function App() {
 
   return (
     <div className="app-container">
-      <header className="header">
-        <h1>Showtech Viewer</h1>
-        <div className="header-indicators">
-          {cacheInfo && (
-            <div
-              className="cache-indicator"
-              title={`${cacheInfo.fileCount} files cached (${cacheInfo.sizeInKB} KB)`}
-            >
-              📁 {cacheInfo.fileCount}
-            </div>
-          )}
-          <div className={`status-indicator ${statusClass}`} title={statusTitle}></div>
-        </div>
-      </header>
-
       <div className="body">
         <Sidebar
           logs={logs}
           onSelect={handleOpenFile}
           onUploadClick={() => setIsModalOpen(true)}
           onRemoveFile={handleRemoveFile}
+          statusClass={statusClass}
+          statusTitle={statusTitle}
+          version={`v${packageJson.version}-${process.env.NODE_ENV === 'production' ? 'prod' : 'dev'}`}
         />
 
         <div className="content-area">
