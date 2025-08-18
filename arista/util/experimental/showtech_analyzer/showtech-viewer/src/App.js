@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
 import { checkBackendStatus } from './utils/api';
+import packageJson from '../package.json';
 import {
   getCachedFiles,
   addFilesToCache,
@@ -291,6 +292,7 @@ function App() {
           onRemoveFile={handleRemoveFile}
           statusClass={statusClass}
           statusTitle={statusTitle}
+          version={`v${packageJson.version}-${process.env.NODE_ENV === 'production' ? 'prod' : 'dev'}`}
         />
 
         <div className="content-area">

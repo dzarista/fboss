@@ -8,6 +8,7 @@ export default function Sidebar({
   onRemoveFile,
   statusClass,
   statusTitle,
+  version,
 }) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -26,6 +27,9 @@ export default function Sidebar({
           <div className="sidebar-header">
             <h1 className="app-title">Showtech Viewer</h1>
             <div className={`status-indicator ${statusClass}`} title={statusTitle}></div>
+            <div className="header-version" title={`Version ${version}`}>
+              {version}
+            </div>
           </div>
 
           <button
