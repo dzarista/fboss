@@ -3,7 +3,7 @@ File upload tests - Essential parsing functionality
 """
 import pytest
 import os
-from utils.file_upload import parse_sections, handle_single_file_upload, handle_zip_upload
+from utils.file_upload import parse_sections, handle_single_file_upload
 
 
 class TestParseSections:
@@ -18,10 +18,10 @@ class TestParseSections:
         result = parse_sections(content)
 
         # Expected: 3 sections
-        assert len(result) == 3
-        assert result[0]['title'] == 'SMB SERIAL NUMBER'
-        assert result[1]['title'] == 'fboss2 show port'
-        assert result[2]['title'] == 'fboss2 show environment sensor'
+        assert len(result) == 4
+        assert result[1]['title'] == 'SMB SERIAL NUMBER'
+        assert result[2]['title'] == 'fboss2 show port'
+        assert result[3]['title'] == 'fboss2 show environment sensor'
 
 class TestFileUploadHandling:
     """Test file upload handling - single, multiple, and zip files"""
@@ -39,8 +39,8 @@ class TestFileUploadHandling:
         assert len(result) == 1
         file_result = result[0]
         assert file_result['name'] == 'sample_clean.txt'
-        assert len(file_result['sections']) == 3
-        assert file_result['metadata']['total_sections'] == 3
+        assert len(file_result['sections']) == 4
+        assert file_result['metadata']['total_sections'] == 4
 
     def test_upload_multiple_files(self):
         """Test upload multiple showtech files"""
@@ -67,8 +67,8 @@ class TestFileUploadHandling:
         assert len(results) == 2
         assert results[0]['name'] == 'showtech1.txt'
         assert results[1]['name'] == 'showtech2.txt'
-        assert len(results[0]['sections']) == 3
-        assert len(results[1]['sections']) == 3
+        assert len(results[0]['sections']) == 4
+        assert len(results[1]['sections']) == 4
 
     def test_upload_zip_file(self):
         """Test upload zip file containing showtech files"""

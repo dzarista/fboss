@@ -32,15 +32,17 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
     // Show spinner immediately
     setIsToggling(true);
 
-    // Find scrolling containers specific to THIS file using the current component's DOM
-    const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
-    const systemSummaryEl = currentContent?.querySelector('.system-summary-container') ||
-                           currentContent?.querySelector('.system-summary-view') ||
-                           currentContent?.querySelector('.content-view.system-summary-view');
+    // Let React render the spinner first, then do heavy work
+    setTimeout(() => {
+      // Find scrolling containers specific to THIS file using the current component's DOM
+      const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
+      const systemSummaryEl = currentContent?.querySelector('.system-summary-container') ||
+                             currentContent?.querySelector('.system-summary-view') ||
+                             currentContent?.querySelector('.content-view.system-summary-view');
 
-    const sectionsContainerEl = currentContent?.querySelector('.sections-container') ||
-                               currentContent?.querySelector('.sections-view') ||
-                               currentContent?.querySelector('.content-view.sections-view');
+      const sectionsContainerEl = currentContent?.querySelector('.sections-container') ||
+                                 currentContent?.querySelector('.sections-view') ||
+                                 currentContent?.querySelector('.content-view.sections-view');
 
     if (showSystemSummary) {
       // Switching from system summary to sections
@@ -93,6 +95,7 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
         setTimeout(() => setIsToggling(false), 10);
       });
     }
+    }, 0); // Execute in next tick to let spinner render first
   };
 
 

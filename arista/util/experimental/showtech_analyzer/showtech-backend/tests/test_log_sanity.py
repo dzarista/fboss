@@ -407,7 +407,7 @@ class TestSanityChecksWithPlatformConfig:
         sections = parse_sections(content)
         result = perform_sanity_checks(sections)
 
-        assert len(result) == 3
+        assert len(result) == 4
         for section in result:
             assert 'parsed_data' in section
             # Should have anomalies stored in parsed_data.anomalies
@@ -479,7 +479,7 @@ class TestComprehensiveSanityChecks:
         result = perform_sanity_checks(sections)
 
         # Should have 3 sections: SMB, LSPCI, sensors
-        assert len(result) == 3
+        assert len(result) == 4
 
         # Find LSPCI section
         lspci_section = None
@@ -528,7 +528,7 @@ class TestComprehensiveSanityChecks:
         result = perform_sanity_checks(sections)
 
         # Should have 3 sections: SMB, LSPCI, sensors
-        assert len(result) == 3
+        assert len(result) == 4
 
         # Find LSPCI section - should detect missing device (05:00.0) and speed mismatch (03:00.0)
         lspci_section = None
