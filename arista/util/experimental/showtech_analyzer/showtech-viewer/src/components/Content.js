@@ -426,13 +426,6 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
                 </div>
               </div>
 
-              {/*
-                PRE-RENDERING OPTIMIZATION:
-                All views (loading, system summary, sections) are pre-rendered and controlled via display: none/block.
-                This eliminates re-rendering delays and provides instant switching between views.
-                Sections also pre-render both structured and raw content simultaneously.
-              */}
-
               {/* Loading View */}
               <div
                 className="content-view loading-view"
