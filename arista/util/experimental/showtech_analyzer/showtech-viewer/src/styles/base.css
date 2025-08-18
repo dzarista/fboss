@@ -71,7 +71,7 @@ body {
 
 /* Structured view scrolling */
 .section-content-view.structured-view {
-  max-height: 60vh;
+  max-height: 100vh;
   overflow-y: hidden; /* Default to no scrolling */
 }
 
