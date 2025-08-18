@@ -149,6 +149,11 @@
   flex-direction: column;
 }
 
+/* Sections view background - at top level */
+.content-view.sections-view {
+  background: var(--bg-subtle, #f9fafb);
+}
+
 .sections-container {
   flex-grow: 1;
   padding: 1rem;

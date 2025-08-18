@@ -58,16 +58,22 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
 
       // Restore sections scroll position for this file
       requestAnimationFrame(() => {
-        const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
-        const newSectionsEl = currentContent?.querySelector('.sections-container') ||
-                             currentContent?.querySelector('.sections-view') ||
-                             currentContent?.querySelector('.content-view.sections-view');
-        if (newSectionsEl) {
-          const savedScrollPos = window.scrollPositions?.[`${slotIndex}_sections`] || sectionsScrollPosition;
-          newSectionsEl.scrollTop = savedScrollPos;
-        }
-        // Hide spinner after everything is done
-        setTimeout(() => setIsToggling(false), 10);
+        requestAnimationFrame(() => {
+          // Wait for sections view to be fully rendered
+          setTimeout(() => {
+            const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
+            const newSectionsEl = currentContent?.querySelector('.sections-container') ||
+                                 currentContent?.querySelector('.sections-view') ||
+                                 currentContent?.querySelector('.content-view.sections-view');
+            if (newSectionsEl) {
+              const savedScrollPos = window.scrollPositions?.[`${slotIndex}_sections`] || sectionsScrollPosition;
+              console.log(`Restoring sections scroll position: ${savedScrollPos}`);
+              newSectionsEl.scrollTop = savedScrollPos;
+            }
+            // Hide spinner after everything is done
+            setTimeout(() => setIsToggling(false), 10);
+          }, 100);
+        });
       });
     } else {
       // Switching from sections to system summary
@@ -83,16 +89,22 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
 
       // Restore system summary scroll position for this file
       requestAnimationFrame(() => {
-        const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
-        const newSystemSummaryEl = currentContent?.querySelector('.system-summary-container') ||
-                                  currentContent?.querySelector('.system-summary-view') ||
-                                  currentContent?.querySelector('.content-view.system-summary-view');
-        if (newSystemSummaryEl) {
-          const savedScrollPos = window.scrollPositions?.[`${slotIndex}_summary`] || systemSummaryScrollPosition;
-          newSystemSummaryEl.scrollTop = savedScrollPos;
-        }
-        // Hide spinner after everything is done
-        setTimeout(() => setIsToggling(false), 10);
+        requestAnimationFrame(() => {
+          // Wait for system summary view to be fully rendered
+          setTimeout(() => {
+            const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
+            const newSystemSummaryEl = currentContent?.querySelector('.system-summary-container') ||
+                                      currentContent?.querySelector('.system-summary-view') ||
+                                      currentContent?.querySelector('.content-view.system-summary-view');
+            if (newSystemSummaryEl) {
+              const savedScrollPos = window.scrollPositions?.[`${slotIndex}_summary`] || systemSummaryScrollPosition;
+              console.log(`Restoring system summary scroll position: ${savedScrollPos}`);
+              newSystemSummaryEl.scrollTop = savedScrollPos;
+            }
+            // Hide spinner after everything is done
+            setTimeout(() => setIsToggling(false), 10);
+          }, 100);
+        });
       });
     }
     }, 0); // Execute in next tick to let spinner render first
@@ -374,8 +386,13 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
                   className="control-button system-summary-button"
                   onClick={toggleSystemSummary}
                   title={showSystemSummary ? "Back to Sections" : "View System Summary"}
+                  disabled={isToggling}
                 >
-                  {showSystemSummary ? "Back to Sections" : "System Summary"}
+                  {isToggling ? (
+                    <div className="raw-button-spinner"></div>
+                  ) : (
+                    showSystemSummary ? "Back to Sections" : "System Summary"
+                  )}
                 </button>
 
                 {!showSystemSummary && (
@@ -410,24 +427,7 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
               </div>
             </div>
             <div className="sections-container" style={{ fontSize: `${fontSize}px`, position: 'relative' }}>
-              {/* Transparent Grey Loading Overlay - Covers sections area */}
-              <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundColor: 'rgba(128, 128, 128, 0.7)',
-                display: isToggling ? 'flex' : 'none',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 1000,
-                backdropFilter: 'blur(2px)'
-              }}>
-                <div style={{ color: '#fff' }}>
-                  <LoadingSpinner size="medium" />
-                </div>
-              </div>
+
 
               {/* Loading View */}
               <div
@@ -451,6 +451,8 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
                     systemMap={log.system_map || null}
                   />
                 )}
+
+
               </div>
 
               {/* Empty Sections View */}
@@ -496,6 +498,8 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
                     />
                   </CollapsibleSection>
                 ))}
+
+
               </div>
             </div>
           </>
