@@ -55,4 +55,30 @@ body {
   100% { transform: rotate(360deg); }
 }
 
+/* Pre-rendering optimization styles */
+.content-view {
+  width: 100%;
+  height: 100%;
+}
+
+.section-content-container {
+  width: 100%;
+}
+
+.section-content-view {
+  width: 100%;
+}
+
+/* I2C sections always use max height */
+.i2c-dump-container {
+  height: calc(100vh - 200px);
+  min-height: 500px;
+  overflow-y: hidden; /* Default to no scrolling */
+}
+
+/* Only allow scrolling in I2C sections when the section is active */
+.section-card.active .i2c-dump-container {
+  overflow-y: auto;
+}
+
 

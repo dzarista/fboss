@@ -16,6 +16,60 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
   const [rawModeSections, setRawModeSections] = useState(new Set()); // Track which sections are in raw mode
   const sectionRefs = useRef({});
 
+  // Scroll positions for main content views
+  const [systemSummaryScrollPosition, setSystemSummaryScrollPosition] = useState(0);
+  const [sectionsScrollPosition, setSectionsScrollPosition] = useState(0);
+
+  // Custom toggle function that preserves scroll positions
+  const toggleSystemSummary = () => {
+    // Try multiple possible selectors to find the actual scrolling containers
+    const systemSummaryEl = document.querySelector('.system-summary-container') ||
+                           document.querySelector('.system-summary-view') ||
+                           document.querySelector('.content-view.system-summary-view');
+
+    const sectionsContainerEl = document.querySelector('.sections-container') ||
+                               document.querySelector('.sections-view') ||
+                               document.querySelector('.content-view.sections-view');
+
+    if (showSystemSummary) {
+      // Switching from system summary to sections
+      // Save system summary scroll position
+      if (systemSummaryEl) {
+        setSystemSummaryScrollPosition(systemSummaryEl.scrollTop);
+      }
+
+      setShowSystemSummary(false);
+
+      // Restore sections scroll position
+      requestAnimationFrame(() => {
+        const newSectionsEl = document.querySelector('.sections-container') ||
+                             document.querySelector('.sections-view') ||
+                             document.querySelector('.content-view.sections-view');
+        if (newSectionsEl) {
+          newSectionsEl.scrollTop = sectionsScrollPosition;
+        }
+      });
+    } else {
+      // Switching from sections to system summary
+      // Save sections scroll position
+      if (sectionsContainerEl) {
+        setSectionsScrollPosition(sectionsContainerEl.scrollTop);
+      }
+
+      setShowSystemSummary(true);
+
+      // Restore system summary scroll position
+      requestAnimationFrame(() => {
+        const newSystemSummaryEl = document.querySelector('.system-summary-container') ||
+                                  document.querySelector('.system-summary-view') ||
+                                  document.querySelector('.content-view.system-summary-view');
+        if (newSystemSummaryEl) {
+          newSystemSummaryEl.scrollTop = systemSummaryScrollPosition;
+        }
+      });
+    }
+  };
+
 
 
   // Initialize all sections as expanded when log changes
@@ -288,7 +342,7 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
 
                 <button
                   className="control-button system-summary-button"
-                  onClick={() => setShowSystemSummary(!showSystemSummary)}
+                  onClick={toggleSystemSummary}
                   title={showSystemSummary ? "Back to Sections" : "View System Summary"}
                 >
                   {showSystemSummary ? "Back to Sections" : "System Summary"}
@@ -326,55 +380,81 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
               </div>
             </div>
             <div className="sections-container" style={{ fontSize: `${fontSize}px` }}>
-              {(isLoadingFromApp || !log.sections) ? (
-                // Show loading spinner while file is loading
+              {/*
+                PRE-RENDERING OPTIMIZATION:
+                All views (loading, system summary, sections) are pre-rendered and controlled via display: none/block.
+                This eliminates re-rendering delays and provides instant switching between views.
+                Sections also pre-render both structured and raw content simultaneously.
+              */}
+
+              {/* Loading View */}
+              <div
+                className="content-view loading-view"
+                style={{ display: (isLoadingFromApp || !log.sections) ? 'block' : 'none' }}
+              >
                 <LoadingSpinner
                   message="Loading file..."
                   size="large"
                 />
-              ) : showSystemSummary ? (
-                // Show System Summary
-                <SystemSummary
-                  sections={log.sections || []}
-                  systemMap={log.system_map || null}
-                />
-              ) : log.sections?.length === 0 ? (
+              </div>
+
+              {/* System Summary View - Pre-rendered */}
+              <div
+                className="content-view system-summary-view"
+                style={{ display: showSystemSummary && log.sections ? 'block' : 'none' }}
+              >
+                {log.sections && (
+                  <SystemSummary
+                    sections={log.sections}
+                    systemMap={log.system_map || null}
+                  />
+                )}
+              </div>
+
+              {/* Empty Sections View */}
+              <div
+                className="content-view empty-sections-view"
+                style={{ display: (!isLoadingFromApp && log.sections?.length === 0) ? 'block' : 'none' }}
+              >
                 <p className="placeholder-text">No sections found in this log</p>
-              ) : (
-                // Show all sections normally
-                log.sections
-                  .map((sec, idx) => ({ sec, idx }))
-                  .filter(({ idx }) => !visibleSections || visibleSections.has(idx))
-                  .map(({ sec, idx }) => (
-                    <CollapsibleSection
-                      key={idx}
-                      ref={(el) => {
-                        if (el) {
-                          sectionRefs.current[idx] = el;
-                        }
-                      }}
-                      title={sec.title || `Section ${idx + 1}`}
-                      isExpanded={expandedSections.has(idx)}
-                      onToggle={() => toggleSection(idx)}
-                      isActive={activeSection === idx}
-                      onActivate={() => activateSection(idx)}
-                      isRawMode={rawModeSections.has(idx)}
-                      onToggleRaw={
-                        // Only show raw toggle for sections with structured data (not plain raw)
-                        sec.parsed_data?.type !== 'raw'
-                          ? () => toggleRawMode(idx)
-                          : null
+              </div>
+
+              {/* Sections View - Pre-rendered */}
+              <div
+                className="content-view sections-view"
+                style={{ display: (!showSystemSummary && log.sections && log.sections.length > 0) ? 'block' : 'none' }}
+              >
+                {log.sections && log.sections.map((sec, idx) => (
+                  <CollapsibleSection
+                    key={idx}
+                    ref={(el) => {
+                      if (el) {
+                        sectionRefs.current[idx] = el;
                       }
-                    >
-                      <SectionContentRenderer
-                        section={sec}
-                        sectionIndex={idx}
-                        isRawMode={rawModeSections.has(idx)}
-                        rawContent={sec.raw_content}
-                      />
-                    </CollapsibleSection>
-                  ))
-              )}
+                    }}
+                    title={sec.title || `Section ${idx + 1}`}
+                    isExpanded={expandedSections.has(idx)}
+                    onToggle={() => toggleSection(idx)}
+                    isActive={activeSection === idx}
+                    onActivate={() => activateSection(idx)}
+                    isRawMode={rawModeSections.has(idx)}
+                    onToggleRaw={
+                      // Only show raw toggle for sections with structured data (not plain raw)
+                      sec.parsed_data?.type !== 'raw'
+                        ? () => toggleRawMode(idx)
+                        : null
+                    }
+                    isVisible={!visibleSections || visibleSections.has(idx)}
+                  >
+                    <SectionContentRenderer
+                      section={sec}
+                      sectionIndex={idx}
+                      isRawMode={rawModeSections.has(idx)}
+                      rawContent={sec.raw_content}
+                    />
+                  </CollapsibleSection>
+                ))}
+              </div>
             </div>
           </>
         )}
