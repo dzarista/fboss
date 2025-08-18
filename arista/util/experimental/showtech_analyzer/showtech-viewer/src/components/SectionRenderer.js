@@ -25,16 +25,6 @@ export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawCo
 
     const { parsed_data } = section;
 
-  // Handle auto-compressed sections
-  if (parsed_data.type === 'auto_compressed') {
-    return (
-      <div className="section-text-content auto-compressed-message">
-        <p>{parsed_data.message}</p>
-        <p><em>Content size: {parsed_data.content_size?.toLocaleString()} characters</em></p>
-      </div>
-    );
-  }
-
   if (parsed_data.type === 'raw') {
     return <pre className="section-text-content">{parsed_data.data || 'No content available'}</pre>;
   }

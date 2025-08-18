@@ -556,10 +556,4 @@ def parse_content_by_type(ctype: str, content: str):
         return parse_fboss2_interface_phy(content)
     if ctype == 'psu_debug':
         return parse_psu_debug(content)
-    if ctype == 'auto_compressed':
-        return {
-            'type': 'auto_compressed',
-            'message': 'This section is compressed by default. Click "Show Raw" to view the full content.',
-            'content_size': len(content)
-        }
     return {'type':'raw','data':content}
