@@ -318,7 +318,7 @@
   width: 14px;
   height: 14px;
   opacity: 1;
-  fill: #ffffff; /* Make SVG white */
+  color: #ffffff; /* Set currentColor to white */
 }
 
 .section-content-wrapper.collapsed {
