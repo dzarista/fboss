@@ -56,8 +56,6 @@ def load_pmbus_commands():
 PMBUS_COMMANDS = load_pmbus_commands()
 
 
-
-
 def determine_section_type(title: str):
     if title in SECTION_TYPES:
         return SECTION_TYPES[title]

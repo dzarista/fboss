@@ -11,7 +11,6 @@ import { ReactComponent as BackArrowSVG } from './back-arrow.svg';
 import { ReactComponent as ErrorTriangleSVG } from './error-triangle.svg';
 import { ReactComponent as ChevronDownSVG } from './chevron-down.svg';
 import { ReactComponent as UploadSVG } from './upload.svg';
-import { ReactComponent as ToggleRawSVG } from './toggle-raw.svg';
 
 // Map of icon names to their SVG components
 const iconMap = {
@@ -21,7 +20,6 @@ const iconMap = {
   'error-triangle': ErrorTriangleSVG,
   'chevron-down': ChevronDownSVG,
   'upload': UploadSVG,
-  'toggle-raw': ToggleRawSVG,
 };
 
 // General Icon component that renders the appropriate SVG
