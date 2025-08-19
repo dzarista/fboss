@@ -1,6 +1,6 @@
 {
   "name": "showtech-viewer",
-  "version": "1.4",
+  "version": "1.4.0",
   "private": true,
   "homepage": "./",
   "dependencies": {
