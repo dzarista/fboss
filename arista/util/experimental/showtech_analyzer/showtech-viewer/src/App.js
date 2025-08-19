@@ -213,6 +213,7 @@ function App() {
       const otherSlot = slotIndex === 0 ? 1 : 0;
       if (newOpenedFiles[otherSlot] !== null) {
         setActiveWindow(otherSlot);
+        setActiveFilterTab(otherSlot);
       }
     }
   };
@@ -279,6 +280,14 @@ function App() {
   };
 
   const handleWindowActivation = (slotIndex) => {
+    setActiveWindow(slotIndex);
+    // Update the section filter to point to the active window's file
+    setActiveFilterTab(slotIndex);
+  };
+
+  const handleFilterTabChange = (slotIndex) => {
+    // When user clicks on a section filter tab, activate both the filter and the window
+    setActiveFilterTab(slotIndex);
     setActiveWindow(slotIndex);
   };
 
@@ -382,7 +391,7 @@ function App() {
         <SectionFilter
           openedFiles={openedFiles}
           activeTab={activeFilterTab}
-          onTabChange={setActiveFilterTab}
+          onTabChange={handleFilterTabChange}
           visibleSections={visibleSections[activeFilterTab]}
           onToggleSection={handleToggleSection}
           onJumpToSection={handleJumpToSection}
