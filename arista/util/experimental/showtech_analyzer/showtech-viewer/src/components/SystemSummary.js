@@ -15,7 +15,7 @@ import {
   extractPortTypes,
 } from './SystemSummary/extractors';
 
-const SystemSummary = ({ sections, systemMap }) => {
+const SystemSummary = ({ sections, systemMap, slotIndex }) => {
 
   const qsfpData = useMemo(() => extractQsfpData(sections), [sections]);
   const fanData = useMemo(() => extractFanData(sections), [sections]);
@@ -40,8 +40,9 @@ const SystemSummary = ({ sections, systemMap }) => {
   const savedScrollPosition = useRef(0);
 
   const handlePortClick = useCallback((portNum, portData, portType) => {
-    // Save current scroll position before navigating
-    const container = document.querySelector('.system-summary-container');
+    // Save current scroll position before navigating - target specific window
+    const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
+    const container = currentContent?.querySelector('.system-summary-container');
     if (container) {
       savedScrollPosition.current = container.scrollTop;
     }
@@ -51,29 +52,31 @@ const SystemSummary = ({ sections, systemMap }) => {
     setSelectedPhyData(phyData[portNum] || []);
     setSelectedInterfaceData(interfaceData[portNum] || {});
     setSelectedPortType(portType);
-  }, [phyData, interfaceData]);
+  }, [phyData, interfaceData, slotIndex]);
 
   const handleFanClick = useCallback((fanNum, data) => {
-    // Save current scroll position before navigating
-    const container = document.querySelector('.system-summary-container');
+    // Save current scroll position before navigating - target specific window
+    const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
+    const container = currentContent?.querySelector('.system-summary-container');
     if (container) {
       savedScrollPosition.current = container.scrollTop;
     }
 
     setSelectedFan(fanNum);
     setSelectedFanData(data);
-  }, []);
+  }, [slotIndex]);
 
   const handlePsuClick = useCallback((psuNum, data) => {
-    // Save current scroll position before navigating
-    const container = document.querySelector('.system-summary-container');
+    // Save current scroll position before navigating - target specific window
+    const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
+    const container = currentContent?.querySelector('.system-summary-container');
     if (container) {
       savedScrollPosition.current = container.scrollTop;
     }
 
     setSelectedPsu(psuNum);
     setSelectedPsuData(data);
-  }, []);
+  }, [slotIndex]);
 
   const handleBackToSummary = useCallback(() => {
     setSelectedPort(null);
@@ -85,25 +88,27 @@ const SystemSummary = ({ sections, systemMap }) => {
     setSelectedPsu(null);
     setSelectedPsuData(null);
 
-    // Restore scroll position after state update
+    // Restore scroll position after state update - target specific window
     setTimeout(() => {
-      const container = document.querySelector('.system-summary-container');
+      const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
+      const container = currentContent?.querySelector('.system-summary-container');
       if (container) {
         container.scrollTop = savedScrollPosition.current;
       }
     }, 0);
-  }, []);
+  }, [slotIndex]);
 
   // Scroll to top when detail views are opened (but not when going back to main view)
   useEffect(() => {
     if (selectedPort || selectedFan || selectedPsu) {
-      // Scroll detail view to top
-      const container = document.querySelector('.system-summary-container');
+      // Scroll detail view to top - target specific window
+      const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
+      const container = currentContent?.querySelector('.system-summary-container');
       if (container) {
         container.scrollTop = 0;
       }
     }
-  }, [selectedPort, selectedFan, selectedPsu]);
+  }, [selectedPort, selectedFan, selectedPsu, slotIndex]);
 
   if (!systemMap) {
     return (

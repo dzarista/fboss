@@ -449,6 +449,7 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
                   <SystemSummary
                     sections={log.sections}
                     systemMap={log.system_map || null}
+                    slotIndex={slotIndex}
                   />
                 )}
 
