@@ -13,6 +13,8 @@ import {
   extractPhyData,
   extractInterfaceData,
   extractPortTypes,
+  extractCpuUptime,
+  extractFpgaVersions,
 } from './SystemSummary/extractors';
 
 const SystemSummary = ({ sections, systemMap, slotIndex }) => {
@@ -24,6 +26,8 @@ const SystemSummary = ({ sections, systemMap, slotIndex }) => {
   const phyData = useMemo(() => extractPhyData(sections), [sections]);
   const interfaceData = useMemo(() => extractInterfaceData(sections), [sections]);
   const portTypes = useMemo(() => extractPortTypes(sections), [sections]);
+  const cpuUptime = useMemo(() => extractCpuUptime(sections), [sections]);
+  const fpgaVersions = useMemo(() => extractFpgaVersions(sections), [sections]);
 
   const [selectedPort, setSelectedPort] = useState(null);
   const [selectedPortData, setSelectedPortData] = useState(null);
@@ -214,6 +218,50 @@ const SystemSummary = ({ sections, systemMap, slotIndex }) => {
           </div>
         </div>
       )}
+
+      {/* System Data View */}
+      <div className="system-view system-data-view">
+        <h4>System Data</h4>
+        <div className="view-content">
+          <div className="component-section system-data-entry">
+            <div className="system-data-grid">
+              <div className="system-data-slot">
+                <div className="system-data-content">
+                  <div className="system-data-header">
+                    <div className="system-data-label">CPU UPTIME</div>
+                  </div>
+                  <div className="system-data-row">
+                    {cpuUptime ? (
+                      <div className="system-data-field">{cpuUptime}</div>
+                    ) : (
+                      <div className="system-data-field">No data</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="system-data-slot">
+                <div className="system-data-content">
+                  <div className="system-data-header">
+                    <div className="system-data-label">FPGA VERSIONS</div>
+                  </div>
+                  <div className="system-data-row">
+                    {fpgaVersions ? (
+                      Object.entries(fpgaVersions).map(([key, value]) => (
+                        <div key={key} className="system-data-field">
+                          {key}: {value}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="system-data-field">No data</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
