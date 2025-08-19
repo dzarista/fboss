@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import PortGrid from './SystemSummary/PortGrid';
 import PSUGrid from './SystemSummary/PSUGrid';
 import FanGrid from './SystemSummary/FanGrid';
@@ -36,7 +36,16 @@ const SystemSummary = ({ sections, systemMap }) => {
   const [selectedPsuData, setSelectedPsuData] = useState(null);
   const [heatmapMode, setHeatmapMode] = useState('off'); // 'off' | 'temp' | 'voltage'
 
+  // Ref to store the saved scroll position
+  const savedScrollPosition = useRef(0);
+
   const handlePortClick = useCallback((portNum, portData, portType) => {
+    // Save current scroll position before navigating
+    const container = document.querySelector('.system-summary-container');
+    if (container) {
+      savedScrollPosition.current = container.scrollTop;
+    }
+
     setSelectedPort(portNum);
     setSelectedPortData(portData);
     setSelectedPhyData(phyData[portNum] || []);
@@ -45,11 +54,23 @@ const SystemSummary = ({ sections, systemMap }) => {
   }, [phyData, interfaceData]);
 
   const handleFanClick = useCallback((fanNum, data) => {
+    // Save current scroll position before navigating
+    const container = document.querySelector('.system-summary-container');
+    if (container) {
+      savedScrollPosition.current = container.scrollTop;
+    }
+
     setSelectedFan(fanNum);
     setSelectedFanData(data);
   }, []);
 
   const handlePsuClick = useCallback((psuNum, data) => {
+    // Save current scroll position before navigating
+    const container = document.querySelector('.system-summary-container');
+    if (container) {
+      savedScrollPosition.current = container.scrollTop;
+    }
+
     setSelectedPsu(psuNum);
     setSelectedPsuData(data);
   }, []);
@@ -63,7 +84,26 @@ const SystemSummary = ({ sections, systemMap }) => {
     setSelectedFanData(null);
     setSelectedPsu(null);
     setSelectedPsuData(null);
+
+    // Restore scroll position after state update
+    setTimeout(() => {
+      const container = document.querySelector('.system-summary-container');
+      if (container) {
+        container.scrollTop = savedScrollPosition.current;
+      }
+    }, 0);
   }, []);
+
+  // Scroll to top when detail views are opened (but not when going back to main view)
+  useEffect(() => {
+    if (selectedPort || selectedFan || selectedPsu) {
+      // Scroll detail view to top
+      const container = document.querySelector('.system-summary-container');
+      if (container) {
+        container.scrollTop = 0;
+      }
+    }
+  }, [selectedPort, selectedFan, selectedPsu]);
 
   if (!systemMap) {
     return (
