@@ -2,7 +2,6 @@ import os
 import zipfile
 import tempfile
 import json
-import uuid
 from datetime import datetime
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -13,10 +12,6 @@ from utils.file_upload import handle_single_file_upload, expand_and_validate_fil
 app = Flask(__name__)
 
 CORS(app, resources={r"/api/*": {"origins": "*"}})
-
-# In-memory storage for processed files (for raw data access)
-# In production, this should be replaced with a proper cache/database
-processed_files_cache = {}
 
 @app.route('/api/status')
 def get_status():
@@ -42,15 +37,8 @@ def upload_files():
         try:
             result = handle_single_file_upload(file_obj)
             if result:
-                # Add unique file ID and store in cache for raw data access
+                # Add source zip info if it came from a zip
                 for item in result:
-                    file_id = str(uuid.uuid4())
-                    item['file_id'] = file_id
-
-                    # Store in cache for raw data access
-                    processed_files_cache[file_id] = item
-
-                    # Add source zip info if it came from a zip
                     if hasattr(file_obj, 'source_zip') and file_obj.source_zip:
                         item['metadata']['extracted_from'] = file_obj.source_zip
                 all_responses.extend(result)
