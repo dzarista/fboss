@@ -66,8 +66,8 @@ export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawCo
   const prevSelectedRef = useRef(null);
 
   const openI2COverlay = (entry) => {
-    // Save main table scroll position from the actual scroll container
-    const sc = i2cContainerRef.current;
+    // Save main table scroll position from the section-content-wrapper (the actual scroll container)
+    const sc = i2cContainerRef.current?.closest('.section-content-wrapper');
     if (sc) {
       i2cMainYRef.current = sc.scrollTop;
     }
@@ -76,7 +76,7 @@ export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawCo
 
   const backToI2CMain = () => {
     // Save overlay scroll position before hiding it
-    const sc = i2cContainerRef.current;
+    const sc = i2cContainerRef.current?.closest('.section-content-wrapper');
     if (sc) {
       i2cOverlayYRef.current = sc.scrollTop;
     }
@@ -85,7 +85,7 @@ export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawCo
 
   useLayoutEffect(() => {
     if (isRawMode) return;                 // overlay/table live inside structured pane
-    const sc = i2cContainerRef.current;
+    const sc = i2cContainerRef.current?.closest('.section-content-wrapper');
     if (!sc) return;
 
     const prev = prevSelectedRef.current;  // was overlay shown previously?
@@ -95,13 +95,19 @@ export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawCo
       // First time overlay shows: default to 0; otherwise restore last overlay Y
       const y = i2cOverlayYRef.current || 0;
       sc.scrollTop = y;
-      requestAnimationFrame(() => { if (i2cContainerRef.current) i2cContainerRef.current.scrollTop = y; });
+      requestAnimationFrame(() => {
+        const scrollContainer = i2cContainerRef.current?.closest('.section-content-wrapper');
+        if (scrollContainer) scrollContainer.scrollTop = y;
+      });
     } else if (!selectedI2CEntry && prev) {
       // Transition: OVERLAY → MAIN
       // Restore main table scroll position. Do NOT run on initial mount.
       const y = i2cMainYRef.current || 0;
       sc.scrollTop = y;
-      requestAnimationFrame(() => { if (i2cContainerRef.current) i2cContainerRef.current.scrollTop = y; });
+      requestAnimationFrame(() => {
+        const scrollContainer = i2cContainerRef.current?.closest('.section-content-wrapper');
+        if (scrollContainer) scrollContainer.scrollTop = y;
+      });
     }
     // update prev after we handled the transition
     prevSelectedRef.current = selectedI2CEntry;
