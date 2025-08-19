@@ -14,6 +14,7 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [showSystemSummary, setShowSystemSummary] = useState(false);
   const [isToggling, setIsToggling] = useState(false); // Simple loading state
+  const [isExpandCollapseToggling, setIsExpandCollapseToggling] = useState(false); // Loading state for expand/collapse all
   const [rawModeSections, setRawModeSections] = useState(new Set()); // Track which sections are in raw mode
   const sectionRefs = useRef({});
 
@@ -29,10 +30,10 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
 
   // Custom toggle function that preserves scroll positions
   const toggleSystemSummary = () => {
-    // Show spinner immediately
+    // Show spinner immediately - this is the FIRST thing that happens
     setIsToggling(true);
 
-    // Let React render the spinner first, then do heavy work
+    // Let React render the spinner first, then do all the heavy work
     setTimeout(() => {
       // Find scrolling containers specific to THIS file using the current component's DOM
       const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
@@ -44,70 +45,60 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
                                  currentContent?.querySelector('.sections-view') ||
                                  currentContent?.querySelector('.content-view.sections-view');
 
-    if (showSystemSummary) {
-      // Switching from system summary to sections
-      // Save system summary scroll position for this file
-      if (systemSummaryEl) {
-        const scrollPos = systemSummaryEl.scrollTop;
-        setSystemSummaryScrollPosition(scrollPos);
-        if (!window.scrollPositions) window.scrollPositions = {};
-        window.scrollPositions[`${slotIndex}_summary`] = scrollPos;
+      if (showSystemSummary) {
+        // Switching from system summary to sections
+        // Save system summary scroll position for this file
+        if (systemSummaryEl) {
+          const scrollPos = systemSummaryEl.scrollTop;
+          setSystemSummaryScrollPosition(scrollPos);
+          if (!window.scrollPositions) window.scrollPositions = {};
+          window.scrollPositions[`${slotIndex}_summary`] = scrollPos;
+        }
+
+        setShowSystemSummary(false);
+
+        // Restore sections scroll position after a brief delay
+        setTimeout(() => {
+          const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
+          const newSectionsEl = currentContent?.querySelector('.sections-container') ||
+                               currentContent?.querySelector('.sections-view') ||
+                               currentContent?.querySelector('.content-view.sections-view');
+          if (newSectionsEl) {
+            const savedScrollPos = window.scrollPositions?.[`${slotIndex}_sections`] || sectionsScrollPosition;
+            newSectionsEl.scrollTop = savedScrollPos;
+          }
+
+          // Hide spinner - this is the LAST thing that happens
+          setTimeout(() => setIsToggling(false), 10);
+        }, 10);
+      } else {
+        // Switching from sections to system summary
+        // Save sections scroll position for this file
+        if (sectionsContainerEl) {
+          const scrollPos = sectionsContainerEl.scrollTop;
+          setSectionsScrollPosition(scrollPos);
+          if (!window.scrollPositions) window.scrollPositions = {};
+          window.scrollPositions[`${slotIndex}_sections`] = scrollPos;
+        }
+
+        setShowSystemSummary(true);
+
+        // Restore system summary scroll position after a brief delay
+        setTimeout(() => {
+          const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
+          const newSystemSummaryEl = currentContent?.querySelector('.system-summary-container') ||
+                                    currentContent?.querySelector('.system-summary-view') ||
+                                    currentContent?.querySelector('.content-view.system-summary-view');
+          if (newSystemSummaryEl) {
+            const savedScrollPos = window.scrollPositions?.[`${slotIndex}_summary`] || systemSummaryScrollPosition;
+            newSystemSummaryEl.scrollTop = savedScrollPos;
+          }
+
+          // Hide spinner - this is the LAST thing that happens
+          setTimeout(() => setIsToggling(false), 10);
+        }, 10);
       }
-
-      setShowSystemSummary(false);
-
-      // Restore sections scroll position for this file
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          // Wait for sections view to be fully rendered
-          setTimeout(() => {
-            const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
-            const newSectionsEl = currentContent?.querySelector('.sections-container') ||
-                                 currentContent?.querySelector('.sections-view') ||
-                                 currentContent?.querySelector('.content-view.sections-view');
-            if (newSectionsEl) {
-              const savedScrollPos = window.scrollPositions?.[`${slotIndex}_sections`] || sectionsScrollPosition;
-              console.log(`Restoring sections scroll position: ${savedScrollPos}`);
-              newSectionsEl.scrollTop = savedScrollPos;
-            }
-            // Hide spinner after everything is done
-            setTimeout(() => setIsToggling(false), 10);
-          }, 100);
-        });
-      });
-    } else {
-      // Switching from sections to system summary
-      // Save sections scroll position for this file
-      if (sectionsContainerEl) {
-        const scrollPos = sectionsContainerEl.scrollTop;
-        setSectionsScrollPosition(scrollPos);
-        if (!window.scrollPositions) window.scrollPositions = {};
-        window.scrollPositions[`${slotIndex}_sections`] = scrollPos;
-      }
-
-      setShowSystemSummary(true);
-
-      // Restore system summary scroll position for this file
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          // Wait for system summary view to be fully rendered
-          setTimeout(() => {
-            const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
-            const newSystemSummaryEl = currentContent?.querySelector('.system-summary-container') ||
-                                      currentContent?.querySelector('.system-summary-view') ||
-                                      currentContent?.querySelector('.content-view.system-summary-view');
-            if (newSystemSummaryEl) {
-              const savedScrollPos = window.scrollPositions?.[`${slotIndex}_summary`] || systemSummaryScrollPosition;
-              console.log(`Restoring system summary scroll position: ${savedScrollPos}`);
-              newSystemSummaryEl.scrollTop = savedScrollPos;
-            }
-            // Hide spinner after everything is done
-            setTimeout(() => setIsToggling(false), 10);
-          }, 100);
-        });
-      });
-    }
-    }, 0); // Execute in next tick to let spinner render first
+    }, 10);
   };
 
 
@@ -400,16 +391,25 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
 
 
   const toggleAllSections = () => {
-    if (allExpanded) {
-      // Collapse all
-      setExpandedSections(new Set());
-      setAllExpanded(false);
-    } else {
-      // Expand all
-      const allSectionIds = new Set(log.sections.map((_, idx) => idx));
-      setExpandedSections(allSectionIds);
-      setAllExpanded(true);
-    }
+    // Show spinner immediately - this is the FIRST thing that happens
+    setIsExpandCollapseToggling(true);
+
+    // Let React render the spinner first, then perform the action
+    setTimeout(() => {
+      if (allExpanded) {
+        // Collapse all
+        setExpandedSections(new Set());
+        setAllExpanded(false);
+      } else {
+        // Expand all
+        const allSectionIds = new Set(log.sections.map((_, idx) => idx));
+        setExpandedSections(allSectionIds);
+        setAllExpanded(true);
+      }
+
+      // Hide spinner - this is the LAST thing that happens
+      setTimeout(() => setIsExpandCollapseToggling(false), 10);
+    }, 10);
   };
 
 
@@ -465,8 +465,13 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
                     className="control-button"
                     onClick={toggleAllSections}
                     title={allExpanded ? "Collapse All" : "Expand All"}
+                    disabled={isExpandCollapseToggling}
                   >
-                    {allExpanded ? "Collapse All" : "Expand All"}
+                    {isExpandCollapseToggling ? (
+                      <div className="raw-button-spinner"></div>
+                    ) : (
+                      allExpanded ? "Collapse All" : "Expand All"
+                    )}
                   </button>
                 )}
 
