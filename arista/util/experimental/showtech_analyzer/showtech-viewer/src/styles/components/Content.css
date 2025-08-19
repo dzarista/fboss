@@ -260,7 +260,7 @@
 }
 
 .section-content-wrapper.expanded {
-  max-height: calc(100vh - 120px); /* Take full viewport height */
+  max-height: calc(100vh - 125px); /* Take full viewport height */
   opacity: 1;
   overflow: hidden; /* Default to no scrolling */
 }

@@ -74,7 +74,7 @@ body {
 
 /* I2C sections - removed scrolling to prevent double scrolling */
 .i2c-dump-container {
-  height: calc(100vh - 200px);
+  height: calc(100vh - 125px);
   min-height: 500px;
   /* Let section-content-wrapper handle all scrolling */
 }
