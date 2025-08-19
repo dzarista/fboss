@@ -259,7 +259,7 @@
 }
 
 .section-content-wrapper.expanded {
-  max-height: calc(100vh - 180px); /* Take full window height minus comfortable space for header/topbar and section titles */
+  max-height: calc(100vh - 120px); /* Take full viewport height */
   opacity: 1;
   overflow: hidden; /* Default to no scrolling */
 }
