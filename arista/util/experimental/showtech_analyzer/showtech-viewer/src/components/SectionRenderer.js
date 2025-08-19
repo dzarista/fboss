@@ -1,4 +1,4 @@
-import { forwardRef, useState, useRef, useLayoutEffect, useEffect } from 'react';
+import { forwardRef, useState, useRef, useEffect } from 'react';
 import { getRowStyling } from './ErrorDetection';
 import { BackArrowIcon, ChevronDownIcon } from '../assets/icons/Icon';
 
@@ -57,61 +57,35 @@ export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawCo
   // === Raw vs Structured views - no independent scrolling to prevent double scroll ===
   // Scrolling is now handled by the section-content-wrapper
 
-  // === I2C overlay vs table with anchor-based scroll restoration ===
+  // === I2C overlay vs table with scroll state management ===
   const i2cMainYRef = useRef(0);
-  const i2cOverlayYRef = useRef(0);
   const i2cContainerRef = useRef(null);
 
-  // Track previous selectedI2CEntry to know the transition direction
-  const prevSelectedRef = useRef(null);
-
   const openI2COverlay = (entry) => {
-    // Save main table scroll position from the section-content-wrapper (the actual scroll container)
+    // Save current scroll position
     const sc = i2cContainerRef.current?.closest('.section-content-wrapper');
     if (sc) {
       i2cMainYRef.current = sc.scrollTop;
+      // Scroll to top before navigating
+      sc.scrollTop = 0;
     }
+
     setSelectedI2CEntry(entry);
   };
 
   const backToI2CMain = () => {
-    // Save overlay scroll position before hiding it
-    const sc = i2cContainerRef.current?.closest('.section-content-wrapper');
-    if (sc) {
-      i2cOverlayYRef.current = sc.scrollTop;
-    }
     setSelectedI2CEntry(null);
+
+    // Restore saved scroll position after navigation
+    requestAnimationFrame(() => {
+      const sc = i2cContainerRef.current?.closest('.section-content-wrapper');
+      if (sc) {
+        sc.scrollTop = i2cMainYRef.current;
+      }
+    });
   };
 
-  useLayoutEffect(() => {
-    if (isRawMode) return;                 // overlay/table live inside structured pane
-    const sc = i2cContainerRef.current?.closest('.section-content-wrapper');
-    if (!sc) return;
-
-    const prev = prevSelectedRef.current;  // was overlay shown previously?
-
-    if (selectedI2CEntry && !prev) {
-      // Transition: MAIN → OVERLAY
-      // First time overlay shows: default to 0; otherwise restore last overlay Y
-      const y = i2cOverlayYRef.current || 0;
-      sc.scrollTop = y;
-      requestAnimationFrame(() => {
-        const scrollContainer = i2cContainerRef.current?.closest('.section-content-wrapper');
-        if (scrollContainer) scrollContainer.scrollTop = y;
-      });
-    } else if (!selectedI2CEntry && prev) {
-      // Transition: OVERLAY → MAIN
-      // Restore main table scroll position. Do NOT run on initial mount.
-      const y = i2cMainYRef.current || 0;
-      sc.scrollTop = y;
-      requestAnimationFrame(() => {
-        const scrollContainer = i2cContainerRef.current?.closest('.section-content-wrapper');
-        if (scrollContainer) scrollContainer.scrollTop = y;
-      });
-    }
-    // update prev after we handled the transition
-    prevSelectedRef.current = selectedI2CEntry;
-  }, [selectedI2CEntry, isRawMode]);
+  // Scroll management is now handled directly in openI2COverlay and backToI2CMain functions
 
   try {
     if (!section || !section.parsed_data) {
@@ -253,6 +227,40 @@ const renderStructuredContent = (
 
     return (
       <div ref={i2cContainerRef} className="i2c-dump-container">
+        {/* Main table content */}
+        <div className="i2c-view main-table-view" style={{ display: selectedI2CEntry ? 'none' : 'block' }}>
+          <table className="section-table i2c-dump-table">
+            <thead>
+              <tr>
+                <th>Address</th>
+                <th>Command</th>
+                <th>Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              {registerEntries.map(([address, regData]) => (
+                <tr key={address}>
+                  <td className="address-col">{address}</td>
+                  <td className="command-col">
+                    {regData.bitRanges && regData.bitRanges.length > 0 ? (
+                      <button
+                        className="command-link"
+                        onClick={() => openI2COverlay({ address, data: regData })}
+                        title="Click to view bit ranges"
+                      >
+                        {regData.command || 'Unknown'}
+                      </button>
+                    ) : (
+                      <span>{regData.command || 'Unknown'}</span>
+                    )}
+                  </td>
+                  <td className="value-col">{regData.value || 'N/A'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
         {/* Overlay content (bit ranges) */}
         <div className="i2c-view overlay-view" style={{ display: selectedI2CEntry ? 'block' : 'none' }}>
           {selectedI2CEntry && (
@@ -294,40 +302,6 @@ const renderStructuredContent = (
               )}
             </div>
           )}
-        </div>
-
-        {/* Main table content */}
-        <div className="i2c-view main-table-view" style={{ display: selectedI2CEntry ? 'none' : 'block' }}>
-          <table className="section-table i2c-dump-table">
-            <thead>
-              <tr>
-                <th>Address</th>
-                <th>Command</th>
-                <th>Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              {registerEntries.map(([address, regData]) => (
-                <tr key={address}>
-                  <td className="address-col">{address}</td>
-                  <td className="command-col">
-                    {regData.bitRanges && regData.bitRanges.length > 0 ? (
-                      <button
-                        className="command-link"
-                        onClick={() => openI2COverlay({ address, data: regData })}
-                        title="Click to view bit ranges"
-                      >
-                        {regData.command || 'Unknown'}
-                      </button>
-                    ) : (
-                      <span>{regData.command || 'Unknown'}</span>
-                    )}
-                  </td>
-                  <td className="value-col">{regData.value || 'N/A'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       </div>
     );
