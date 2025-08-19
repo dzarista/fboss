@@ -66,3 +66,29 @@ dist/
 # Temporary files
 tmp/
 temp/
+
+# Documentation and README files
+README.md
+docs/
+*.md
+
+# Test files
+tests/
+test/
+*.test.js
+*.spec.js
+
+# Development data
+data/
+showtech-backend/data/
+out.json
+
+# Docker files (don't copy into container)
+Dockerfile*
+docker-compose*.yml
+
+# Cache directories
+.cache
+.parcel-cache
+.eslintcache
+.pytest_cache/
