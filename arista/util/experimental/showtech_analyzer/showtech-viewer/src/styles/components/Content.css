@@ -256,6 +256,7 @@
 
 .section-content-wrapper {
   overflow: hidden;
+  position: relative; /* For positioning the view-more indicator */
 }
 
 .section-content-wrapper.expanded {
@@ -267,6 +268,57 @@
 /* Only allow scrolling in active sections - both vertical and horizontal */
 .section-card.active .section-content-wrapper.expanded {
   overflow: auto; /* Allow both horizontal and vertical scrolling when needed */
+}
+
+/* View More Indicator - only show on inactive sections with overflow content */
+.section-content-wrapper.expanded .view-more-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 80px;
+  background: linear-gradient(to bottom,
+    transparent 0%,
+    rgba(0, 0, 0, 0.05) 20%,
+    rgba(0, 0, 0, 0.15) 50%,
+    rgba(0, 0, 0, 0.3) 80%,
+    rgba(0, 0, 0, 0.5) 100%);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 16px;
+  pointer-events: auto;
+  z-index: 10;
+  transition: opacity 0.2s ease;
+}
+
+/* Hide view-more indicator when section is active (scrollable) */
+.section-card.active .section-content-wrapper.expanded .view-more-indicator {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.view-more-text {
+  background: rgba(0, 0, 0, 0.2);
+  color: #ffffff;
+  padding: 0.5rem 1rem;
+  border-radius: 1.5rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: none;
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.view-more-text svg {
+  width: 14px;
+  height: 14px;
+  opacity: 1;
+  fill: #ffffff; /* Make SVG white */
 }
 
 .section-content-wrapper.collapsed {

@@ -1,8 +1,55 @@
-import { forwardRef, useState, useRef, useLayoutEffect } from 'react';
+import { forwardRef, useState, useRef, useLayoutEffect, useEffect } from 'react';
 import { getRowStyling } from './ErrorDetection';
 import { BackArrowIcon, ChevronDownIcon } from '../assets/icons/Icon';
 
 // NOTE: Scrolling is now handled by section-content-wrapper to prevent double scrolling
+
+// ViewMoreIndicator component to show when content overflows in inactive sections
+const ViewMoreIndicator = ({ contentRef, isActive, isExpanded }) => {
+  const [hasOverflow, setHasOverflow] = useState(false);
+
+  useEffect(() => {
+    const checkOverflow = () => {
+      if (!contentRef.current || isActive || !isExpanded) {
+        setHasOverflow(false);
+        return;
+      }
+
+      const element = contentRef.current;
+      const hasVerticalOverflow = element.scrollHeight > element.clientHeight;
+      const hasHorizontalOverflow = element.scrollWidth > element.clientWidth;
+
+      setHasOverflow(hasVerticalOverflow || hasHorizontalOverflow);
+    };
+
+    // Check overflow on mount and when dependencies change
+    checkOverflow();
+
+    // Also check on resize
+    const resizeObserver = new ResizeObserver(checkOverflow);
+    if (contentRef.current) {
+      resizeObserver.observe(contentRef.current);
+    }
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [contentRef, isActive, isExpanded]);
+
+  // Don't show indicator if section is active or has no overflow
+  if (isActive || !hasOverflow || !isExpanded) {
+    return null;
+  }
+
+  return (
+    <div className="view-more-indicator">
+      <div className="view-more-text">
+        <span>View More</span>
+        <ChevronDownIcon />
+      </div>
+    </div>
+  );
+};
 
 export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawContent }) => {
   const [selectedI2CEntry, setSelectedI2CEntry] = useState(null);
@@ -605,6 +652,7 @@ const renderStructuredContent = (
 export const CollapsibleSection = forwardRef(
   ({ title, children, isExpanded, onToggle, isActive, onActivate, isRawMode, onToggleRaw, isVisible = true }, ref) => {
     const [isToggling, setIsToggling] = useState(false);
+    const contentWrapperRef = useRef(null);
     const handleToggleExpanded = (e) => {
       e.stopPropagation();
       onActivate();
@@ -663,8 +711,16 @@ export const CollapsibleSection = forwardRef(
             </button>
           </div>
         </div>
-        <div className={`section-content-wrapper ${isExpanded ? 'expanded' : 'collapsed'}`}>
+        <div
+          ref={contentWrapperRef}
+          className={`section-content-wrapper ${isExpanded ? 'expanded' : 'collapsed'}`}
+        >
           <div className="section-content">{children}</div>
+          <ViewMoreIndicator
+            contentRef={contentWrapperRef}
+            isActive={isActive}
+            isExpanded={isExpanded}
+          />
         </div>
       </div>
     );
