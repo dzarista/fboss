@@ -3,21 +3,23 @@ import zipfile
 import tempfile
 import json
 from datetime import datetime
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 
 from utils.file_upload import handle_single_file_upload, expand_and_validate_files, FileWrapper
 
 # App initialization
-app = Flask(__name__)
+# Reference to directory where static app is located
+app = Flask(__name__, static_folder='build')
 
+# With this setup, CORS might not be needed for your main frontend,
+# as they are now served from the same origin. It's safe to leave for other clients.
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 @app.route('/api/status')
 def get_status():
     """A single endpoint to confirm the backend is running."""
     return jsonify({"status": "Success"})
-
 
 @app.route('/api/upload', methods=['POST'])
 def upload_files():
@@ -115,5 +117,23 @@ def unroll_zips():
     return jsonify(result), 200
 
 
+# This catch-all route serves the static frontend files.
+@app.route('/', defaults={'path': ''})
+@app.route('/<path:path>')
+def serve(path):
+    """
+    This route serves the static files for the frontend application.
+    - If the path is a file in the build folder, it serves that file.
+    - Otherwise, it serves index.html, allowing the frontend router to handle the path.
+    """
+    if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+        return send_from_directory(app.static_folder, path)
+    else:
+        return send_from_directory(app.static_folder, 'index.html')
+
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5001)
+    # The server now hosts both the API and the static site on the same port.
+    # Check if we're in development mode for hot reloading
+    debug_mode = os.environ.get('FLASK_DEBUG', '0') == '1'
+    app.run(host='0.0.0.0', port=80, debug=debug_mode)
