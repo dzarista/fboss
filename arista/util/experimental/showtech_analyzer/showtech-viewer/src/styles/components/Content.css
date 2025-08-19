@@ -192,6 +192,7 @@
   box-shadow: 0 1px 3px rgba(0,0,0,0.05);
   overflow: hidden;
   transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  position: relative; /* For positioning the view-more indicator */
 }
 
 .section-card.active {
@@ -256,7 +257,6 @@
 
 .section-content-wrapper {
   overflow: hidden;
-  position: relative; /* For positioning the view-more indicator */
 }
 
 .section-content-wrapper.expanded {
@@ -270,8 +270,8 @@
   overflow: auto; /* Allow both horizontal and vertical scrolling when needed */
 }
 
-/* View More Indicator - only show on inactive sections with overflow content */
-.section-content-wrapper.expanded .view-more-indicator {
+/* View More Indicator - positioned relative to section-card, only show on inactive sections with overflow content */
+.section-card .view-more-indicator {
   position: absolute;
   bottom: 0;
   left: 0;
@@ -290,10 +290,11 @@
   pointer-events: auto;
   z-index: 10;
   transition: opacity 0.2s ease;
+  border-radius: 0 0 0.5em 0.5em; /* Match section-card border radius */
 }
 
 /* Hide view-more indicator when section is active (scrollable) */
-.section-card.active .section-content-wrapper.expanded .view-more-indicator {
+.section-card.active .view-more-indicator {
   opacity: 0;
   pointer-events: none;
 }

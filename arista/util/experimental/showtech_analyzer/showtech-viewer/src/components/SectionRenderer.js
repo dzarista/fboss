@@ -722,12 +722,13 @@ export const CollapsibleSection = forwardRef(
           className={`section-content-wrapper ${isExpanded ? 'expanded' : 'collapsed'}`}
         >
           <div className="section-content">{children}</div>
-          <ViewMoreIndicator
-            contentRef={contentWrapperRef}
-            isActive={isActive}
-            isExpanded={isExpanded}
-          />
         </div>
+        {/* Move ViewMoreIndicator outside content wrapper to be positioned relative to section-card */}
+        <ViewMoreIndicator
+          contentRef={contentWrapperRef}
+          isActive={isActive}
+          isExpanded={isExpanded}
+        />
       </div>
     );
   }
