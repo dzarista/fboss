@@ -1,40 +1,26 @@
 // Error detection utility functions and logic
 
-// Error detection utility functions - only detect existing critical highlighting
-export const detectCriticalInValue = (value) => {
-  // This matches the existing logic in SectionContentRenderer for critical row detection
-  return value && String(value).toLowerCase().includes('critical');
-};
+// Removed detectCriticalInValue - now using anomalies data directly
 
-// Function to determine row styling based on port status and anomalies
+// Function to highlight rows based on anomaly severity
 export const getRowStyling = (row, rowIndex, sectionTitle, anomalies) => {
   try {
-    // Safety check for row
-    if (!row || typeof row !== 'object') {
+    // Safety check for row and anomalies
+    if (!row || typeof row !== 'object' || !anomalies || !Array.isArray(anomalies)) {
       return '';
     }
 
-    // Check for critical values first (highest priority)
-    const rowValues = Object.values(row);
-    const isCritical = rowValues.some(value => detectCriticalInValue(value));
-    if (isCritical) {
-      return 'critical-row';
-    }
+    // Find anomaly for this row
+    const rowAnomaly = anomalies.find(anomaly => anomaly.row_index === rowIndex);
 
-    // Check for port-specific styling (only for fboss2 show port sections)
-    if (sectionTitle === 'fboss2 show port') {
-      const adminState = row.AdminState;
-      const linkState = row.LinkState;
-      const transceiver = row.Transceiver;
-
-      // Disabled ports get dark background
-      if (adminState === 'Disabled') {
-        return 'disabled-port-row';
-      }
-
-      // Enabled + Present + Down ports get red background (problem ports)
-      if (adminState === 'Enabled' && transceiver === 'Present' && linkState === 'Down') {
-        return 'problem-port-row';
+    if (rowAnomaly) {
+      // Return CSS class based on severity
+      if (rowAnomaly.severity === 'high') {
+        return 'high-severity-row'; // Red highlight
+      } else if (rowAnomaly.severity === 'medium') {
+        return 'medium-severity-row'; // Yellow highlight
+      } else {
+        return 'critical-row'; // Default red for backward compatibility
       }
     }
 

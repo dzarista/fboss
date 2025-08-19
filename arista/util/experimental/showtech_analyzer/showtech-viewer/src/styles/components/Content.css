@@ -256,12 +256,12 @@
 .section-content-wrapper.expanded {
   max-height: calc(100vh - 180px); /* Take full window height minus comfortable space for header/topbar and section titles */
   opacity: 1;
-  overflow-y: hidden; /* Default to no scrolling */
+  overflow: hidden; /* Default to no scrolling */
 }
 
-/* Only allow scrolling in active sections */
+/* Only allow scrolling in active sections - both vertical and horizontal */
 .section-card.active .section-content-wrapper.expanded {
-  overflow-y: auto;
+  overflow: auto; /* Allow both horizontal and vertical scrolling when needed */
 }
 
 .section-content-wrapper.collapsed {
@@ -295,7 +295,7 @@
 .i2c-dump-container,
 .key-value-container {
   width: auto;
-  overflow-x: auto;
+  /* Remove overflow-x: auto to prevent double scrolling - let section wrapper handle all scrolling */
 }
 
 .section-table {
@@ -342,7 +342,43 @@
   border-bottom: 2px solid var(--border-default, #d1d5db);
 }
 
-/* Critical row styling */
+/* High severity row styling - Red */
+.section-table tbody tr.high-severity-row {
+  background: #dc2626 !important;
+  font-weight: 700 !important;
+}
+
+.section-table tbody tr.high-severity-row td {
+  color: #ffffff !important;
+}
+
+.section-table tbody tr.high-severity-row:hover {
+  background: #b91c1c !important;
+}
+
+.section-table tbody tr.high-severity-row:hover td {
+  color: #ffffff !important;
+}
+
+/* Medium severity row styling - Yellow */
+.section-table tbody tr.medium-severity-row {
+  background: #fbbf24 !important;
+  font-weight: 600 !important;
+}
+
+.section-table tbody tr.medium-severity-row td {
+  color: #1f2937 !important;
+}
+
+.section-table tbody tr.medium-severity-row:hover {
+  background: #f59e0b !important;
+}
+
+.section-table tbody tr.medium-severity-row:hover td {
+  color: #1f2937 !important;
+}
+
+/* Critical row styling - kept for backward compatibility */
 .section-table tbody tr.critical-row {
   background: #dc2626 !important;
   font-weight: 700 !important;
@@ -360,33 +396,7 @@
   color: #ffffff !important;
 }
 
-/* Disabled port row styling - natural dark background */
-.section-table tbody tr.disabled-port-row {
-  background: #6b7280 !important;
-  color: #d1d5db !important;
-}
-
-.section-table tbody tr.disabled-port-row td {
-  color: #d1d5db !important;
-}
-
-.section-table tbody tr.disabled-port-row:hover {
-  background: #4b5563 !important;
-}
-
-.section-table tbody tr.disabled-port-row:hover td {
-  color: #f3f4f6 !important;
-}
-
-/* Problem port row styling - red background for enabled+present+down ports */
-.section-table tbody tr.problem-port-row {
-  background: #dc2626 !important;
-  font-weight: 600 !important;
-}
-
-.section-table tbody tr.problem-port-row td {
-  color: #ffffff !important;
-}
+/* Removed port-specific styling - now using unified critical-row for all anomalies */
 
 .section-table tbody tr.problem-port-row:hover {
   background: #b91c1c !important;

@@ -2,39 +2,13 @@ import { forwardRef, useState, useRef, useLayoutEffect } from 'react';
 import { getRowStyling } from './ErrorDetection';
 import { BackArrowIcon, ChevronDownIcon } from '../assets/icons/Icon';
 
-// NOTE: Ensure in CSS that the scroller has a fixed height + overflow
-// .section-content-view.structured-view { max-height: 60vh; overflow-y: auto; }
+// NOTE: Scrolling is now handled by section-content-wrapper to prevent double scrolling
 
 export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawContent }) => {
   const [selectedI2CEntry, setSelectedI2CEntry] = useState(null);
 
-  // === Raw vs Structured independent scrolling ===
-  const rawRef = useRef(null);
-  const structuredRef = useRef(null);
-
-  // synchronous scroll memory (don't use state)
-  const rawYRef = useRef(0);
-  const structYRef = useRef(0);
-
-  const onRawScroll = (e) => { rawYRef.current = e.currentTarget.scrollTop; };
-  const onStructuredScroll = (e) => { structYRef.current = e.currentTarget.scrollTop; };
-
-  // restore when the visible pane changes
-  useLayoutEffect(() => {
-    if (isRawMode) {
-      const y = rawYRef.current || 0;
-      if (rawRef.current) {
-        rawRef.current.scrollTop = y;
-        requestAnimationFrame(() => { if (rawRef.current) rawRef.current.scrollTop = y; });
-      }
-    } else {
-      const y = structYRef.current || 0;
-      if (structuredRef.current) {
-        structuredRef.current.scrollTop = y;
-        requestAnimationFrame(() => { if (structuredRef.current) structuredRef.current.scrollTop = y; });
-      }
-    }
-  }, [isRawMode]);
+  // === Raw vs Structured views - no independent scrolling to prevent double scroll ===
+  // Scrolling is now handled by the section-content-wrapper
 
   // === I2C overlay vs table with anchor-based scroll restoration ===
   const i2cMainYRef = useRef(0);
@@ -48,17 +22,7 @@ export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawCo
     // Save main table scroll position from the actual scroll container
     const sc = i2cContainerRef.current;
     if (sc) {
-      console.log('openI2COverlay: scroll container info', {
-        scrollTop: sc.scrollTop,
-        scrollHeight: sc.scrollHeight,
-        clientHeight: sc.clientHeight,
-        className: sc.className,
-        hasOverflow: sc.scrollHeight > sc.clientHeight
-      });
       i2cMainYRef.current = sc.scrollTop;
-      console.log('openI2COverlay: saved main scroll position =', i2cMainYRef.current);
-    } else {
-      console.log('openI2COverlay: no i2c scroll container found');
     }
     setSelectedI2CEntry(entry);
   };
@@ -68,7 +32,6 @@ export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawCo
     const sc = i2cContainerRef.current;
     if (sc) {
       i2cOverlayYRef.current = sc.scrollTop;
-      console.log('backToI2CMain: saved overlay scroll position =', i2cOverlayYRef.current);
     }
     setSelectedI2CEntry(null);
   };
@@ -79,24 +42,17 @@ export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawCo
     if (!sc) return;
 
     const prev = prevSelectedRef.current;  // was overlay shown previously?
-    console.log('useLayoutEffect: transition check', {
-      selectedI2CEntry: !!selectedI2CEntry,
-      prev: !!prev,
-      isRawMode
-    });
 
     if (selectedI2CEntry && !prev) {
       // Transition: MAIN → OVERLAY
       // First time overlay shows: default to 0; otherwise restore last overlay Y
       const y = i2cOverlayYRef.current || 0;
-      console.log('MAIN → OVERLAY: setting scroll to', y);
       sc.scrollTop = y;
       requestAnimationFrame(() => { if (i2cContainerRef.current) i2cContainerRef.current.scrollTop = y; });
     } else if (!selectedI2CEntry && prev) {
       // Transition: OVERLAY → MAIN
       // Restore main table scroll position. Do NOT run on initial mount.
       const y = i2cMainYRef.current || 0;
-      console.log('OVERLAY → MAIN: restoring main scroll to', y);
       sc.scrollTop = y;
       requestAnimationFrame(() => { if (i2cContainerRef.current) i2cContainerRef.current.scrollTop = y; });
     }
@@ -117,22 +73,18 @@ export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawCo
 
     return (
       <div className="section-content-container">
-        {/* RAW VIEW — give it its own scroller */}
+        {/* RAW VIEW — no independent scrolling */}
         <div
-          ref={rawRef}
           className="section-content-view raw-view"
           style={{ display: isRawMode ? 'block' : 'none' }}
-          onScroll={onRawScroll}
         >
           <pre className="section-text-content">{rawContent || 'No raw content available'}</pre>
         </div>
 
-        {/* STRUCTURED VIEW — its own scroller, independent from raw */}
+        {/* STRUCTURED VIEW — no independent scrolling */}
         <div
-          ref={structuredRef}
           className="section-content-view structured-view"
           style={{ display: isRawMode ? 'none' : 'block' }}
-          onScroll={onStructuredScroll}
         >
           {renderStructuredContent(
             parsed_data,

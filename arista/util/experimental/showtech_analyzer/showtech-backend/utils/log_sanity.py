@@ -7,7 +7,7 @@ import json
 import re
 
 def detect_critical_sensors(section):
-    """Detect critical values in table sections"""
+    """Detect critical and alarm values in table sections"""
     anomalies = []
 
     if section.get('section_type') in ('table', 'temperature_table'):
@@ -16,16 +16,28 @@ def detect_critical_sensors(section):
 
         if rows:
             for row_index, row in enumerate(rows):
-                # Check if any field in the row contains "critical"
+                # Check if any field in the row contains "critical" or "alarm"
                 for key, value in row.items():
-                    if value and str(value).lower().find('critical') != -1:
-                        anomalies.append({
-                            'type': 'critical_sensor',
-                            'row_index': row_index,
-                            'field': key,
-                            'value': value,
-                            'message': f'Critical value detected in {key}: {value}'
-                        })
+                    if value:
+                        value_str = str(value).lower()
+                        if value_str.find('critical') != -1:
+                            anomalies.append({
+                                'type': 'critical_sensor',
+                                'row_index': row_index,
+                                'field': key,
+                                'value': value,
+                                'severity': 'high',
+                                'message': f'Critical value detected in {key}: {value}'
+                            })
+                        elif value_str.find('alarm') != -1:
+                            anomalies.append({
+                                'type': 'critical_sensor',
+                                'row_index': row_index,
+                                'field': key,
+                                'value': value,
+                                'severity': 'medium',
+                                'message': f'Alarm value detected in {key}: {value}'
+                            })
 
     return anomalies
 
@@ -54,6 +66,7 @@ def detect_down_ports(section):
                         'type': 'port_down',
                         'row_index': row_index,
                         'port_name': port_name,
+                        'severity': 'high',
                         'message': f'Port {port_name} is enabled and present but down'
                     })
 
@@ -92,7 +105,8 @@ def detect_missing_devices(section, platform_config):
                 'device_type': device_type,
                 'location': location,
                 'description': description,
-                'expected_speed': expected_speed
+                'expected_speed': expected_speed,
+                'severity': 'high'
             })
 
     return anomalies
@@ -201,6 +215,7 @@ def detect_pcie_speed_mismatches(section, platform_config):
                         'actual_speed_gt': actual_speed_gt,
                         'actual_width': actual_width,
                         'device_index': device_index,  # Add device index for navigation
+                        'severity': 'medium',
                         'message': f'{description} at {expected_slot}: Expected {expected_display}, found {actual_display}'
                     })
 

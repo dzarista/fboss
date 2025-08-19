@@ -192,20 +192,12 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
 
   // Create a navigation handler that's bound to THIS specific component
   const handleNavigateToError = useCallback((error) => {
-    console.log(`Navigation called on Content ${slotIndex}:`, {
-      errorType: error.type,
-      sectionIndex: error.sectionIndex,
-      sectionTitle: error.sectionTitle,
-      logName: log?.name
-    });
-
     const sectionIndex = error.sectionIndex;
     const rowIndex = error.rowIndex;
     const deviceIndex = error.deviceIndex;
 
     // Verify this section exists in our log
     if (!log?.sections?.[sectionIndex]) {
-      console.warn(`Section ${sectionIndex} not found in log ${log?.name}`);
       return;
     }
 
@@ -222,7 +214,7 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
     if (visibleSections && !visibleSections.has(sectionIndex)) {
       // This error is in a filtered-out section, we need to make it visible
       // We can't directly modify visibleSections here as it comes from parent
-      console.warn(`Error is in filtered section ${sectionIndex}. Section may not be visible.`);
+      return;
     }
 
     // Ensure the section is expanded
@@ -232,21 +224,36 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
       setExpandedSections(newExpanded);
     }
 
+    // For table row navigation, ensure section is in structured mode (not raw mode)
+    if (rowIndex !== undefined && rawModeSections.has(sectionIndex)) {
+      console.log(`Switching section ${sectionIndex} from raw to structured mode for row navigation`);
+      toggleRawMode(sectionIndex);
+    }
+
     // Activate the section
     activateSection(sectionIndex);
 
+    console.log(`Section ${sectionIndex} state:`, {
+      isExpanded: expandedSections.has(sectionIndex),
+      isInRawMode: rawModeSections.has(sectionIndex),
+      isVisible: !visibleSections || visibleSections.has(sectionIndex)
+    });
+
     // Jump to the section first, then scroll within the section to the specific row
-    setTimeout(() => {
+    // Use requestAnimationFrame to ensure DOM updates are applied
+    requestAnimationFrame(() => {
+      setTimeout(() => {
       // Find the section ref directly
       const sectionRef = sectionRefs.current[sectionIndex];
       if (sectionRef) {
-        // First, position the section at the top of the viewport
+        // First, navigate TO the section (scroll outer container to bring section into view)
         sectionRef.scrollIntoView({
           behavior: 'smooth',
           block: 'start'
         });
 
-        // After jumping to section, scroll within the section content to the specific row or device
+        // After jumping to section, scroll WITHIN the section content to the specific row or device
+        // Increased timeout to ensure section is fully activated and CSS is applied
         setTimeout(() => {
           if (deviceIndex !== undefined && deviceIndex !== null) {
             // Handle LSPCI device navigation - scope search to this section only
@@ -289,29 +296,62 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
             }
           } else if (rowIndex !== undefined) {
             // Handle table row navigation - scope search to this section only
-            const rowElement = sectionRef.querySelector(`#section-${sectionIndex}-row-${rowIndex}`);
+            const targetRowId = `section-${sectionIndex}-row-${rowIndex}`;
+            console.log(`Looking for row element with ID: ${targetRowId}`);
+
+            // First, let's see what row elements exist in this section
+            const allRows = sectionRef.querySelectorAll('[id*="row-"]');
+            console.log(`Found ${allRows.length} row elements in section:`, Array.from(allRows).map(r => r.id));
+
+            const rowElement = sectionRef.querySelector(`#${targetRowId}`);
+            console.log(`Row element found:`, !!rowElement, rowElement?.id);
+
             if (rowElement) {
               // Get the section content wrapper for scrolling within the section
               const sectionContentWrapper = sectionRef.querySelector('.section-content-wrapper');
-              if (sectionContentWrapper) {
+              console.log('Row navigation debug:', {
+                rowIndex,
+                sectionIndex,
+                sectionRef: !!sectionRef,
+                rowElement: !!rowElement,
+                sectionContentWrapper: !!sectionContentWrapper,
+                sectionIsActive: sectionRef.classList.contains('active'),
+                wrapperOverflow: sectionContentWrapper ? getComputedStyle(sectionContentWrapper).overflowY : 'N/A'
+              });
+
+              if (sectionContentWrapper && getComputedStyle(sectionContentWrapper).overflowY === 'auto') {
                 console.log('Scrolling within section content wrapper for row', rowIndex);
+
                 // Calculate position within the section content
                 const rowRect = rowElement.getBoundingClientRect();
                 const wrapperRect = sectionContentWrapper.getBoundingClientRect();
                 const relativeTop = rowRect.top - wrapperRect.top + sectionContentWrapper.scrollTop;
+                const targetScrollTop = relativeTop - (sectionContentWrapper.clientHeight / 2) + (rowElement.offsetHeight / 2);
+
+                console.log('Scroll calculation details:', {
+                  rowRect: { top: rowRect.top, height: rowRect.height },
+                  wrapperRect: { top: wrapperRect.top, height: wrapperRect.height },
+                  currentScrollTop: sectionContentWrapper.scrollTop,
+                  relativeTop,
+                  targetScrollTop: Math.max(0, targetScrollTop),
+                  wrapperClientHeight: sectionContentWrapper.clientHeight,
+                  wrapperScrollHeight: sectionContentWrapper.scrollHeight
+                });
 
                 // Scroll within the section to center the row
-                const targetScrollTop = relativeTop - (sectionContentWrapper.clientHeight / 2) + (rowElement.offsetHeight / 2);
                 sectionContentWrapper.scrollTo({
                   top: Math.max(0, targetScrollTop),
                   behavior: 'smooth'
                 });
+
+                // No backup scrollIntoView to avoid affecting outer container
               } else {
-                console.log('Section content wrapper not found, using fallback scrollIntoView for row');
-                // Fallback to regular scrollIntoView if section wrapper not found
+                console.log('Section content wrapper not scrollable or not found, using constrained scrollIntoView');
+                // Use scrollIntoView but constrain it to not affect outer container by using nearest
                 rowElement.scrollIntoView({
                   behavior: 'smooth',
-                  block: 'center'
+                  block: 'nearest',
+                  inline: 'nearest'
                 });
               }
 
@@ -323,13 +363,38 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
               }, 500);
             } else {
               console.error(`Row element not found: section-${sectionIndex}-row-${rowIndex}`);
+
+              // Try alternative approaches to find the row
+              console.log('Trying alternative row finding methods...');
+
+              // Try finding by row index in any table within the section
+              const tables = sectionRef.querySelectorAll('table');
+              console.log(`Found ${tables.length} tables in section`);
+              for (const table of tables) {
+                const rows = table.querySelectorAll('tbody tr');
+                console.log(`Table has ${rows.length} rows, looking for row ${rowIndex}`);
+                if (rows[rowIndex]) {
+                  console.log(`Found row ${rowIndex} in table, scrolling to it within section`);
+                  // Use constrained scrollIntoView to avoid affecting outer container
+                  rows[rowIndex].scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'nearest',
+                    inline: 'nearest'
+                  });
+                  rows[rowIndex].style.backgroundColor = '#ffeb3b';
+                  rows[rowIndex].style.transition = 'background-color 0.3s ease';
+                  setTimeout(() => { rows[rowIndex].style.backgroundColor = ''; }, 500);
+                  break;
+                }
+              }
             }
           }
-        }, 50); // Fast timeout to allow section positioning to complete
+        }, 150); // Increased timeout to allow section activation and CSS to be applied
       } else {
         console.error(`Section ref not found for index ${sectionIndex}`);
       }
-    }, 10);
+      }, 10);
+    });
   }, [log, expandedSections, visibleSections, onActivate]);
 
 

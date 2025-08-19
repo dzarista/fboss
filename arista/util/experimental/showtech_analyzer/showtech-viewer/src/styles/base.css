@@ -69,27 +69,14 @@ body {
   width: 100%;
 }
 
-/* Structured view scrolling */
-.section-content-view.structured-view {
-  max-height: 100vh;
-  overflow-y: hidden; /* Default to no scrolling */
-}
+/* Structured view scrolling - removed to prevent double scrolling */
+/* Let section-content-wrapper handle all scrolling */
 
-/* Only allow scrolling in active sections */
-.section-card.active .section-content-view.structured-view {
-  overflow-y: auto;
-}
-
-/* I2C sections always use max height */
+/* I2C sections - removed scrolling to prevent double scrolling */
 .i2c-dump-container {
   height: calc(100vh - 200px);
   min-height: 500px;
-  overflow-y: hidden; /* Default to no scrolling */
-}
-
-/* Only allow scrolling in I2C sections when the section is active */
-.section-card.active .i2c-dump-container {
-  overflow-y: auto;
+  /* Let section-content-wrapper handle all scrolling */
 }
 
 /* Raw toggle button */
