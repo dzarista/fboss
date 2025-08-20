@@ -10,14 +10,14 @@ class TestParseSections:
     """Test section parsing"""
 
     def test_parse_section_headers(self):
-        """Test parsing clean sample - Expected: 3 sections"""
+        """Test parsing clean sample - Expected: 4 sections"""
         sample_file = os.path.join(os.path.dirname(__file__), 'test_data', 'sample_clean.txt')
         with open(sample_file, 'r') as f:
             content = f.read()
 
         result = parse_sections(content)
 
-        # Expected: 3 sections
+        # Expected: 4 sections
         assert len(result) == 4
         assert result[1]['title'] == 'SMB SERIAL NUMBER'
         assert result[2]['title'] == 'fboss2 show port'

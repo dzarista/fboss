@@ -554,7 +554,7 @@ class TestComprehensiveSanityChecks:
         sections = parse_sections(content)
         result = perform_sanity_checks(sections)
 
-        # Should have 3 sections: SMB, LSPCI, sensors
+        # Should have 4 sections: SMB, LSPCI, sensors
         assert len(result) == 4
 
         # Find LSPCI section
@@ -603,7 +603,7 @@ class TestComprehensiveSanityChecks:
         sections = parse_sections(content)
         result = perform_sanity_checks(sections)
 
-        # Should have 3 sections: SMB, LSPCI, sensors
+        # Should have 4 sections: SMB, LSPCI, sensors
         assert len(result) == 4
 
         # Find LSPCI section - should detect missing device (05:00.0) and speed mismatch (03:00.0)
