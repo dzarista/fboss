@@ -1,12 +1,12 @@
 // src/utils/api.js
 // This file contains the logic for communicating with the backend.
 
-// Determine API endpoint based on environment
-// In production (served by nginx), use relative path
-// In development, use direct backend URL
+// API endpoint configuration
+// Production: Flask serves both static files and API, use relative path
+// Development: React dev server (port 3000) + Flask backend (port 80), use absolute URL
 const API_ENDPOINT = process.env.NODE_ENV === 'production'
-  ? '/api'  // Relative path for nginx proxy
-  : 'http://localhost:5001/api';  // Direct backend for development
+  ? '/api'  // Relative path for production (served by Flask)
+  : 'http://localhost/api';  // Absolute URL for development (React dev server -> Flask backend)
 
 export const checkBackendStatus = async () => {
   const controller = new AbortController();

@@ -47,14 +47,24 @@ cleanup_container() {
     fi
 }
 
-# Function to build the image
-build_image() {
-    print_status "Building Showtech Analyzer Docker image..."
+# Function to build the production image
+build_production_image() {
+    print_status "Building Showtech Analyzer Docker image (production)..."
     docker build -t $IMAGE_NAME . || {
         print_error "Failed to build Docker image"
         exit 1
     }
-    print_success "Docker image built successfully"
+    print_success "Production Docker image built successfully"
+}
+
+# Function to build the development image
+build_development_image() {
+    print_status "Building Showtech Analyzer Docker image (development)..."
+    docker build -t ${IMAGE_NAME}:dev --target development . || {
+        print_error "Failed to build Docker image"
+        exit 1
+    }
+    print_success "Development Docker image built successfully"
 }
 
 # Function to run in production mode
@@ -89,13 +99,17 @@ run_development() {
 
     docker run -d \
         --name $CONTAINER_NAME \
+        -p 80:80 \
         -p 3000:3000 \
-        -p 5001:5001 \
         -v $(pwd)/data:/app/data \
         -v $(pwd)/showtech-viewer/src:/app/frontend/src \
+        -v $(pwd)/showtech-viewer/public:/app/frontend/public \
         -v $(pwd)/showtech-backend:/app/backend \
+        -e FLASK_ENV=development \
+        -e FLASK_DEBUG=1 \
+        -e CHOKIDAR_USEPOLLING=true \
         --restart unless-stopped \
-        $IMAGE_NAME dev || {
+        ${IMAGE_NAME}:dev || {
         print_error "Failed to start container in development mode"
         exit 1
     }
@@ -103,16 +117,9 @@ run_development() {
     print_success "Development container started successfully!"
     echo ""
     echo "DEVELOPMENT MODE ACTIVE"
-    echo "React Dev Server: http://localhost:3000"
-    echo "Backend API: http://localhost:5001/api/status"
+    echo "React Dev Server: http://localhost:3000 (with hot reloading)"
+    echo "Flask Backend: http://localhost/api/status (with hot reloading)"
     echo "Data directory: $(pwd)/data"
-    echo ""
-    echo "Features:"
-    echo "  Hot reloading for React frontend"
-    echo "  Live backend code changes (restart container to apply)"
-    echo "  Volume mounts for source code"
-    echo "  No nginx - direct access to services"
-    echo ""
     echo "Management commands:"
     echo "  View logs: docker logs -f $CONTAINER_NAME"
     echo "  Stop: docker stop $CONTAINER_NAME"
@@ -138,31 +145,37 @@ check_health() {
     sleep 5
 
     # Check if we're in dev or prod mode by checking which ports are exposed
-    if docker port $CONTAINER_NAME | grep -q "80/tcp"; then
-        # Production mode - test nginx endpoints
-        if curl -s http://localhost/api/status >/dev/null 2>&1; then
-            print_success "✅ Backend API is responding (via nginx)"
-        else
-            print_warning "⚠️  Backend API not responding yet (may still be starting)"
-        fi
+    if docker port $CONTAINER_NAME | grep -q "3000/tcp"; then
+        # Development mode - has both 80 and 3000 ports
+        print_status "Development mode detected"
 
-        if curl -s -I http://localhost >/dev/null 2>&1; then
-            print_success "✅ Frontend is accessible (via nginx)"
-        else
-            print_warning "⚠️  Frontend not accessible yet (may still be starting)"
-        fi
-    else
-        # Development mode - test direct endpoints
-        if curl -s http://localhost:5001/api/status >/dev/null 2>&1; then
-            print_success "✅ Backend API is responding (direct)"
+        if curl -s http://localhost/api/status >/dev/null 2>&1; then
+            print_success "✅ Backend API is responding (Flask on port 80)"
         else
             print_warning "⚠️  Backend API not responding yet (may still be starting)"
         fi
 
         if curl -s -I http://localhost:3000 >/dev/null 2>&1; then
-            print_success "✅ React dev server is accessible"
+            print_success "✅ React dev server is accessible (port 3000 with hot reloading)"
         else
             print_warning "⚠️  React dev server not accessible yet (may still be starting)"
+        fi
+
+        print_status "Note: Flask backend also has hot reloading enabled in development mode"
+    else
+        # Production mode - only port 80
+        print_status "Production mode detected"
+
+        if curl -s http://localhost/api/status >/dev/null 2>&1; then
+            print_success "✅ Backend API is responding (Flask)"
+        else
+            print_warning "⚠️  Backend API not responding yet (may still be starting)"
+        fi
+
+        if curl -s -I http://localhost >/dev/null 2>&1; then
+            print_success "✅ Frontend is accessible (Flask static)"
+        else
+            print_warning "⚠️  Frontend not accessible yet (may still be starting)"
         fi
     fi
 }
@@ -172,8 +185,8 @@ if [ -z "$MODE" ]; then
     print_error "Command required. Usage: ./run.sh [dev|prod|stop|logs|help]"
     echo ""
     echo "Available commands:"
-    echo "  dev   - Start in development mode (ports 3000, 5001)"
-    echo "  prod  - Start in production mode (port 80)"
+    echo "  dev   - Start in development mode (ports 80, 3000 with hot reloading for both frontend and backend)"
+    echo "  prod  - Start in production mode (port 80, static files served by Flask)"
     echo "  stop  - Stop and remove container"
     echo "  logs  - Show container logs"
     echo "  help  - Show this help message"
@@ -183,13 +196,13 @@ fi
 case $MODE in
     "dev"|"development")
         cleanup_container
-        build_image
+        build_development_image
         run_development
         check_health
         ;;
     "prod"|"production")
         cleanup_container
-        build_image
+        build_production_image
         run_production
         check_health
         ;;
@@ -206,8 +219,8 @@ case $MODE in
         echo "Usage: ./run.sh [COMMAND]"
         echo ""
         echo "Commands:"
-        echo "  dev   - Start in development mode (ports 3000, 5001)"
-        echo "  prod  - Start in production mode (port 80)"
+        echo "  dev   - Start in development mode (ports 80, 3000 with hot reloading for both frontend and backend)"
+        echo "  prod  - Start in production mode (port 80, static files served by Flask)"
         echo "  stop  - Stop and remove container"
         echo "  logs  - Show container logs"
         echo "  help  - Show this help message"
@@ -222,8 +235,8 @@ case $MODE in
         print_error "Unknown command: $MODE"
         echo ""
         echo "Available commands:"
-        echo "  dev   - Start in development mode (ports 3000, 5001)"
-        echo "  prod  - Start in production mode (port 80)"
+        echo "  dev   - Start in development mode (ports 80, 3000 with hot reloading for both frontend and backend)"
+        echo "  prod  - Start in production mode (port 80, static files served by Flask)"
         echo "  stop  - Stop and remove container"
         echo "  logs  - Show container logs"
         echo "  help  - Show this help message"
