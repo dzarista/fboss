@@ -344,9 +344,7 @@ class PlatformConfig:
 
    def getLedConfig( self, led_name: str ):
       config = OrderedDict()
-      config[ "presentLedColor" ] = 1
       config[ "presentLedSysfsPath" ] = f"/sys/class/leds/{led_name}_led:green:status/brightness"
-      config[ "absentLedColor" ] = 2
       config[ "absentLedSysfsPath" ] = f"/sys/class/leds/{led_name}_led:red:status/brightness"
       return config
 
