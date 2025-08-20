@@ -38,6 +38,8 @@ class TestDetectCriticalSensors:
         assert result[0]['field'] == 'Status'
         assert result[0]['value'] == 'CRITICAL'
         assert result[0]['row_index'] == 1
+        assert result[0]['severity'] == 'high'
+        assert 'Critical value detected' in result[0]['message']
 
     def test_detect_critical_sensors_case_insensitive(self):
         """Test critical sensor detection is case insensitive"""
@@ -55,6 +57,8 @@ class TestDetectCriticalSensors:
         result = detect_critical_sensors(section)
         assert len(result) == 2
         assert all(r['type'] == 'critical_sensor' for r in result)
+        assert all(r['severity'] == 'high' for r in result)
+        assert all('Critical value detected' in r['message'] for r in result)
 
     def test_detect_critical_sensors_none_found(self):
         """Test when no critical sensors found"""
@@ -85,6 +89,77 @@ class TestDetectCriticalSensors:
         result = detect_critical_sensors(section)
         assert len(result) == 0
 
+    def test_detect_alarm_sensors_found(self):
+        """Test detecting alarm sensors"""
+        section = {
+            'section_type': 'table',
+            'parsed_data': {
+                'type': 'table',
+                'rows': [
+                    {'Sensor': 'Temperature', 'Status': 'OK'},
+                    {'Sensor': 'Voltage', 'Status': 'ALARM'}
+                ]
+            }
+        }
+
+        result = detect_critical_sensors(section)
+        assert len(result) == 1
+        assert result[0]['type'] == 'critical_sensor'
+        assert result[0]['field'] == 'Status'
+        assert result[0]['value'] == 'ALARM'
+        assert result[0]['row_index'] == 1
+        assert result[0]['severity'] == 'medium'
+        assert 'Alarm value detected' in result[0]['message']
+
+    def test_detect_alarm_sensors_case_insensitive(self):
+        """Test alarm sensor detection is case insensitive"""
+        section = {
+            'section_type': 'table',
+            'parsed_data': {
+                'type': 'table',
+                'rows': [
+                    {'Sensor': 'Temperature', 'Status': 'alarm'},
+                    {'Sensor': 'Voltage', 'Status': 'Alarm'},
+                    {'Sensor': 'Current', 'Status': 'ALARM'}
+                ]
+            }
+        }
+
+        result = detect_critical_sensors(section)
+        assert len(result) == 3
+        assert all(r['type'] == 'critical_sensor' for r in result)
+        assert all(r['severity'] == 'medium' for r in result)
+        assert all('Alarm value detected' in r['message'] for r in result)
+
+    def test_detect_critical_and_alarm_mixed(self):
+        """Test detecting both critical and alarm sensors in same section"""
+        section = {
+            'section_type': 'table',
+            'parsed_data': {
+                'type': 'table',
+                'rows': [
+                    {'Sensor': 'Temperature', 'Status': 'OK'},
+                    {'Sensor': 'Voltage', 'Status': 'CRITICAL'},
+                    {'Sensor': 'Current', 'Status': 'ALARM'},
+                    {'Sensor': 'Power', 'Status': 'critical'},
+                    {'Sensor': 'Fan', 'Status': 'alarm'}
+                ]
+            }
+        }
+
+        result = detect_critical_sensors(section)
+        assert len(result) == 4
+        assert all(r['type'] == 'critical_sensor' for r in result)
+
+        # Check that we have both critical and alarm messages with correct severities
+        critical_results = [r for r in result if 'Critical value detected' in r['message']]
+        alarm_results = [r for r in result if 'Alarm value detected' in r['message']]
+
+        assert len(critical_results) == 2
+        assert len(alarm_results) == 2
+        assert all(r['severity'] == 'high' for r in critical_results)
+        assert all(r['severity'] == 'medium' for r in alarm_results)
+
 
 class TestDetectDownPorts:
     """Test down port detection"""
@@ -109,6 +184,7 @@ class TestDetectDownPorts:
         assert result[0]['type'] == 'port_down'
         assert result[0]['port_name'] == 'eth1/2'
         assert result[0]['row_index'] == 1
+        assert result[0]['severity'] == 'high'
 
     def test_detect_down_ports_none_found(self):
         """Test when no down ports found"""
@@ -407,7 +483,7 @@ class TestSanityChecksWithPlatformConfig:
         sections = parse_sections(content)
         result = perform_sanity_checks(sections)
 
-        assert len(result) == 3
+        assert len(result) == 4
         for section in result:
             assert 'parsed_data' in section
             # Should have anomalies stored in parsed_data.anomalies
@@ -478,8 +554,8 @@ class TestComprehensiveSanityChecks:
         sections = parse_sections(content)
         result = perform_sanity_checks(sections)
 
-        # Should have 3 sections: SMB, LSPCI, sensors
-        assert len(result) == 3
+        # Should have 4 sections: SMB, LSPCI, sensors
+        assert len(result) == 4
 
         # Find LSPCI section
         lspci_section = None
@@ -527,8 +603,8 @@ class TestComprehensiveSanityChecks:
         sections = parse_sections(content)
         result = perform_sanity_checks(sections)
 
-        # Should have 3 sections: SMB, LSPCI, sensors
-        assert len(result) == 3
+        # Should have 4 sections: SMB, LSPCI, sensors
+        assert len(result) == 4
 
         # Find LSPCI section - should detect missing device (05:00.0) and speed mismatch (03:00.0)
         lspci_section = None

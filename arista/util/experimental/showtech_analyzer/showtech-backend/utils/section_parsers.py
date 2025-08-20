@@ -556,4 +556,4 @@ def parse_content_by_type(ctype: str, content: str):
         return parse_fboss2_interface_phy(content)
     if ctype == 'psu_debug':
         return parse_psu_debug(content)
-    return {'type':'raw','data':content}
+    return {'type':'raw','data':''}

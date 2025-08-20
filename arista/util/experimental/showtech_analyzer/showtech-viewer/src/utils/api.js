@@ -175,3 +175,4 @@ export const uploadFilesWithProgress = async (filesArray, onProgress) => {
 
   return allResults;
 };
+

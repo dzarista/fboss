@@ -3,15 +3,103 @@ import { detectAllErrors } from './ErrorDetection';
 import { ErrorIndicator, ErrorSummaryModal } from './ErrorModal';
 import { SectionContentRenderer, CollapsibleSection } from './SectionRenderer';
 import SystemSummary from './SystemSummary';
+import LoadingSpinner from './LoadingSpinner';
 
-export default function Content({ log, onClose, visibleSections, onJumpToSection, fontSize, onFontSizeChange, slotIndex, isActive, onActivate }) {
+
+export default function Content({ log, onClose, visibleSections, onJumpToSection, fontSize, onFontSizeChange, slotIndex, isActive, onActivate, isLoadingFromApp }) {
   const [expandedSections, setExpandedSections] = useState(new Set());
-  const [allExpanded, setAllExpanded] = useState(true);
+  const [allExpanded, setAllExpanded] = useState(false);
   const [activeSection, setActiveSection] = useState(null);
   const [detectedErrors, setDetectedErrors] = useState([]);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [showSystemSummary, setShowSystemSummary] = useState(false);
+  const [isToggling, setIsToggling] = useState(false); // Simple loading state
+  const [isExpandCollapseToggling, setIsExpandCollapseToggling] = useState(false); // Loading state for expand/collapse all
+  const [rawModeSections, setRawModeSections] = useState(new Set()); // Track which sections are in raw mode
   const sectionRefs = useRef({});
+
+  // Scroll positions for main content views - per file using slotIndex
+  const [systemSummaryScrollPosition, setSystemSummaryScrollPosition] = useState(() => {
+    if (!window.scrollPositions) window.scrollPositions = {};
+    return window.scrollPositions[`${slotIndex}_summary`] || 0;
+  });
+  const [sectionsScrollPosition, setSectionsScrollPosition] = useState(() => {
+    if (!window.scrollPositions) window.scrollPositions = {};
+    return window.scrollPositions[`${slotIndex}_sections`] || 0;
+  });
+
+  // Custom toggle function that preserves scroll positions
+  const toggleSystemSummary = () => {
+    // Show spinner immediately - this is the FIRST thing that happens
+    setIsToggling(true);
+
+    // Let React render the spinner first, then do all the heavy work
+    setTimeout(() => {
+      // Find scrolling containers specific to THIS file using the current component's DOM
+      const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
+      const systemSummaryEl = currentContent?.querySelector('.system-summary-container') ||
+                             currentContent?.querySelector('.system-summary-view') ||
+                             currentContent?.querySelector('.content-view.system-summary-view');
+
+      const sectionsContainerEl = currentContent?.querySelector('.sections-container') ||
+                                 currentContent?.querySelector('.sections-view') ||
+                                 currentContent?.querySelector('.content-view.sections-view');
+
+      if (showSystemSummary) {
+        // Switching from system summary to sections
+        // Save system summary scroll position for this file
+        if (systemSummaryEl) {
+          const scrollPos = systemSummaryEl.scrollTop;
+          setSystemSummaryScrollPosition(scrollPos);
+          if (!window.scrollPositions) window.scrollPositions = {};
+          window.scrollPositions[`${slotIndex}_summary`] = scrollPos;
+        }
+
+        setShowSystemSummary(false);
+
+        // Restore sections scroll position after a brief delay
+        setTimeout(() => {
+          const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
+          const newSectionsEl = currentContent?.querySelector('.sections-container') ||
+                               currentContent?.querySelector('.sections-view') ||
+                               currentContent?.querySelector('.content-view.sections-view');
+          if (newSectionsEl) {
+            const savedScrollPos = window.scrollPositions?.[`${slotIndex}_sections`] || sectionsScrollPosition;
+            newSectionsEl.scrollTop = savedScrollPos;
+          }
+
+          // Hide spinner - this is the LAST thing that happens
+          setTimeout(() => setIsToggling(false), 10);
+        }, 10);
+      } else {
+        // Switching from sections to system summary
+        // Save sections scroll position for this file
+        if (sectionsContainerEl) {
+          const scrollPos = sectionsContainerEl.scrollTop;
+          setSectionsScrollPosition(scrollPos);
+          if (!window.scrollPositions) window.scrollPositions = {};
+          window.scrollPositions[`${slotIndex}_sections`] = scrollPos;
+        }
+
+        setShowSystemSummary(true);
+
+        // Restore system summary scroll position after a brief delay
+        setTimeout(() => {
+          const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
+          const newSystemSummaryEl = currentContent?.querySelector('.system-summary-container') ||
+                                    currentContent?.querySelector('.system-summary-view') ||
+                                    currentContent?.querySelector('.content-view.system-summary-view');
+          if (newSystemSummaryEl) {
+            const savedScrollPos = window.scrollPositions?.[`${slotIndex}_summary`] || systemSummaryScrollPosition;
+            newSystemSummaryEl.scrollTop = savedScrollPos;
+          }
+
+          // Hide spinner - this is the LAST thing that happens
+          setTimeout(() => setIsToggling(false), 10);
+        }, 10);
+      }
+    }, 10);
+  };
 
 
 
@@ -19,10 +107,13 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
   useEffect(() => {
     if (log?.sections) {
       const allSectionIds = new Set(log.sections.map((_, idx) => idx));
-      setExpandedSections(allSectionIds);
+      setExpandedSections(allSectionIds); // Start with all sections expanded
       setAllExpanded(true);
       // Initialize refs
       sectionRefs.current = {};
+
+      // Reset raw mode state when log changes
+      setRawModeSections(new Set());
 
       // Detect errors in the log
       const errors = detectAllErrors(log);
@@ -74,22 +165,30 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
     setActiveSection(sectionIdx);
   };
 
+  // Handle raw mode toggle for a section
+  const toggleRawMode = (sectionIdx) => {
+    const isCurrentlyRaw = rawModeSections.has(sectionIdx);
+    const newRawSections = new Set(rawModeSections);
+
+    if (isCurrentlyRaw) {
+      // Switch back to structured mode
+      newRawSections.delete(sectionIdx);
+    } else {
+      // Switch to raw mode
+      newRawSections.add(sectionIdx);
+    }
+
+    setRawModeSections(newRawSections);
+  };
+
   // Create a navigation handler that's bound to THIS specific component
   const handleNavigateToError = useCallback((error) => {
-    console.log(`Navigation called on Content ${slotIndex}:`, {
-      errorType: error.type,
-      sectionIndex: error.sectionIndex,
-      sectionTitle: error.sectionTitle,
-      logName: log?.name
-    });
-
     const sectionIndex = error.sectionIndex;
     const rowIndex = error.rowIndex;
     const deviceIndex = error.deviceIndex;
 
     // Verify this section exists in our log
     if (!log?.sections?.[sectionIndex]) {
-      console.warn(`Section ${sectionIndex} not found in log ${log?.name}`);
       return;
     }
 
@@ -106,7 +205,7 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
     if (visibleSections && !visibleSections.has(sectionIndex)) {
       // This error is in a filtered-out section, we need to make it visible
       // We can't directly modify visibleSections here as it comes from parent
-      console.warn(`Error is in filtered section ${sectionIndex}. Section may not be visible.`);
+      return;
     }
 
     // Ensure the section is expanded
@@ -116,21 +215,36 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
       setExpandedSections(newExpanded);
     }
 
+    // For table row navigation, ensure section is in structured mode (not raw mode)
+    if (rowIndex !== undefined && rawModeSections.has(sectionIndex)) {
+      console.log(`Switching section ${sectionIndex} from raw to structured mode for row navigation`);
+      toggleRawMode(sectionIndex);
+    }
+
     // Activate the section
     activateSection(sectionIndex);
 
+    console.log(`Section ${sectionIndex} state:`, {
+      isExpanded: expandedSections.has(sectionIndex),
+      isInRawMode: rawModeSections.has(sectionIndex),
+      isVisible: !visibleSections || visibleSections.has(sectionIndex)
+    });
+
     // Jump to the section first, then scroll within the section to the specific row
-    setTimeout(() => {
+    // Use requestAnimationFrame to ensure DOM updates are applied
+    requestAnimationFrame(() => {
+      setTimeout(() => {
       // Find the section ref directly
       const sectionRef = sectionRefs.current[sectionIndex];
       if (sectionRef) {
-        // First, position the section at the top of the viewport
+        // First, navigate TO the section (scroll outer container to bring section into view)
         sectionRef.scrollIntoView({
           behavior: 'smooth',
           block: 'start'
         });
 
-        // After jumping to section, scroll within the section content to the specific row or device
+        // After jumping to section, scroll WITHIN the section content to the specific row or device
+        // Increased timeout to ensure section is fully activated and CSS is applied
         setTimeout(() => {
           if (deviceIndex !== undefined && deviceIndex !== null) {
             // Handle LSPCI device navigation - scope search to this section only
@@ -167,35 +281,68 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
               setTimeout(() => {
                 deviceElement.style.backgroundColor = '';
                 deviceElement.style.borderColor = '';
-              }, 3000);
+              }, 500);
             } else {
               console.error(`Device element not found: section-${sectionIndex}-device-${deviceIndex}`);
             }
           } else if (rowIndex !== undefined) {
             // Handle table row navigation - scope search to this section only
-            const rowElement = sectionRef.querySelector(`#section-${sectionIndex}-row-${rowIndex}`);
+            const targetRowId = `section-${sectionIndex}-row-${rowIndex}`;
+            console.log(`Looking for row element with ID: ${targetRowId}`);
+
+            // First, let's see what row elements exist in this section
+            const allRows = sectionRef.querySelectorAll('[id*="row-"]');
+            console.log(`Found ${allRows.length} row elements in section:`, Array.from(allRows).map(r => r.id));
+
+            const rowElement = sectionRef.querySelector(`#${targetRowId}`);
+            console.log(`Row element found:`, !!rowElement, rowElement?.id);
+
             if (rowElement) {
               // Get the section content wrapper for scrolling within the section
               const sectionContentWrapper = sectionRef.querySelector('.section-content-wrapper');
-              if (sectionContentWrapper) {
+              console.log('Row navigation debug:', {
+                rowIndex,
+                sectionIndex,
+                sectionRef: !!sectionRef,
+                rowElement: !!rowElement,
+                sectionContentWrapper: !!sectionContentWrapper,
+                sectionIsActive: sectionRef.classList.contains('active'),
+                wrapperOverflow: sectionContentWrapper ? getComputedStyle(sectionContentWrapper).overflowY : 'N/A'
+              });
+
+              if (sectionContentWrapper && getComputedStyle(sectionContentWrapper).overflowY === 'auto') {
                 console.log('Scrolling within section content wrapper for row', rowIndex);
+
                 // Calculate position within the section content
                 const rowRect = rowElement.getBoundingClientRect();
                 const wrapperRect = sectionContentWrapper.getBoundingClientRect();
                 const relativeTop = rowRect.top - wrapperRect.top + sectionContentWrapper.scrollTop;
+                const targetScrollTop = relativeTop - (sectionContentWrapper.clientHeight / 2) + (rowElement.offsetHeight / 2);
+
+                console.log('Scroll calculation details:', {
+                  rowRect: { top: rowRect.top, height: rowRect.height },
+                  wrapperRect: { top: wrapperRect.top, height: wrapperRect.height },
+                  currentScrollTop: sectionContentWrapper.scrollTop,
+                  relativeTop,
+                  targetScrollTop: Math.max(0, targetScrollTop),
+                  wrapperClientHeight: sectionContentWrapper.clientHeight,
+                  wrapperScrollHeight: sectionContentWrapper.scrollHeight
+                });
 
                 // Scroll within the section to center the row
-                const targetScrollTop = relativeTop - (sectionContentWrapper.clientHeight / 2) + (rowElement.offsetHeight / 2);
                 sectionContentWrapper.scrollTo({
                   top: Math.max(0, targetScrollTop),
                   behavior: 'smooth'
                 });
+
+                // No backup scrollIntoView to avoid affecting outer container
               } else {
-                console.log('Section content wrapper not found, using fallback scrollIntoView for row');
-                // Fallback to regular scrollIntoView if section wrapper not found
+                console.log('Section content wrapper not scrollable or not found, using constrained scrollIntoView');
+                // Use scrollIntoView but constrain it to not affect outer container by using nearest
                 rowElement.scrollIntoView({
                   behavior: 'smooth',
-                  block: 'center'
+                  block: 'nearest',
+                  inline: 'nearest'
                 });
               }
 
@@ -204,31 +351,65 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
               rowElement.style.transition = 'background-color 0.3s ease';
               setTimeout(() => {
                 rowElement.style.backgroundColor = '';
-              }, 2000);
+              }, 500);
             } else {
               console.error(`Row element not found: section-${sectionIndex}-row-${rowIndex}`);
+
+              // Try alternative approaches to find the row
+              console.log('Trying alternative row finding methods...');
+
+              // Try finding by row index in any table within the section
+              const tables = sectionRef.querySelectorAll('table');
+              console.log(`Found ${tables.length} tables in section`);
+              for (const table of tables) {
+                const rows = table.querySelectorAll('tbody tr');
+                console.log(`Table has ${rows.length} rows, looking for row ${rowIndex}`);
+                if (rows[rowIndex]) {
+                  console.log(`Found row ${rowIndex} in table, scrolling to it within section`);
+                  // Use constrained scrollIntoView to avoid affecting outer container
+                  rows[rowIndex].scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'nearest',
+                    inline: 'nearest'
+                  });
+                  rows[rowIndex].style.backgroundColor = '#ffeb3b';
+                  rows[rowIndex].style.transition = 'background-color 0.3s ease';
+                  setTimeout(() => { rows[rowIndex].style.backgroundColor = ''; }, 500);
+                  break;
+                }
+              }
             }
           }
-        }, 300); // Increased timeout to allow section positioning to complete
+        }, 150); // Increased timeout to allow section activation and CSS to be applied
       } else {
         console.error(`Section ref not found for index ${sectionIndex}`);
       }
-    }, 100);
+      }, 10);
+    });
   }, [log, expandedSections, visibleSections, onActivate]);
 
 
 
   const toggleAllSections = () => {
-    if (allExpanded) {
-      // Collapse all
-      setExpandedSections(new Set());
-      setAllExpanded(false);
-    } else {
-      // Expand all
-      const allSectionIds = new Set(log.sections.map((_, idx) => idx));
-      setExpandedSections(allSectionIds);
-      setAllExpanded(true);
-    }
+    // Show spinner immediately - this is the FIRST thing that happens
+    setIsExpandCollapseToggling(true);
+
+    // Let React render the spinner first, then perform the action
+    setTimeout(() => {
+      if (allExpanded) {
+        // Collapse all
+        setExpandedSections(new Set());
+        setAllExpanded(false);
+      } else {
+        // Expand all
+        const allSectionIds = new Set(log.sections.map((_, idx) => idx));
+        setExpandedSections(allSectionIds);
+        setAllExpanded(true);
+      }
+
+      // Hide spinner - this is the LAST thing that happens
+      setTimeout(() => setIsExpandCollapseToggling(false), 10);
+    }, 10);
   };
 
 
@@ -237,6 +418,8 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
 
   return (
     <div className={`content ${isActive ? 'active' : ''}`} style={{ fontSize: `${fontSize}px` }} onClick={onActivate}>
+
+
       <div className="log-display-section">
         {!log ? (
           <p className="placeholder-text">Double-click a file to open it</p>
@@ -266,10 +449,15 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
 
                 <button
                   className="control-button system-summary-button"
-                  onClick={() => setShowSystemSummary(!showSystemSummary)}
+                  onClick={toggleSystemSummary}
                   title={showSystemSummary ? "Back to Sections" : "View System Summary"}
+                  disabled={isToggling}
                 >
-                  {showSystemSummary ? "Back to Sections" : "System Summary"}
+                  {isToggling ? (
+                    <div className="raw-button-spinner"></div>
+                  ) : (
+                    showSystemSummary ? "Back to Sections" : "System Summary"
+                  )}
                 </button>
 
                 {!showSystemSummary && (
@@ -277,8 +465,13 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
                     className="control-button"
                     onClick={toggleAllSections}
                     title={allExpanded ? "Collapse All" : "Expand All"}
+                    disabled={isExpandCollapseToggling}
                   >
-                    {allExpanded ? "Collapse All" : "Expand All"}
+                    {isExpandCollapseToggling ? (
+                      <div className="raw-button-spinner"></div>
+                    ) : (
+                      allExpanded ? "Collapse All" : "Expand All"
+                    )}
                   </button>
                 )}
 
@@ -303,37 +496,82 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
                 </div>
               </div>
             </div>
-            <div className="sections-container" style={{ fontSize: `${fontSize}px` }}>
-              {showSystemSummary ? (
-                // Show System Summary
-                <SystemSummary
-                  sections={log.sections || []}
+            <div className="sections-container" style={{ fontSize: `${fontSize}px`, position: 'relative' }}>
+
+
+              {/* Loading View */}
+              <div
+                className="content-view loading-view"
+                style={{ display: (isLoadingFromApp || !log.sections) ? 'block' : 'none' }}
+              >
+                <LoadingSpinner
+                  message="Loading file..."
+                  size="large"
                 />
-              ) : log.sections?.length === 0 ? (
+              </div>
+
+              {/* System Summary View - Pre-rendered */}
+              <div
+                className="content-view system-summary-view"
+                style={{ display: showSystemSummary && log.sections ? 'block' : 'none' }}
+              >
+                {log.sections && (
+                  <SystemSummary
+                    sections={log.sections}
+                    systemMap={log.system_map || null}
+                    slotIndex={slotIndex}
+                  />
+                )}
+
+
+              </div>
+
+              {/* Empty Sections View */}
+              <div
+                className="content-view empty-sections-view"
+                style={{ display: (!isLoadingFromApp && log.sections?.length === 0) ? 'block' : 'none' }}
+              >
                 <p className="placeholder-text">No sections found in this log</p>
-              ) : (
-                // Show all sections normally
-                log.sections
-                  .map((sec, idx) => ({ sec, idx }))
-                  .filter(({ idx }) => !visibleSections || visibleSections.has(idx))
-                  .map(({ sec, idx }) => (
-                    <CollapsibleSection
-                      key={idx}
-                      ref={(el) => {
-                        if (el) {
-                          sectionRefs.current[idx] = el;
-                        }
-                      }}
-                      title={sec.title || `Section ${idx + 1}`}
-                      isExpanded={expandedSections.has(idx)}
-                      onToggle={() => toggleSection(idx)}
-                      isActive={activeSection === idx}
-                      onActivate={() => activateSection(idx)}
-                    >
-                      <SectionContentRenderer section={sec} sectionIndex={idx} />
-                    </CollapsibleSection>
-                  ))
-              )}
+              </div>
+
+              {/* Sections View - Pre-rendered */}
+              <div
+                className="content-view sections-view"
+                style={{ display: (!showSystemSummary && log.sections && log.sections.length > 0) ? 'block' : 'none' }}
+              >
+                {log.sections && log.sections.map((sec, idx) => (
+                  <CollapsibleSection
+                    key={idx}
+                    ref={(el) => {
+                      if (el) {
+                        sectionRefs.current[idx] = el;
+                      }
+                    }}
+                    title={sec.title || `Section ${idx + 1}`}
+                    isExpanded={expandedSections.has(idx)}
+                    onToggle={() => toggleSection(idx)}
+                    isActive={activeSection === idx}
+                    onActivate={() => activateSection(idx)}
+                    isRawMode={rawModeSections.has(idx)}
+                    onToggleRaw={
+                      // Only show raw toggle for sections with structured data (not plain raw)
+                      sec.parsed_data?.type !== 'raw'
+                        ? () => toggleRawMode(idx)
+                        : null
+                    }
+                    isVisible={!visibleSections || visibleSections.has(idx)}
+                  >
+                    <SectionContentRenderer
+                      section={sec}
+                      sectionIndex={idx}
+                      isRawMode={rawModeSections.has(idx)}
+                      rawContent={sec.raw_content}
+                    />
+                  </CollapsibleSection>
+                ))}
+
+
+              </div>
             </div>
           </>
         )}

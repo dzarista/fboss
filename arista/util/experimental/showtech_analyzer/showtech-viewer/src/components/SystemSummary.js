@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import PortGrid from './SystemSummary/PortGrid';
 import PSUGrid from './SystemSummary/PSUGrid';
 import FanGrid from './SystemSummary/FanGrid';
@@ -13,13 +13,11 @@ import {
   extractPhyData,
   extractInterfaceData,
   extractPortTypes,
+  extractCpuUptime,
+  extractFpgaVersions,
 } from './SystemSummary/extractors';
 
-const SystemSummary = ({ sections }) => {
-  const systemMap = useMemo(() => {
-    const systemMapSection = sections.find((s) => s.title === 'system_map');
-    return systemMapSection?.parsed_data?.data || null;
-  }, [sections]);
+const SystemSummary = ({ sections, systemMap, slotIndex }) => {
 
   const qsfpData = useMemo(() => extractQsfpData(sections), [sections]);
   const fanData = useMemo(() => extractFanData(sections), [sections]);
@@ -28,6 +26,8 @@ const SystemSummary = ({ sections }) => {
   const phyData = useMemo(() => extractPhyData(sections), [sections]);
   const interfaceData = useMemo(() => extractInterfaceData(sections), [sections]);
   const portTypes = useMemo(() => extractPortTypes(sections), [sections]);
+  const cpuUptime = useMemo(() => extractCpuUptime(sections), [sections]);
+  const fpgaVersions = useMemo(() => extractFpgaVersions(sections), [sections]);
 
   const [selectedPort, setSelectedPort] = useState(null);
   const [selectedPortData, setSelectedPortData] = useState(null);
@@ -40,23 +40,47 @@ const SystemSummary = ({ sections }) => {
   const [selectedPsuData, setSelectedPsuData] = useState(null);
   const [heatmapMode, setHeatmapMode] = useState('off'); // 'off' | 'temp' | 'voltage'
 
+  // Ref to store the saved scroll position
+  const savedScrollPosition = useRef(0);
+
   const handlePortClick = useCallback((portNum, portData, portType) => {
+    // Save current scroll position before navigating - target specific window
+    const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
+    const container = currentContent?.querySelector('.system-summary-container');
+    if (container) {
+      savedScrollPosition.current = container.scrollTop;
+    }
+
     setSelectedPort(portNum);
     setSelectedPortData(portData);
     setSelectedPhyData(phyData[portNum] || []);
     setSelectedInterfaceData(interfaceData[portNum] || {});
     setSelectedPortType(portType);
-  }, [phyData, interfaceData]);
+  }, [phyData, interfaceData, slotIndex]);
 
   const handleFanClick = useCallback((fanNum, data) => {
+    // Save current scroll position before navigating - target specific window
+    const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
+    const container = currentContent?.querySelector('.system-summary-container');
+    if (container) {
+      savedScrollPosition.current = container.scrollTop;
+    }
+
     setSelectedFan(fanNum);
     setSelectedFanData(data);
-  }, []);
+  }, [slotIndex]);
 
   const handlePsuClick = useCallback((psuNum, data) => {
+    // Save current scroll position before navigating - target specific window
+    const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
+    const container = currentContent?.querySelector('.system-summary-container');
+    if (container) {
+      savedScrollPosition.current = container.scrollTop;
+    }
+
     setSelectedPsu(psuNum);
     setSelectedPsuData(data);
-  }, []);
+  }, [slotIndex]);
 
   const handleBackToSummary = useCallback(() => {
     setSelectedPort(null);
@@ -67,7 +91,28 @@ const SystemSummary = ({ sections }) => {
     setSelectedFanData(null);
     setSelectedPsu(null);
     setSelectedPsuData(null);
-  }, []);
+
+    // Restore scroll position after state update - target specific window
+    setTimeout(() => {
+      const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
+      const container = currentContent?.querySelector('.system-summary-container');
+      if (container) {
+        container.scrollTop = savedScrollPosition.current;
+      }
+    }, 0);
+  }, [slotIndex]);
+
+  // Scroll to top when detail views are opened (but not when going back to main view)
+  useEffect(() => {
+    if (selectedPort || selectedFan || selectedPsu) {
+      // Scroll detail view to top - target specific window
+      const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
+      const container = currentContent?.querySelector('.system-summary-container');
+      if (container) {
+        container.scrollTop = 0;
+      }
+    }
+  }, [selectedPort, selectedFan, selectedPsu, slotIndex]);
 
   if (!systemMap) {
     return (
@@ -173,6 +218,50 @@ const SystemSummary = ({ sections }) => {
           </div>
         </div>
       )}
+
+      {/* System Data View */}
+      <div className="system-view system-data-view">
+        <h4>System Data</h4>
+        <div className="view-content">
+          <div className="component-section system-data-entry">
+            <div className="system-data-grid">
+              <div className="system-data-slot">
+                <div className="system-data-content">
+                  <div className="system-data-header">
+                    <div className="system-data-label">CPU UPTIME</div>
+                  </div>
+                  <div className="system-data-row">
+                    {cpuUptime ? (
+                      <div className="system-data-field">{cpuUptime}</div>
+                    ) : (
+                      <div className="system-data-field">No data</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="system-data-slot">
+                <div className="system-data-content">
+                  <div className="system-data-header">
+                    <div className="system-data-label">FPGA VERSIONS</div>
+                  </div>
+                  <div className="system-data-row">
+                    {fpgaVersions ? (
+                      Object.entries(fpgaVersions).map(([key, value]) => (
+                        <div key={key} className="system-data-field">
+                          {key}: {value}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="system-data-field">No data</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

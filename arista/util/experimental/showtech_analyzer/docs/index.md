@@ -41,7 +41,8 @@ This is the main documentation page for the Showtech Fiewer tool, covering archi
   "section_type": "table|i2c_dump|key_value|lspci|raw",
   "parsed_data": {
     // Specific structure based on section type
-  }
+  },
+  "raw_content": "original raw text content"
 }
 ```
 ## Feature Documentation

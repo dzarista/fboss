@@ -10,10 +10,24 @@ export default function SectionFilter({
   onBulkToggle,
 }) {
   const [collapsed, setCollapsed] = useState(false);
+  const [isBulkToggling, setIsBulkToggling] = useState(false);
 
   // Get the currently active file and its sections
   const activeFile = openedFiles[activeTab];
   const sections = activeFile?.sections;
+
+  const handleBulkToggleWithSpinner = (showAll) => {
+    // Show spinner immediately - this is the FIRST thing that happens
+    setIsBulkToggling(true);
+
+    // Let React render the spinner first, then perform the action
+    setTimeout(() => {
+      onBulkToggle(showAll);
+
+      // Hide spinner - this is the LAST thing that happens
+      setTimeout(() => setIsBulkToggling(false), 10);
+    }, 10);
+  };
 
   if (!openedFiles[0] && !openedFiles[1]) {
     return null; // No files open
@@ -58,11 +72,16 @@ export default function SectionFilter({
                 className="filter-control-button"
                 onClick={() => {
                   const allVisible = visibleSections?.size === sections.length;
-                  onBulkToggle(!allVisible);
+                  handleBulkToggleWithSpinner(!allVisible);
                 }}
                 title={visibleSections?.size === sections.length ? "Hide All" : "Show All"}
+                disabled={isBulkToggling}
               >
-                {visibleSections?.size === sections.length ? "Hide All" : "Show All"}
+                {isBulkToggling ? (
+                  <div className="raw-button-spinner"></div>
+                ) : (
+                  visibleSections?.size === sections.length ? "Hide All" : "Show All"
+                )}
               </button>
             </div>
           )}

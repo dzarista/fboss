@@ -53,7 +53,8 @@ Section Type Detection
         - Extracts raw content.
         - Detects its type using `determine_section_type()`.
         - Applies the appropriate parser via `parse_content_by_type()`.
-    4. Returns a list of structured section objects.
+        - Stores both structured and raw content.
+    4. Returns a list of section objects with both parsed data and raw content.
 
 ---
 

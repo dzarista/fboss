@@ -6,9 +6,10 @@ import os
 import tempfile
 import zipfile
 import re
+
 from .section_parsers import parse_content_by_type
 from .section_utils import determine_section_type
-from .log_sanity import perform_sanity_checks
+from .log_sanity import perform_sanity_checks, get_system_map_data
 
 def parse_sections(text):
     lines = text.splitlines()
@@ -28,7 +29,8 @@ def parse_sections(text):
                 sections.append({
                     'title': current['title'],
                     'section_type': section_type,
-                    'parsed_data': parsed_content
+                    'parsed_data': parsed_content,
+                    'raw_content': raw_content,
                 })
             title = re.sub(r"^#+", "", stripped)
             title = re.sub(r"#+$", "", title).strip()
@@ -44,7 +46,8 @@ def parse_sections(text):
         sections.append({
             'title': current['title'],
             'section_type': section_type,
-            'parsed_data': parsed_content
+            'parsed_data': parsed_content,
+            'raw_content': raw_content,
         })
 
     # Perform sanity checks on all parsed sections
@@ -57,14 +60,23 @@ def handle_single_file_upload(file_storage):
     content = file_storage.read().decode('utf-8', errors='ignore')
     sections = parse_sections(content)
 
-    return [{
+    # Get system map data
+    system_map = get_system_map_data(sections)
+
+    file_response = {
         'name': file_storage.filename,
         'metadata': {
             'source_file': file_storage.filename,
             'total_sections': len(sections)
         },
         'sections': sections
-    }]
+    }
+
+    # Add system_map if available
+    if system_map:
+        file_response['system_map'] = system_map
+
+    return [file_response]
 
 class FileWrapper:
     """Wrapper to make file content behave like a file storage object."""

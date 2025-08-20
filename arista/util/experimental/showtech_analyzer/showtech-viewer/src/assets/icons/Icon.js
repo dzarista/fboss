@@ -47,5 +47,6 @@ export const BackArrowIcon = (props) => <Icon name="back-arrow" {...props} />;
 export const ErrorTriangleIcon = (props) => <Icon name="error-triangle" {...props} />;
 export const ChevronDownIcon = (props) => <Icon name="chevron-down" {...props} />;
 export const UploadIcon = (props) => <Icon name="upload" {...props} />;
+export const ToggleRawIcon = (props) => <Icon name="toggle-raw" {...props} />;
 
 export default Icon;

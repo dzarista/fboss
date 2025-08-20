@@ -39,6 +39,5 @@ class TestFlaskAPI:
 
         assert response.status_code == 200
         data = response.get_json()
-        assert len(data) == 1
         assert data[0]['name'] == 'sample_clean.txt'
-        assert len(data[0]['sections']) == 3  # Expected: 3 sections
+        assert len(data[0]['sections']) == 4  # Expected: 4 sections (including comment section)

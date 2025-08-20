@@ -40,8 +40,8 @@ def upload_files():
             result = handle_single_file_upload(file_obj)
             if result:
                 # Add source zip info if it came from a zip
-                if hasattr(file_obj, 'source_zip') and file_obj.source_zip:
-                    for item in result:
+                for item in result:
+                    if hasattr(file_obj, 'source_zip') and file_obj.source_zip:
                         item['metadata']['extracted_from'] = file_obj.source_zip
                 all_responses.extend(result)
         except Exception as e:

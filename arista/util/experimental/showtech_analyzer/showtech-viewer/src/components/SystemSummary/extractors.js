@@ -158,6 +158,43 @@ export const extractInterfaceData = (sections) => {
   return interfaceData;
 };
 
+// Extract CPU uptime information
+export const extractCpuUptime = (sections) => {
+  // Look for CPU uptime section
+  const uptimeSection = sections.find((s) =>
+    s.title === 'CPU UPTIME' ||
+    s.title === 'uptime' ||
+    s.title === 'UPTIME' ||
+    s.title?.toLowerCase().includes('uptime')
+  );
+
+  if (uptimeSection) {
+    // First try raw_content (this is where the actual uptime data is)
+    if (uptimeSection.raw_content) {
+      return uptimeSection.raw_content.trim();
+    }
+  }
+
+  return null;
+};
+
+// Extract FPGA versions information
+export const extractFpgaVersions = (sections) => {
+  // Look for FPGA VERSIONS section
+  const fpgaSection = sections.find((s) =>
+    s.title === 'FPGA VERSIONS' ||
+    s.title === 'FPGA_VERSIONS' ||
+    s.title?.toLowerCase().includes('fpga')
+  );
+
+  if (fpgaSection && fpgaSection.parsed_data?.type === 'key_value') {
+    const data = fpgaSection.parsed_data.data || {};
+    return Object.keys(data).length > 0 ? data : null;
+  }
+
+  return null;
+};
+
 // Extract port type information from interface sections
 export const extractPortTypes = (sections) => {
   const portTypes = {};
