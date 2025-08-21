@@ -9,14 +9,14 @@ images:
       env:
         FBOSS_BARNEY_BUILD: "True"
         FBOSS_ARTIFACTORY_TOKEN: ${secrets.fboss_artifactory_reference_token}
-        CCACHE_SECONDARY_STORAGE: ${fboss_ccache_remote_storage_url:-redis://fboss-ccache-redis.infra.corp.arista.io:65530}
+        CCACHE_SECONDARY_STORAGE: ${secrets.fboss_ccache_remote_storage_url:-redis://fboss-ccache-redis.infra.corp.arista.io:65530}
       mutables:
         - /var/FBOSS
 
   bus:
     entry:
       env:
-        CCACHE_SECONDARY_STORAGE: "${fboss_ccache_remote_storage_url:-redis://fboss-ccache-redis.infra.corp.arista.io:65530}|read-only=true"
+        CCACHE_SECONDARY_STORAGE: "${secrets.fboss_ccache_remote_storage_url:-redis://fboss-ccache-redis.infra.corp.arista.io:65530}|read-only=true"
     units:
       - image: code.arista.io/os/fboss-centos%fboss-centos-image-el9
       - image: code.arista.io/fboss/fboss-bcm-sai%sai-11.7.0-sdk-6.5.30-dnx-kernel-6.4
