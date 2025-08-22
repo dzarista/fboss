@@ -114,7 +114,7 @@ class PlatformConfig:
       self.setChassisEepromDevicePath = True
       self.kmodsSettings = {
          "bspKmodsRpmName": "arista_bsp_kmods",
-         "bspKmodsRpmVersion": "0.7.9-1",
+         "bspKmodsRpmVersion": "0.7.14-1",
          "requiredKmodsToLoad": [],
       }
       self.PlatformFanServiceConfig = None

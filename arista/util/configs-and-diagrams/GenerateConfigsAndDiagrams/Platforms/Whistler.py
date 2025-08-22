@@ -308,7 +308,7 @@ class WhistlerSMB( SMBUnit ):
                        ) )
       ] )
 
-      smbIslTopLeft = Sensor( "0x5A", "isl68226", "SMB_ISL68226_OSFP_TL",
+      smbIslTopLeft = Sensor( "0x5A", "bp4a_isl68226", "SMB_ISL68226_OSFP_TL",
                               incomingBusIndex=1 )
       smbIslTopLeft.addSensorConfigs( [
          SensorConfig( "VRM_OSFP_TL_VIN", "in1_input", SensorType.VOLTAGE,
@@ -328,7 +328,7 @@ class WhistlerSMB( SMBUnit ):
                        ) )
       ] )
 
-      smbIslTopRight = Sensor( "0x5B", "isl68226", "SMB_ISL68226_OSFP_TR",
+      smbIslTopRight = Sensor( "0x5B", "bp4a_isl68226", "SMB_ISL68226_OSFP_TR",
                                incomingBusIndex=1 )
       smbIslTopRight.addSensorConfigs( [
          SensorConfig( "VRM_OSFP_TR_VIN", "in1_input", SensorType.VOLTAGE,
@@ -348,7 +348,7 @@ class WhistlerSMB( SMBUnit ):
                        ) )
       ] )
 
-      smbIslBackLeft = Sensor( "0x5C", "isl68226", "SMB_ISL68226_OSFP_BL",
+      smbIslBackLeft = Sensor( "0x5C", "bp4a_isl68226", "SMB_ISL68226_OSFP_BL",
                                incomingBusIndex=1 )
       smbIslBackLeft.addSensorConfigs( [
          SensorConfig( "VRM_OSFP_BL_VIN", "in1_input", SensorType.VOLTAGE,
@@ -368,7 +368,7 @@ class WhistlerSMB( SMBUnit ):
                        ) )
       ] )
 
-      smbIslBackRight = Sensor( "0x5D", "isl68226", "SMB_ISL68226_OSFP_BR",
+      smbIslBackRight = Sensor( "0x5D", "bp4a_isl68226", "SMB_ISL68226_OSFP_BR",
                                 incomingBusIndex=1 )
       smbIslBackRight.addSensorConfigs( [
          SensorConfig( "VRM_OSFP_BR_VIN", "in1_input", SensorType.VOLTAGE,
