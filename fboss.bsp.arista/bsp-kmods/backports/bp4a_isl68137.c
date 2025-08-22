@@ -72,12 +72,25 @@ enum variants {
 	raa_dmpvr2_hv,
 };
 
-#define FW_VER_MAX_LEN	256
+#define ISL_INFO_STR_MAX_LEN	256
 #define to_isl68137_priv(x) container_of(x, struct isl68137_priv, driver_info)
+#define ISL68226_MFR_MODEL_CMD_CODE	0x9a
+#define ISL68226_MFR_MODEL_PMBUS_BLOCK_LEN	4
+#define ISL68226_CONFIG_DMA_ADDR_CMD_CODE	0xc7
+#define ISL68226_CONFIG_DMA_DATA_CMD_CODE	0xc5
+#define ISL68226_CONFIG_DMA_FINALIZE_CMD_CODE	0xe7
+#define ISL68226_CONFIG_DMA_I2C_DATA_LEN	5
+#define ISL68226_MERU800BFA_OSFP_D_FW_REV_05	"5"
+#define ISL68226_MERU800BFA_OSFP_D_MFR_MODEL	"0x200101"
 
 struct isl68137_priv {
 	struct pmbus_driver_info driver_info;
-	char fw_ver[FW_VER_MAX_LEN];
+	char fw_ver[ISL_INFO_STR_MAX_LEN];
+	char mfr_model[ISL_INFO_STR_MAX_LEN];
+};
+struct isl68226_inductor_config_reg {
+	u32 addr;
+	u8 val[ISL68226_CONFIG_DMA_I2C_DATA_LEN];
 };
 
 static const struct i2c_device_id bp4a_raa_dmpvr_id[];
@@ -150,6 +163,17 @@ static ssize_t isl68137_avs_enable_store(struct device *dev,
 	return isl68137_avs_enable_store_page(client, attr->index, buf, count);
 }
 
+static ssize_t isl68226_mfr_model_show(struct device *dev,
+				    struct device_attribute *devattr,
+				    char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev->parent);
+	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
+	struct isl68137_priv *priv = to_isl68137_priv(info);
+
+	return sprintf(buf, "%s\n", priv->mfr_model);
+}
+
 static ssize_t isl68226_fw_ver_show(struct device *dev,
 				    struct device_attribute *devattr,
 				    char *buf)
@@ -164,6 +188,7 @@ static ssize_t isl68226_fw_ver_show(struct device *dev,
 static SENSOR_DEVICE_ATTR_RW(avs0_enable, isl68137_avs_enable, 0);
 static SENSOR_DEVICE_ATTR_RW(avs1_enable, isl68137_avs_enable, 1);
 static SENSOR_DEVICE_ATTR_RO(fw_ver, isl68226_fw_ver, 0);
+static SENSOR_DEVICE_ATTR_RO(mfr_model, isl68226_mfr_model, 0);
 
 static struct attribute *enable_attrs[] = {
 	&sensor_dev_attr_avs0_enable.dev_attr.attr,
@@ -189,8 +214,18 @@ static const struct attribute_group fw_ver_group = {
 	.attrs = fw_ver_attrs,
 };
 
+static struct attribute *mfr_model_attrs[] = {
+	&sensor_dev_attr_mfr_model.dev_attr.attr,
+	NULL,
+};
+
+static const struct attribute_group mfr_model_group = {
+	.attrs = mfr_model_attrs,
+};
+
 static const struct attribute_group *isl68226_attribute_groups[] = {
 	&fw_ver_group,
+	&mfr_model_group,
 	NULL,
 };
 
@@ -270,7 +305,63 @@ static int isl68226_cache_fw_ver(struct i2c_client *client,
 	}
 
 	fw_ver = fw_ver_block[0];
-	snprintf(priv->fw_ver, FW_VER_MAX_LEN, "%d", fw_ver);
+	snprintf(priv->fw_ver, ISL_INFO_STR_MAX_LEN, "%d", fw_ver);
+
+	return 0;
+}
+
+static int isl68226_cache_mfr_model(struct i2c_client *client,
+				struct isl68137_priv *priv)
+{
+	u8 mfr_model_block[I2C_SMBUS_BLOCK_MAX];
+	u32 mfr_model_val;
+	int ret;
+
+	ret = i2c_smbus_read_block_data(client, ISL68226_MFR_MODEL_CMD_CODE, mfr_model_block);
+	if (ret < 0) {
+		dev_err(&client->dev, "Failed to read ISL model number");
+		return ret;
+	}
+	if (ret != ISL68226_MFR_MODEL_PMBUS_BLOCK_LEN) {
+		dev_err(&client->dev, "Unexpected length for ISL model number");
+		return -EINVAL;
+	}
+	memcpy(&mfr_model_val, mfr_model_block, sizeof(u32));
+	snprintf(priv->mfr_model, ISL_INFO_STR_MAX_LEN, "0x%x", mfr_model_val);
+
+	return 0;
+}
+
+static int isl68226_meru800bfa_osfp_d_ver_05_quirk(struct i2c_client *client,
+						struct isl68137_priv *priv)
+{
+	int ret;
+	static const struct isl68226_inductor_config_reg isl68226_inductor_config_ver_06_regs[] = {
+		/* DMA register 0xea20 has value 0x4d930f83 in 06 config */
+		{0xea20, {ISL68226_CONFIG_DMA_DATA_CMD_CODE, 0x83, 0x0f, 0x93, 0x4d}},
+		/* DMA register 0xea1f has value 0x031a04a7 in 06 config */
+		{0xea1f, {ISL68226_CONFIG_DMA_DATA_CMD_CODE, 0xa7, 0x04, 0x1a, 0x03}},
+		/* DMA register 0xea21 has value 0x08000122 in 06 config */
+		{0xea21, {ISL68226_CONFIG_DMA_DATA_CMD_CODE, 0x22, 0x01, 0x00, 0x08}}};
+
+	dev_info(&client->dev, "Applying inductor config ver 06 to meru800bfa OSFP D ISL68226\n");
+	for (size_t i = 0; i < sizeof(isl68226_inductor_config_ver_06_regs) / sizeof(struct isl68226_inductor_config_reg); i++) {
+		ret = i2c_smbus_write_word_data(client, ISL68226_CONFIG_DMA_ADDR_CMD_CODE, isl68226_inductor_config_ver_06_regs[i].addr);
+		if (ret < 0) {
+			dev_err(&client->dev, "Failed to write DMA address: error %d\n", ret);
+			return ret;
+		}
+		ret = i2c_master_send(client, isl68226_inductor_config_ver_06_regs[i].val, ISL68226_CONFIG_DMA_I2C_DATA_LEN);
+		if (ret < 0) {
+			dev_err(&client->dev, "Failed to write DMA data: error %d\n", ret);
+			return ret;
+		}
+		ret = i2c_smbus_write_word_data(client, ISL68226_CONFIG_DMA_FINALIZE_CMD_CODE, 0x0001);
+		if (ret < 0) {
+			dev_err(&client->dev, "Failed to finalize DMA procedure: error %d\n", ret);
+			return ret;
+		}
+	}
 
 	return 0;
 }
@@ -279,6 +370,7 @@ static int isl68137_probe(struct i2c_client *client)
 {
 	struct pmbus_driver_info *info;
 	struct isl68137_priv *priv;
+	int ret;
 
 	priv = devm_kzalloc(&client->dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -331,7 +423,18 @@ static int isl68137_probe(struct i2c_client *client)
 	 */
 	if (!strcmp(client->name, "bp4a_isl68226")) {
 		isl68226_cache_fw_ver(client, priv);
+		isl68226_cache_mfr_model(client, priv);
 		info->groups = isl68226_attribute_groups;
+		/* ISL68226 model and FW version are stored as strings in priv->fw_ver */
+		if (strcmp(priv->mfr_model, ISL68226_MERU800BFA_OSFP_D_MFR_MODEL) == 0) {
+			if (strcmp(priv->fw_ver, ISL68226_MERU800BFA_OSFP_D_FW_REV_05) == 0) {
+				ret = isl68226_meru800bfa_osfp_d_ver_05_quirk(client, priv);
+				if (ret < 0) {
+					dev_err(&client->dev, "Failed to update ISL68226 inductor config");
+					return ret;
+				}
+			}
+		}
 	}
 
 	return pmbus_do_probe(client, info);
