@@ -180,15 +180,6 @@ void Showtech::printLogs() {
 
   printSubHeader("LINUX MESSAGES LOG");
   std::cout << run_cmd_with_limit("cat /var/log/messages") << std::endl;
-
-  printSubHeader("NVME SSD SMART LOG");
-  std::cout << run_cmd_no_check("nvme smart-log /dev/nvme0n1") << std::endl;
-
-  printSubHeader("NVME SSD ERROR LOG");
-  std::cout << run_cmd_no_check("nvme error-log /dev/nvme0n1") << std::endl;
-
-  printSubHeader("NVME SSD ID CTRL LOG");
-  std::cout << run_cmd_no_check("nvme id-ctrl /dev/nvme0n1") << std::endl;
 }
 
 void Showtech::printL1Info() {
