@@ -730,18 +730,19 @@ static void ucd9000_fault_log_create_value_str(struct i2c_client *client,
 				enum ucd9000_fault_format format, u8 page, u32 value,
 				char *value_str, size_t value_str_len)
 {
-	s16 exponent, mantissa;
+	s16 exponent, linear11_mantissa;
+	u16 linear16_mantissa;
 	s32 decoded_value;
 	int ret;
 
 	switch (format) {
 	case FAULT_FORMAT_LINEAR11:
 		exponent = ((s16) value) >> 11;
-		mantissa = ((s16) ((value & 0x7ff) << 5)) >> 5;
+		linear11_mantissa = ((s16) ((value & 0x7ff) << 5)) >> 5;
 		if (exponent >= 0)
-			decoded_value = mantissa << exponent;
+			decoded_value = linear11_mantissa << exponent;
 		else
-			decoded_value = mantissa >> (-exponent);
+			decoded_value = linear11_mantissa >> (-exponent);
 		ret = snprintf(value_str, value_str_len, "%d", decoded_value);
 		break;
 	case FAULT_FORMAT_LINEAR16:
@@ -755,12 +756,12 @@ static void ucd9000_fault_log_create_value_str(struct i2c_client *client,
 				"Failed to read vout_mode register: %d\n", ret);
 			snprintf(value_str, value_str_len, "unknown");
 		} else {
-			exponent = ((s16) ((ret & 0x1f) << 27)) >> 27;
-			mantissa = (s16) value;
+			exponent = (s16) (((ret & 0x1f) << 27) >> 27);
+			linear16_mantissa = (u16) value;
 			if (exponent >= 0)
-				decoded_value = mantissa << exponent;
+				decoded_value = linear16_mantissa << exponent;
 			else
-				decoded_value = mantissa >> (-exponent);
+				decoded_value = linear16_mantissa >> (-exponent);
 			snprintf(value_str, value_str_len, "%d", decoded_value);
 		}
 		break;
