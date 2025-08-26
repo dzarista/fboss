@@ -3,7 +3,7 @@ File upload tests - Essential parsing functionality
 """
 import pytest
 import os
-from utils.file_upload import parse_sections, handle_single_file_upload
+from utils.file_upload import parse_sections, handle_single_file_upload, extract_hostname
 
 
 class TestParseSections:
@@ -102,3 +102,89 @@ class TestFileUploadHandling:
 
         # Cleanup
         os.unlink(temp_zip.name)
+
+
+class TestHostnameExtraction:
+    """Test hostname extraction functionality"""
+
+    def test_extract_hostname_success(self):
+        """Test successful hostname extraction from CPU HOSTNAME section"""
+        sample_file = os.path.join(os.path.dirname(__file__), 'test_data', 'sample_with_hostname.txt')
+        with open(sample_file, 'r') as f:
+            content = f.read()
+
+        sections = parse_sections(content)
+        hostname = extract_hostname(sections)
+
+        assert hostname == 'switch01.example.com'
+
+    def test_extract_hostname_missing_section(self):
+        """Test hostname extraction when CPU HOSTNAME section is missing"""
+        sample_file = os.path.join(os.path.dirname(__file__), 'test_data', 'sample_no_hostname.txt')
+        with open(sample_file, 'r') as f:
+            content = f.read()
+
+        sections = parse_sections(content)
+        hostname = extract_hostname(sections)
+
+        assert hostname is None
+
+    def test_extract_hostname_empty_section(self):
+        """Test hostname extraction when CPU HOSTNAME section is empty"""
+        sample_file = os.path.join(os.path.dirname(__file__), 'test_data', 'sample_empty_hostname.txt')
+        with open(sample_file, 'r') as f:
+            content = f.read()
+
+        sections = parse_sections(content)
+        hostname = extract_hostname(sections)
+
+        assert hostname == '' or hostname is None  # Empty content should return None or empty string
+
+    def test_extract_hostname_case_insensitive(self):
+        """Test hostname extraction is case insensitive"""
+        # Create sections with different case variations
+        sections = [
+            {'title': 'cpu hostname', 'raw_content': 'test-host-lower'},
+            {'title': 'CPU HOSTNAME', 'raw_content': 'test-host-upper'},
+            {'title': 'Cpu Hostname', 'raw_content': 'test-host-mixed'}
+        ]
+
+        # Should find the first match (case insensitive)
+        hostname = extract_hostname(sections)
+        assert hostname == 'test-host-lower'
+
+    def test_hostname_in_file_upload_metadata(self):
+        """Test hostname is included in file upload metadata"""
+        sample_file = os.path.join(os.path.dirname(__file__), 'test_data', 'sample_with_hostname.txt')
+
+        from werkzeug.datastructures import FileStorage
+
+        with open(sample_file, 'rb') as f:
+            file_obj = FileStorage(stream=f, filename='sample_with_hostname.txt')
+            result = handle_single_file_upload(file_obj)
+
+        assert len(result) == 1
+        file_result = result[0]
+
+        # Check metadata contains hostname
+        assert 'metadata' in file_result
+        assert 'hostname' in file_result['metadata']
+        assert file_result['metadata']['hostname'] == 'switch01.example.com'
+
+    def test_hostname_fallback_in_file_upload_metadata(self):
+        """Test hostname fallback (None) when missing in file upload metadata"""
+        sample_file = os.path.join(os.path.dirname(__file__), 'test_data', 'sample_no_hostname.txt')
+
+        from werkzeug.datastructures import FileStorage
+
+        with open(sample_file, 'rb') as f:
+            file_obj = FileStorage(stream=f, filename='sample_no_hostname.txt')
+            result = handle_single_file_upload(file_obj)
+
+        assert len(result) == 1
+        file_result = result[0]
+
+        # Check metadata contains hostname as None
+        assert 'metadata' in file_result
+        assert 'hostname' in file_result['metadata']
+        assert file_result['metadata']['hostname'] is None

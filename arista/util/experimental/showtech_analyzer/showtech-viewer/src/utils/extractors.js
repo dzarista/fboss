@@ -1,4 +1,4 @@
-// Pure extractors for SystemSummary
+// Pure extractors for data extraction from showtech sections
 
 export const extractQsfpData = (sections) => {
   const qsfpData = {};
@@ -172,6 +172,23 @@ export const extractCpuUptime = (sections) => {
     // First try raw_content (this is where the actual uptime data is)
     if (uptimeSection.raw_content) {
       return uptimeSection.raw_content.trim();
+    }
+  }
+
+  return null;
+};
+
+// Extract CPU hostname information
+export const extractCpuHostname = (sections) => {
+  // Look for CPU hostname section
+  const hostnameSection = sections.find((s) =>
+    s.title?.toLowerCase() === 'cpu hostname'
+  );
+
+  if (hostnameSection) {
+    // First try raw_content (this is where the actual hostname data is)
+    if (hostnameSection.raw_content) {
+      return hostnameSection.raw_content.trim();
     }
   }
 

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import PortGrid from './SystemSummary/PortGrid';
 import PSUGrid from './SystemSummary/PSUGrid';
 import FanGrid from './SystemSummary/FanGrid';
@@ -15,7 +15,7 @@ import {
   extractPortTypes,
   extractCpuUptime,
   extractFpgaVersions,
-} from './SystemSummary/extractors';
+} from '../utils/extractors';
 
 const SystemSummary = ({ sections, systemMap, slotIndex }) => {
 
@@ -38,7 +38,54 @@ const SystemSummary = ({ sections, systemMap, slotIndex }) => {
   const [selectedFanData, setSelectedFanData] = useState(null);
   const [selectedPsu, setSelectedPsu] = useState(null);
   const [selectedPsuData, setSelectedPsuData] = useState(null);
-  const [heatmapMode, setHeatmapMode] = useState('off'); // 'off' | 'temp' | 'voltage'
+  const [heatmapMode, setHeatmapMode] = useState('temp'); // 'temp' | 'voltage'
+  const [heatmapSettings, setHeatmapSettings] = useState({
+    tempLow: 50,
+    tempHigh: 75,
+    voltageLow: 3.0,
+    voltageHigh: 3.6,
+    useDefault: false
+  });
+
+  const calculateDataRange = (mode) => {
+    const values = Object.values(qsfpData).map(portData => {
+      let val;
+      if (mode === 'temp') {
+        val = portData?.['Global DOM Monitors']?.['Temperature (C)']
+              ?? portData?.Temperature;
+      } else {
+        val = portData?.['Global DOM Monitors']?.['Voltage (V)']
+              ?? portData?.['Supply Voltage']
+              ?? portData?.Voltage;
+      }
+      if (val == null) return null;
+      const num = typeof val === 'number' ? val : parseFloat(String(val).replace(/ [CV]|°C/g, ''));
+      return !Number.isNaN(num) ? num : null;
+    }).filter(Boolean);
+
+
+    return values.length ? { min: Math.min(...values), max: Math.max(...values) }
+                         : { min: mode === 'temp' ? 50 : 3.0, max: mode === 'temp' ? 75 : 3.6 };
+  };
+
+  const handlePercentilesToggle = (checked) => {
+    if (checked) {
+      // When enabling percentiles, don't change the input values - just switch mode
+      setHeatmapSettings(prev => ({ ...prev, useDefault: true }));
+    } else {
+      // When disabling percentiles, populate with actual data ranges
+      const tempRange = calculateDataRange('temp');
+      const voltageRange = calculateDataRange('voltage');
+      setHeatmapSettings(prev => ({
+        ...prev,
+        useDefault: false,
+        tempLow: tempRange.min,
+        tempHigh: tempRange.max,
+        voltageLow: voltageRange.min,
+        voltageHigh: voltageRange.max
+      }));
+    }
+  };
 
   // Ref to store the saved scroll position
   const savedScrollPosition = useRef(0);
@@ -173,18 +220,47 @@ const SystemSummary = ({ sections, systemMap, slotIndex }) => {
 
       {systemMap.front && (
         <div className="system-view front-view">
-          <div className="view-header">
+          <div className="system-header">
             <h4>Front View</h4>
-          </div>
-          <div className="heatmap-button-group">
-            <button className={`heatmap-button ${heatmapMode === 'off' ? 'active' : ''}`} onClick={() => setHeatmapMode('off')} title="Turn off heatmap">OFF</button>
-            <button className={`heatmap-button ${heatmapMode === 'temp' ? 'active' : ''}`} onClick={() => setHeatmapMode('temp')} title="Temperature heatmap">°C</button>
-            <button className={`heatmap-button ${heatmapMode === 'voltage' ? 'active' : ''}`} onClick={() => setHeatmapMode('voltage')} title="Voltage heatmap">V</button>
+            <div className="heatmap-controls">
+              <div className="heatmap-settings">
+                {!heatmapSettings.useDefault && ['Low', 'High'].map(type => (
+                  <div key={type} className="setting-row">
+                    <label>{type}:</label>
+                    <input
+                      type="number"
+                      value={heatmapSettings[heatmapMode === 'temp' ? `temp${type}` : `voltage${type}`]}
+                      onChange={(e) => setHeatmapSettings(prev => ({
+                        ...prev,
+                        [heatmapMode === 'temp' ? `temp${type}` : `voltage${type}`]: parseFloat(e.target.value) || 0
+                      }))}
+                      min="0"
+                      max={heatmapMode === 'temp' ? 100 : 5}
+                      step={heatmapMode === 'temp' ? 1 : 0.1}
+                    />
+                  </div>
+                ))}
+                <div className="setting-row">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={heatmapSettings.useDefault}
+                      onChange={(e) => handlePercentilesToggle(e.target.checked)}
+                    />
+                    Percentiles
+                  </label>
+                </div>
+              </div>
+              <div className="heatmap-button-group">
+                <button className={`heatmap-button ${heatmapMode === 'temp' ? 'active' : ''}`} onClick={() => setHeatmapMode('temp')} title="Temperature heatmap">°C</button>
+                <button className={`heatmap-button ${heatmapMode === 'voltage' ? 'active' : ''}`} onClick={() => setHeatmapMode('voltage')} title="Voltage heatmap">V</button>
+              </div>
+            </div>
           </div>
           <div className="view-content">
             {frontHasPorts && (
               <div className="component-section ports-section">
-                <PortGrid portConfig={systemMap.ports} qsfpData={qsfpData} portTypes={portTypes} onPortClick={handlePortClick} heatmapMode={heatmapMode} />
+                <PortGrid portConfig={systemMap.ports} qsfpData={qsfpData} portTypes={portTypes} onPortClick={handlePortClick} heatmapMode={heatmapMode} heatmapSettings={heatmapSettings} />
               </div>
             )}
           </div>

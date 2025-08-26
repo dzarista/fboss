@@ -56,6 +56,14 @@ def parse_sections(text):
     return sections
 
 
+def extract_hostname(sections):
+    """Extract hostname from CPU HOSTNAME section"""
+    hostname_section = next((s for s in sections if s.get('title', '') and s.get('title', '').lower() == 'cpu hostname'), None)
+    if hostname_section and hostname_section.get('raw_content'):
+        content = hostname_section['raw_content'].strip()
+        return content if content else None
+    return None
+
 def handle_single_file_upload(file_storage):
     content = file_storage.read().decode('utf-8', errors='ignore')
     sections = parse_sections(content)
@@ -63,11 +71,15 @@ def handle_single_file_upload(file_storage):
     # Get system map data
     system_map = get_system_map_data(sections)
 
+    # Extract hostname
+    hostname = extract_hostname(sections)
+
     file_response = {
         'name': file_storage.filename,
         'metadata': {
             'source_file': file_storage.filename,
-            'total_sections': len(sections)
+            'total_sections': len(sections),
+            'hostname': hostname
         },
         'sections': sections
     }

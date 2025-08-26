@@ -1,4 +1,4 @@
-import React, { memo } from 'react';
+import { memo } from 'react';
 import { pickTemperature, pickVoltage, getTemperatureColor, getVoltageColor } from './utils';
 
 const PortSlot = memo(function PortSlot({
@@ -9,6 +9,7 @@ const PortSlot = memo(function PortSlot({
   heatmapMode,
   temperaturePercentiles,
   voltagePercentiles,
+  heatmapSettings,
   onPortClick,
 }) {
   if (portNum == null || portNum === 0) return <div key={idx} className="port-slot empty" />;
@@ -21,22 +22,27 @@ const PortSlot = memo(function PortSlot({
 
   let heatmapColor = null;
   let displayValue = null;
-  if (hasQsfpData && heatmapMode === 'temp') {
-    heatmapColor = getTemperatureColor(temperature, temperaturePercentiles);
-    displayValue = temperature;
-  } else if (hasQsfpData && heatmapMode === 'voltage') {
-    heatmapColor = getVoltageColor(voltage, voltagePercentiles);
-    displayValue = voltage;
+
+  if (hasQsfpData) {
+    const value = heatmapMode === 'temp' ? temperature : voltage;
+
+    if (value != null) {
+      heatmapColor = heatmapMode === 'temp'
+        ? getTemperatureColor(value, temperaturePercentiles, heatmapSettings)
+        : getVoltageColor(value, voltagePercentiles, heatmapSettings);
+      displayValue = value;
+    }
   }
+
+  const value = heatmapMode === 'temp' ? temperature : voltage;
+  const unit = heatmapMode === 'temp' ? '°C' : 'V';
+  const decimals = heatmapMode === 'temp' ? 1 : 2;
 
   let tooltip = `Port ${portNum} (${portType})`;
   if (hasQsfpData) {
-    if (heatmapMode === 'temp' && temperature != null) {
-      const tempDisplay = typeof temperature === 'number' ? `${temperature.toFixed(1)}°C` : `${temperature}°C`;
-      tooltip += `\nTemp: ${tempDisplay}`;
-    } else if (heatmapMode === 'voltage' && voltage != null) {
-      const voltDisplay = typeof voltage === 'number' ? `${voltage.toFixed(2)}V` : `${voltage}V`;
-      tooltip += `\nVoltage: ${voltDisplay}`;
+    if (value != null) {
+      const valueDisplay = `${typeof value === 'number' ? value.toFixed(decimals) : value}${unit}`;
+      tooltip += `\n${heatmapMode === 'temp' ? 'Temp' : 'Voltage'}: ${valueDisplay}`;
     }
     tooltip += '\nClick for details';
   } else {
@@ -52,11 +58,9 @@ const PortSlot = memo(function PortSlot({
       style={{ cursor: hasQsfpData ? 'pointer' : 'default', backgroundColor: heatmapColor || undefined }}
     >
       <span className="port-number">{portNum}</span>
-      {heatmapMode !== 'off' && displayValue != null && (
+      {displayValue != null && (
         <span className="port-value">
-          {heatmapMode === 'temp'
-            ? (typeof displayValue === 'number' ? `${displayValue.toFixed(1)}°C` : `${displayValue}°C`)
-            : (typeof displayValue === 'number' ? `${displayValue.toFixed(2)}V` : `${displayValue}V`)}
+          {`${typeof displayValue === 'number' ? displayValue.toFixed(decimals) : displayValue}${unit}`}
         </span>
       )}
     </div>

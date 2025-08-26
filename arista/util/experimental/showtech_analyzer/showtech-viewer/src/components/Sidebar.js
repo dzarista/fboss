@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { UploadIcon } from '../assets/icons/Icon';
+
 
 export default function Sidebar({
   logs,
@@ -48,26 +49,39 @@ export default function Sidebar({
             {logs.length === 0 ? (
               <p className="placeholder-text">No files uploaded</p>
             ) : (
-              logs.map((log, idx) => (
-                <div
-                  key={idx}
-                  className="file-tab"
-                >
-                  <span
-                    className="file-name"
-                    onDoubleClick={() => onSelect(idx)}
+              logs.map((log, idx) => {
+                const hostname = log.metadata?.hostname;
+                return (
+                  <div
+                    key={idx}
+                    className="file-tab"
                   >
-                    {log.name}
-                  </span>
-                  <button
-                    className="remove-file-button"
-                    onClick={() => onRemoveFile(idx)}
-                    aria-label={`Remove ${log.name}`}
-                  >
-                    &times;
-                  </button>
-                </div>
-              ))
+                    <div 
+                      className="sidebar-file-info"
+                      onDoubleClick={() => onSelect(idx)}
+                    >
+                      <span
+                        className="file-name"
+                        onDoubleClick={() => onSelect(idx)}
+                      >
+                        {log.name}
+                      </span>
+                      {hostname && (
+                        <span className="file-hostname">
+                          {hostname}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      className="remove-file-button"
+                      onClick={() => onRemoveFile(idx)}
+                      aria-label={`Remove ${log.name}`}
+                    >
+                      &times;
+                    </button>
+                  </div>
+                );
+              })
             )}
           </div>
         </>

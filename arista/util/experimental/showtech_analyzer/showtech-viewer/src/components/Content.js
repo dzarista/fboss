@@ -428,7 +428,7 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
             <div className="content-topbar">
               <div className="file-name-container">
                 <span className="file-name-text">
-                  {log.name || 'Unknown File'}
+                  {log.metadata?.hostname || "Loading..."}
                   <button
                     className="close-file-button"
                     onClick={onClose}
