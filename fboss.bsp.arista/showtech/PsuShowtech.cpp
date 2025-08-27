@@ -100,7 +100,7 @@ GenericPsu::GenericPsu(int bus, int chipAddr, int voutModeReg)
       std::make_tuple("READ_FAN SPEED_2", 0x91, 2, ValueType::LINEAR_11),
       std::make_tuple("READ_POUT", 0x96, 2, ValueType::LINEAR_11),
       std::make_tuple("READ_PIN", 0x97, 2, ValueType::LINEAR_11),
-      std::make_tuple("PMBUS_REVISION", 0x98, 1, ValueType::LINEAR_11),
+      std::make_tuple("PMBUS_REVISION", 0x98, 1, ValueType::HEX),
   };
 }
 
@@ -248,7 +248,6 @@ std::vector<std::pair<std::string, std::string>> getPsuI2cBuses() {
       }
     }
   }
-
   return psuI2cBusNums;
 }
 
@@ -290,54 +289,42 @@ void printPsuInfo() {
     auto psu = createPsu(i2cDevice, std::stoi(psuBus.second), chipAddr);
 
     for (const auto &reg : psu->getAllRegisters()) {
+      // Read PSU register
       std::vector<uint8_t> regInfo = readI2c(
           i2cDevice, psu->getChipAddr(), std::get<1>(reg), std::get<2>(reg));
       std::cout << std::get<0>(reg) << ": ";
       ValueType valueType = std::get<3>(reg);
+
+      // Parse and output register data in human-readable format
       if (valueType == ValueType::ASCII) {
         for (const auto &val : regInfo) {
           std::cout << val;
         }
-      } else if (valueType == ValueType::HEX) {
-        if (regInfo.size() == 1) {
-          std::cout << std::hex << "0x" << std::setw(2) << std::setfill('0')
-                    << static_cast<int>(regInfo[0]) << " ";
-        } else if (regInfo.size() == 2) {
-          uint16_t combinedRegInfo =
-              (static_cast<uint16_t>(regInfo[0]) << 8) | regInfo[1];
-          std::cout << std::hex << "0x" << std::setw(4) << std::setfill('0')
-                    << combinedRegInfo;
-        } else {
-          std::cout << "Incorrect register data amount read";
-        }
-      } else if (valueType == ValueType::LINEAR_11) {
-        if (regInfo.size() == 1) {
-          std::cout << std::hex << "0x" << std::setw(2) << std::setfill('0')
-                    << static_cast<int>(regInfo[0]) << " ";
-        } else if (regInfo.size() == 2) {
-          uint16_t combinedRegInfo =
-              (static_cast<uint16_t>(regInfo[1]) << 8) | regInfo[0];
-          std::cout << linear11ToDecimal(combinedRegInfo);
-        } else {
-          std::cout << "Incorrect register data amount read";
-        }
-      } else if (valueType == ValueType::LINEAR_16) {
-        // Special Case: VOUT = VOUT_REG * 2^(VOUT_MODE as 5 bit signed)
-        if (regInfo.size() == 2) {
-          uint16_t combinedRegInfo =
-              (static_cast<uint16_t>(regInfo[1]) << 8) | regInfo[0];
-          std::vector<uint8_t> voutMode =
-              readI2c(i2cDevice, psu->getChipAddr(), psu->getVoutModeReg(), 1);
-          voutMode[0] = (voutMode[0] & 0x10)
-                            ? (static_cast<int8_t>(voutMode[0] | 0xE0))
-                            : voutMode[0];
-
-          double result = static_cast<double>(combinedRegInfo) *
-                          std::pow(2.0, static_cast<int8_t>(voutMode[0]));
-          std::cout << result;
-        } else {
-          std::cout << "Incorrect register data amount read";
-        }
+      } else if (valueType == ValueType::HEX && regInfo.size() == 1) {
+        std::cout << std::hex << "0x" << std::setw(2) << std::setfill('0')
+                  << static_cast<int>(regInfo[0]) << " ";
+      } else if (valueType == ValueType::HEX && regInfo.size() == 2) {
+        uint16_t combinedRegInfo =
+            (static_cast<uint16_t>(regInfo[0]) << 8) | regInfo[1];
+        std::cout << std::hex << "0x" << std::setw(4) << std::setfill('0')
+                  << combinedRegInfo;
+      } else if (valueType == ValueType::LINEAR_11 && regInfo.size() == 2) {
+        uint16_t combinedRegInfo =
+            (static_cast<uint16_t>(regInfo[1]) << 8) | regInfo[0];
+        std::cout << linear11ToDecimal(combinedRegInfo);
+      } else if (valueType == ValueType::LINEAR_16 && regInfo.size() == 2) {
+        uint16_t combinedRegInfo =
+            (static_cast<uint16_t>(regInfo[1]) << 8) | regInfo[0];
+        std::vector<uint8_t> voutMode =
+            readI2c(i2cDevice, psu->getChipAddr(), psu->getVoutModeReg(), 1);
+        voutMode[0] = (voutMode[0] & 0x10)
+                          ? (static_cast<int8_t>(voutMode[0] | 0xE0))
+                          : voutMode[0];
+        double result = static_cast<double>(combinedRegInfo) *
+                        std::pow(2.0, static_cast<int8_t>(voutMode[0]));
+        std::cout << result;
+      } else {
+        std::cout << "Error: failed to read PSU register";
       }
       std::cout << std::endl;
     }

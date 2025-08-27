@@ -12,7 +12,6 @@
 namespace showtech {
 
 double linear11ToDecimal(uint16_t linear11);
-double linear16ToDecimal(uint16_t linear16);
 std::vector<uint8_t> makeI2cRdwrRequest(const char *i2cDevice, int chipAddr,
                                         uint8_t regAddr, int numBytesToRead);
 std::vector<uint8_t> readI2c(const char *i2cDevice, int chipAddr,
