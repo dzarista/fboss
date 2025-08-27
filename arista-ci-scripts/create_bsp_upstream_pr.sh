@@ -49,13 +49,19 @@ if patch -p1 < ${SCRIPT_START_DIR}/text_only.patch &> patch_status.txt; then
    git config --global user.name "srv-fboss-arista"
    git config --global user.email "srv-fboss-arista@arista.com"
    GIT_SSH_COMMAND="ssh -i ${SCRIPT_START_DIR}/private.key -o IdentitiesOnly=yes" git add -A
-   GIT_SSH_COMMAND="ssh -i ${SCRIPT_START_DIR}/private.key -o IdentitiesOnly=yes" git commit -m "upstreaming BSP changes"
+   GIT_SSH_COMMAND="ssh -i ${SCRIPT_START_DIR}/private.key -o IdentitiesOnly=yes" git commit -m "${PR_TITLE}"
    GIT_SSH_COMMAND="ssh -i ${SCRIPT_START_DIR}/private.key -o IdentitiesOnly=yes" git push origin $upstream_pr_branch_name
    GIT_SSH_COMMAND="ssh -i ${SCRIPT_START_DIR}/private.key -o IdentitiesOnly=yes" git checkout main || exit 1
-   pr_link=$(gh pr create --title "$pr_title" --body "$pr_description" --head $upstream_pr_branch_name --base main --repo $repo_name --draft | grep https)
+   gh_pr_create_output=$(gh pr create --title "$pr_title" --body "$pr_description" --head $upstream_pr_branch_name --base main --repo $repo_name --draft 2>&1)
    cd "${SCRIPT_START_DIR}"
-   echo "Created a pull request from branch $upstream_pr_branch_name." > $output_file
-   echo "Created the draft pull request $pr_link with all the changes in BSP subtree. Make sure the pull request matches with the changes to the subtree. Please publish the pull request after updating the title and description." > $status_email_file
+   if [ $? -eq 0 ]; then
+      pr_link=$(echo "$gh_pr_create_output" | grep https)
+      echo "Created a pull request from branch $upstream_pr_branch_name." > $output_file
+      echo "Created the draft pull request $pr_link with all the changes in BSP subtree. Make sure the pull request matches with the changes to the subtree. Please publish the pull request after updating the title and description." > $status_email_file
+   else
+      echo "An error occurred while creating the pull request with the 'gh pr create' command. The attached file contains the full error details" > $status_email_file
+      echo $gh_pr_create_output > $output_file
+   fi
 else
    cd "${SCRIPT_START_DIR}"
    echo "Couldn't create a pull request due to merge conflicts." > $status_email_file
