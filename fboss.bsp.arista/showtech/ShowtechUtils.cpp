@@ -2,6 +2,7 @@
 // Arista Networks, Inc. Confidential and Proprietary.
 
 #include "ShowtechUtils.h"
+#include <array>
 #include <filesystem>
 #include <iostream>
 #include <regex>
