@@ -15,8 +15,6 @@ status_email_file=status_email_content.txt
 # Status email subject
 email_subject_file=status_email_subject.txt
 
-echo "fboss.bsp.arista upstream pull request created from $PR_BRANCH" > $email_subject_file
-
 SCRIPT_START_DIR="$1"
 
 mkdir upstream_repo
@@ -58,9 +56,11 @@ if patch -p1 < ${SCRIPT_START_DIR}/text_only.patch &> patch_status.txt; then
       pr_link=$(echo "$gh_pr_create_output" | grep https)
       echo "Created a pull request from branch $upstream_pr_branch_name." > $output_file
       echo "Created the draft pull request $pr_link with all the changes in BSP subtree. Make sure the pull request matches with the changes to the subtree. Please publish the pull request after updating the title and description." > $status_email_file
+      echo "fboss.bsp.arista upstream pull request created from $PR_BRANCH" > $email_subject_file
    else
       echo "An error occurred while creating the pull request with the 'gh pr create' command. The attached file contains the full error details" > $status_email_file
       echo $gh_pr_create_output > $output_file
+      echo "Failed to upstream BSP changes from $PR_BRANCH" > $email_subject_file
    fi
 else
    cd "${SCRIPT_START_DIR}"
@@ -68,4 +68,5 @@ else
    echo "Details of the merge conflicts" >> $output_file
    echo "==============================" >> $output_file
    cat upstream_repo/patch_status.txt >> $output_file
+   echo "Failed to upstream BSP changes from $PR_BRANCH" > $email_subject_file
 fi
