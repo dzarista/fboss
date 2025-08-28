@@ -77,10 +77,10 @@ def parse_table(content):
 _HEADER_RE = re.compile(
     r"""
     ^\s*i2cdump
-    (?:\s+-[^\s]+)*            # flags like -f -y
-    \s+(?P<bus>\d+)            # bus number
-    \s+(?P<addr>0x[0-9a-fA-F]+|\d+)   # addr (hex or dec)
-    \s+(?P<mode>[bw])          # mode b|w
+    (?:\s+-[^\s]+)* # flags like -f -y
+    \s+(?P<bus>\d+)                  # bus number
+    \s+(?P<addr>0x[0-9a-fA-F]+|\d+)     # addr (hex or dec)
+    (?:\s+(?P<mode>[bw]))?            # Optional group for space AND mode
     (?:\s|$)
     """,
     re.IGNORECASE | re.VERBOSE
@@ -101,7 +101,7 @@ def _find_first_header(lines):
         if m:
             bus = m.group("bus")
             hex4 = _to_hex4(m.group("addr"))
-            mode = m.group("mode").lower()
+            mode = m.group("mode")
             return bus, hex4, mode
     return None
 
@@ -179,7 +179,7 @@ def parse_i2c_dump(content: str, i2c_devices):
     # 1) detect device key from the first header
     header = _find_first_header(lines)
     if not header:
-        # no recognizable header -> raw
+        # This type of header is not covered yet by the showtech viewer, render as raw
         return {'type': 'raw'}
 
     bus, hex4, _first_mode = header
@@ -207,7 +207,7 @@ def parse_i2c_dump(content: str, i2c_devices):
         if 'i2cdump' in line:
             m = _HEADER_RE.search(line)
             if m:
-                mode = m.group('mode').lower()
+                mode = m.group('mode')
             if not mode:
                 mode = 'b'
             continue  # do not add header lines to data blocks

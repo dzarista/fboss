@@ -1,3 +1,6 @@
+# v1.5.1
+- [BUG]: (v1.5.0 didn't handle case) The i2c parser has been updated to handle STDERR cases (no -b -w was given) and defaults to Byte sized outputs.
+
 # v1.5.0
 - [BUG]: The i2c parser has been updated to handle STDERR cases (no -b -w was given) and defaults to Byte sized outputs.
 - [STYLE]: Refactored Platform Config detection to the file upload level from the system summary level.
