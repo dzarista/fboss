@@ -131,6 +131,22 @@ class TestParseI2cDump:
         # Should have parsed the byte data
         assert isinstance(result['data'], dict)
 
+    def test_parse_i2c_dump_stderr_handling(self):
+        """Test parsing I2C dump with STDERR messages"""
+        content = """i2cdump -y 1 0x58
+        "i2cdump -f -y 1 0x58" STDERR:
+        No size specified (using byte-data access)
+
+         0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f    0123456789abcdef
+    00: 01 02 03 04 05 06 07 08 09 0a 0b 0c 0d 0e 0f 10    ????????????????
+        """
+        result = parse_i2c_dump(content)
+        assert result['type'] == 'i2c_dump'
+        assert 'data' in result
+        assert isinstance(result['data'], dict)
+        assert not 'value' in result['data']['0x00']
+        # assert result['data']['0x00']['value'] == '0x01', result['data']
+
     def test_parse_i2c_dump_word_mode(self):
         """Test parsing I2C dump in word mode"""
         content = """i2cdump -y 1 0x58 w

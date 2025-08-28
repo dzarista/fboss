@@ -25,6 +25,20 @@
       "expected_speed": "Gen4x4"
     }
   ],
+  "i2c_devices": {
+    "18-0054": {
+      "name": "SMB_ISL68226_J3",
+      "i2c_spec": "isl68226"
+    },
+    "18-0055": {
+      "name": "SMB_ISL68226_OPTICS",
+      "i2c_spec": "isl68226"
+    },
+    "18-0045": {
+      "name": "SMB_RAA228926_J3",
+      "i2c_spec": "isl68226"
+    }
+  },
   "system_map": {
     "front": ["ports"],
     "rear": ["psu", "fans"],

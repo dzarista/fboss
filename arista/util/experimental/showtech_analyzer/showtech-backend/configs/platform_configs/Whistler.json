@@ -53,6 +53,41 @@
       "expected_speed": "Gen4x4"
     }
   ],
+  "i2c_devices": {
+    "11-005c": {
+      "name": "SMB_ISL68226_OSFP_BL",
+      "i2c_spec": "isl68226"},
+    "11-005d": {
+      "name": "SMB_ISL68226_OSFP_BE",
+      "i2c_spec": "isl68226"},
+    "11-005a": {
+      "name": "SMB_ISL68226_OSFP_TL",
+      "i2c_spec": "isl68226"},
+    "11-005b": {
+      "name": "SMB_ISL68226_OSFP_TR",
+      "i2c_spec": "isl68226"},
+    "11-0050": {
+      "name": "SMB_ISL68226_R3R0_ANLG0",
+      "i2c_spec": "isl68226"},
+    "11-0051": {
+      "name": "SMB_ISL68226_R3R0_ANLG1",
+      "i2c_spec": "isl68226"},
+    "11-0052": {
+      "name": "SMB_ISL68226_R3R1_ANLG0",
+      "i2c_spec": "isl68226"},
+    "11-0053": {
+      "name": "SMB_ISL68226_R3R1_ANLG1",
+      "i2c_spec": "isl68226"},
+    "11-0060": {
+      "name": "SMB_RAA228926_R3R0_CORE",
+      "i2c_spec": "isl68226"},
+    "11-0061": {
+      "name": "SMB_RAA228926_R3R1_CORE",
+      "i2c_spec": "isl68226"},
+    "12-0011": {
+      "name": "SMB_UCD90320",
+      "i2c_spec": "ucd90320"}
+  },
   "system_map": {
     "front": ["ports"],
     "rear": ["psu_left", "fans", "psu_right"],

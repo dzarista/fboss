@@ -2,8 +2,7 @@
   {
     "code": "0x00",
     "name": "PAGE",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -16,8 +15,7 @@
   {
     "code": "0x01",
     "name": "OPERATION",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -55,8 +53,7 @@
   {
     "code": "0x02",
     "name": "ON_OFF_CONFIG",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -94,15 +91,14 @@
   {
     "code": "0x03",
     "name": "CLEAR_FAULTS",
-    "smBusWrite": "Send Byte",
-    "smBusRead": "N/A",
-    "bytes": "0"
+    "type": "Write",
+    "bytes": "0",
+    "ignore": true
   },
   {
     "code": "0x04",
     "name": "PHASE",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -115,22 +111,21 @@
   {
     "code": "0x05",
     "name": "PAGE_PLUS_WRITE",
-    "smBusWrite": "Block Write",
-    "smBusRead": "N/A",
-    "bytes": "Variable"
+    "type": "Write",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0x06",
     "name": "PAGE_PLUS_READ",
-    "smBusWrite": "N/A",
-    "smBusRead": "Block Write, Block Read Process Call",
-    "bytes": "Variable"
+    "type": "Read",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0x07",
     "name": "ZONE_CONFIG",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2",
     "bitRanges": [
       {
@@ -148,8 +143,7 @@
   {
     "code": "0x08",
     "name": "ZONE_ACTIVE",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2",
     "bitRanges": [
     {
@@ -167,57 +161,56 @@
   {
     "code": "0x09",
     "name": "Reserved",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x0A",
     "name": "Reserved",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x0B",
     "name": "Reserved",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x0C",
     "name": "Reserved",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x0D",
     "name": "Reserved",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x0E",
     "name": "Reserved",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x0F",
     "name": "Reserved",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x10",
     "name": "WRITE_PROTECT",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -230,64 +223,63 @@
   {
     "code": "0x11",
     "name": "STORE_DEFAULT_ALL",
-    "smBusWrite": "Send Byte",
-    "smBusRead": "N/A",
-    "bytes": "0"
+    "type": "Write",
+    "bytes": "0",
+    "ignore": true
   },
   {
     "code": "0x12",
     "name": "RESTORE_DEFAULT_ALL",
-    "smBusWrite": "Send Byte",
-    "smBusRead": "N/A",
-    "bytes": "0"
+    "type": "Write",
+    "bytes": "0",
+    "ignore": true
   },
   {
     "code": "0x13",
     "name": "STORE_DEFAULT_code",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "N/A",
-    "bytes": "1"
+    "type": "Write",
+    "bytes": "1",
+    "ignore": true
   },
   {
     "code": "0x14",
     "name": "RESTORE_DEFAULT_code",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "N/A",
-    "bytes": "1"
+    "type": "Write",
+    "bytes": "1",
+    "ignore": true
   },
   {
     "code": "0x15",
     "name": "STORE_USER_ALL",
-    "smBusWrite": "Send Byte",
-    "smBusRead": "N/A",
-    "bytes": "0"
+    "type": "Write",
+    "bytes": "0",
+    "ignore": true
   },
   {
     "code": "0x16",
     "name": "RESTORE_USER_ALL",
-    "smBusWrite": "Send Byte",
-    "smBusRead": "N/A",
-    "bytes": "0"
+    "type": "Write",
+    "bytes": "0",
+    "ignore": true
   },
   {
     "code": "0x17",
     "name": "STORE_USER_code",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "N/A",
-    "bytes": "1"
+    "type": "Write",
+    "bytes": "1",
+    "ignore": true
   },
   {
     "code": "0x18",
     "name": "RESTORE_USER_code",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "N/A",
-    "bytes": "1"
+    "type": "Write",
+    "bytes": "1",
+    "ignore": true
   },
   {
     "code": "0x19",
     "name": "CAPABILITY",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Byte",
+    "type": "Read",
     "bytes": "1",
     "bitRanges": [
       {
@@ -325,8 +317,7 @@
   {
     "code": "0x1A",
     "name": "QUERY",
-    "smBusWrite": "N/A",
-    "smBusRead": "Block Write \u2013 Block Read Process Call",
+    "type": "Read",
     "bytes": "1",
     "bitRanges": [
       {
@@ -359,8 +350,7 @@
   {
     "code": "0x1B",
     "name": "SMBALERT_MASK",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Block Write, Block Read Process Call",
+    "type": "R/W",
     "bytes": "2",
     "bitRanges": [
       {
@@ -378,36 +368,35 @@
   {
     "code": "0x1C",
     "name": "Reserved",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x1D",
     "name": "Reserved",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x1E",
     "name": "Reserved",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x1F",
     "name": "Reserved",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x20",
     "name": "VOUT_MODE",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -430,141 +419,126 @@
   {
     "code": "0x21",
     "name": "VOUT_COMMAND",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x22",
     "name": "VOUT_TRIM",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x23",
     "name": "VOUT_CAL_OFFSET",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x24",
     "name": "VOUT_MAX",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x25",
     "name": "VOUT_MARGIN_HIGH",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x26",
     "name": "VOUT_MARGIN_LOW",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x27",
     "name": "VOUT_TRANSITION_RATE",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x28",
     "name": "VOUT_DROOP",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x29",
     "name": "VOUT_SCALE_LOOP",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x2A",
     "name": "VOUT_SCALE_MONITOR",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x2B",
     "name": "VOUT_MIN",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x2C",
     "name": "Reserved",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x2D",
     "name": "Reserved",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x2E",
     "name": "Reserved",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x2F",
     "name": "Reserved",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x30",
     "name": "COEFFICIENTS",
-    "smBusWrite": "N/A",
-    "smBusRead": "Block Write \u2013 Block Read Process Call",
-    "bytes": "5"
+    "type": "Write",
+    "bytes": "5",
+    "ignore": true
   },
   {
     "code": "0x31",
     "name": "POUT_MAX",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x32",
     "name": "MAX_DUTY",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x33",
     "name": "FREQUENCY_SWITCH",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x34",
     "name": "POWER_MODE",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -582,22 +556,19 @@
   {
     "code": "0x35",
     "name": "VIN_ON",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x36",
     "name": "VIN_OFF",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x37",
     "name": "INTERLEAVE",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2",
     "bitRanges": [
       {
@@ -625,22 +596,19 @@
   {
     "code": "0x38",
     "name": "IOUT_CAL_GAIN",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x39",
     "name": "IOUT_CAL_OFFSET",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x3A",
     "name": "FAN_CONFIG_1_2",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -678,22 +646,19 @@
   {
     "code": "0x3B",
     "name": "FAN_COMMAND_1",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x3C",
     "name": "FAN_COMMAND_2",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x3D",
     "name": "FAN_CONFIG_3_4",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -731,29 +696,25 @@
   {
     "code": "0x3E",
     "name": "FAN_COMMAND_3",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x3F",
     "name": "FAN_COMMAND_4",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x40",
     "name": "VOUT_OV_FAULT_LIMIT",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x41",
     "name": "VOUT_OV_FAULT_RESPONSE",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -776,29 +737,25 @@
   {
     "code": "0x42",
     "name": "VOUT_OV_WARN_LIMIT",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x43",
     "name": "VOUT_UV_WARN_LIMIT",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x44",
     "name": "VOUT_UV_FAULT_LIMIT",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x45",
     "name": "VOUT_UV_FAULT_RESPONSE",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -821,15 +778,13 @@
   {
     "code": "0x46",
     "name": "IOUT_OC_FAULT_LIMIT",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x47",
     "name": "IOUT_OC_FAULT_RESPONSE",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -852,15 +807,13 @@
   {
     "code": "0x48",
     "name": "IOUT_LV_FAULT_LIMIT",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x49",
     "name": "IOUT_LV_FAULT_RESPONSE",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -883,15 +836,13 @@
   {
     "code": "0x4A",
     "name": "IOUT_UC_FAULT_LIMIT",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x4B",
     "name": "IOUT_UC_FAULT_RESPONSE",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2",
     "bitRanges": [
       {
@@ -914,36 +865,33 @@
   {
     "code": "0x4C",
     "name": "IOUT_OC_WARN_LIMIT",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1"
   },
   {
     "code": "0x4D",
     "name": "Reserved",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x4E",
     "name": "Reserved",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x4F",
     "name": "OT_FAULT_LIMIT",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x50",
     "name": "OT_FAULT_RESPONSE",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -966,29 +914,25 @@
   {
     "code": "0x51",
     "name": "OT_WARN_LIMIT",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x52",
     "name": "UT_WARN_LIMIT",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x53",
     "name": "UT_FAULT_LIMIT",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x54",
     "name": "UT_FAULT_RESPONSE",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -1011,15 +955,13 @@
   {
     "code": "0x55",
     "name": "VIN_OV_FAULT_LIMIT",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x56",
     "name": "VIN_OV_FAULT_RESPONSE",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -1042,29 +984,25 @@
   {
     "code": "0x57",
     "name": "VIN_OV_WARN_LIMIT",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x58",
     "name": "VIN_UV_WARN_LIMIT",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x59",
     "name": "VIN_UV_FAULT_LIMIT",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x5A",
     "name": "VIN_UV_FAULT_RESPONSE",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -1087,15 +1025,13 @@
   {
     "code": "0x5B",
     "name": "IIN_OC_FAULT_LIMIT",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x5C",
     "name": "IIN_OC_FAULT_RESPONSE",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -1118,50 +1054,43 @@
   {
     "code": "0x5D",
     "name": "IIN_OC_WARN_LIMIT",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x5E",
     "name": "POWER_GOOD_ON",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x5F",
     "name": "POWER_GOOD_OFF",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x60",
     "name": "TON_DELAY",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x61",
     "name": "TON_RISE",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x62",
     "name": "TON_MAX_FAULT_LIMIT",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x63",
     "name": "TON_MAX_FAULT_RESPONSE",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -1184,43 +1113,38 @@
   {
     "code": "0x64",
     "name": "TOFF_DELAY",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x65",
     "name": "TOFF_FALL",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x66",
     "name": "TOFF_MAX_WARN_LIMIT",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x67",
     "name": "Reserved (Was Used In Revision 1.0)",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x68",
     "name": "POUT_OP_FAULT_LIMIT",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x69",
     "name": "POUT_OP_FAULT_RESPONSE",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -1243,106 +1167,103 @@
   {
     "code": "0x6A",
     "name": "POUT_OP_WARN_LIMIT",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x6B",
     "name": "PIN_OP_WARN_LIMIT",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0x6C",
     "name": "Reserved",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x6D",
     "name": "Reserved",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x6E",
     "name": "Reserved",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x6F",
     "name": "Reserved",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x70",
     "name": "Reserved (Test Input Fuse A)",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x71",
     "name": "Reserved (Test Input Fuse B)",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x72",
     "name": "Reserved (Test Input OR-ing A)",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x73",
     "name": "Reserved (Test Input OR-ing B)",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x74",
     "name": "Reserved (Test Output OR-ing)",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x75",
     "name": "Reserved",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x76",
     "name": "Reserved",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x77",
     "name": "Reserved",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0x78",
     "name": "STATUS_BYTE",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -1390,8 +1311,7 @@
   {
     "code": "0x79",
     "name": "STATUS_WORD",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2",
     "bitRanges": [
       {
@@ -1479,8 +1399,7 @@
   {
     "code": "0x7A",
     "name": "STATUS_VOUT",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -1528,8 +1447,7 @@
   {
     "code": "0x7B",
     "name": "STATUS_IOUT",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -1577,8 +1495,7 @@
   {
     "code": "0x7C",
     "name": "STATUS_INPUT",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -1626,8 +1543,7 @@
   {
     "code": "0x7D",
     "name": "STATUS_TEMPERATURE",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -1675,8 +1591,7 @@
   {
     "code": "0x7E",
     "name": "STATUS_CML",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -1724,8 +1639,7 @@
   {
     "code": "0x7F",
     "name": "STATUS_OTHER",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -1773,8 +1687,7 @@
   {
     "code": "0x80",
     "name": "STATUS_MFR_SPECIFIC",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -1822,8 +1735,7 @@
   {
     "code": "0x81",
     "name": "STATUS_FANS_1_2",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -1871,8 +1783,7 @@
   {
     "code": "0x82",
     "name": "STATUS_FANS_3_4",
-    "smBusWrite": "Write Byte",
-    "smBusRead": "Read Byte",
+    "type": "R/W",
     "bytes": "1",
     "bitRanges": [
       {
@@ -1920,22 +1831,21 @@
   {
     "code": "0x83",
     "name": "READ_KWH_IN",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read 32",
-    "bytes": "4"
+    "type": "Read",
+    "bytes": "4",
+    "ignore": true
   },
   {
     "code": "0x84",
     "name": "READ_KWH_OUT",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read 32",
-    "bytes": "4"
+    "type": "Read",
+    "bytes": "4",
+    "ignore": true
   },
   {
     "code": "0x85",
     "name": "READ_KWH_CONFIG",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2",
     "bitRanges": [
       {
@@ -2013,134 +1923,117 @@
   {
     "code": "0x86",
     "name": "READ_EIN",
-    "smBusWrite": "N/A",
-    "smBusRead": "Block Read",
-    "bytes": "5"
+    "type": "Read",
+    "bytes": "5",
+    "ignore": true
   },
   {
     "code": "0x87",
     "name": "READ_EOUT",
-    "smBusWrite": "N/A",
-    "smBusRead": "Block Read",
-    "bytes": "5"
+    "type": "Read",
+    "bytes": "5",
+    "ignore": true
   },
   {
     "code": "0x88",
     "name": "READ_VIN",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Word",
+    "type": "Read",
     "bytes": "2"
   },
   {
     "code": "0x89",
     "name": "READ_IIN",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Word",
+    "type": "Read",
     "bytes": "2"
   },
   {
     "code": "0x8A",
     "name": "READ_VCAP",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Word",
+    "type": "Read",
     "bytes": "2"
   },
   {
     "code": "0x8B",
     "name": "READ_VOUT",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Word",
+    "type": "Read",
     "bytes": "2"
   },
   {
     "code": "0x8C",
     "name": "READ_IOUT",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Word",
+    "type": "Read",
     "bytes": "2"
   },
   {
     "code": "0x8D",
     "name": "READ_TEMPERATURE_1",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Word",
+    "type": "Read",
     "bytes": "2"
   },
   {
     "code": "0x8E",
     "name": "READ_TEMPERATURE_2",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Word",
+    "type": "Read",
     "bytes": "2"
   },
   {
     "code": "0x8F",
     "name": "READ_TEMPERATURE_3",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Word",
+    "type": "Read",
     "bytes": "2"
   },
   {
     "code": "0x90",
     "name": "READ_FAN_SPEED_1",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Word",
+    "type": "Read",
     "bytes": "2"
   },
   {
     "code": "0x91",
     "name": "READ_FAN_SPEED_2",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Word",
+    "type": "Read",
     "bytes": "2"
   },
   {
     "code": "0x92",
     "name": "READ_FAN_SPEED_3",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Word",
+    "type": "Read",
     "bytes": "2"
   },
   {
     "code": "0x93",
     "name": "READ_FAN_SPEED_4",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Word",
+    "type": "Read",
     "bytes": "2"
   },
   {
     "code": "0x94",
     "name": "READ_DUTY_CYCLE",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Word",
+    "type": "Read",
     "bytes": "2"
   },
   {
     "code": "0x95",
     "name": "READ_FREQUENCY",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Word",
+    "type": "Read",
     "bytes": "2"
   },
   {
     "code": "0x96",
     "name": "READ_POUT",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Word",
+    "type": "Read",
     "bytes": "2"
   },
   {
     "code": "0x97",
     "name": "READ_PIN",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Word",
+    "type": "Read",
     "bytes": "2"
   },
   {
     "code": "0x98",
     "name": "PMBUS_REVISION",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Byte",
+    "type": "Read",
     "bytes": "1",
     "bitRanges": [
       {
@@ -2158,722 +2051,706 @@
   {
     "code": "0x99",
     "name": "MFR_ID",
-    "smBusWrite": "Block Write",
-    "smBusRead": "Block Read",
-    "bytes": "Variable"
+    "type": "R/W",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0x9A",
     "name": "MFR_MODEL",
-    "smBusWrite": "Block Write",
-    "smBusRead": "Block Read",
-    "bytes": "Variable"
+    "type": "R/W",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0x9B",
     "name": "MFR_REVISION",
-    "smBusWrite": "Block Write",
-    "smBusRead": "Block Read",
-    "bytes": "Variable"
+    "type": "R/W",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0x9C",
     "name": "MFR_LOCATION",
-    "smBusWrite": "Block Write",
-    "smBusRead": "Block Read",
-    "bytes": "Variable"
+    "type": "R/W",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0x9D",
     "name": "MFR_DATE",
-    "smBusWrite": "Block Write",
-    "smBusRead": "Block Read",
-    "bytes": "Variable"
+    "type": "R/W",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0x9E",
     "name": "MFR_SERIAL",
-    "smBusWrite": "Block Write",
-    "smBusRead": "Block Read",
-    "bytes": "Variable"
+    "type": "R/W",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0x9F",
     "name": "APP_PROFILE_SUPPORT",
-    "smBusWrite": "N/A",
-    "smBusRead": "Block Read",
-    "bytes": "Variable"
+    "type": "Read",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0xA0",
     "name": "MFR_VIN_MIN",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Word",
+    "type": "Read",
     "bytes": "2"
   },
   {
     "code": "0xA1",
     "name": "MFR_VIN_MAX",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Word",
+    "type": "Read",
     "bytes": "2"
   },
   {
     "code": "0xA2",
     "name": "MFR_IIN_MAX",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Word",
+    "type": "Read",
     "bytes": "2"
   },
   {
     "code": "0xA3",
     "name": "MFR_PIN_MAX",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Word",
+    "type": "Read",
     "bytes": "2"
   },
   {
     "code": "0xA4",
     "name": "MFR_VOUT_MIN",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Word",
+    "type": "Read",
     "bytes": "2"
   },
   {
     "code": "0xA5",
     "name": "MFR_VOUT_MAX",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Word",
+    "type": "Read",
     "bytes": "2"
   },
   {
     "code": "0xA6",
     "name": "MFR_IOUT_MAX",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Word",
+    "type": "Read",
     "bytes": "2"
   },
   {
     "code": "0xA7",
     "name": "MFR_POUT_MAX",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Word",
+    "type": "Read",
     "bytes": "2"
   },
   {
     "code": "0xA8",
     "name": "MFR_TAMBIENT_MAX",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Word",
+    "type": "Read",
     "bytes": "2"
   },
   {
     "code": "0xA9",
     "name": "MFR_TAMBIENT_MIN",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Word",
+    "type": "Read",
     "bytes": "2"
   },
   {
     "code": "0xAA",
     "name": "MFR_EFFICIENCY_LL",
-    "smBusWrite": "N/A",
-    "smBusRead": "Block Read",
-    "bytes": "14"
+    "type": "Read",
+    "bytes": "14",
+    "ignore": true
   },
   {
     "code": "0xAB",
     "name": "MFR_EFFICIENCY_HL",
-    "smBusWrite": "N/A",
-    "smBusRead": "Block Read",
-    "bytes": "14"
+    "type": "Read",
+    "bytes": "14",
+    "ignore": true
   },
   {
     "code": "0xAC",
     "name": "MFR_PIN_ACCURACY",
-    "smBusWrite": "N/A",
-    "smBusRead": "Read Byte",
+    "type": "Read",
     "bytes": "1"
   },
   {
     "code": "0xAD",
     "name": "IC_DEVICE_ID",
-    "smBusWrite": "N/A",
-    "smBusRead": "Block Read",
-    "bytes": "Variable"
+    "type": "Read",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0xAE",
     "name": "IC_DEVICE_REV",
-    "smBusWrite": "N/A",
-    "smBusRead": "Block Read",
-    "bytes": "Variable"
+    "type": "Read",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0xAF",
     "name": "Reserved",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0xB0",
     "name": "USER_DATA_00",
-    "smBusWrite": "Block Write",
-    "smBusRead": "Block Read",
-    "bytes": "Variable"
+    "type": "R/W",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0xB1",
     "name": "USER_DATA_01",
-    "smBusWrite": "Block Write",
-    "smBusRead": "Block Read",
-    "bytes": "Variable"
+    "type": "R/W",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0xB2",
     "name": "USER_DATA_02",
-    "smBusWrite": "Block Write",
-    "smBusRead": "Block Read",
-    "bytes": "Variable"
+    "type": "R/W",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0xB3",
     "name": "USER_DATA_03",
-    "smBusWrite": "Block Write",
-    "smBusRead": "Block Read",
-    "bytes": "Variable"
+    "type": "R/W",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0xB4",
     "name": "USER_DATA_04",
-    "smBusWrite": "Block Write",
-    "smBusRead": "Block Read",
-    "bytes": "Variable"
+    "type": "R/W",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0xB5",
     "name": "USER_DATA_05",
-    "smBusWrite": "Block Write",
-    "smBusRead": "Block Read",
-    "bytes": "Variable"
+    "type": "R/W",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0xB6",
     "name": "USER_DATA_06",
-    "smBusWrite": "Block Write",
-    "smBusRead": "Block Read",
-    "bytes": "Variable"
+    "type": "R/W",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0xB7",
     "name": "USER_DATA_07",
-    "smBusWrite": "Block Write",
-    "smBusRead": "Block Read",
-    "bytes": "Variable"
+    "type": "R/W",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0xB8",
     "name": "USER_DATA_08",
-    "smBusWrite": "Block Write",
-    "smBusRead": "Block Read",
-    "bytes": "Variable"
+    "type": "R/W",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0xB9",
     "name": "USER_DATA_09",
-    "smBusWrite": "Block Write",
-    "smBusRead": "Block Read",
-    "bytes": "Variable"
+    "type": "R/W",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0xBA",
     "name": "USER_DATA_10",
-    "smBusWrite": "Block Write",
-    "smBusRead": "Block Read",
-    "bytes": "Variable"
+    "type": "R/W",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0xBB",
     "name": "USER_DATA_11",
-    "smBusWrite": "Block Write",
-    "smBusRead": "Block Read",
-    "bytes": "Variable"
+    "type": "R/W",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0xBC",
     "name": "USER_DATA_12",
-    "smBusWrite": "Block Write",
-    "smBusRead": "Block Read",
-    "bytes": "Variable"
+    "type": "R/W",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0xBD",
     "name": "USER_DATA_13",
-    "smBusWrite": "Block Write",
-    "smBusRead": "Block Read",
-    "bytes": "Variable"
+    "type": "R/W",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0xBE",
     "name": "USER_DATA_14",
-    "smBusWrite": "Block Write",
-    "smBusRead": "Block Read",
-    "bytes": "Variable"
+    "type": "R/W",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0xBF",
     "name": "USER_DATA_15",
-    "smBusWrite": "Block Write",
-    "smBusRead": "Block Read",
-    "bytes": "Variable"
+    "type": "R/W",
+    "bytes": "Variable",
+    "ignore": true
   },
   {
     "code": "0xC0",
     "name": "MFR_MAX_TEMP_1",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0xC1",
     "name": "MFR_MAX_TEMP_2",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0xC2",
     "name": "MFR_MAX_TEMP_3",
-    "smBusWrite": "Write Word",
-    "smBusRead": "Read Word",
+    "type": "R/W",
     "bytes": "2"
   },
   {
     "code": "0xC3",
     "name": "Reserved",
-    "smBusWrite": "",
-    "smBusRead": "",
-    "bytes": ""
+    "type": "N/A",
+    "bytes": "",
+    "ignore": true
   },
   {
     "code": "0xC4",
     "name": "MFR_SPECIFIC_C4",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xC5",
     "name": "MFR_SPECIFIC_C5",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xC6",
     "name": "MFR_SPECIFIC_C6",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xC7",
     "name": "MFR_SPECIFIC_C7",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xC8",
     "name": "MFR_SPECIFIC_C8",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xC9",
     "name": "MFR_SPECIFIC_C9",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xCA",
     "name": "MFR_SPECIFIC_CA",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xCB",
     "name": "MFR_SPECIFIC_CB",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xCC",
     "name": "MFR_SPECIFIC_CC",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xCD",
     "name": "MFR_SPECIFIC_CD",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xCE",
     "name": "MFR_SPECIFIC_CE",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xCF",
     "name": "MFR_SPECIFIC_CF",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xD0",
     "name": "MFR_SPECIFIC_D0",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xD1",
     "name": "MFR_SPECIFIC_D1",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xD2",
     "name": "MFR_SPECIFIC_D2",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xD3",
     "name": "MFR_SPECIFIC_D3",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xD4",
     "name": "MFR_SPECIFIC_D4",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xD5",
     "name": "MFR_SPECIFIC_D5",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xD6",
     "name": "MFR_SPECIFIC_D6",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xD7",
     "name": "MFR_SPECIFIC_D7",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xD8",
     "name": "MFR_SPECIFIC_D8",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xD9",
     "name": "MFR_SPECIFIC_D9",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xDA",
     "name": "MFR_SPECIFIC_DA",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xDB",
     "name": "MFR_SPECIFIC_DB",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xDC",
     "name": "MFR_SPECIFIC_DC",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xDD",
     "name": "MFR_SPECIFIC_DD",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xDE",
     "name": "MFR_SPECIFIC_DE",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xDF",
     "name": "MFR_SPECIFIC_DF",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xE0",
     "name": "MFR_SPECIFIC_E0",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xE1",
     "name": "MFR_SPECIFIC_E1",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xE2",
     "name": "MFR_SPECIFIC_E2",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xE3",
     "name": "MFR_SPECIFIC_E3",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xE4",
     "name": "MFR_SPECIFIC_E4",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xE5",
     "name": "MFR_SPECIFIC_E5",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xE6",
     "name": "MFR_SPECIFIC_E6",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xE7",
     "name": "MFR_SPECIFIC_E7",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xE8",
     "name": "MFR_SPECIFIC_E8",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xE9",
     "name": "MFR_SPECIFIC_E9",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xEA",
     "name": "MFR_SPECIFIC_EA",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xEB",
     "name": "MFR_SPECIFIC_EB",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xEC",
     "name": "MFR_SPECIFIC_EC",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xED",
     "name": "MFR_SPECIFIC_ED",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xEE",
     "name": "MFR_SPECIFIC_EE",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xEF",
     "name": "MFR_SPECIFIC_EF",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xF0",
     "name": "MFR_SPECIFIC_F0",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xF1",
     "name": "MFR_SPECIFIC_F1",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xF2",
     "name": "MFR_SPECIFIC_F2",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xF3",
     "name": "MFR_SPECIFIC_F3",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xF4",
     "name": "MFR_SPECIFIC_F4",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xF5",
     "name": "MFR_SPECIFIC_F5",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xF6",
     "name": "MFR_SPECIFIC_F6",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xF7",
     "name": "MFR_SPECIFIC_F7",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xF8",
     "name": "MFR_SPECIFIC_F8",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xF9",
     "name": "MFR_SPECIFIC_F9",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xFA",
     "name": "MFR_SPECIFIC_FA",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xFB",
     "name": "MFR_SPECIFIC_FB",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xFC",
     "name": "MFR_SPECIFIC_FC",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xFD",
     "name": "MFR_SPECIFIC_FD",
-    "smBusWrite": "Mfr. Defined",
-    "smBusRead": "Mfr. Defined",
-    "bytes": "Mfr. Defined"
+    "type": "Mfr. Defined",
+    "bytes": "Mfr. Defined",
+    "ignore": true
   },
   {
     "code": "0xFE",
     "name": "MFR_SPECIFIC_COMMAND EXT",
-    "smBusWrite": "Extended Command",
-    "smBusRead": "Extended Command",
+    "type": "Extended Command",
     "bytes": "Mfr Defined"
   },
   {
     "code": "0xFF",
     "name": "PMBUS_COMMAND_EXT",
-    "smBusWrite": "Extended Command",
-    "smBusRead": "Extended Command",
+    "type": "Extended Command",
     "bytes": "Mfr Defined"
   }
 ]

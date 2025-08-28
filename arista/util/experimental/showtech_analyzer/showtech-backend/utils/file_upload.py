@@ -6,12 +6,119 @@ import os
 import tempfile
 import zipfile
 import re
+import json
 
 from .section_parsers import parse_content_by_type
 from .section_utils import determine_section_type
 from .log_sanity import perform_sanity_checks, get_system_map_data
 
-def parse_sections(text):
+
+# ---------------------------
+# Platform config helpers
+# ---------------------------
+
+def _configs_root():
+    # ../configs relative to this file
+    return os.path.join(os.path.dirname(__file__), '..', 'configs')
+
+
+def _load_platform_config(product_name: str):
+    """
+    Load platform configuration for the given product name from ../configs.
+    Uses configs/config.json to map product_name -> platform_configs/<file>.json
+    """
+    if not product_name:
+        return None
+
+    config_dir = _configs_root()
+    mapping_path = os.path.join(config_dir, 'config.json')
+
+    try:
+        with open(mapping_path, 'r', encoding='utf-8') as f:
+            mapping = json.load(f)
+    except FileNotFoundError:
+        print("config.json not found")
+        return None
+
+    if product_name not in mapping:
+        print(f"No mapping found for product: {product_name}")
+        return None
+
+    config_filename = mapping[product_name]
+    platform_config_path = os.path.join(config_dir, 'platform_configs', config_filename)
+
+    try:
+        with open(platform_config_path, 'r', encoding='utf-8') as f:
+            platform_config = json.load(f)
+            return platform_config
+    except FileNotFoundError:
+        print(f"Platform config file not found: {config_filename}")
+        return None
+
+
+def _extract_section_blocks(text: str):
+    """
+    Lightweight pass to split into (title, raw_content) blocks WITHOUT parsing,
+    so we can detect product/platform before section-specific parsers run.
+    """
+    lines = text.splitlines()
+    sections = []
+    current = {'title': None, 'content': []}
+
+    for line in lines:
+        stripped = line.strip()
+        if re.fullmatch(r"#+", stripped):
+            continue
+        if re.match(r"^#+\s*\S.*\S\s*#+$", stripped):
+            # push previous
+            if current['title'] or current['content']:
+                raw_content = '\n'.join(current['content']).rstrip()
+                sections.append((current['title'], raw_content))
+            # start new
+            title = re.sub(r"^#+", "", stripped)
+            title = re.sub(r"#+$", "", title).strip()
+            current = {'title': title, 'content': []}
+        else:
+            current['content'].append(line)
+
+    if current['title'] or current['content']:
+        raw_content = '\n'.join(current['content']).rstrip()
+        sections.append((current['title'], raw_content))
+
+    return sections
+
+
+def _detect_product_name_from_blocks(blocks):
+    """
+    Given (title, raw_content) blocks, try to extract a product name
+    from either 'fboss2 show product' or 'SMB SERIAL NUMBER' sections.
+    """
+    # 1) fboss2 show product -> "Product: <name>"
+    ans = []
+    for title, raw in blocks:
+        if title and title.strip().lower() == 'fboss2 show product':
+            m = re.search(r'^\s*Product\s*:\s*(.+?)\s*$', raw, flags=re.IGNORECASE | re.MULTILINE)
+            if m:
+                ans.append(m.group(1).strip())
+
+    # 2) SMB SERIAL NUMBER -> "Product Name: <name>"
+    for title, raw in blocks:
+        if title and title.strip().upper() == 'SMB SERIAL NUMBER':
+            m = re.search(r'^\s*Product\s+Name\s*:\s*(.+?)\s*$', raw, flags=re.IGNORECASE | re.MULTILINE)
+            if m:
+                ans.append(m.group(1).strip())
+    return ans
+
+
+# ---------------------------
+# Public parse flow
+# ---------------------------
+
+def parse_sections(text, platform_config=None):
+    """
+    Parse sections **with** a preloaded platform_config (may be None).
+    Platform config is passed down to section parsers in case parsing is platform-sensitive.
+    """
     lines = text.splitlines()
     sections = []
     current = {'title': None, 'content': []}
@@ -24,7 +131,7 @@ def parse_sections(text):
             if current['title'] or current['content']:
                 raw_content = '\n'.join(current['content']).rstrip()
                 section_type = determine_section_type(current['title'])
-                parsed_content = parse_content_by_type(section_type, raw_content)
+                parsed_content = parse_content_by_type(section_type, raw_content, platform_config)
 
                 sections.append({
                     'title': current['title'],
@@ -41,7 +148,7 @@ def parse_sections(text):
     if current['title'] or current['content']:
         raw_content = '\n'.join(current['content']).rstrip()
         section_type = determine_section_type(current['title'])
-        parsed_content = parse_content_by_type(section_type, raw_content)
+        parsed_content = parse_content_by_type(section_type, raw_content, platform_config)
 
         sections.append({
             'title': current['title'],
@@ -50,8 +157,8 @@ def parse_sections(text):
             'raw_content': raw_content,
         })
 
-    # Perform sanity checks on all parsed sections
-    sections = perform_sanity_checks(sections)
+    # Perform sanity checks with the already loaded platform_config
+    sections = perform_sanity_checks(sections, platform_config)
 
     return sections
 
@@ -66,10 +173,25 @@ def extract_hostname(sections):
 
 def handle_single_file_upload(file_storage):
     content = file_storage.read().decode('utf-8', errors='ignore')
-    sections = parse_sections(content)
 
-    # Get system map data
-    system_map = get_system_map_data(sections)
+    # First pass: split into raw blocks to detect product/platform
+    blocks = _extract_section_blocks(content)
+    product_names = _detect_product_name_from_blocks(blocks)
+    platform_config = None
+    product_name = None
+    for name in product_names:
+        curr_config = _load_platform_config(name)
+        if curr_config:
+            product_name = name
+            platform_config = curr_config
+            break
+    
+
+    # Parse with platform config available up front
+    sections = parse_sections(content, platform_config=platform_config)
+
+    # Build system map directly from platform_config
+    system_map = get_system_map_data(platform_config)
 
     # Extract hostname
     hostname = extract_hostname(sections)
@@ -84,11 +206,15 @@ def handle_single_file_upload(file_storage):
         'sections': sections
     }
 
-    # Add system_map if available
     if system_map:
         file_response['system_map'] = system_map
 
     return [file_response]
+
+
+# ---------------------------
+# ZIP helpers
+# ---------------------------
 
 class FileWrapper:
     """Wrapper to make file content behave like a file storage object."""
@@ -103,6 +229,7 @@ class FileWrapper:
 
     def seek(self, position):
         self._position = position
+
 
 def is_valid_showtech_file(filename, content):
     """Check if a file is valid showtech file based on filename and content rules."""
@@ -177,4 +304,3 @@ def expand_and_validate_files(files):
             continue
 
     return all_files_to_process
-

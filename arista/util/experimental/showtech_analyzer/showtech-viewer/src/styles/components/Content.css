@@ -11,10 +11,6 @@
   transition: box-shadow 0.2s ease, transform 0.2s ease;
 }
 
-.content.active {
-  /* Remove shadow from content section - shadow will be on log-display-section instead */
-}
-
 /* Content Topbar */
 .content-topbar {
   display: flex;
@@ -268,6 +264,11 @@
 /* Only allow scrolling in active sections - both vertical and horizontal */
 .section-card.active .section-content-wrapper.expanded {
   overflow: auto; /* Allow both horizontal and vertical scrolling when needed */
+}
+
+/* 2) let the table container handle scrolling and have right padding */
+.section-card.active .section-content-wrapper.expanded .table-container {
+  overflow: auto;                 /* vertical + horizontal scroll here */
 }
 
 /* View More Indicator - positioned relative to section-card, only show on inactive sections with overflow content */

@@ -220,7 +220,13 @@ const renderStructuredContent = (
     if (!registers || typeof registers !== 'object') {
       return <div className="section-text-content">No I2C dump data available</div>;
     }
-    const registerEntries = Object.entries(registers);
+    const toHexNum = (k) => {
+    const s = String(k).toLowerCase();
+    return parseInt(s.startsWith('0x') ? s.slice(2) : s, 16);
+    };
+    const registerEntries = Object.entries(registers).sort(
+      ([a], [b]) => toHexNum(a) - toHexNum(b)
+    );
     if (registerEntries.length === 0) {
       return <div className="section-text-content">No I2C registers found</div>;
     }
@@ -228,7 +234,7 @@ const renderStructuredContent = (
     return (
       <div ref={i2cContainerRef} className="i2c-dump-container">
         {/* Main table content */}
-        <div className="i2c-view main-table-view" style={{ display: selectedI2CEntry ? 'none' : 'block' }}>
+        <div className="i2c-view main-table-view" style={{ display: selectedI2CEntry ? 'none' : 'block', padding: '0 0 0.5rem 0' }}>
           <table className="section-table i2c-dump-table">
             <thead>
               <tr>

@@ -7,7 +7,6 @@ import json
 import os
 from typing import List
 
-
 # Do not add i2c dump sections to this list. They are detected dynamically.
 SECTION_TYPES = {
     'fboss2 show environment sensor': 'table',
@@ -33,40 +32,14 @@ SECTION_TYPES = {
     'fboss2 show interface phy': 'fboss2_interface_phy',
 }
 
-# Load PMBUS commands from JSON
-def load_pmbus_commands():
-    commands = {}
-    json_path = os.path.join(os.path.dirname(__file__), '..', 'pmbus_commands.json')
-    try:
-        with open(json_path, 'r', encoding='utf-8') as jsonfile:
-            data = json.load(jsonfile)
-            for item in data:
-                command_code = item['code']
-                command_name = item['name']
-                command_bytes = item.get('bytes', '1')
-                commands[command_code.lower()] = {
-                    'name': command_name,
-                    'bytes': command_bytes,
-                    'bitRanges': item.get('bitRanges', [])
-                }
-    except FileNotFoundError:
-        pass
-    return commands
-
-PMBUS_COMMANDS = load_pmbus_commands()
-
-
 def determine_section_type(title: str):
     if title in SECTION_TYPES:
         return SECTION_TYPES[title]
-
     # Check for i2c dump sections (case insensitive)
     if title and 'i2cdump' in title.lower():
         return 'i2c_dump'
-
     # Default to raw
     return 'raw'
-
 
 def extract_bit_field(hex_value: str, bit_range: str):
     try:
@@ -80,34 +53,62 @@ def extract_bit_field(hex_value: str, bit_range: str):
     except:
         return None
 
+# ---------------- I2C dump helpers ----------------
+
+_HEX_ROW = re.compile(r'^[0-9A-Fa-f]{2}:')  # e.g. "00:"
+
+def _norm_byte_token(tok: str) -> str:
+    """Normalize a byte token; return 'xx' for placeholders."""
+    t = tok.strip().lower()
+    if t in ('--', 'uu', 'xx'):
+        return 'xx'
+    # keep only 2 hex chars (defensive)
+    if re.fullmatch(r'[0-9a-f]{1,2}', t):
+        return t.zfill(2)
+    return 'xx'
+
+def _norm_word_token(tok: str) -> str:
+    """Normalize a word token; return 'xxxx' for placeholders."""
+    t = tok.strip().lower()
+    if t in ('----', 'xxxx'):
+        return 'xxxx'
+    # keep only up to 4 hex chars (defensive)
+    if re.fullmatch(r'[0-9a-f]{1,4}', t):
+        return t.zfill(4)
+    return 'xxxx'
+
 def parse_byte_dump(lines: List[str]):
+    """
+    Parse i2cdump byte mode rows into a dict:
+      key: '00'..'ff' (lowercase, no '0x')
+      val: '00'..'ff' or 'xx'
+    """
     byte_data = {}
     for line in lines:
-        if re.match(r'^[0-9A-Fa-f]{2}:', line):
+        if _HEX_ROW.match(line):
             parts = line.strip().split()
-            if len(parts) >= 2:
-                base = int(parts[0].rstrip(':'), 16)
-                values = parts[1:17]
-                for i, val in enumerate(values):
-                    addr = f"0x{base+i:02x}"
-                    if val and val != '--':
-                        byte_data[addr] = val.lower()
-                    else:
-                        byte_data[addr] = 'xx'
+            base = int(parts[0].rstrip(':'), 16)
+            # take up to 16 byte tokens
+            tokens = parts[1:17]
+            for i, tok in enumerate(tokens):
+                addr_key = f"{(base + i) & 0xFF:02x}"  # 2-digit hex, no 0x
+                byte_data[addr_key] = _norm_byte_token(tok)
     return byte_data
 
 def parse_word_dump(lines: List[str]):
+    """
+    Parse i2cdump word mode rows into a dict:
+      key: '00'..'ff' (lowercase, no '0x')
+      val: '0000'..'ffff' or 'xxxx'
+    """
     word_data = {}
     for line in lines:
-        if re.match(r'^[0-9A-Fa-f]{2}:', line):
+        if _HEX_ROW.match(line):
             parts = line.strip().split()
-            if len(parts) >= 2:
-                base = int(parts[0].rstrip(':'), 16)
-                values = parts[1:9]
-                for i, val in enumerate(values):
-                    addr = f"0x{base+i:02x}"
-                    if val and val != '----':
-                        word_data[addr] = val.lower()
-                    else:
-                        word_data[addr] = 'xxxx'
+            base = int(parts[0].rstrip(':'), 16)
+            # take up to 8 word tokens
+            tokens = parts[1:9]
+            for i, tok in enumerate(tokens):
+                addr_key = f"{(base + i) & 0xFF:02x}"  # 2-digit hex, no 0x
+                word_data[addr_key] = _norm_word_token(tok)
     return word_data

@@ -77,7 +77,7 @@ mkdir -p /app/data
 cd /app/backend
 export FLASK_ENV=development
 export FLASK_DEBUG=1
-python3 -c "
+python3 -u -c "
 import app
 if __name__ == '__main__':
     app.app.run(host='0.0.0.0', port=80, debug=True, use_reloader=True)
