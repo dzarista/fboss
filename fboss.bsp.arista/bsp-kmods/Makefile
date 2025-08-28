@@ -15,6 +15,7 @@ obj-m += scd-smbus.o
 obj-m += scd-leds.o
 obj-m += scd-xcvr.o
 obj-m += scd-spi.o
+obj-m += aucd9000.o
 
 # Backported drivers
 obj-y += backports/
