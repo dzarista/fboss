@@ -36,6 +36,8 @@ Meru800BiaShowtech::Meru800BiaShowtech() : MeruShowtech() {
                             1);
   fanCplds.emplace_back(std::make_unique<I2cHwmonDevice>(cpuCpld->addr, 1, 3,
                                                          "60", "dsf-fan-cpld"));
+  pca9539 =
+      std::make_unique<I2cGpioDevice>(cpuCpld->addr, 1, 0, "74", "pca953x");
 }
 
 Meru800BfaShowtech::Meru800BfaShowtech() : MeruShowtech() {
@@ -268,6 +270,23 @@ void MeruShowtech::printI2cInfo() {
   printSubHeader("FAN I2C DUMPS");
   for (const auto &fanCpld : fanCplds) {
     std::cout << fanCpld->i2cDump() << std::endl;
+  }
+
+  printGpioShowtechInfo();
+}
+
+void MeruShowtech::printGpioShowtechInfo() {
+  printMainHeader("GPIO EXPANDER I2C DUMP");
+  if (pca9539 == nullptr || pca9539->gpioPath == "") {
+    std::cout << "PCA9539 GPIO Expander NOT DETECTED \n" << std::endl;
+  } else {
+    const std::map<int, std::string> gpioNames = {
+        {0, "SCD_DONE"},      {1, "OVER_TEMP_L"},   {2, "SYS_PGOOD"},
+        {3, "P1V2_CP_PGOOD"}, {4, "SCD_CRC_ERR"},   {5, "P1V0_CP_PGOOD"},
+        {6, "P1V8_CP_PGOOD"}, {7, "P3V3_CP_PGOOD"}, {8, "SCD_PRGM_L"},
+        {9, "SCD_HOLD_L"},    {12, "CPU_QSPI_SEL"}, {14, "SCD_RESET_L"},
+    };
+    pca9539->printGpioDump(gpioNames);
   }
 }
 

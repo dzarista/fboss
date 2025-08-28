@@ -4,7 +4,9 @@
 #ifndef SHOWTECH_UTILS_H
 #define SHOWTECH_UTILS_H
 
+#include <map>
 #include <string>
+#include <vector>
 
 namespace showtech {
 int run_cmd(std::string cmd, std::string &output);
@@ -76,7 +78,9 @@ public:
     gpioPath = getGpioPath();
   }
   std::string gpioPath;
-  void printGpioValue(int num, std::string label);
+  std::string getGpioInfo(int num, std::string label);
+  std::string getGpioValue(int num, std::string label);
+  void printGpioDump(const std::map<int, std::string> &gpioNames);
 
 private:
   std::string getGpioPath();

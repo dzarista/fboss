@@ -203,11 +203,47 @@ std::string I2cGpioDevice::getGpioPath() {
   return "/dev/" + output.substr(output.find_last_of("/\\") + 1);
 }
 
-void I2cGpioDevice::printGpioValue(int num, std::string label) {
+std::string I2cGpioDevice::getGpioValue(int num, std::string label) {
   std::string cmd = "/usr/bin/gpioget " + gpioPath + " " + std::to_string(num);
   std::string output = run_cmd_no_check(cmd);
-  strip(output);
-  std::cout << label << ": " << output << std::endl;
+
+  return output;
 }
 
+std::string I2cGpioDevice::getGpioInfo(int num, std::string label) {
+
+  std::string chip = gpioPath.substr(gpioPath.find_last_of("/\\") + 1);
+
+  std::string cmd = "/usr/bin/gpioinfo " + chip + " " + std::to_string(num);
+  std::string line_info = run_cmd_no_check(cmd);
+
+  std::string direction = "unknown";
+  std::smatch match;
+  if (std::regex_search(line_info, match, std::regex("(input|output)"))) {
+    if (match[0].str() == "input") {
+      direction = "in";
+    } else if (match[0].str() == "output") {
+      direction = "out";
+    }
+  }
+  return direction;
+}
+
+void I2cGpioDevice::printGpioDump(const std::map<int, std::string> &gpioNames) {
+  std::cout << "VAL |  DIR  | GPIONAME" << std::endl;
+  std::cout << "----|-------|-----------------------------------" << std::endl;
+  for (const auto &entry : gpioNames) {
+    int gpioNum = entry.first;
+    std::string label = entry.second;
+
+    std::string value = getGpioValue(gpioNum, label);
+    strip(value);
+
+    std::string direction = getGpioInfo(gpioNum, label);
+
+    std::cout << "  " << value << " |  " << direction << "  |  " << label
+              << std::endl;
+  }
+  std::cout << std::endl;
+}
 } // namespace showtech

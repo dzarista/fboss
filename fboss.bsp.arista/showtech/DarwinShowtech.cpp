@@ -70,20 +70,13 @@ void DarwinShowtech::printFanspinnerInfo() {
   if (pca9539->gpioPath == "") {
     std::cout << "PCA9539 GPIO Expander NOT DETECTED" << std::endl;
   } else {
-    pca9539->printGpioValue(0, "RJ1_BKP_RED");
-    pca9539->printGpioValue(1, "RJ2_BKP_RED");
-    pca9539->printGpioValue(2, "RJ3_BKP_RED");
-    pca9539->printGpioValue(3, "GPIO_FTDI_RST");
-    pca9539->printGpioValue(4, "RJ1_PWR_OK");
-    pca9539->printGpioValue(5, "RJ2_PWR_OK");
-    pca9539->printGpioValue(6, "RJ3_PWR_OK");
-    pca9539->printGpioValue(9, "BMC_MOD_ID0");
-    pca9539->printGpioValue(10, "BMC_MOD_ID1");
-    pca9539->printGpioValue(11, "BMC_MOD_ID2");
-    pca9539->printGpioValue(12, "BMC_ALIVE");
-    pca9539->printGpioValue(13, "BMC_PGOOD_CONN");
-    pca9539->printGpioValue(14, "IOEXP_BMC_RESET");
-    pca9539->printGpioValue(15, "BMC_PRSNT_L");
+    const std::map<int, std::string> gpioNames = {
+        {0, "RJ1_BKP_RED"},      {1, "RJ2_BKP_RED"}, {2, "RJ3_BKP_RED"},
+        {3, "GPIO_FTDI_RST"},    {4, "RJ1_PWR_OK"},  {5, "RJ2_PWR_OK"},
+        {6, "RJ3_PWR_OK"},       {9, "BMC_MOD_ID0"}, {10, "BMC_MOD_ID1"},
+        {11, "BMC_MOD_ID2"},     {12, "BMC_ALIVE"},  {13, "BMC_PGOOD_CONN"},
+        {14, "IOEXP_BMC_RESET"}, {15, "BMC_PRSNT_L"}};
+    pca9539->printGpioDump(gpioNames);
   }
   std::cout << std::endl;
 }

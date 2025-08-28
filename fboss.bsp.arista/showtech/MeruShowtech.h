@@ -28,6 +28,7 @@ protected:
   // Pair of Power Controller Device and number of pages
   std::vector<std::pair<std::unique_ptr<I2cDevice>, int>> powerCtrlers;
   std::vector<std::unique_ptr<I2cHwmonDevice>> fanCplds;
+  std::unique_ptr<I2cGpioDevice> pca9539;
 
 private:
   int numFansPerCpld = 4;
@@ -38,6 +39,7 @@ private:
   void printPsuShowtechInfo();
   void printCfmShowtechInfo();
   void printNvmeInfo();
+  void printGpioShowtechInfo();
 };
 
 class Meru800BiaShowtech : public MeruShowtech {
