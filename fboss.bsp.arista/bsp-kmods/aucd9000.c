@@ -189,10 +189,16 @@ struct ucd9000_fault {
 	char timestamp_str[UCD9000_FAULT_TIMESTAMP_STR_LEN];
 };
 
+struct ucd9000_exponent {
+	bool valid;
+	s16 value;
+};
+
 struct ucd9000_fault_log {
 	u8 detail_byte_count;
 	time64_t base_time;
 	const struct ucd9000_fault_type (*fault_types)[BITS_PER_BYTE];
+	struct ucd9000_exponent exponents[PMBUS_PAGES];
 
 	u8 raw_bytes[I2C_SMBUS_BLOCK_MAX];
 	struct list_head fault_list;
@@ -583,6 +589,8 @@ static void ucd9000_probe_gpio(struct i2c_client *client,
 static void ucd9000_fault_log_get_config(const struct i2c_device_id *mid,
 				struct ucd9000_fault_log *fault_log)
 {
+	int i;
+
 	switch(mid->driver_data) {
 	case ucd90320:
 		fault_log->base_time = RTC_TIMESTAMP_BEGIN_2000;
@@ -601,6 +609,9 @@ static void ucd9000_fault_log_get_config(const struct i2c_device_id *mid,
 		fault_log->fault_types = ucd9000_fault_types;
 		break;
 	}
+
+	for (i = 0; i < PMBUS_PAGES; i++)
+		fault_log->exponents[i].valid = false;
 }
 
 static int ucd9000_fault_log_read_faults(struct i2c_client *client,
@@ -692,7 +703,7 @@ static void ucd9000_fault_log_parse_fault_detail(u8 *detail_buffer,
 
 	switch(detail_buffer_len) {
 	case UCD90320_FAULT_DETAIL_BYTE_COUNT:
-		detail->page = (page_and_msecs >> 27) + 1;
+		detail->page = (page_and_msecs >> 27);
 		msecs = page_and_msecs & 0x7ffffff;
 		days = (fault_id_and_days >> 11) & 0xffff;
 		/* Sequence faults use additional two value bytes. */
@@ -704,7 +715,7 @@ static void ucd9000_fault_log_parse_fault_detail(u8 *detail_buffer,
 		break;
 	case UCD9000_FAULT_DETAIL_BYTE_COUNT:
 	default:
-		detail->page = ((fault_id_and_days >> 23) & 0xf) + 1;
+		detail->page = ((fault_id_and_days >> 23) & 0xf);
 		msecs = page_and_msecs;
 		days = fault_id_and_days & 0x7fffff;
 		break;
@@ -725,8 +736,35 @@ static void ucd9000_fault_log_create_timestamp_str(const struct rtc_time *tm,
         tm->tm_min, tm->tm_sec);
 }
 
+static int ucd9000_read_vout_mode_exponent(struct i2c_client *client,
+				const struct i2c_device_id *mid,
+				struct ucd9000_exponent *exponents,
+				u8 page)
+{
+	int ret;
+
+	/* Only read VOUT_MODE if we haven't already successfuly read it. */
+	if (!exponents[page].valid) {
+		i2c_smbus_write_byte_data(client, PMBUS_PAGE, page);
+		if (mid->driver_data == ucd90320)
+			udelay(UCD90320_WAIT_DELAY_US);
+		ret = i2c_smbus_read_byte_data(client, PMBUS_VOUT_MODE);
+		if (ret < 0) {
+			dev_dbg(&client->dev,
+				"Failed to read vout_mode register: %d\n", ret);
+			return ret;
+		} else {
+			exponents[page].valid = true;
+			exponents[page].value = (s16) (((ret & 0x1f) << 27) >> 27);
+		}
+	}
+
+	return 0;
+}
+
 static void ucd9000_fault_log_create_value_str(struct i2c_client *client,
 				const struct i2c_device_id *mid,
+				struct ucd9000_exponent *exponents,
 				enum ucd9000_fault_format format, u8 page, u32 value,
 				char *value_str, size_t value_str_len)
 {
@@ -746,17 +784,11 @@ static void ucd9000_fault_log_create_value_str(struct i2c_client *client,
 		ret = snprintf(value_str, value_str_len, "%d", decoded_value);
 		break;
 	case FAULT_FORMAT_LINEAR16:
-		/* Need VOUT_MODE value for this page to compute voltage. */
-		i2c_smbus_write_byte_data(client, PMBUS_PAGE, page);
-		if (mid->driver_data == ucd90320)
-			udelay(UCD90320_WAIT_DELAY_US);
-		ret = i2c_smbus_read_byte_data(client, PMBUS_VOUT_MODE);
+		ret = ucd9000_read_vout_mode_exponent(client, mid, exponents, page);
 		if (ret < 0) {
-			dev_dbg(&client->dev,
-				"Failed to read vout_mode register: %d\n", ret);
 			snprintf(value_str, value_str_len, "unknown");
 		} else {
-			exponent = (s16) (((ret & 0x1f) << 27) >> 27);
+			exponent = exponents[page].value;
 			linear16_mantissa = (u16) value;
 			if (exponent >= 0)
 				decoded_value = linear16_mantissa << exponent;
@@ -788,11 +820,11 @@ static void ucd9000_fault_log_create_description_str(struct i2c_client *client,
 	bool paged;
 
 	if (fault->detail.type == UCD9000_FAULT_TYPE_GPI) {
-		snprintf(reason_str, sizeof(reason_str), "gpi-%u", fault->detail.page);
+		snprintf(reason_str, sizeof(reason_str), "gpi-%u", fault->detail.page + 1);
 		fault_fmt = FAULT_FORMAT_NA;
 		unit = "";
 	} else if (fault->detail.type == UCD9000_FAULT_TYPE_FAN) {
-		snprintf(reason_str, sizeof(reason_str), "fan-%u", fault->detail.page);
+		snprintf(reason_str, sizeof(reason_str), "fan-%u", fault->detail.page + 1);
 		fault_fmt = FAULT_FORMAT_LINEAR11;
 		unit = "RPM";
 	} else if (fault->detail.type < BITS_PER_BYTE) {
@@ -807,8 +839,8 @@ static void ucd9000_fault_log_create_description_str(struct i2c_client *client,
 		unit = "";
 	}
 
-	ucd9000_fault_log_create_value_str(client, mid, fault_fmt,
-			fault->detail.page, fault->detail.value, value_str,
+	ucd9000_fault_log_create_value_str(client, mid, fault_log->exponents,
+			fault_fmt, fault->detail.page, fault->detail.value, value_str,
 			sizeof(value_str));
 
 	snprintf(description_str, description_str_len,
@@ -816,7 +848,7 @@ static void ucd9000_fault_log_create_description_str(struct i2c_client *client,
 		reason_str,
 		fault->detail.paged ? "paged" : "non-paged",
 		fault->detail.type,
-		fault->detail.page,
+		fault->detail.page + 1,
 		value_str,
 		unit
 	);
