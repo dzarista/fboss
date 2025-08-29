@@ -14,6 +14,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef __AUCD9000_MERU800BFA_RELOAD_CAUSE_H__
+#define __AUCD9000_MERU800BFA_RELOAD_CAUSE_H__
+
 #include "aucd9000-reload-cause.h"
 
 /*
@@ -58,3 +61,5 @@ const struct encoded_reload_cause meru800bfa_aucd90320_encoded_rails[] = {
    DEFINE_RELOAD_CAUSE(22, "POS1V8_R1"),
    DEFINE_RELOAD_CAUSE(23, "POS3V3_OSFP_ABCD")
 };
+
+#endif /* __AUCD9000_MERU800BFA_RELOAD_CAUSE_H__ */

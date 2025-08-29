@@ -14,6 +14,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#ifndef __AUCD9000_DARWIN_RELOAD_CAUSE_H__
+#define __AUCD9000_DARWIN_RELOAD_CAUSE_H__
+
 #include "aucd9000-reload-cause.h"
 
 /*
@@ -75,3 +78,5 @@ const struct encoded_reload_cause darwin_aucd90320_encoded_rails[] = {
    DEFINE_RELOAD_CAUSE(15, "P0V8_AVDD"),
    DEFINE_RELOAD_CAUSE(16, "P0V9_VDD")
 };
+
+#endif /* __AUCD9000_DARWIN_RELOAD_CAUSE_H__ */
