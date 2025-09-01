@@ -57,6 +57,7 @@ class SetupFboss:
     ### ARISTA START ###
     J3 = "j3"
     J3B = "j3b"
+    J3C = "j3c"
     R3 = "r3"
     TH5 = "th5"
     ### ARISTA END ###
@@ -88,7 +89,14 @@ class SetupFboss:
                 *[os.environ["FBOSS_DATA"], SetupFboss.J2CP, SetupFboss.BDE_CONF]
             )
     ### ARISTA START ###
-        # TODO: Add j3+/j3ai+
+        # TODO: Add j3ai+
+        elif [x for x in output if "Broadcom" in x and "8867" in x and "rev 21" in x]:
+            self.src_fruid_full_path = os.path.join(
+                *[os.environ["FBOSS_DATA"], SetupFboss.J3C, SetupFboss.FRUID_CONF]
+            )
+            self.src_bde_full_path = os.path.join(
+                *[os.environ["FBOSS_DATA"], SetupFboss.J3, SetupFboss.BDE_CONF]
+            )
         elif [x for x in output if "Broadcom" in x and "8860" in x and "rev 11" in x]:
             self.src_fruid_full_path = os.path.join(
                 *[os.environ["FBOSS_DATA"], SetupFboss.J3B, SetupFboss.FRUID_CONF]
