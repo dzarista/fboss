@@ -20,20 +20,15 @@
 
 #include <linux/types.h>
 
-enum {
-   ENCODED_GPIS = 0,
-   ENCODED_RAILS = 1
-};
-
 struct encoded_reload_cause {
 	u8 id;
 	const char *description;
 };
 
-#define DEFINE_RELOAD_CAUSE(fault_id, fault_desc)  \
-{								                           \
-	.id = fault_id,						               \
-	.description = fault_desc				            \
+#define DEFINE_RELOAD_CAUSE(fault_id, fault_desc)	\
+{													\
+	.id = fault_id,									\
+	.description = fault_desc						\
 }
 
 #endif /* __AUCD9000_RELOAD_CAUSE_H__ */
