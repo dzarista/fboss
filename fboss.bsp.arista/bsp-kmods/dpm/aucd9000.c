@@ -177,11 +177,12 @@ struct ucd9000_fault_detail {
 	u8 type;
 	u32 value;
 	struct rtc_time timestamp;
+	s64 time_ms;
 };
 
 #define UCD9000_FAULT_REASON_STR_LEN	64
 #define UCD9000_FAULT_VALUE_STR_LEN	16
-#define UCD9000_FAULT_TIMESTAMP_STR_LEN	22
+#define UCD9000_FAULT_TIMESTAMP_STR_LEN	24
 #define UCD9000_FAULT_DESC_STR_LEN	256
 
 struct ucd9000_fault {
@@ -775,14 +776,15 @@ static void ucd9000_fault_log_parse_fault_detail(u8 *detail_buffer,
 	secs_since_base += msecs / 1000;
 	fault_time = base_time + secs_since_base;
 	rtc_time64_to_tm(fault_time, &detail->timestamp);
+	detail->time_ms = msecs % 1000;
 }
 
 static void ucd9000_fault_log_create_timestamp_str(const struct rtc_time *tm,
-				char *timestamp_str, size_t timestamp_str_len)
+				s64 time_ms, char *timestamp_str, size_t timestamp_str_len)
 {
-    snprintf(timestamp_str, timestamp_str_len, "%02d-%02d-%04d %02d:%02d:%02d",
+    snprintf(timestamp_str, timestamp_str_len, "%02d-%02d-%04d %02d:%02d:%02d.%03d",
         tm->tm_mon + 1, tm->tm_mday, tm->tm_year + 1900, tm->tm_hour,
-        tm->tm_min, tm->tm_sec);
+        tm->tm_min, tm->tm_sec, time_ms);
 }
 
 static int ucd9000_read_vout_mode_exponent(struct i2c_client *client,
@@ -957,7 +959,7 @@ static int ucd9000_fault_log_add_fault(struct i2c_client *client,
 		fault_log->base_time, &fault->detail);
 
 	ucd9000_fault_log_create_timestamp_str(&fault->detail.timestamp,
-		fault->timestamp_str, sizeof(fault->timestamp_str));
+		fault->detail.time_ms, fault->timestamp_str, sizeof(fault->timestamp_str));
 
 	ucd9000_fault_log_create_description_str(client, mid, fault_log, fault,
 		fault->description_str, sizeof(fault->description_str));
