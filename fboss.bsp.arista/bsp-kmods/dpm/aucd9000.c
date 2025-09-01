@@ -859,9 +859,9 @@ static void ucd9000_fault_log_create_value_str(struct i2c_client *client,
 }
 
 static bool ucd9000_get_encoded_reload_cause(
-				struct encoded_reload_cause *encoded_reload_causes,
+				const struct encoded_reload_cause *encoded_reload_causes,
 				u8 encoded_reload_cause_count, u8 fault_id,
-				struct encoded_reload_cause **found_encoded_reload_cause)
+				const struct encoded_reload_cause **found_encoded_reload_cause)
 
 {
 	u8 i;
@@ -888,7 +888,7 @@ static void ucd9000_fault_log_create_description_str(struct i2c_client *client,
 	char reason_str[UCD9000_FAULT_REASON_STR_LEN];
 	char value_str[UCD9000_FAULT_VALUE_STR_LEN];
 	enum ucd9000_fault_format fault_fmt;
-	struct encoded_reload_cause *encoded_reload_cause;
+	const struct encoded_reload_cause *encoded_reload_cause;
 	const char *unit;
 	bool paged;
 
