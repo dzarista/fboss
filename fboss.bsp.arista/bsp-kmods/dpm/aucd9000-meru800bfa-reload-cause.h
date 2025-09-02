@@ -23,7 +23,7 @@
  * Encoded reload causes for MERU800BFA SMB UCD90320.
  */
 const struct encoded_reload_cause meru800bfa_aucd90320_encoded_gpis[] = {
-	DEFINE_RELOAD_CAUSE(1, "SCM Unseated"),
+	DEFINE_RELOAD_CAUSE(1, "SUP Unseated"),
 	DEFINE_RELOAD_CAUSE(2, "CPU Fault"),
 	DEFINE_RELOAD_CAUSE(3, "SCD Watchdog Timeout"),
 	DEFINE_RELOAD_CAUSE(4, "Power Loss"),
@@ -33,7 +33,9 @@ const struct encoded_reload_cause meru800bfa_aucd90320_encoded_gpis[] = {
 	DEFINE_RELOAD_CAUSE(8, "POS3V3_OSFP_A_PGOOD"),
 	DEFINE_RELOAD_CAUSE(9, "POS3V3_OSFP_B_PGOOD"),
 	DEFINE_RELOAD_CAUSE(10, "POS3V3_OSFP_C_PGOOD"),
-	DEFINE_RELOAD_CAUSE(11, "POS3V3_OSFP_D_PGOOD")
+	DEFINE_RELOAD_CAUSE(11, "POS3V3_OSFP_D_PGOOD"),
+	DEFINE_RELOAD_CAUSE(12, "CPU_PWR"),
+	DEFINE_RELOAD_CAUSE(13, "SW_PWR")
 };
 
 const struct encoded_reload_cause meru800bfa_aucd90320_encoded_rails[] = {
