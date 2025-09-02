@@ -25,7 +25,7 @@
 const struct encoded_reload_cause darwin_aucd90160_encoded_gpis[] = {
 	DEFINE_RELOAD_CAUSE(2, "SLP_S3_L"),
 	DEFINE_RELOAD_CAUSE(3, "Over-Temperature"),
-	DEFINE_RELOAD_CAUSE(4, "Proc Error"),
+	DEFINE_RELOAD_CAUSE(4, "CPU CATERR"),
 	DEFINE_RELOAD_CAUSE(5, "Fans Missing")
 };
 
