@@ -1,0 +1,50 @@
+name: Check For Missing Platform Configs Changes
+
+on:
+  push:
+    paths:
+      - 'arista/util/configs-and-diagrams/GenerateConfigsAndDiagrams/BaseConfigs.py'
+      - 'arista/util/configs-and-diagrams/GenerateConfigsAndDiagrams/Platforms/**'
+      - 'fboss/platform/configs/**'
+  pull_request:
+    paths:
+      - 'arista/util/configs-and-diagrams/GenerateConfigsAndDiagrams/BaseConfigs.py'
+      - 'arista/util/configs-and-diagrams/GenerateConfigsAndDiagrams/Platforms/**'
+      - 'fboss/platform/configs/**'
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install diagrams
+
+    - name: Check JSON configs for all platforms
+      run: |
+        cd arista/util/configs-and-diagrams
+        python generate.py --update_all_configs
+
+        git add ../../../fboss/platform/configs/*
+
+        if ! git diff --cached --quiet; then
+          git diff --cached
+          echo "Changes to JSON platform configs are required."
+          echo "Please run the config generation tool locally and commit the changes."
+          echo "  cd arista/util/configs-and-diagrams"
+          echo "  python generate.py --update_all_configs"
+          exit 1
+        else
+          echo "No changes to JSON platform configs needed."
+          exit 0
+        fi

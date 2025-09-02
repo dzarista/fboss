@@ -1,0 +1,41 @@
+/* -------- Main Layout -------- */
+.app-container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+/* -------- Split Body -------- */
+.body {
+  flex: 1;
+  display: flex;
+  gap: 0.3rem;
+  overflow: hidden;
+  padding: 0.5rem;
+}
+
+/* -------- Content Area -------- */
+.content-area {
+  flex: 1;
+  display: flex;
+  gap: 0rem;
+  overflow: hidden;
+  background: var(--bg-secondary);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1),
+              0 2px 4px -1px rgba(0,0,0,0.06);
+  align-items: stretch;
+  box-sizing: border-box;
+}
+
+.no-files-message {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1),
+              0 2px 4px -1px rgba(0,0,0,0.06);
+}

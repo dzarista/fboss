@@ -3,6 +3,8 @@
 #include "fboss/lib/bsp/BspGenericSystemContainer.h"
 #include <folly/FileUtil.h>
 #include <folly/Singleton.h>
+#include "fboss/lib/bsp/darwin/DarwinBspPlatformMapping.h"
+#include "fboss/lib/bsp/glath05a-64o/Glath05a-64oBspPlatformMapping.h"
 #include "fboss/lib/bsp/icecube800bc/Icecube800bcBspPlatformMapping.h"
 #include "fboss/lib/bsp/icetea800bc/Icetea800bcBspPlatformMapping.h"
 #include "fboss/lib/bsp/janga800bic/Janga800bicBspPlatformMapping.h"
@@ -152,6 +154,22 @@ template <>
 std::shared_ptr<Icetea800bcSystemContainer>
 Icetea800bcSystemContainer::getInstance() {
   return _icetea800bcSystemContainer.try_get();
+
+using Glath05a_64oSystemContainer =
+    BspGenericSystemContainer<Glath05a_64oBspPlatformMapping>;
+folly::Singleton<Glath05a_64oSystemContainer> _glath05a_64oSystemContainer;
+template <>
+std::shared_ptr<Glath05a_64oSystemContainer>
+Glath05a_64oSystemContainer::getInstance() {
+  return _glath05a_64oSystemContainer.try_get();
+}
+
+using DarwinSystemContainer =
+    BspGenericSystemContainer<DarwinBspPlatformMapping>;
+folly::Singleton<DarwinSystemContainer> _darwinSystemContainer;
+template <>
+std::shared_ptr<DarwinSystemContainer> DarwinSystemContainer::getInstance() {
+  return _darwinSystemContainer.try_get();
 }
 
 } // namespace fboss

@@ -1,0 +1,56 @@
+#!/bin/sh
+
+kernel="vmlinuz*"
+initramfs="initramfs.live*"
+squashfs="squashfs.img"
+rpm_service="initializeFboss.service"
+rpm_script="initializeFboss"
+
+if [ -d "${swipath}" ]; then
+    cp "${swipath}/${kernel}" "${swipath}/${initramfs}" "${swipath}/${squashfs}" "${swipath}/${rpm_service}" "${swipath}/${rpm_script}" /tmp
+else
+    unzip -oq "${swipath}" "${kernel}" "${initramfs}" "${squashfs}" "${rpm_service}" "${rpm_script}" -d /tmp
+fi
+
+NEW_KERNEL="/tmp/$(ls /tmp | grep "^$kernel" | head -n 1)"
+NEW_INITRAMFS="/tmp/$(ls /tmp | grep "^$initramfs" | head -n 1)"
+SQUASHFS_IMAGE="/tmp/${squashfs}"
+NEW_RPM_SERVICE="/tmp/${rpm_service}"
+NEW_RPM_SCRIPT="/tmp/${rpm_script}"
+
+MOUNT_POINT="/mnt/flash"
+PERSISTENT_ROOT="${MOUNT_POINT}/boot"
+OVERLAYFS="${PERSISTENT_ROOT}/overlayfs"
+if [ ! -d "$OVERLAYFS" ]; then
+    echo "Management intf was not setup by sanitize"
+    mkdir -p "$OVERLAYFS"
+fi
+
+mkdir -p "${PERSISTENT_ROOT}/ovlwork"
+mkdir -p "${OVERLAYFS}/etc/systemd/system"
+mkdir -p "${OVERLAYFS}/usr/bin"
+
+mv "$SQUASHFS_IMAGE" "$PERSISTENT_ROOT"
+
+mkdir -p "${OVERLAYFS}/usr/lib/systemd/system"
+mv "$NEW_RPM_SERVICE" "${OVERLAYFS}/etc/systemd/system"
+mv "$NEW_RPM_SCRIPT" "${OVERLAYFS}/usr/bin"
+chmod +x "${OVERLAYFS}/usr/bin/$rpm_script"
+
+mkdir -p "${OVERLAYFS}/etc/systemd/system/multi-user.target.wants"
+ln -sf "/etc/systemd/system/$rpm_service" "${OVERLAYFS}/etc/systemd/system/multi-user.target.wants/$rpm_service"
+
+consoleSpeed=$(stty speed)
+
+KERNEL_PARAMS="root=live:LABEL=eos_flash rd.live.ram=1 rd.live.dir=/boot rd.live.overlay.overlayfs rd.live.overlay=LABEL=eos_flash:/boot/overlayfs rw biosdevname=0 crashkernel=128M fsck.repair=yes systemd.gpt_auto=0 console=ttyS0,$consoleSpeed 8250.nr_uarts=4 loglevel=5 printk.console_no_auto_verbose=1 nopat net.ifnames=0 msr.allow_writes=on swiotlb=4096 cma=512M@0-4G scd.lpc_irq=47 scd.lpc_res_addr=0xfe0b0000 scd.lpc_res_size=0x10000"
+
+echo "Loading new kernel..."
+kexec -l "$NEW_KERNEL" --initrd="$NEW_INITRAMFS" --append="$KERNEL_PARAMS"
+
+if [ $? -eq 0 ]; then
+    echo "New kernel loaded successfully. Rebooting..."
+    kexec -e
+else
+    echo "Failed to load new kernel. Aborting." 1>&2
+    exit 1
+fi

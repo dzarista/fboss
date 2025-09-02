@@ -1,0 +1,71 @@
+{
+  "platform": "Viper",
+  "product_name": "MERU800BIA",
+  "description": "Viper platform configuration for PCIE device validation",
+  "pcie_devices": [
+    {
+      "slot": "07:00.0",
+      "location": "SCM",
+      "device_type": "FPGA",
+      "description": "SCM FPGA",
+      "expected_speed": "Gen1x1"
+    },
+    {
+      "slot": "01:00.0",
+      "location": "SMB",
+      "device_type": "FPGA",
+      "description": "SMB FPGA",
+      "expected_speed": "Gen1x1"
+    },
+    {
+      "slot": "15:00.0",
+      "location": "ASIC0",
+      "device_type": "ASIC",
+      "description": "ASIC0",
+      "expected_speed": "Gen4x4"
+    }
+  ],
+  "i2c_devices": {
+    "18-0054": {
+      "name": "SMB_ISL68226_J3",
+      "i2c_spec": "isl68226"
+    },
+    "18-0055": {
+      "name": "SMB_ISL68226_OPTICS",
+      "i2c_spec": "isl68226"
+    },
+    "18-0045": {
+      "name": "SMB_RAA228926_J3",
+      "i2c_spec": "isl68226"
+    }
+  },
+  "system_map": {
+    "front": ["ports"],
+    "rear": ["psu", "fans"],
+    "ports": {
+      "num_ports": 39,
+      "grid_rows": 4,
+      "grid_columns": 12,
+      "port_map": [
+        [1, 5, 0, 11, 15, 0, 21, 25, 0, 31, 35, 0],
+        [2, 6, 0, 12, 16, 0, 22, 26, 0, 32, 36, 0],
+        [3, 7, 9, 13, 17, 19, 23, 27, 29, 33, 37, 39],
+        [4, 8, 10, 14, 18, 20, 24, 28, 30, 34, 38, 0]
+      ]
+    },
+    "fans": {
+      "num_fans": 4,
+      "grid_rows": 1,
+      "grid_columns": 4,
+      "fan_slots": [[1, 2, 3, 4]]
+    },
+    "psu": {
+      "num_psu": 2,
+      "grid_rows": 2,
+      "grid_columns": 1,
+      "psu_slots": [[1], 
+                    [2]]
+    }
+  }
+}
+

@@ -1,0 +1,22 @@
+### SHOWTECH TEST ###
+### SMB SERIAL NUMBER ###
+Product Name: TestSwitch
+Serial Number: TST22222222
+MAC Address: 00:1c:73:44:55:66
+
+### LSPCI ###
+03:00.0 Ethernet controller: Test ASIC Chip (rev 01)
+        Subsystem: Test ASIC Chip
+        Flags: bus master, fast devsel, latency 0, IRQ 24
+        Memory at f7000000 (64-bit, non-prefetchable) [size=16M]
+        Capabilities: [40] Power Management version 3
+        Capabilities: [50] MSI: Enable+ Count=1/1 Maskable- 64bit+
+        Capabilities: [70] Express (v2) Endpoint, MSI 00
+                LnkCap: Port #0, Speed 8GT/s, Width x4, ASPM L0s L1, Exit Latency L0s <64ns, L1 <1us
+                LnkSta: Speed 8GT/s, Width x4, TrErr- Train- SlotClk+ DLActive+ BWMgmt- ABWMgmt-
+
+### fboss2 show environment sensor ###
+Sensor                  Value    Status    Threshold
+-------------------------------------------------
+Temperature             95.0     CRITICAL  85.0
+Voltage                 5.0      CRITICAL  15.0
