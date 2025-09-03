@@ -77,6 +77,12 @@ enum chips { ucd9000, ucd90120, ucd90124, ucd90160, ucd90320, ucd9090,
 
 #define UCD9000_LOGGED_FAULTS_NOT_EMPTY_BIT	1
 
+#define UCD9000_LOGGED_FAULTS_BYTE_COUNT	12
+#define UCD9012X_LOGGED_FAULTS_BYTE_COUNT	13
+#define UCD90320_LOGGED_FAULTS_BYTE_COUNT	32
+#define UCD90160_LOGGED_FAULTS_BYTE_COUNT	18
+#define UCD90910_LOGGED_FAULTS_BYTE_COUNT	14
+
 #define UCD9000_FAULT_DETAIL_BYTE_COUNT	10
 #define UCD90320_FAULT_DETAIL_BYTE_COUNT	12
 enum {
@@ -146,7 +152,7 @@ static const struct ucd9000_fault_type ucd9000_fault_types[][BITS_PER_BYTE] = {
 	}
 };
 
-static const struct ucd9000_fault_type ucd901xx_fault_types[][BITS_PER_BYTE] = {
+static const struct ucd9000_fault_type ucd9012x_fault_types[][BITS_PER_BYTE] = {
 	// Non-paged faults
 	{
 		UCD9000_FAULT_TYPE(0, "Unknown", FAULT_FORMAT_NA, ""),
@@ -202,6 +208,7 @@ const struct encoded_reload_cause ucd9000_encoded_gpis[] = {};
 const struct encoded_reload_cause ucd9000_encoded_rails[] = {};
 
 struct ucd9000_fault_log {
+	u8 logged_faults_byte_count;
 	u8 detail_byte_count;
 	time64_t base_time;
 	const struct ucd9000_fault_type (*fault_types)[BITS_PER_BYTE];
@@ -620,19 +627,34 @@ static void ucd9000_fault_log_get_config(const struct i2c_device_id *mid,
 	int i;
 
 	switch(mid->driver_data) {
+	case ucd90120:
+	case ucd90124:
+		fault_log->base_time = 0;
+		fault_log->logged_faults_byte_count = UCD9012X_LOGGED_FAULTS_BYTE_COUNT;
+		fault_log->detail_byte_count = UCD9000_FAULT_DETAIL_BYTE_COUNT;
+		fault_log->fault_types = ucd9012x_fault_types;
+		break;
+	case ucd90160:
+		fault_log->base_time = 0;
+		fault_log->logged_faults_byte_count = UCD90160_LOGGED_FAULTS_BYTE_COUNT;
+		fault_log->detail_byte_count = UCD9000_FAULT_DETAIL_BYTE_COUNT;
+		fault_log->fault_types = ucd9000_fault_types;
+		break;
 	case ucd90320:
 		fault_log->base_time = RTC_TIMESTAMP_BEGIN_2000;
+		fault_log->logged_faults_byte_count = UCD90320_LOGGED_FAULTS_BYTE_COUNT;
 		fault_log->detail_byte_count = UCD90320_FAULT_DETAIL_BYTE_COUNT;
 		fault_log->fault_types = ucd9000_fault_types;
 		break;
-	case ucd90120:
-	case ucd90124:
-		fault_log->base_time = 0; // Epoch
+	case ucd90910:
+		fault_log->base_time = 0;
+		fault_log->logged_faults_byte_count = UCD90910_LOGGED_FAULTS_BYTE_COUNT;
 		fault_log->detail_byte_count = UCD9000_FAULT_DETAIL_BYTE_COUNT;
-		fault_log->fault_types = ucd901xx_fault_types;
+		fault_log->fault_types = ucd9000_fault_types;
 		break;
 	default:
-		fault_log->base_time = 0; // Epoch
+		fault_log->base_time = 0;
+		fault_log->logged_faults_byte_count = UCD9000_LOGGED_FAULTS_BYTE_COUNT;
 		fault_log->detail_byte_count = UCD9000_FAULT_DETAIL_BYTE_COUNT;
 		fault_log->fault_types = ucd9000_fault_types;
 		break;
@@ -667,12 +689,17 @@ static void ucd9000_fault_log_get_config(const struct i2c_device_id *mid,
 static int ucd9000_fault_log_read_faults(struct i2c_client *client,
 				struct ucd9000_fault_log *fault_log)
 {
+	u8 read_byte_count;
 	u8 read_buffer[I2C_SMBUS_BLOCK_MAX];
 	char hex_str[I2C_SMBUS_BLOCK_MAX * 2] = { 0 };
 	int i, count, pos, ret;
 
+	read_byte_count = fault_log->logged_faults_byte_count + 1;
+	if (read_byte_count > I2C_SMBUS_BLOCK_MAX)
+		read_byte_count = I2C_SMBUS_BLOCK_MAX;
+
 	ret = i2c_smbus_read_i2c_block_data(client, UCD9000_LOGGED_FAULTS,
-			I2C_SMBUS_BLOCK_MAX, read_buffer);
+			read_byte_count, read_buffer);
 	if (ret < 0) {
 		dev_dbg(&client->dev, "Failed to read logged faults register: %d\n",
 			ret);
@@ -702,13 +729,19 @@ static int ucd9000_fault_log_read_faults(struct i2c_client *client,
 }
 
 static void ucd9000_fault_log_clear_faults(struct i2c_client *client,
-				const struct i2c_device_id *mid)
+				const struct i2c_device_id *mid,
+				struct ucd9000_fault_log *fault_log)
 {
+	u8 clear_byte_count;
 	u8 clear_buffer[I2C_SMBUS_BLOCK_MAX] = {0};
 	int ret;
 
+	clear_byte_count = fault_log->logged_faults_byte_count + 1;
+	if (clear_byte_count > I2C_SMBUS_BLOCK_MAX)
+		clear_byte_count = I2C_SMBUS_BLOCK_MAX;
+
 	ret = i2c_smbus_write_block_data(client, UCD9000_LOGGED_FAULTS,
-			I2C_SMBUS_BLOCK_MAX, clear_buffer);
+			clear_byte_count, clear_buffer);
 	if (mid->driver_data == ucd90320)
 		udelay(UCD90320_WAIT_DELAY_US);
 	if (ret < 0)
@@ -1055,7 +1088,7 @@ static int ucd9000_probe_fault_log(struct i2c_client *client,
 			fault_iter->timestamp_str);
 	}
 
-	ucd9000_fault_log_clear_faults(client, mid);
+	ucd9000_fault_log_clear_faults(client, mid, fault_log);
 
 	return 0;
 }
