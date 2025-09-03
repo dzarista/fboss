@@ -56,8 +56,8 @@ const struct encoded_reload_cause darwin_aucd90320_encoded_gpis[] = {
 	DEFINE_RELOAD_CAUSE(3, "PSU AC Loss"),
 	DEFINE_RELOAD_CAUSE(4, "PSU DC Fault"),
 	DEFINE_RELOAD_CAUSE(5, "SCD Watchdog Timeout"),
-	DEFINE_RELOAD_CAUSE(6, "Reboot"),
-	DEFINE_RELOAD_CAUSE(7, "Reboot"),
+	DEFINE_RELOAD_CAUSE(6, "Requested by Software"),
+	DEFINE_RELOAD_CAUSE(7, "Requested by Software"),
 	DEFINE_RELOAD_CAUSE(8, "CPU Fault")
 };
 
