@@ -1,0 +1,9 @@
+{
+    "description": "This File Contains the Main Regex patterns to look for in showtech files",
+    "regexes": [
+        {
+            "name": "This is an example pattern",
+            "patterns": ["Variant1", "Variant2"]
+        }
+    ]
+}

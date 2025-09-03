@@ -674,7 +674,7 @@ def parse_content_by_type(ctype: str, content: str, platform_config=None):
         out['type'] = ctype
         return out
     if ctype == 'i2c_dump':
-        i2c_devices = platform_config["i2c_devices"] if platform_config else []
+        i2c_devices = platform_config["i2c_devices"] if platform_config else {}
         return parse_i2c_dump(content, i2c_devices)
     if ctype == 'key_value':
         return parse_key_value(content)

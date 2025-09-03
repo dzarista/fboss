@@ -10,10 +10,9 @@ from utils.log_sanity import (
     detect_down_ports,
     detect_missing_devices,
     detect_pcie_speed_mismatches,
-    perform_sanity_checks,
-    load_platform_config
+    perform_sanity_checks
 )
-from utils.file_upload import parse_sections
+from utils.file_upload import parse_sections, _load_platform_config
 
 
 class TestDetectCriticalSensors:
@@ -35,9 +34,8 @@ class TestDetectCriticalSensors:
         result = detect_critical_sensors(section)
         assert len(result) == 1
         assert result[0]['type'] == 'critical_sensor'
-        assert result[0]['field'] == 'Status'
         assert result[0]['value'] == 'CRITICAL'
-        assert result[0]['row_index'] == 1
+        assert result[0]['row'] == 1
         assert result[0]['severity'] == 'high'
         assert 'Critical value detected' in result[0]['message']
 
@@ -105,9 +103,8 @@ class TestDetectCriticalSensors:
         result = detect_critical_sensors(section)
         assert len(result) == 1
         assert result[0]['type'] == 'critical_sensor'
-        assert result[0]['field'] == 'Status'
         assert result[0]['value'] == 'ALARM'
-        assert result[0]['row_index'] == 1
+        assert result[0]['row'] == 1
         assert result[0]['severity'] == 'medium'
         assert 'Alarm value detected' in result[0]['message']
 
@@ -182,8 +179,8 @@ class TestDetectDownPorts:
         result = detect_down_ports(section)
         assert len(result) == 1
         assert result[0]['type'] == 'port_down'
-        assert result[0]['port_name'] == 'eth1/2'
-        assert result[0]['row_index'] == 1
+        assert result[0]['value'] == 'eth1/2'  # port_name is stored in value
+        assert result[0]['row'] == 1
         assert result[0]['severity'] == 'high'
 
     def test_detect_down_ports_none_found(self):
@@ -263,10 +260,10 @@ class TestDetectMissingDevices:
         result = detect_missing_devices(section, platform_config)
 
         assert len(result) == 1
-        assert result[0]['type'] == 'missing_device'
+        assert result[0]['type'] == 'PCIe Device Missing'
         assert result[0]['slot'] == '05:00.0'
         assert result[0]['device_type'] == 'FPGA'
-        assert result[0]['description'] == 'Test FPGA'
+        assert result[0]['value'] == 'Test FPGA'  # description is stored in value
 
     def test_detect_missing_devices_all_present(self):
         """Test when all expected devices are present"""
@@ -374,9 +371,9 @@ class TestDetectPcieSpeedMismatches:
         # Find ASIC mismatch
         asic_mismatch = next((r for r in result if r['slot'] == '03:00.0'), None)
         assert asic_mismatch is not None
-        assert asic_mismatch['type'] == 'pcie_speed_mismatch'
+        assert asic_mismatch['type'] == 'PCIe Device Speed Mismatch'
         assert asic_mismatch['device_type'] == 'ASIC'
-        assert asic_mismatch['expected_speed'] == '16.0GT/s x8'
+        assert asic_mismatch['expected_speed'] == 'Gen4x8'  # Raw format
         assert asic_mismatch['actual_speed'] == '8.0GT/s x4'
 
     def test_detect_pcie_speed_mismatches_none_found(self):
@@ -440,22 +437,22 @@ class TestPlatformConfigLoading:
 
     def test_load_platform_config_not_found(self):
         """Test loading platform config when product is not found"""
-        config = load_platform_config('NonExistentProduct')
+        config = _load_platform_config('NonExistentProduct')
         assert config is None
 
     def test_load_platform_config_empty_product_name(self):
         """Test loading platform config with empty product name"""
-        config = load_platform_config('')
+        config = _load_platform_config('')
         assert config is None
 
-        config = load_platform_config(None)
+        config = _load_platform_config(None)
         assert config is None
 
 
 class TestSanityChecksWithPlatformConfig:
     """Test sanity checks with platform-specific validation using real functions"""
 
-    @patch('utils.log_sanity.load_platform_config')
+    @patch('utils.file_upload._load_platform_config')
     def test_sanity_checks_with_platform_found(self, mock_load_config):
         """Test sanity checks when platform config is found"""
         # Mock the platform config loading to return a test config
@@ -481,17 +478,17 @@ class TestSanityChecksWithPlatformConfig:
             content = f.read()
 
         sections = parse_sections(content)
-        result = perform_sanity_checks(sections)
+        result = perform_sanity_checks(sections, mock_config, [])
 
         assert len(result) == 4
         for section in result:
             assert 'parsed_data' in section
-            # Should have anomalies stored in parsed_data.anomalies
-            if 'anomalies' in section['parsed_data']:
+            # Should have anomalies stored directly in section
+            if 'anomalies' in section:
                 # Platform config should be loaded for TestSwitch
                 pass
 
-    @patch('utils.log_sanity.load_platform_config')
+    @patch('utils.file_upload._load_platform_config')
     def test_sanity_checks_without_platform(self, mock_load_config):
         """Test sanity checks when platform config is not found"""
         # Mock the platform config loading to return None (not found)
@@ -508,19 +505,19 @@ Sensor                  Value    Status    Threshold
 Temperature             45.5     OK        85.0"""
 
         sections = parse_sections(sample_content)
-        result = perform_sanity_checks(sections)
+        result = perform_sanity_checks(sections, None, [])
 
         assert len(result) == 2
         for section in result:
             assert 'parsed_data' in section
             # Should still run basic checks even without platform config
-            # Anomalies stored in parsed_data.anomalies
+            # Anomalies stored directly in section
 
 
 class TestComprehensiveSanityChecks:
     """Test comprehensive sanity checks with all anomaly types"""
 
-    @patch('utils.log_sanity.load_platform_config')
+    @patch('utils.file_upload._load_platform_config')
     def test_sanity_checks_with_lspci_platform_found(self, mock_load_config):
         """Test sanity checks with LSPCI section and platform config"""
         # Mock the platform config loading to return a test config
@@ -552,7 +549,7 @@ class TestComprehensiveSanityChecks:
             content = f.read()
 
         sections = parse_sections(content)
-        result = perform_sanity_checks(sections)
+        result = perform_sanity_checks(sections, mock_config, [])
 
         # Should have 4 sections: SMB, LSPCI, sensors
         assert len(result) == 4
@@ -567,9 +564,9 @@ class TestComprehensiveSanityChecks:
         assert lspci_section is not None
         assert 'parsed_data' in lspci_section
         # Platform-specific checks should run for LSPCI when config is found
-        # Anomalies stored in parsed_data.anomalies
+        # Anomalies stored directly in section
 
-    @patch('utils.log_sanity.load_platform_config')
+    @patch('utils.file_upload._load_platform_config')
     def test_sanity_checks_with_pcie_issues(self, mock_load_config):
         """Test sanity checks detecting PCIe issues"""
         # Mock the platform config loading to return a test config
@@ -601,7 +598,7 @@ class TestComprehensiveSanityChecks:
             content = f.read()
 
         sections = parse_sections(content)
-        result = perform_sanity_checks(sections)
+        result = perform_sanity_checks(sections, mock_config, [])
 
         # Should have 4 sections: SMB, LSPCI, sensors
         assert len(result) == 4
@@ -620,20 +617,20 @@ class TestComprehensiveSanityChecks:
 
         # Should detect PCIe anomalies
         assert 'parsed_data' in lspci_section
-        lspci_anomalies = lspci_section['parsed_data'].get('anomalies', [])
+        lspci_anomalies = lspci_section.get('anomalies', [])
         # Should detect missing device and speed mismatch
         assert len(lspci_anomalies) >= 1
 
         # Should detect critical sensors
         assert 'parsed_data' in sensor_section
-        sensor_anomalies = sensor_section['parsed_data'].get('anomalies', [])
+        sensor_anomalies = sensor_section.get('anomalies', [])
         assert len(sensor_anomalies) >= 1
 
         # Verify anomaly types
         anomaly_types = [anomaly['type'] for anomaly in lspci_anomalies + sensor_anomalies]
         assert 'critical_sensor' in anomaly_types
 
-    @patch('utils.log_sanity.load_platform_config')
+    @patch('utils.file_upload._load_platform_config')
     def test_sanity_checks_all_anomaly_types(self, mock_load_config):
         """Test that all anomaly detection functions work together"""
         # Mock the platform config loading to return a test config
@@ -677,14 +674,14 @@ Current                 8.5      WARNING   5.0
                 LnkSta: Speed 8GT/s, Width x4, TrErr- Train- SlotClk+ DLActive+ BWMgmt- ABWMgmt-"""
 
         sections = parse_sections(sample_content)
-        result = perform_sanity_checks(sections)
+        result = perform_sanity_checks(sections, mock_config, [])
 
         # Should detect multiple types of anomalies
         all_anomalies = []
         for section in result:
-            # Anomalies are stored in parsed_data.anomalies
-            if 'parsed_data' in section and 'anomalies' in section['parsed_data']:
-                all_anomalies.extend(section['parsed_data']['anomalies'])
+            # Anomalies are stored directly in section
+            if 'anomalies' in section:
+                all_anomalies.extend(section['anomalies'])
 
         # Should have at least critical sensor and down port errors
         anomaly_types = [anomaly['type'] for anomaly in all_anomalies]
@@ -705,10 +702,10 @@ Sensor                  Value    Status    Threshold
 Temperature             45.5     OK        85.0"""
 
         sections = parse_sections(sample_content)
-        result = perform_sanity_checks(sections)
+        result = perform_sanity_checks(sections, None, [])
 
         # Should not crash and should still return sections with parsed_data
         assert len(result) == 2
         for section in result:
             assert 'parsed_data' in section
-            # Anomalies stored in parsed_data.anomalies (may be empty if no checks run)
+            # Anomalies stored directly in section (may be empty if no checks run)

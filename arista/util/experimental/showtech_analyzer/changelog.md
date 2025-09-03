@@ -1,3 +1,18 @@
+# v1.6.0
+- [FEATURE]: 
+  - Regex detection added to potential anomalies with both general patterns and platform specific ones
+  - Detection happens at the upload stage with other anomaly detections.
+  - Patterns are detected across a single row or multiple row long patterns of the raw content
+  - Rows with matching regexes are highlighted in Red
+- [UI]: 
+  - ErrorModal includes Regex matches, and on click navigates to the section 
+  - [TODO]: Navigation is still missing navigation to the specific row where match occurred.
+- [ORGANIZATION]: 
+  - Separated ErrorModal CSS to own file
+  - Separated logic of Raw Content rendering (to support highlighting Regex anomalies)
+  - Created new directory for platform specific regexes. 
+  - Renamed files in the configs directory to be more consistent and informative
+
 # v1.5.1
 - [BUG]: (v1.5.0 didn't handle case) The i2c parser has been updated to handle STDERR cases (no -b -w was given) and defaults to Byte sized outputs.
 

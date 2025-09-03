@@ -1,0 +1,6 @@
+{
+  "platform": "QuicksilverPFb",
+  "product_name": "GLATH05a-64o",
+  "description": "This file contains Quicksilver's regex patterns to look for in showtech files",
+  "regexes": []
+}
