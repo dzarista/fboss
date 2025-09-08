@@ -13,6 +13,7 @@ import {
   extractPhyData,
   extractInterfaceData,
   extractPortTypes,
+  extractPortStatus,
   extractCpuUptime,
   extractFpgaVersions,
 } from '../utils/extractors';
@@ -26,6 +27,7 @@ const SystemSummary = ({ sections, systemMap, slotIndex }) => {
   const phyData = useMemo(() => extractPhyData(sections), [sections]);
   const interfaceData = useMemo(() => extractInterfaceData(sections), [sections]);
   const portTypes = useMemo(() => extractPortTypes(sections), [sections]);
+  const portStatus = useMemo(() => extractPortStatus(sections), [sections]);
   const cpuUptime = useMemo(() => extractCpuUptime(sections), [sections]);
   const fpgaVersions = useMemo(() => extractFpgaVersions(sections), [sections]);
 
@@ -260,7 +262,7 @@ const SystemSummary = ({ sections, systemMap, slotIndex }) => {
           <div className="view-content">
             {frontHasPorts && (
               <div className="component-section ports-section">
-                <PortGrid portConfig={systemMap.ports} qsfpData={qsfpData} portTypes={portTypes} onPortClick={handlePortClick} heatmapMode={heatmapMode} heatmapSettings={heatmapSettings} />
+                <PortGrid portConfig={systemMap.ports} qsfpData={qsfpData} portTypes={portTypes} portStatus={portStatus} onPortClick={handlePortClick} heatmapMode={heatmapMode} heatmapSettings={heatmapSettings} />
               </div>
             )}
           </div>

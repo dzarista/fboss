@@ -1,3 +1,6 @@
+# v1.6.1
+- [FEATURE]: Added status light on each port in the port table. Green if up, red if down.
+
 # v1.6.0
 - [FEATURE]: 
   - Regex detection added to potential anomalies with both general patterns and platform specific ones
@@ -6,7 +9,7 @@
   - Rows with matching regexes are highlighted in Red
 - [UI]: 
   - ErrorModal includes Regex matches, and on click navigates to the section 
-  - [TODO]: Navigation is still missing navigation to the specific row where match occurred.
+  - Navigation points to the specific row where match occurred.
 - [ORGANIZATION]: 
   - Separated ErrorModal CSS to own file
   - Separated logic of Raw Content rendering (to support highlighting Regex anomalies)

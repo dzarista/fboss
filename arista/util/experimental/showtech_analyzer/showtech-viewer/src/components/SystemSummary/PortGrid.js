@@ -2,7 +2,7 @@ import React, { useMemo, memo } from 'react';
 import PortSlot from './PortSlot';
 import { pickTemperature, pickVoltage, calculatePercentile } from './utils';
 
-const PortGrid = memo(function PortGrid({ portConfig, qsfpData, portTypes = {}, onPortClick, heatmapMode = 'temp', heatmapSettings = { tempLow: 50, tempHigh: 75 } }) {
+const PortGrid = memo(function PortGrid({ portConfig, qsfpData, portTypes = {}, portStatus = {}, onPortClick, heatmapMode = 'temp', heatmapSettings = { tempLow: 50, tempHigh: 75 } }) {
   const { grid_rows, grid_columns, port_map } = portConfig || {};
 
   const grid = useMemo(() => {
@@ -66,6 +66,7 @@ const PortGrid = memo(function PortGrid({ portConfig, qsfpData, portTypes = {}, 
           portNum={portNum}
           qsfpData={qsfpData}
           portType={portTypes[portNum] || 'unknown'}
+          portStatus={portStatus[portNum] || null}
           heatmapMode={heatmapMode}
           temperaturePercentiles={temperaturePercentiles}
           voltagePercentiles={voltagePercentiles}

@@ -212,6 +212,40 @@ export const extractFpgaVersions = (sections) => {
   return null;
 };
 
+// Extract port status information from fboss2 show port section
+export const extractPortStatus = (sections) => {
+  const portStatus = {};
+
+  // Look for fboss2 show port section
+  const portSection = sections.find((s) => s.title === 'fboss2 show port');
+  if (!(portSection && portSection.parsed_data?.type === 'table' && portSection.parsed_data?.rows)) {
+    return portStatus;
+  }
+
+  const rows = portSection.parsed_data.rows || [];
+
+  rows.forEach((row) => {
+    const interfaceName = row.Name || row.Interface || row.Port;
+    if (!interfaceName) return;
+
+    // Extract port number from interface name patterns like eth1/11/1 -> port 11
+    const ethMatch = interfaceName.match(/eth\d+\/(\d+)\/\d+/);
+    const fabMatch = interfaceName.match(/fab\d+\/(\d+)\/\d+/);
+    const match = ethMatch || fabMatch;
+    if (!match) return;
+
+    const portNum = parseInt(match[1], 10);
+    portStatus[portNum] = {
+      adminState: row.AdminState || 'Unknown',
+      linkState: row.LinkState || 'Unknown',
+      transceiver: row.Transceiver || 'Unknown',
+      speed: row.Speed || 'Unknown'
+    };
+  });
+
+  return portStatus;
+};
+
 // Extract port type information from interface sections
 export const extractPortTypes = (sections) => {
   const portTypes = {};
