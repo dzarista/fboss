@@ -216,6 +216,17 @@ def extract_hostname(sections):
         return content if content else None
     return None
 
+def extract_showtech_version(sections):
+    """Extract showtech version from first section title"""
+    if sections and len(sections) > 0:
+        first_title = sections[0].get('title', '')
+        if first_title and 'showtech version' in first_title.lower():
+            # Extract version from section title like "SHOWTECH VERSION 1.4"
+            match = re.search(r'showtech\s+version\s+(.+)', first_title, re.IGNORECASE)
+            if match:
+                return match.group(1).strip()
+    return None
+
 def handle_single_file_upload(file_storage):
     content = file_storage.read().decode('utf-8', errors='ignore')
 
@@ -244,15 +255,18 @@ def handle_single_file_upload(file_storage):
     # Build system map directly from platform_config
     system_map = get_system_map_data(platform_config)
 
-    # Extract hostname
+    # Extract hostname and version
     hostname = extract_hostname(sections)
-
+    showtech_version = extract_showtech_version(sections)
+    
     file_response = {
         'name': file_storage.filename,
         'metadata': {
             'source_file': file_storage.filename,
             'total_sections': len(sections),
-            'hostname': hostname
+            'hostname': hostname,
+            'showtech_version': showtech_version,
+            'product_name': product_name
         },
         'sections': sections
     }

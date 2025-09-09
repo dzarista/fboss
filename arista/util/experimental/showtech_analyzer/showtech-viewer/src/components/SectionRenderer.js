@@ -2,6 +2,7 @@ import { forwardRef, useState, useRef, useEffect } from 'react';
 import { getRowStyling } from './ErrorDetection';
 import { BackArrowIcon, ChevronDownIcon } from '../assets/icons/Icon';
 import RawSectionRenderer from './RawSectionRenderer';
+import { getDiffCssClass } from '../utils/findDiff';
 
 // NOTE: Scrolling is now handled by section-content-wrapper to prevent double scrolling
 
@@ -52,7 +53,7 @@ const ViewMoreIndicator = ({ contentRef, isActive, isExpanded }) => {
   );
 };
 
-export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawContent }) => {
+export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawContent, isDiffMode, sectionDiff }) => {
   const [selectedI2CEntry, setSelectedI2CEntry] = useState(null);
   const i2cMainYRef = useRef(0);
   const i2cContainerRef = useRef(null);
@@ -121,7 +122,9 @@ export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawCo
             backToI2CMain,
             sectionIndex,
             section,
-            i2cContainerRef
+            i2cContainerRef,
+            isDiffMode,
+            sectionDiff
           )}
         </div>
       </div>
@@ -148,7 +151,9 @@ const renderStructuredContent = (
   backToI2CMain,
   sectionIndex,
   section,
-  i2cContainerRef
+  i2cContainerRef,
+  isDiffMode = false,
+  sectionDiff = null
 ) => {
   if (parsed_data.type === 'key_value') {
     const data = parsed_data.data || {};
@@ -199,6 +204,18 @@ const renderStructuredContent = (
                     console.error('Error in getRowStyling:', error);
                     rowClass = '';
                   }
+
+                  // Add diff highlighting for tables
+                  if (isDiffMode && sectionDiff?.type === 'table' && sectionDiff.diffs && parsed_data.headers.length > 0) {
+                    const keyColumn = parsed_data.headers[0];
+                    const keyValue = String(row[keyColumn]);
+                    const rowDiff = sectionDiff.diffs.get(keyValue);
+                    if (rowDiff) {
+                      const diffClass = getDiffCssClass(rowDiff.type);
+                      rowClass = rowClass ? `${rowClass} ${diffClass}` : diffClass;
+                    }
+                  }
+
                   return (
                     <tr key={rowIdx} className={rowClass} id={`section-${sectionIndex}-row-${rowIdx}`}>
                       {parsed_data.headers.map((header, colIdx) => (
@@ -245,25 +262,32 @@ const renderStructuredContent = (
               </tr>
             </thead>
             <tbody>
-              {registerEntries.map(([address, regData]) => (
-                <tr key={address}>
-                  <td className="address-col">{address}</td>
-                  <td className="command-col">
-                    {regData.bitRanges && regData.bitRanges.length > 0 ? (
-                      <button
-                        className="command-link"
-                        onClick={() => openI2COverlay({ address, data: regData })}
-                        title="Click to view bit ranges"
-                      >
-                        {regData.command || 'Unknown'}
-                      </button>
-                    ) : (
-                      <span>{regData.command || 'Unknown'}</span>
-                    )}
-                  </td>
-                  <td className="value-col">{regData.value || 'N/A'}</td>
-                </tr>
-              ))}
+              {registerEntries.map(([address, regData]) => {
+                // Get diff information for this address
+                const addressDiff = isDiffMode && sectionDiff?.type === 'i2c_dump' && sectionDiff.diffs ?
+                  sectionDiff.diffs.get(address) : null;
+                const diffClass = addressDiff ? getDiffCssClass(addressDiff.type) : '';
+
+                return (
+                  <tr key={address} className={diffClass}>
+                    <td className="address-col">{address}</td>
+                    <td className="command-col">
+                      {regData.bitRanges && regData.bitRanges.length > 0 ? (
+                        <button
+                          className="command-link"
+                          onClick={() => openI2COverlay({ address, data: regData })}
+                          title="Click to view bit ranges"
+                        >
+                          {regData.command || 'Unknown'}
+                        </button>
+                      ) : (
+                        <span>{regData.command || 'Unknown'}</span>
+                      )}
+                    </td>
+                    <td className="value-col">{regData.value || 'N/A'}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

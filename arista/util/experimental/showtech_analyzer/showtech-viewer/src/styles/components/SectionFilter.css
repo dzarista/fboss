@@ -119,10 +119,87 @@
 
 .section-filter-controls {
   display: flex;
+  justify-content: space-between;
   gap: 0.5rem;
   margin-bottom: 0.75rem;
   padding-bottom: 0.5rem;
   border-bottom: 1px solid var(--border-default, #e5e7eb);
+}
+
+.filter-control-buttons-right {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* Align button styling */
+.align-button {
+  background: var(--bg-primary, #ffffff);
+  border: 1px solid var(--border-default, #d1d5db);
+  color: var(--text-primary, #111827);
+}
+
+.align-button:hover {
+  background: var(--bg-hover, #f3f4f6);
+  border-color: var(--border-hover, #9ca3af);
+}
+
+.align-button.active {
+  background: var(--accent-primary, #3b82f6);
+  border-color: var(--accent-primary, #3b82f6);
+  color: white;
+}
+
+.align-button.active:hover {
+  background: var(--accent-primary-dark, #2563eb);
+  border-color: var(--accent-primary-dark, #2563eb);
+}
+
+/* Align mode tab styling */
+.section-filter-tab.align-mode {
+  opacity: 0.6;
+  cursor: not-allowed;
+  background: var(--bg-muted, #f3f4f6);
+}
+
+.section-filter-tab.align-mode:hover {
+  background: var(--bg-muted, #f3f4f6);
+  border-color: var(--border-default, #e5e7eb);
+}
+
+/* Diff button styling */
+.diff-button {
+  background: var(--bg-primary, #ffffff);
+  border: 1px solid var(--border-default, #d1d5db);
+  color: var(--text-primary, #111827);
+}
+
+.diff-button:hover {
+  background: var(--bg-hover, #f3f4f6);
+  border-color: var(--border-hover, #9ca3af);
+}
+
+.diff-button.active {
+  background: var(--accent-warning, #f59e0b);
+  border-color: var(--accent-warning, #f59e0b);
+  color: white;
+}
+
+.diff-button.active:hover {
+  background: var(--accent-warning-dark, #d97706);
+  border-color: var(--accent-warning-dark, #d97706);
+}
+
+/* Unified diff highlighting for tables and i2c dumps */
+.diff-insert {
+  background-color: rgba(76, 175, 80, 0.2) !important; /* Light green for insertions */
+}
+
+.diff-delete {
+  background-color: rgba(244, 67, 54, 0.2) !important; /* Light red for deletions */
+}
+
+.diff-change {
+  background-color: rgba(255, 235, 59, 0.3) !important; /* Light yellow for changes */
 }
 
 .filter-control-button {
@@ -229,4 +306,60 @@
   font-size: 0.875rem;
   color: var(--text-muted, #6b7280);
   text-align: center;
+}
+
+/* -------- Align Mode Popup -------- */
+.align-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1000;
+  background: var(--bg-primary);
+  border: 2px solid var(--accent-color);
+  border-radius: 8px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  max-width: 400px;
+  animation: fadeInScale 0.3s ease-out;
+}
+
+.align-popup-content {
+  padding: 1.5rem;
+}
+
+.align-popup-content h4 {
+  margin: 0 0 1rem 0;
+  color: var(--accent-color);
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.align-popup-content p {
+  margin: 0 0 0.75rem 0;
+  color: var(--text-primary);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.align-popup-content p:last-child {
+  margin-bottom: 0;
+  font-style: italic;
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+}
+
+.align-popup-content strong {
+  color: var(--accent-color);
+  font-weight: 600;
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
 }

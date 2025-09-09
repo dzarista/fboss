@@ -349,6 +349,20 @@
   font-size: 0.85em;
 }
 
+/* Diff highlighting styles */
+.raw-line {
+  line-height: 1.4;
+  padding: 0 4px;
+  margin: 0;
+}
+
+/* Diff background colors are applied inline for better control */
+
+/* In align mode, disable scrolling outside sections - only allow scrolling within active sections */
+.content.align-mode .sections-container {
+  overflow: hidden;
+}
+
 /* Table styling for parsed sections */
 .table-container,
 .i2c-dump-container,

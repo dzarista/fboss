@@ -29,6 +29,52 @@
   box-sizing: border-box;
 }
 
+/* When align controls are present, use column layout */
+.content-area:has(.align-controls) {
+  flex-direction: column;
+}
+
+/* Container for the two content panels when align controls are present */
+.content-area:has(.align-controls) .content-panels {
+  flex: 1;
+  display: flex;
+  gap: 0rem;
+}
+
+/* -------- Align Controls -------- */
+.align-controls {
+  display: flex;
+  justify-content: center;
+  padding: 0.5rem;
+  background: var(--bg-primary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.align-button {
+  padding: 0.5rem 1rem;
+  background: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.align-button:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.align-button.active {
+  background: var(--success-color);
+}
+
+.align-button.active:hover {
+  background: var(--success-hover);
+}
+
 .no-files-message {
   flex: 1;
   display: flex;

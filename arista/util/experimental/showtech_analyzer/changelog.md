@@ -1,3 +1,9 @@
+# v1.7.0
+- [FEATURE]: URL fragment navigation added to support linking to specific files and sections. (currently only supports open files in the local cache, will be covered with the DB PR).
+- [FEATURE]: Showtech files matching the same product and version have the two features:
+  - Can be aligned side by side for easy comparison (this locks the scrolling and only allows per section navigation through the side section filter)
+  - Can be diffed to see the differences between the two files. (It is recommended to use it with the Aligned feature simultaneouslty)
+
 # v1.6.1
 - [FEATURE]: Added status light on each port in the port table. Green if up, red if down.
 

@@ -6,7 +6,7 @@ import SystemSummary from './SystemSummary';
 import LoadingSpinner from './LoadingSpinner';
 
 
-export default function Content({ log, onClose, visibleSections, onJumpToSection, fontSize, onFontSizeChange, slotIndex, isActive, onActivate, isLoadingFromApp }) {
+export default function Content({ log, onClose, visibleSections, onJumpToSection, fontSize, onFontSizeChange, slotIndex, isActive, onActivate, isLoadingFromApp, isAlignMode, isDiffMode, diffs, onExitAlignMode, onExitDiffMode }) {
   const [expandedSections, setExpandedSections] = useState(new Set());
   const [allExpanded, setAllExpanded] = useState(false);
   const [activeSection, setActiveSection] = useState(null);
@@ -83,6 +83,14 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
 
         setShowSystemSummary(true);
 
+        // Exit align and diff modes when navigating to system summary
+        if (isAlignMode && onExitAlignMode) {
+          onExitAlignMode();
+        }
+        if (isDiffMode && onExitDiffMode) {
+          onExitDiffMode();
+        }
+
         // Restore system summary scroll position after a brief delay
         setTimeout(() => {
           const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
@@ -139,7 +147,35 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
         }
       };
 
+      // Register this content's activate section function
+      if (!window.activateSectionFunctions) {
+        window.activateSectionFunctions = {};
+      }
 
+      window.activateSectionFunctions[slotIndex] = (sectionIdx) => {
+        activateSection(sectionIdx);
+      };
+
+      // Register scroll to top function
+      if (!window.scrollToTopFunctions) {
+        window.scrollToTopFunctions = {};
+      }
+
+      window.scrollToTopFunctions[slotIndex] = () => {
+        const contentElement = document.querySelector(`.content-window[data-slot="${slotIndex}"] .sections-container`);
+        if (contentElement) {
+          contentElement.scrollTop = 0;
+        }
+      };
+
+      // Register function to get current active section
+      if (!window.getActiveSectionFunctions) {
+        window.getActiveSectionFunctions = {};
+      }
+
+      window.getActiveSectionFunctions[slotIndex] = () => {
+        return activeSection;
+      };
     }
 
     // Cleanup when component unmounts
@@ -147,8 +183,17 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
       if (window.jumpToSectionFunctions && slotIndex !== undefined) {
         delete window.jumpToSectionFunctions[slotIndex];
       }
+      if (window.activateSectionFunctions && slotIndex !== undefined) {
+        delete window.activateSectionFunctions[slotIndex];
+      }
+      if (window.scrollToTopFunctions && slotIndex !== undefined) {
+        delete window.scrollToTopFunctions[slotIndex];
+      }
+      if (window.getActiveSectionFunctions && slotIndex !== undefined) {
+        delete window.getActiveSectionFunctions[slotIndex];
+      }
     };
-  }, [onJumpToSection, slotIndex]);
+  }, [onJumpToSection, slotIndex, activeSection]);
 
   const toggleSection = (sectionIdx) => {
     const newExpanded = new Set(expandedSections);
@@ -180,7 +225,6 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
 
     setRawModeSections(newRawSections);
   };
-
 
 const LINE_FALLBACK_PX = 18; // used if computed line-height is not available
 
@@ -412,7 +456,7 @@ const handleNavigateToError = useCallback((error) => {
 
 
   return (
-    <div className={`content ${isActive ? 'active' : ''}`} style={{ fontSize: `${fontSize}px` }} onClick={onActivate}>
+    <div className={`content ${isActive && !isAlignMode ? 'active' : ''} ${isAlignMode ? 'align-mode' : ''} content-window`} data-slot={slotIndex} style={{ fontSize: `${fontSize}px` }} onClick={onActivate}>
 
 
       <div className="log-display-section">
@@ -561,6 +605,8 @@ const handleNavigateToError = useCallback((error) => {
                       sectionIndex={idx}
                       isRawMode={rawModeSections.has(idx)}
                       rawContent={sec.raw_content}
+                      isDiffMode={isDiffMode}
+                      sectionDiff={diffs?.get(idx)}
                     />
                   </CollapsibleSection>
                 ))}

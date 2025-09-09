@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function SectionFilter({
   openedFiles,
@@ -8,9 +8,25 @@ export default function SectionFilter({
   onToggleSection,
   onJumpToSection,
   onBulkToggle,
+  isAlignMode,
+  canAlign,
+  onToggleAlign,
+  isDiffMode,
+  onToggleDiff,
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [isBulkToggling, setIsBulkToggling] = useState(false);
+  const [showAlignPopup, setShowAlignPopup] = useState(false);
+
+  // Auto-hide align popup after 4 seconds
+  useEffect(() => {
+    if (showAlignPopup) {
+      const timer = setTimeout(() => {
+        setShowAlignPopup(false);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [showAlignPopup]);
 
   // Get the currently active file and its sections
   const activeFile = openedFiles[activeTab];
@@ -27,6 +43,14 @@ export default function SectionFilter({
       // Hide spinner - this is the LAST thing that happens
       setTimeout(() => setIsBulkToggling(false), 10);
     }, 10);
+  };
+
+  const handleAlignToggle = () => {
+    if (!isAlignMode) {
+      // Show popup when entering align mode
+      setShowAlignPopup(true);
+    }
+    onToggleAlign();
   };
 
   if (!openedFiles[0] && !openedFiles[1]) {
@@ -55,9 +79,10 @@ export default function SectionFilter({
               file && (
                 <button
                   key={index}
-                  className={`section-filter-tab ${activeTab === index ? 'active' : ''}`}
-                  onClick={() => onTabChange(index)}
+                  className={`section-filter-tab ${activeTab === index && !isAlignMode ? 'active' : ''} ${isAlignMode ? 'align-mode' : ''}`}
+                  onClick={() => !isAlignMode && onTabChange(index)}
                   title={file.name}
+                  disabled={isAlignMode}
                 >
                   {file.name}
                 </button>
@@ -83,6 +108,30 @@ export default function SectionFilter({
                   visibleSections?.size === sections.length ? "Hide All" : "Show All"
                 )}
               </button>
+
+              <div className="filter-control-buttons-right">
+                {/* Align button - only show when two files are open and can be aligned */}
+                {canAlign && (
+                  <button
+                    className={`filter-control-button align-button ${isAlignMode ? 'active' : ''}`}
+                    onClick={handleAlignToggle}
+                    title={isAlignMode ? "Exit Align Mode" : "Enter Align Mode - Synchronize scrolling and navigation"}
+                  >
+                    {isAlignMode ? "Exit Align" : "Align"}
+                  </button>
+                )}
+
+                {/* Diff Tables & I2C button - only show when two files are open and can be aligned */}
+                {canAlign && (
+                  <button
+                    className={`filter-control-button diff-button ${isDiffMode ? 'active' : ''}`}
+                    onClick={onToggleDiff}
+                    title={isDiffMode ? "Exit Diff Mode" : "Diff Tables & I2C - Highlight differences in tables and i2c dumps"}
+                  >
+                    {isDiffMode ? "Exit Diff" : "Diff Tables & I2C"}
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
@@ -121,6 +170,22 @@ export default function SectionFilter({
             </div>
           )}
         </>
+      )}
+
+      {/* Align Mode Explanation Popup */}
+      {showAlignPopup && (
+        <div className="align-popup">
+          <div className="align-popup-content">
+            <h4>Align Mode Activated</h4>
+            <p>
+              Both windows are now synchronized. Use the <strong>table of contents</strong> on the right to navigate -
+              clicking any section will jump to that section in both files simultaneously.
+            </p>
+            <p>
+              <em>Don't scroll manually - use the section links for synchronized navigation!</em>
+            </p>
+          </div>
+        </div>
       )}
     </div>
   );
