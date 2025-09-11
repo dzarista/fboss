@@ -16,8 +16,8 @@ cd "$(dirname "$0")"
 scratch_dir=/var/FBOSS/tmp_build_dir
 kernel_dir=/kernel-6.4
 getdeps=build/fbcode_builder/getdeps.py
-# map of sai arch-version to "<OCP SAI version> <SAI Version flag forom SaiVersion.h>"
-declare -A sai_map=( ["dnx-11.7"]="1.14.0 " # Build defaults to dnx-11.7 without setup
+# map of sai arch-version to "<OCP SAI version> <SAI Version flag from SaiVersion.h>"
+declare -A sai_map=( ["dnx-11.7"]="1.14.0 SAI_VERSION_11_7_0_0_DNX_ODP"
                      ["xgs-10.2"]="1.13.2 SAI_VERSION_10_2_0_0_ODP"
                      ["dnx-12.2"]="1.16.0 SAI_VERSION_12_2_0_0_DNX_ODP" )
 
@@ -133,6 +133,7 @@ export GETDEPS_USE_WGET=1
 export BUILD_FBOSS_CLI=1
 export IS_OSS=1
 export SAI_SDK_VERSION=$(echo $sai_info | awk '{print $2}')
+export SAI_VERSION=$ocp_sai_version
 unset DESTDIR
 # Configure ccache for compiler level caching
 export CCACHE_CONFIGPATH=$(realpath arista/build-utils/ccache.conf)
