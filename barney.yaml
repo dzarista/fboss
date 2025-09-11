@@ -42,6 +42,9 @@ images:
           ./package.sh --export-dir $PTESTDIR --compress
           mkdir -p $PTESTDIR/RPMS/dnx/6.4
           mv $PTESTDIR/RPMS/*.rpm $PTESTDIR/RPMS/dnx/6.4
+        quota:
+          memory: 270G
+          cpu: 10
 
   build-floor/xgs_6.4-el9:
     units:
@@ -60,6 +63,9 @@ images:
           ./package.sh --export-dir $PTESTDIR --compress
           mkdir -p $PTESTDIR/RPMS/xgs/6.4
           mv $PTESTDIR/RPMS/*.rpm $PTESTDIR/RPMS/xgs/6.4
+        quota:
+          memory: 270G
+          cpu: 10
 
   test/package_dnx_6.4-el9:
     description: Run swtests for package_dnx_6.4-el9 image
