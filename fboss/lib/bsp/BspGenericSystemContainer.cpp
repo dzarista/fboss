@@ -154,6 +154,7 @@ template <>
 std::shared_ptr<Icetea800bcSystemContainer>
 Icetea800bcSystemContainer::getInstance() {
   return _icetea800bcSystemContainer.try_get();
+}
 
 using Glath05a_64oSystemContainer =
     BspGenericSystemContainer<Glath05a_64oBspPlatformMapping>;
