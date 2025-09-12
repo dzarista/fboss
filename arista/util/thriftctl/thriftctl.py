@@ -36,7 +36,9 @@ SERVICE_MAPPING = {
 }
 
 def thrift_to_dict( obj ):
-   if isinstance( obj, list ):
+   if isinstance( obj, bytes ):
+      return obj.decode( 'utf-8', 'ignore' )
+   elif isinstance( obj, ( list, set ) ):
       return [ thrift_to_dict( item ) for item in obj ]
    elif isinstance( obj, dict ):
       return { key: thrift_to_dict( value ) for key, value in obj.items() }
