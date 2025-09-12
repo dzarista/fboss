@@ -143,6 +143,7 @@
   transition: all 0.2s ease;
   color: var(--text-primary);
   padding: 4px;
+  position: relative; /* For absolute positioning of status light */
 }
 
 .port-slot.empty {
@@ -213,6 +214,37 @@
 .port-slot.has-qsfp-data[style*="background-color"] .port-value {
   color: #ffffff;
   font-weight: 800;
+}
+
+/* Port status light - positioned in top-right corner */
+.port-status-light {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 2px solid;
+  z-index: 10;
+}
+
+/* Status light colors with border approach to avoid heatmap conflicts */
+.port-status-light.success {
+  background: var(--accent-success);
+  border-color: var(--accent-success);
+  box-shadow: 0 0 4px var(--accent-success);
+}
+
+.port-status-light.error {
+  background: var(--accent-error);
+  border-color: var(--accent-error);
+  box-shadow: 0 0 4px var(--accent-error);
+}
+
+/* Ensure status light is visible on heatmap backgrounds */
+.port-slot[style*="background-color"] .port-status-light {
+  border-width: 3px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8), 0 0 6px currentColor;
 }
 
 .port-type-badge {

@@ -6,6 +6,7 @@ const PortSlot = memo(function PortSlot({
   portNum,
   qsfpData,
   portType,
+  portStatus,
   heatmapMode,
   temperaturePercentiles,
   voltagePercentiles,
@@ -38,7 +39,24 @@ const PortSlot = memo(function PortSlot({
   const unit = heatmapMode === 'temp' ? '°C' : 'V';
   const decimals = heatmapMode === 'temp' ? 1 : 2;
 
+  // Determine port status light
+  let statusLight = null;
+  if (portStatus) {
+    const { adminState, linkState, transceiver } = portStatus;
+    const isActiveAndDown = adminState === 'Enabled' && transceiver === 'Present' && linkState === 'Down';
+    const isActiveAndUp = adminState === 'Enabled' && transceiver === 'Present' && linkState === 'Up';
+
+    if (isActiveAndDown) {
+      statusLight = 'error'; // Red light for active but down ports
+    } else if (isActiveAndUp) {
+      statusLight = 'success'; // Green light for active and up ports
+    }
+  }
+
   let tooltip = `Port ${portNum} (${portType})`;
+  if (portStatus) {
+    tooltip += `\nAdmin: ${portStatus.adminState}, Link: ${portStatus.linkState}, Transceiver: ${portStatus.transceiver}`;
+  }
   if (hasQsfpData) {
     if (value != null) {
       const valueDisplay = `${typeof value === 'number' ? value.toFixed(decimals) : value}${unit}`;
@@ -57,6 +75,9 @@ const PortSlot = memo(function PortSlot({
       onClick={hasQsfpData ? () => onPortClick(portNum, portData, portType) : undefined}
       style={{ cursor: hasQsfpData ? 'pointer' : 'default', backgroundColor: heatmapColor || undefined }}
     >
+      {statusLight && (
+        <div className={`port-status-light ${statusLight}`} />
+      )}
       <span className="port-number">{portNum}</span>
       {displayValue != null && (
         <span className="port-value">

@@ -11,12 +11,89 @@ const getErrorTypeDisplay = (errorType) => {
       return 'Critical Sensor';
     case 'port_down':
       return 'Port Down';
+    case 'regex_match':
+      return 'Regex Match';
     default:
-      return errorType.replace('_', ' ');
+      return (errorType || '').replace('_', ' ');
   }
 };
 
-// Error Indicator Component
+// -------- dynamic details helpers --------
+
+const isPresent = (v) => v !== null && v !== undefined && v !== '';
+
+const startCase = (s) =>
+  String(s || '')
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+
+const LABEL_MAP = {
+  device_type: 'Type',
+  description: 'Desc',
+  location: 'Location',
+  slot: 'Slot',
+  expected_speed: 'Expected Speed',
+  actual_speed: 'Actual Speed',
+  view: 'View',
+  line: 'Line',
+  rowIndex: 'Row',
+  pattern: 'Pattern',
+  message: 'Message'
+};
+
+// Build an array of {label?, value} lines from an error object
+const buildDetailLines = (error) => {
+  const lines = [];
+
+  // 1) Primary message (or pattern) — show as a plain line (no label)
+  if (isPresent(error?.message) || isPresent(error?.pattern)) {
+    lines.push({ value: error.message || error.pattern });
+  }
+
+  // 2) Device info block (if present) — iterate keys dynamically
+  if (error?.deviceInfo && typeof error.deviceInfo === 'object') {
+    Object.entries(error.deviceInfo).forEach(([k, v]) => {
+      if (!isPresent(v)) return;
+      lines.push({ label: LABEL_MAP[k] || startCase(k), value: v });
+    });
+  }
+
+  // 3) Other commonly useful fields on the error itself (dynamic)
+  // Only include if they are actually present AND meaningful.
+  const ownFields = [
+    // numeric/int-ish
+    ...(Object.prototype.hasOwnProperty.call(error, 'rowIndex') && Number.isInteger(error.rowIndex)
+      ? [{ label: LABEL_MAP.rowIndex, value: error.rowIndex + 1 }]
+      : []),
+    ...(Object.prototype.hasOwnProperty.call(error, 'line') && Number.isInteger(error.line)
+      ? [{ label: LABEL_MAP.line, value: error.line + 1 }]
+      : []),
+
+    // simple strings
+    ...(isPresent(error.view) ? [{ label: LABEL_MAP.view, value: error.view }] : []),
+
+    // include slot/description/etc if they were put on the top-level error (some detectors do)
+    ...(isPresent(error.slot) ? [{ label: LABEL_MAP.slot, value: error.slot }] : []),
+    ...(isPresent(error.location) ? [{ label: LABEL_MAP.location, value: error.location }] : []),
+    ...(isPresent(error.description) ? [{ label: LABEL_MAP.description, value: error.description }] : []),
+    ...(isPresent(error.expected_speed) ? [{ label: LABEL_MAP.expected_speed, value: error.expected_speed }] : []),
+    ...(isPresent(error.actual_speed) ? [{ label: LABEL_MAP.actual_speed, value: error.actual_speed }] : [])
+  ];
+
+  lines.push(...ownFields);
+
+  // Remove duplicates (same label+value pairs)
+  const seen = new Set();
+  return lines.filter(({ label = '', value = '' }) => {
+    const key = `${label}::${value}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+// ------------------------------------------
+
 export const ErrorIndicator = ({ errorCount, onClick }) => {
   if (errorCount === 0) return null;
 
@@ -35,12 +112,9 @@ export const ErrorIndicator = ({ errorCount, onClick }) => {
   );
 };
 
-// Error Summary Modal Component
 export const ErrorSummaryModal = ({ errors, isOpen, onClose, onNavigateToSection }) => {
-  // Initialize all sections as collapsed by default
   const [collapsedSections, setCollapsedSections] = useState(new Set());
 
-  // Update collapsed sections when errors change
   useEffect(() => {
     if (errors && errors.length > 0) {
       const groupedErrors = errors.reduce((acc, error) => {
@@ -56,9 +130,7 @@ export const ErrorSummaryModal = ({ errors, isOpen, onClose, onNavigateToSection
   if (!isOpen) return null;
 
   const handleBackdropClick = (e) => {
-    if (e.target === e.currentTarget) {
-      onClose();
-    }
+    if (e.target === e.currentTarget) onClose();
   };
 
   const handleErrorClick = (error) => {
@@ -67,20 +139,15 @@ export const ErrorSummaryModal = ({ errors, isOpen, onClose, onNavigateToSection
   };
 
   const toggleSectionCollapse = (sectionTitle) => {
-    const newCollapsed = new Set(collapsedSections);
-    if (newCollapsed.has(sectionTitle)) {
-      newCollapsed.delete(sectionTitle);
-    } else {
-      newCollapsed.add(sectionTitle);
-    }
-    setCollapsedSections(newCollapsed);
+    const next = new Set(collapsedSections);
+    if (next.has(sectionTitle)) next.delete(sectionTitle);
+    else next.add(sectionTitle);
+    setCollapsedSections(next);
   };
 
   const groupedErrors = errors.reduce((acc, error) => {
     const key = error.sectionTitle;
-    if (!acc[key]) {
-      acc[key] = [];
-    }
+    if (!acc[key]) acc[key] = [];
     acc[key].push(error);
     return acc;
   }, {});
@@ -90,17 +157,17 @@ export const ErrorSummaryModal = ({ errors, isOpen, onClose, onNavigateToSection
       <div className="error-modal">
         <div className="error-modal-header">
           <h2>Critical Items</h2>
-          <button
-            className="error-modal-close"
-            onClick={onClose}
-            aria-label="Close error summary"
-          >
+          <button className="error-modal-close" onClick={onClose} aria-label="Close error summary">
             &times;
           </button>
         </div>
         <div className="error-modal-content">
           <div className="error-summary-stats">
-            <p>{errors.length} critical item{errors.length !== 1 ? 's' : ''} found across {Object.keys(groupedErrors).length} section{Object.keys(groupedErrors).length !== 1 ? 's' : ''}</p>
+            <p>
+              {errors.length} critical item{errors.length !== 1 ? 's' : ''} found across{' '}
+              {Object.keys(groupedErrors).length} section
+              {Object.keys(groupedErrors).length !== 1 ? 's' : ''}
+            </p>
           </div>
           <div className="error-list">
             {Object.entries(groupedErrors).map(([sectionTitle, sectionErrors]) => {
@@ -125,32 +192,40 @@ export const ErrorSummaryModal = ({ errors, isOpen, onClose, onNavigateToSection
                       />
                     </button>
                   </div>
+
                   {!isCollapsed && (
                     <ul className="error-items">
-                      {sectionErrors.map((error, index) => (
-                        <li key={index} className="error-item">
-                          <button
-                            className="error-link"
-                            onClick={() => handleErrorClick(error)}
-                            title="Click to navigate to this error"
-                          >
-                            <div className="error-location">{error.location}</div>
-                            <div className="error-value">"{error.value}"</div>
-                            <div className="error-type">{getErrorTypeDisplay(error.type)}</div>
-                            {error.deviceInfo && (
-                              <div className="error-details">
-                                <div className="device-detail">Type: {error.deviceInfo.device_type}</div>
-                                {error.deviceInfo.expected_speed && (
-                                  <div className="device-detail">Expected Speed: {error.deviceInfo.expected_speed}</div>
-                                )}
-                                {error.deviceInfo.actual_speed && (
-                                  <div className="device-detail">Actual Speed: {error.deviceInfo.actual_speed}</div>
-                                )}
-                              </div>
-                            )}
-                          </button>
-                        </li>
-                      ))}
+                      {sectionErrors.map((error, index) => {
+                        const details = buildDetailLines(error);
+                        return (
+                          <li key={index} className="error-item">
+                            <button
+                              className="error-link"
+                              onClick={() => handleErrorClick(error)}
+                              title="Click to navigate to this error"
+                            >
+                              {/* 1) Type first (always) */}
+                              <div className="error-type">{getErrorTypeDisplay(error.type)}</div>
+
+                              {/* 2) Value second (always if provided) */}
+                              {isPresent(error.value) && (
+                                <div className="error-value">"{error.value}"</div>
+                              )}
+
+                              {/* 3) Dynamic details (only fields that exist) */}
+                              {details.length > 0 && (
+                                <div className="error-details">
+                                  {details.map((d, i) => (
+                                    <div key={i} className="device-detail">
+                                      {d.label ? `${d.label}: ${d.value}` : d.value}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </button>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </div>

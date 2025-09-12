@@ -55,6 +55,51 @@ def _load_platform_config(product_name: str):
         print(f"Platform config file not found: {config_filename}")
         return None
 
+    
+def _get_general_regex():
+    config_dir = _configs_root()
+    regex_path = os.path.join(config_dir, 'main_regex.json')
+    try:
+        with open(regex_path, 'r', encoding='utf-8') as f:
+            regex = json.load(f)
+        return regex
+    except FileNotFoundError:
+        print("config.json not found")
+        return None
+
+def _load_platform_regexes(product_name: str):
+    """
+    Load platform specific regexes for the given product name from ../configs.
+    Uses configs/config.json to map product_name -> platform_regexes/<file>.json
+    """
+    if not product_name:
+        return None
+
+    config_dir = _configs_root()
+    mapping_path = os.path.join(config_dir, 'config.json')
+
+    try:
+        with open(mapping_path, 'r', encoding='utf-8') as f:
+            mapping = json.load(f)
+    except FileNotFoundError:
+        print("config.json not found")
+        return None
+
+    if product_name not in mapping:
+        print(f"No mapping found for product: {product_name}")
+        return None
+
+    filename = mapping[product_name]
+    platform_regex_path = os.path.join(config_dir, 'platform_regexes', filename)
+
+    try:
+        with open(platform_regex_path, 'r', encoding='utf-8') as f:
+            platform_regex = json.load(f)
+            return platform_regex
+    except FileNotFoundError:
+        print(f"Platform config file not found: {filename}")
+        return None
+
 
 def _extract_section_blocks(text: str):
     """
@@ -114,7 +159,7 @@ def _detect_product_name_from_blocks(blocks):
 # Public parse flow
 # ---------------------------
 
-def parse_sections(text, platform_config=None):
+def parse_sections(text, platform_config=None, regexes=None):
     """
     Parse sections **with** a preloaded platform_config (may be None).
     Platform config is passed down to section parsers in case parsing is platform-sensitive.
@@ -158,7 +203,7 @@ def parse_sections(text, platform_config=None):
         })
 
     # Perform sanity checks with the already loaded platform_config
-    sections = perform_sanity_checks(sections, platform_config)
+    sections = perform_sanity_checks(sections, platform_config, regexes)
 
     return sections
 
@@ -171,8 +216,23 @@ def extract_hostname(sections):
         return content if content else None
     return None
 
+def extract_showtech_version(sections):
+    """Extract showtech version from first section title"""
+    if sections and len(sections) > 0:
+        first_title = sections[0].get('title', '')
+        if first_title and 'showtech version' in first_title.lower():
+            # Extract version from section title like "SHOWTECH VERSION 1.4"
+            match = re.search(r'showtech\s+version\s+(.+)', first_title, re.IGNORECASE)
+            if match:
+                return match.group(1).strip()
+    return None
+
 def handle_single_file_upload(file_storage):
     content = file_storage.read().decode('utf-8', errors='ignore')
+
+    general_regex = _get_general_regex()
+    combined_regexes = general_regex.get('regexes', []) if general_regex else []
+ 
 
     # First pass: split into raw blocks to detect product/platform
     blocks = _extract_section_blocks(content)
@@ -181,27 +241,32 @@ def handle_single_file_upload(file_storage):
     product_name = None
     for name in product_names:
         curr_config = _load_platform_config(name)
+        curr_regex = _load_platform_regexes(name)
         if curr_config:
             product_name = name
             platform_config = curr_config
+            combined_regexes += curr_regex.get('regexes', []) if curr_regex else []
+            platform_regex = curr_regex if curr_regex else [] 
             break
-    
 
     # Parse with platform config available up front
-    sections = parse_sections(content, platform_config=platform_config)
+    sections = parse_sections(content, platform_config=platform_config, regexes=combined_regexes)
 
     # Build system map directly from platform_config
     system_map = get_system_map_data(platform_config)
 
-    # Extract hostname
+    # Extract hostname and version
     hostname = extract_hostname(sections)
-
+    showtech_version = extract_showtech_version(sections)
+    
     file_response = {
         'name': file_storage.filename,
         'metadata': {
             'source_file': file_storage.filename,
             'total_sections': len(sections),
-            'hostname': hostname
+            'hostname': hostname,
+            'showtech_version': showtech_version,
+            'product_name': product_name
         },
         'sections': sections
     }

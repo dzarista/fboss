@@ -6,7 +6,7 @@ import SystemSummary from './SystemSummary';
 import LoadingSpinner from './LoadingSpinner';
 
 
-export default function Content({ log, onClose, visibleSections, onJumpToSection, fontSize, onFontSizeChange, slotIndex, isActive, onActivate, isLoadingFromApp }) {
+export default function Content({ log, onClose, visibleSections, onJumpToSection, fontSize, onFontSizeChange, slotIndex, isActive, onActivate, isLoadingFromApp, isAlignMode, isDiffMode, diffs, onExitAlignMode, onExitDiffMode }) {
   const [expandedSections, setExpandedSections] = useState(new Set());
   const [allExpanded, setAllExpanded] = useState(false);
   const [activeSection, setActiveSection] = useState(null);
@@ -83,6 +83,14 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
 
         setShowSystemSummary(true);
 
+        // Exit align and diff modes when navigating to system summary
+        if (isAlignMode && onExitAlignMode) {
+          onExitAlignMode();
+        }
+        if (isDiffMode && onExitDiffMode) {
+          onExitDiffMode();
+        }
+
         // Restore system summary scroll position after a brief delay
         setTimeout(() => {
           const currentContent = document.querySelector(`.content:nth-child(${slotIndex + 1})`);
@@ -139,7 +147,35 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
         }
       };
 
+      // Register this content's activate section function
+      if (!window.activateSectionFunctions) {
+        window.activateSectionFunctions = {};
+      }
 
+      window.activateSectionFunctions[slotIndex] = (sectionIdx) => {
+        activateSection(sectionIdx);
+      };
+
+      // Register scroll to top function
+      if (!window.scrollToTopFunctions) {
+        window.scrollToTopFunctions = {};
+      }
+
+      window.scrollToTopFunctions[slotIndex] = () => {
+        const contentElement = document.querySelector(`.content-window[data-slot="${slotIndex}"] .sections-container`);
+        if (contentElement) {
+          contentElement.scrollTop = 0;
+        }
+      };
+
+      // Register function to get current active section
+      if (!window.getActiveSectionFunctions) {
+        window.getActiveSectionFunctions = {};
+      }
+
+      window.getActiveSectionFunctions[slotIndex] = () => {
+        return activeSection;
+      };
     }
 
     // Cleanup when component unmounts
@@ -147,8 +183,17 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
       if (window.jumpToSectionFunctions && slotIndex !== undefined) {
         delete window.jumpToSectionFunctions[slotIndex];
       }
+      if (window.activateSectionFunctions && slotIndex !== undefined) {
+        delete window.activateSectionFunctions[slotIndex];
+      }
+      if (window.scrollToTopFunctions && slotIndex !== undefined) {
+        delete window.scrollToTopFunctions[slotIndex];
+      }
+      if (window.getActiveSectionFunctions && slotIndex !== undefined) {
+        delete window.getActiveSectionFunctions[slotIndex];
+      }
     };
-  }, [onJumpToSection, slotIndex]);
+  }, [onJumpToSection, slotIndex, activeSection]);
 
   const toggleSection = (sectionIdx) => {
     const newExpanded = new Set(expandedSections);
@@ -181,212 +226,206 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
     setRawModeSections(newRawSections);
   };
 
-  // Create a navigation handler that's bound to THIS specific component
-  const handleNavigateToError = useCallback((error) => {
-    const sectionIndex = error.sectionIndex;
-    const rowIndex = error.rowIndex;
-    const deviceIndex = error.deviceIndex;
+const LINE_FALLBACK_PX = 18; // used if computed line-height is not available
 
-    // Verify this section exists in our log
-    if (!log?.sections?.[sectionIndex]) {
-      return;
-    }
+// Create a navigation handler that's bound to THIS specific component
+const handleNavigateToError = useCallback((error) => {
+  const sectionIndex = error.sectionIndex;
+  const rowIndex = Number.isInteger(error.rowIndex) ? error.rowIndex : undefined;
+  const deviceIndex = Number.isInteger(error.deviceIndex) ? error.deviceIndex : undefined;
+  const line = Number.isInteger(error.line) ? error.line : undefined;
+  const wantsRaw = (error.view === 'raw') || (error.type && String(error.type).toLowerCase() === 'regex match') || (line !== undefined);
 
+  // Verify this section exists in our log
+  if (!log?.sections?.[sectionIndex]) return;
 
+  if (onActivate) onActivate();
 
+  // Ensure the section is visible in the filter
+  if (visibleSections && !visibleSections.has(sectionIndex)) {
+    // It's filtered out; parent must adjust the filter. We bail here by design.
+    return;
+  }
 
+  // Ensure the section is expanded
+  if (!expandedSections.has(sectionIndex)) {
+    const next = new Set(expandedSections);
+    next.add(sectionIndex);
+    setExpandedSections(next);
+  }
 
-    // First, activate this window to ensure it gets focus
-    if (onActivate) {
-      onActivate();
-    }
+  // If we need to navigate by row, ensure STRUCTURED mode.
+  if (rowIndex !== undefined && rawModeSections.has(sectionIndex)) {
+    toggleRawMode(sectionIndex);
+  }
 
-    // Ensure the section is visible in the filter
-    if (visibleSections && !visibleSections.has(sectionIndex)) {
-      // This error is in a filtered-out section, we need to make it visible
-      // We can't directly modify visibleSections here as it comes from parent
-      return;
-    }
+  // If we need to navigate by raw line/match, ensure RAW mode.
+  if ((wantsRaw && !rawModeSections.has(sectionIndex))) {
+    toggleRawMode(sectionIndex);
+  }
 
-    // Ensure the section is expanded
-    if (!expandedSections.has(sectionIndex)) {
-      const newExpanded = new Set(expandedSections);
-      newExpanded.add(sectionIndex);
-      setExpandedSections(newExpanded);
-    }
+  // Activate the section
+  activateSection(sectionIndex);
 
-    // For table row navigation, ensure section is in structured mode (not raw mode)
-    if (rowIndex !== undefined && rawModeSections.has(sectionIndex)) {
-      console.log(`Switching section ${sectionIndex} from raw to structured mode for row navigation`);
-      toggleRawMode(sectionIndex);
-    }
-
-    // Activate the section
-    activateSection(sectionIndex);
-
-    console.log(`Section ${sectionIndex} state:`, {
-      isExpanded: expandedSections.has(sectionIndex),
-      isInRawMode: rawModeSections.has(sectionIndex),
-      isVisible: !visibleSections || visibleSections.has(sectionIndex)
-    });
-
-    // Jump to the section first, then scroll within the section to the specific row
-    // Use requestAnimationFrame to ensure DOM updates are applied
-    requestAnimationFrame(() => {
-      setTimeout(() => {
-      // Find the section ref directly
+  // Jump to the section first, then scroll within it
+  requestAnimationFrame(() => {
+    setTimeout(() => {
       const sectionRef = sectionRefs.current[sectionIndex];
-      if (sectionRef) {
-        // First, navigate TO the section (scroll outer container to bring section into view)
-        sectionRef.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start'
-        });
+      if (!sectionRef) {
+        console.error(`Section ref not found for index ${sectionIndex}`);
+        return;
+      }
 
-        // After jumping to section, scroll WITHIN the section content to the specific row or device
-        // Increased timeout to ensure section is fully activated and CSS is applied
-        setTimeout(() => {
-          if (deviceIndex !== undefined && deviceIndex !== null) {
-            // Handle LSPCI device navigation - scope search to this section only
-            const deviceElement = sectionRef.querySelector(`#section-${sectionIndex}-device-${deviceIndex}`);
-            if (deviceElement) {
-              // Get the section content wrapper for scrolling within the section
-              const sectionContentWrapper = sectionRef.querySelector('.section-content-wrapper');
-              if (sectionContentWrapper) {
-                console.log('Scrolling within section content wrapper for device', deviceIndex);
-                // Calculate position within the section content
-                const deviceRect = deviceElement.getBoundingClientRect();
-                const wrapperRect = sectionContentWrapper.getBoundingClientRect();
-                const relativeTop = deviceRect.top - wrapperRect.top + sectionContentWrapper.scrollTop;
+      sectionRef.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
-                // Scroll within the section to center the device
-                const targetScrollTop = relativeTop - (sectionContentWrapper.clientHeight / 2) + (deviceElement.offsetHeight / 2);
-                sectionContentWrapper.scrollTo({
-                  top: Math.max(0, targetScrollTop),
-                  behavior: 'smooth'
-                });
-              } else {
-                console.log('Section content wrapper not found, using fallback scrollIntoView for device');
-                // Fallback to regular scrollIntoView if section wrapper not found
-                deviceElement.scrollIntoView({
-                  behavior: 'smooth',
-                  block: 'center'
-                });
-              }
+      // After the section is visible, scroll WITHIN the section
+      setTimeout(() => {
+        const sectionContentWrapper = sectionRef.querySelector('.section-content-wrapper');
 
-              // Add a temporary highlight to the device (red for speed mismatch)
-              deviceElement.style.backgroundColor = '#fee2e2';
-              deviceElement.style.borderColor = '#ef4444';
-              deviceElement.style.transition = 'background-color 0.3s ease, border-color 0.3s ease';
-              setTimeout(() => {
-                deviceElement.style.backgroundColor = '';
-                deviceElement.style.borderColor = '';
-              }, 500);
+        // ---- LSPCI device navigation ----
+        if (deviceIndex !== undefined && deviceIndex !== null) {
+          const deviceElement = sectionRef.querySelector(`#section-${sectionIndex}-device-${deviceIndex}`);
+          if (!deviceElement) {
+            console.error(`Device element not found: section-${sectionIndex}-device-${deviceIndex}`);
+            return;
+          }
+
+          if (sectionContentWrapper) {
+            const deviceRect = deviceElement.getBoundingClientRect();
+            const wrapperRect = sectionContentWrapper.getBoundingClientRect();
+            const relativeTop = deviceRect.top - wrapperRect.top + sectionContentWrapper.scrollTop;
+            const targetScrollTop = relativeTop - (sectionContentWrapper.clientHeight / 2) + (deviceElement.offsetHeight / 2);
+            sectionContentWrapper.scrollTo({ top: Math.max(0, targetScrollTop), behavior: 'smooth' });
+          } else {
+            deviceElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+
+          // Flash highlight
+          deviceElement.style.backgroundColor = '#fee2e2';
+          deviceElement.style.borderColor = '#ef4444';
+          deviceElement.style.transition = 'background-color 0.3s ease, border-color 0.3s ease';
+          setTimeout(() => { deviceElement.style.backgroundColor = ''; deviceElement.style.borderColor = ''; }, 500);
+          return;
+        }
+
+        // ---- Structured table row navigation ----
+        if (rowIndex !== undefined) {
+          const rowElement = sectionRef.querySelector(`#section-${sectionIndex}-row-${rowIndex}`);
+          if (rowElement) {
+            if (sectionContentWrapper && getComputedStyle(sectionContentWrapper).overflowY === 'auto') {
+              const rowRect = rowElement.getBoundingClientRect();
+              const wrapperRect = sectionContentWrapper.getBoundingClientRect();
+              const relativeTop = rowRect.top - wrapperRect.top + sectionContentWrapper.scrollTop;
+              const targetScrollTop = relativeTop - (sectionContentWrapper.clientHeight / 2) + (rowElement.offsetHeight / 2);
+              sectionContentWrapper.scrollTo({ top: Math.max(0, targetScrollTop), behavior: 'smooth' });
             } else {
-              console.error(`Device element not found: section-${sectionIndex}-device-${deviceIndex}`);
+              rowElement.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
             }
-          } else if (rowIndex !== undefined) {
-            // Handle table row navigation - scope search to this section only
-            const targetRowId = `section-${sectionIndex}-row-${rowIndex}`;
-            console.log(`Looking for row element with ID: ${targetRowId}`);
+            rowElement.style.backgroundColor = '#fef3c7';
+            rowElement.style.transition = 'background-color 0.3s ease';
+            setTimeout(() => { rowElement.style.backgroundColor = ''; }, 500);
+            return;
+          }
+          // Fallback: try nth row of first tbody in this section
+          const altTable = sectionRef.querySelector('table tbody');
+          if (altTable?.children?.[rowIndex]) {
+            const altRow = altTable.children[rowIndex];
+            altRow.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+            altRow.style.backgroundColor = '#ffeb3b';
+            setTimeout(() => { altRow.style.backgroundColor = ''; }, 500);
+          } else {
+            console.error(`Row element not found: section-${sectionIndex}-row-${rowIndex}`);
+          }
+          return;
+        }
 
-            // First, let's see what row elements exist in this section
-            const allRows = sectionRef.querySelectorAll('[id*="row-"]');
-            console.log(`Found ${allRows.length} row elements in section:`, Array.from(allRows).map(r => r.id));
+        // ---- Raw line/match navigation ----
+        if (wantsRaw && line !== undefined) {
+          console.log('Navigating to line:', line, 'in section:', sectionIndex);
 
-            const rowElement = sectionRef.querySelector(`#${targetRowId}`);
-            console.log(`Row element found:`, !!rowElement, rowElement?.id);
+          // Ensure we're in raw view: we already toggled earlier if needed
+          const rawContainer = sectionRef.querySelector('.section-content-view.raw-view .section-text-content');
+          console.log('Raw container found:', !!rawContainer);
 
-            if (rowElement) {
-              // Get the section content wrapper for scrolling within the section
-              const sectionContentWrapper = sectionRef.querySelector('.section-content-wrapper');
-              console.log('Row navigation debug:', {
-                rowIndex,
-                sectionIndex,
-                sectionRef: !!sectionRef,
-                rowElement: !!rowElement,
-                sectionContentWrapper: !!sectionContentWrapper,
-                sectionIsActive: sectionRef.classList.contains('active'),
-                wrapperOverflow: sectionContentWrapper ? getComputedStyle(sectionContentWrapper).overflowY : 'N/A'
-              });
+          if (!rawContainer) {
+            console.error('Raw container element not found for raw navigation');
+            // Try alternative selectors
+            const altContainer = sectionRef.querySelector('.section-text-content');
+            console.log('Alternative container found:', !!altContainer);
+            if (!altContainer) return;
+          }
 
-              if (sectionContentWrapper && getComputedStyle(sectionContentWrapper).overflowY === 'auto') {
-                console.log('Scrolling within section content wrapper for row', rowIndex);
+          const container = rawContainer || sectionRef.querySelector('.section-text-content');
 
-                // Calculate position within the section content
-                const rowRect = rowElement.getBoundingClientRect();
-                const wrapperRect = sectionContentWrapper.getBoundingClientRect();
-                const relativeTop = rowRect.top - wrapperRect.top + sectionContentWrapper.scrollTop;
-                const targetScrollTop = relativeTop - (sectionContentWrapper.clientHeight / 2) + (rowElement.offsetHeight / 2);
+          // Look for the specific line element using data-line attribute
+          const lineElement = container.querySelector(`[data-line="${line}"]`);
+          console.log('Line element found:', !!lineElement, 'for line:', line);
 
-                console.log('Scroll calculation details:', {
-                  rowRect: { top: rowRect.top, height: rowRect.height },
-                  wrapperRect: { top: wrapperRect.top, height: wrapperRect.height },
-                  currentScrollTop: sectionContentWrapper.scrollTop,
-                  relativeTop,
-                  targetScrollTop: Math.max(0, targetScrollTop),
-                  wrapperClientHeight: sectionContentWrapper.clientHeight,
-                  wrapperScrollHeight: sectionContentWrapper.scrollHeight
-                });
+          if (lineElement) {
+            console.log('Scrolling to line element');
+            // Direct navigation to the specific line element
+            lineElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-                // Scroll within the section to center the row
-                sectionContentWrapper.scrollTo({
-                  top: Math.max(0, targetScrollTop),
-                  behavior: 'smooth'
-                });
+            // Highlight the line temporarily
+            lineElement.style.backgroundColor = '#fef3c7';
+            lineElement.style.transition = 'background-color 0.3s ease';
+            setTimeout(() => { lineElement.style.backgroundColor = ''; }, 1000);
 
-                // No backup scrollIntoView to avoid affecting outer container
-              } else {
-                console.log('Section content wrapper not scrollable or not found, using constrained scrollIntoView');
-                // Use scrollIntoView but constrain it to not affect outer container by using nearest
-                rowElement.scrollIntoView({
-                  behavior: 'smooth',
-                  block: 'nearest',
-                  inline: 'nearest'
-                });
-              }
+            // Also flash any regex highlights on this line
+            const marks = lineElement.querySelectorAll('mark.regex-highlight');
+            marks.forEach(mark => {
+              mark.style.boxShadow = '0 0 0 2px rgba(239,68,68,0.9)';
+              setTimeout(() => { mark.style.boxShadow = ''; }, 1000);
+            });
+          } else {
+            console.log('Line element not found, trying fallback method');
+            // Debug: log all available line elements
+            const allLines = container.querySelectorAll('[data-line]');
+            console.log('Available line elements:', Array.from(allLines).map(el => el.getAttribute('data-line')));
 
-              // Add a temporary highlight to the row
-              rowElement.style.backgroundColor = '#fef3c7';
-              rowElement.style.transition = 'background-color 0.3s ease';
-              setTimeout(() => {
-                rowElement.style.backgroundColor = '';
-              }, 500);
+            // Fallback: try the old method for backward compatibility
+            const wrapper = sectionContentWrapper; // scroll container
+            const computed = getComputedStyle(container);
+            let lineHeight = parseFloat(computed.lineHeight);
+            if (!Number.isFinite(lineHeight)) {
+              // Approx fallback: assume 18px or derive from height/lines if possible
+              const totalLines = (container.textContent || '').split('\n').length || 1;
+              lineHeight = Math.max(LINE_FALLBACK_PX, container.getBoundingClientRect().height / totalLines);
+            }
+
+            const targetTop = Math.max(0, (line * lineHeight) - ( (wrapper?.clientHeight || 0) / 2 ));
+            if (wrapper) {
+              wrapper.scrollTo({ top: targetTop, behavior: 'smooth' });
             } else {
-              console.error(`Row element not found: section-${sectionIndex}-row-${rowIndex}`);
-
-              // Try alternative approaches to find the row
-              console.log('Trying alternative row finding methods...');
-
-              // Try finding by row index in any table within the section
-              const tables = sectionRef.querySelectorAll('table');
-              console.log(`Found ${tables.length} tables in section`);
-              for (const table of tables) {
-                const rows = table.querySelectorAll('tbody tr');
-                console.log(`Table has ${rows.length} rows, looking for row ${rowIndex}`);
-                if (rows[rowIndex]) {
-                  console.log(`Found row ${rowIndex} in table, scrolling to it within section`);
-                  // Use constrained scrollIntoView to avoid affecting outer container
-                  rows[rowIndex].scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'nearest',
-                    inline: 'nearest'
-                  });
-                  rows[rowIndex].style.backgroundColor = '#ffeb3b';
-                  rows[rowIndex].style.transition = 'background-color 0.3s ease';
-                  setTimeout(() => { rows[rowIndex].style.backgroundColor = ''; }, 500);
-                  break;
-                }
-              }
+              // Fallback if wrapper missing
+              container.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
           }
-        }, 150); // Increased timeout to allow section activation and CSS to be applied
-      } else {
-        console.error(`Section ref not found for index ${sectionIndex}`);
-      }
-      }, 10);
-    });
-  }, [log, expandedSections, visibleSections, onActivate]);
+
+          // Optional: flash the first <mark> in this section (regex highlight)
+          const firstMark = sectionRef.querySelector('.section-content-view.raw-view .section-text-content mark.regex-highlight');
+          if (firstMark) {
+            firstMark.style.boxShadow = '0 0 0 2px rgba(239,68,68,0.9)';
+            setTimeout(() => { firstMark.style.boxShadow = ''; }, 600);
+          }
+          return;
+        }
+
+      }, 150); // wait for expansion/toggle styles
+    }, 10); // let scrollIntoView for the section start
+  });
+}, [
+  log,
+  expandedSections,
+  visibleSections,
+  rawModeSections,
+  onActivate,
+  toggleRawMode,
+  activateSection,
+  sectionRefs,
+  setExpandedSections
+]);
+
 
 
 
@@ -417,7 +456,7 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
 
 
   return (
-    <div className={`content ${isActive ? 'active' : ''}`} style={{ fontSize: `${fontSize}px` }} onClick={onActivate}>
+    <div className={`content ${isActive && !isAlignMode ? 'active' : ''} ${isAlignMode ? 'align-mode' : ''} content-window`} data-slot={slotIndex} style={{ fontSize: `${fontSize}px` }} onClick={onActivate}>
 
 
       <div className="log-display-section">
@@ -566,6 +605,8 @@ export default function Content({ log, onClose, visibleSections, onJumpToSection
                       sectionIndex={idx}
                       isRawMode={rawModeSections.has(idx)}
                       rawContent={sec.raw_content}
+                      isDiffMode={isDiffMode}
+                      sectionDiff={diffs?.get(idx)}
                     />
                   </CollapsibleSection>
                 ))}

@@ -1,6 +1,8 @@
 import { forwardRef, useState, useRef, useEffect } from 'react';
 import { getRowStyling } from './ErrorDetection';
 import { BackArrowIcon, ChevronDownIcon } from '../assets/icons/Icon';
+import RawSectionRenderer from './RawSectionRenderer';
+import { getDiffCssClass } from '../utils/findDiff';
 
 // NOTE: Scrolling is now handled by section-content-wrapper to prevent double scrolling
 
@@ -51,41 +53,27 @@ const ViewMoreIndicator = ({ contentRef, isActive, isExpanded }) => {
   );
 };
 
-export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawContent }) => {
+export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawContent, isDiffMode, sectionDiff }) => {
   const [selectedI2CEntry, setSelectedI2CEntry] = useState(null);
-
-  // === Raw vs Structured views - no independent scrolling to prevent double scroll ===
-  // Scrolling is now handled by the section-content-wrapper
-
-  // === I2C overlay vs table with scroll state management ===
   const i2cMainYRef = useRef(0);
   const i2cContainerRef = useRef(null);
 
   const openI2COverlay = (entry) => {
-    // Save current scroll position
     const sc = i2cContainerRef.current?.closest('.section-content-wrapper');
     if (sc) {
       i2cMainYRef.current = sc.scrollTop;
-      // Scroll to top before navigating
       sc.scrollTop = 0;
     }
-
     setSelectedI2CEntry(entry);
   };
 
   const backToI2CMain = () => {
     setSelectedI2CEntry(null);
-
-    // Restore saved scroll position after navigation
     requestAnimationFrame(() => {
       const sc = i2cContainerRef.current?.closest('.section-content-wrapper');
-      if (sc) {
-        sc.scrollTop = i2cMainYRef.current;
-      }
+      if (sc) sc.scrollTop = i2cMainYRef.current;
     });
   };
-
-  // Scroll management is now handled directly in openI2COverlay and backToI2CMain functions
 
   try {
     if (!section || !section.parsed_data) {
@@ -93,22 +81,36 @@ export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawCo
     }
 
     const { parsed_data } = section;
+    // Prefer new path; fallback to legacy
+    const anomalies = Array.isArray(section.anomalies)
+      ? section.anomalies
+      : (parsed_data.anomalies || []);
 
     if (parsed_data.type === 'raw') {
-      return <pre className="section-text-content">{rawContent || 'No content available'}</pre>;
+      return (
+        <RawSectionRenderer
+          className="section-text-content"
+          rawContent={rawContent || 'No content available'}
+          anomalies={section.anomalies || []}
+        />
+      );
     }
 
     return (
-      <div className="section-content-container">
-        {/* RAW VIEW — no independent scrolling */}
+      <div className="section-content-container" ref={i2cContainerRef}>
+        {/* RAW VIEW */}
         <div
           className="section-content-view raw-view"
           style={{ display: isRawMode ? 'block' : 'none' }}
         >
-          <pre className="section-text-content">{rawContent || 'No raw content available'}</pre>
+        <RawSectionRenderer
+          className="section-text-content"
+          rawContent={rawContent || 'No content available'}
+          anomalies={section.anomalies || []}
+        />
         </div>
 
-        {/* STRUCTURED VIEW — no independent scrolling */}
+        {/* STRUCTURED VIEW */}
         <div
           className="section-content-view structured-view"
           style={{ display: isRawMode ? 'none' : 'block' }}
@@ -120,7 +122,9 @@ export const SectionContentRenderer = ({ section, sectionIndex, isRawMode, rawCo
             backToI2CMain,
             sectionIndex,
             section,
-            i2cContainerRef
+            i2cContainerRef,
+            isDiffMode,
+            sectionDiff
           )}
         </div>
       </div>
@@ -147,7 +151,9 @@ const renderStructuredContent = (
   backToI2CMain,
   sectionIndex,
   section,
-  i2cContainerRef
+  i2cContainerRef,
+  isDiffMode = false,
+  sectionDiff = null
 ) => {
   if (parsed_data.type === 'key_value') {
     const data = parsed_data.data || {};
@@ -193,11 +199,23 @@ const renderStructuredContent = (
                 parsed_data.rows.map((row, rowIdx) => {
                   let rowClass = '';
                   try {
-                    rowClass = getRowStyling(row, rowIdx, section.title, parsed_data.anomalies);
+                    rowClass = getRowStyling(row, rowIdx, section.title, section.anomalies || []);
                   } catch (error) {
                     console.error('Error in getRowStyling:', error);
                     rowClass = '';
                   }
+
+                  // Add diff highlighting for tables
+                  if (isDiffMode && sectionDiff?.type === 'table' && sectionDiff.diffs && parsed_data.headers.length > 0) {
+                    const keyColumn = parsed_data.headers[0];
+                    const keyValue = String(row[keyColumn]);
+                    const rowDiff = sectionDiff.diffs.get(keyValue);
+                    if (rowDiff) {
+                      const diffClass = getDiffCssClass(rowDiff.type);
+                      rowClass = rowClass ? `${rowClass} ${diffClass}` : diffClass;
+                    }
+                  }
+
                   return (
                     <tr key={rowIdx} className={rowClass} id={`section-${sectionIndex}-row-${rowIdx}`}>
                       {parsed_data.headers.map((header, colIdx) => (
@@ -244,25 +262,32 @@ const renderStructuredContent = (
               </tr>
             </thead>
             <tbody>
-              {registerEntries.map(([address, regData]) => (
-                <tr key={address}>
-                  <td className="address-col">{address}</td>
-                  <td className="command-col">
-                    {regData.bitRanges && regData.bitRanges.length > 0 ? (
-                      <button
-                        className="command-link"
-                        onClick={() => openI2COverlay({ address, data: regData })}
-                        title="Click to view bit ranges"
-                      >
-                        {regData.command || 'Unknown'}
-                      </button>
-                    ) : (
-                      <span>{regData.command || 'Unknown'}</span>
-                    )}
-                  </td>
-                  <td className="value-col">{regData.value || 'N/A'}</td>
-                </tr>
-              ))}
+              {registerEntries.map(([address, regData]) => {
+                // Get diff information for this address
+                const addressDiff = isDiffMode && sectionDiff?.type === 'i2c_dump' && sectionDiff.diffs ?
+                  sectionDiff.diffs.get(address) : null;
+                const diffClass = addressDiff ? getDiffCssClass(addressDiff.type) : '';
+
+                return (
+                  <tr key={address} className={diffClass}>
+                    <td className="address-col">{address}</td>
+                    <td className="command-col">
+                      {regData.bitRanges && regData.bitRanges.length > 0 ? (
+                        <button
+                          className="command-link"
+                          onClick={() => openI2COverlay({ address, data: regData })}
+                          title="Click to view bit ranges"
+                        >
+                          {regData.command || 'Unknown'}
+                        </button>
+                      ) : (
+                        <span>{regData.command || 'Unknown'}</span>
+                      )}
+                    </td>
+                    <td className="value-col">{regData.value || 'N/A'}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -314,19 +339,27 @@ const renderStructuredContent = (
   }
 
   if (parsed_data.type === 'lspci') {
+    const anoms = section.anomalies || []; // <-- use the new canonical location
+
     return (
       <div className="lspci-container">
         {parsed_data.devices && parsed_data.devices.length > 0 ? (
           <div className="lspci-devices">
             {parsed_data.devices.map((device, idx) => {
-              const hasSpeedMismatch = parsed_data.anomalies?.some(
-                (anomaly) => anomaly.type === 'pcie_speed_mismatch' && anomaly.device_index === idx
-              );
+              const hasSpeedMismatch = anoms.some((a) => {
+                const t = ((a && a.type) || '').toLowerCase();
+                const isMismatch = t === 'pcie device speed mismatch' || t === 'pcie_speed_mismatch';
+                const sameIndex = Number.isInteger(a?.device_index) && a.device_index === idx;
+                const sameSlot  = a?.slot && a.slot === device.slot; // robust if index changes
+                return isMismatch && (sameIndex || sameSlot);
+              });
+
               return (
                 <div
                   key={idx}
                   className={`lspci-device ${hasSpeedMismatch ? 'speed-mismatch' : ''}`}
                   id={`section-${sectionIndex}-device-${idx}`}
+                  data-slot={device.slot} // optional: enables slot-based querying elsewhere
                 >
                   <div className="device-header">
                     <span className="device-id">{device.slot}</span>
@@ -348,6 +381,7 @@ const renderStructuredContent = (
       </div>
     );
   }
+
 
   if (parsed_data.type === 'fans') {
     const headers = parsed_data.headers || [];
