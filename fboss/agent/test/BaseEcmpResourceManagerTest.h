@@ -94,16 +94,41 @@ class BaseEcmpResourceManagerTest : public ::testing::Test {
     ASSERT_TRUE(nhopId.has_value());
     EXPECT_EQ(consolidator_->getRouteUsageCount(nhopId.value()), expectedCount);
   }
-  void addRoute(const RoutePrefixV6& prefix6, const RouteNextHopSet& nhops) {
-    addOrUpdateRoute(prefix6, nhops);
+  RouteNextHopSet getNextHops(EcmpResourceManager::NextHopGroupId gid) const;
+  std::vector<StateDelta> addRoute(
+      const RoutePrefixV6& prefix6,
+      const RouteNextHopSet& nhops) {
+    return addOrUpdateRoute(prefix6, nhops);
   }
-  void updateRoute(const RoutePrefixV6& prefix6, const RouteNextHopSet& nhops) {
-    addOrUpdateRoute(prefix6, nhops);
+  std::vector<StateDelta> updateRoute(
+      const RoutePrefixV6& prefix6,
+      const RouteNextHopSet& nhops) {
+    return addOrUpdateRoute(prefix6, nhops);
   }
-  void rmRoute(const RoutePrefixV6& prefix6);
+  std::vector<StateDelta> rmRoutes(const std::vector<RoutePrefixV6>& prefix6s);
+  std::vector<StateDelta> rmRoute(const RoutePrefixV6& prefix6) {
+    return rmRoutes({prefix6});
+  }
+
+  void assertTargetState(
+      const std::shared_ptr<SwitchState>& targetState,
+      const std::shared_ptr<SwitchState>& endStatePrefixes,
+      const std::set<RouteV6::Prefix>& overflowPrefixes,
+      const EcmpResourceManager* consolidatorToCheck = nullptr,
+      bool checkStats = true);
+  void assertEndState(
+      const std::shared_ptr<SwitchState>& endStatePrefixes,
+      const std::set<RouteV6::Prefix>& overflowPrefixes) {
+    assertTargetState(state_, endStatePrefixes, overflowPrefixes);
+  }
+  std::set<RouteV6::Prefix> getPrefixesForGroups(
+      const EcmpResourceManager::NextHopGroupIds& grpIds) const;
+
+  std::set<RouteV6::Prefix> getPrefixesWithoutOverrides() const;
+  EcmpResourceManager::NextHopGroupIds getGroupsWithoutOverrides() const;
 
  private:
-  void addOrUpdateRoute(
+  std::vector<StateDelta> addOrUpdateRoute(
       const RoutePrefixV6& prefix6,
       const RouteNextHopSet& nhops);
   virtual void setupFlags() const;

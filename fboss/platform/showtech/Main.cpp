@@ -26,15 +26,15 @@ int main(int argc, char** argv) {
   XLOG(INFO) << apache::thrift::SimpleJSONSerializer::serialize<std::string>(
       config);
 
-  auto showtechUtil = std::make_shared<Utils>(config);
+  Utils showtechUtil(config);
 
-  showtechUtil->printHostDetails();
-  showtechUtil->printFbossDetails();
-  showtechUtil->printWeutilDetails();
-  showtechUtil->printFwutilDetails();
-  showtechUtil->printLspciDetails();
-  showtechUtil->printPortDetails();
-  showtechUtil->printSensorDetails();
-  showtechUtil->printI2cDetails();
+  showtechUtil.printHostDetails();
+  showtechUtil.printFbossDetails();
+  showtechUtil.printWeutilDetails();
+  showtechUtil.printFwutilDetails();
+  showtechUtil.printLspciDetails();
+  showtechUtil.printPortDetails();
+  showtechUtil.printSensorDetails();
+  showtechUtil.printI2cDetails();
   return 0;
 }

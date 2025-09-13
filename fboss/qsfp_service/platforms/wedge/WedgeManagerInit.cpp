@@ -14,6 +14,7 @@
 #include "fboss/lib/bsp/darwin/DarwinBspPlatformMapping.h"
 #include "fboss/lib/bsp/glath05a-64o/Glath05a-64oBspPlatformMapping.h"
 #include "fboss/lib/bsp/icecube800bc/Icecube800bcBspPlatformMapping.h"
+#include "fboss/lib/bsp/icetea800bc/Icetea800bcBspPlatformMapping.h"
 #include "fboss/lib/bsp/janga800bic/Janga800bicBspPlatformMapping.h"
 #include "fboss/lib/bsp/meru400bfu/Meru400bfuBspPlatformMapping.h"
 #include "fboss/lib/bsp/meru400bia/Meru400biaBspPlatformMapping.h"
@@ -109,6 +110,10 @@ std::unique_ptr<WedgeManager> createWedgeManager() {
       return createBspWedgeManager<
           Icecube800bcBspPlatformMapping,
           PlatformType::PLATFORM_ICECUBE800BC>(platformMapping, threads);
+    case PlatformType::PLATFORM_ICETEA800BC:
+      return createBspWedgeManager<
+          Icetea800bcBspPlatformMapping,
+          PlatformType::PLATFORM_ICETEA800BC>(platformMapping, threads);
     case PlatformType::PLATFORM_MINIPACK3N:
       return createBspWedgeManager<
           Minipack3NBspPlatformMapping,

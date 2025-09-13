@@ -148,6 +148,8 @@ struct PortFields {
   // errored cells from making it to the forwarding pipeline.
   58: optional bool fecErrorDetectEnable;
   59: optional bool desiredSelfHealingECMPLagEnable;
+  // Inter-packet gap in bits for this port
+  60: optional i32 interPacketGapBits;
 }
 
 typedef ctrl.SystemPortThrift SystemPortFields
@@ -690,7 +692,9 @@ typedef string SwitchIdList
 @thrift.DeprecatedUnvalidatedAnnotations{items = {"thriftpath.root": "1"}}
 struct SwitchState {
   100: map<SwitchIdList, map<i16, PortFields>> portMaps;
-  101: map<SwitchIdList, map<i16, VlanFields>> vlanMaps;
+  101: map<SwitchIdList, map<i16, VlanFields>> vlanMaps (
+    allow_skip_thrift_cow = true,
+  );
   102: map<SwitchIdList, map<string, AclEntryFields>> aclMaps;
   103: map<SwitchIdList, map<i16, TransceiverSpecFields>> transceiverMaps;
   104: map<
@@ -716,7 +720,9 @@ struct SwitchState {
     SwitchIdList,
     map<switch_config.AclStage, AclTableGroupFields>
   > aclTableGroupMaps;
-  118: map<SwitchIdList, map<i32, InterfaceFields>> interfaceMaps;
+  118: map<SwitchIdList, map<i32, InterfaceFields>> interfaceMaps (
+    allow_skip_thrift_cow = true,
+  );
   119: map<SwitchIdList, map<i64, switch_config.DsfNode>> dsfNodesMap;
   120: map<SwitchIdList, map<string, PortFlowletFields>> portFlowletCfgMaps;
   121: map<
@@ -725,7 +731,9 @@ struct SwitchState {
   > mirrorOnDropReportMaps;
   // Remote object maps
   600: map<SwitchIdList, map<i64, SystemPortFields>> remoteSystemPortMaps;
-  601: map<SwitchIdList, map<i32, InterfaceFields>> remoteInterfaceMaps;
+  601: map<SwitchIdList, map<i32, InterfaceFields>> remoteInterfaceMaps (
+    allow_skip_thrift_cow = true,
+  );
 }
 
 struct RouteTableFields {

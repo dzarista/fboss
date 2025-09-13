@@ -1092,6 +1092,7 @@ enum PortType {
   RECYCLE_PORT = 3,
   MANAGEMENT_PORT = 4,
   EVENTOR_PORT = 5,
+  HYPER_PORT = 6,
 }
 
 struct PortNeighbor {
@@ -1285,6 +1286,11 @@ struct Port {
    * errored cells from making it to the forwarding pipeline.
    */
   35: optional bool fecErrorDetectEnable;
+
+  /*
+   * Inter-packet gap configuration in bits.
+   */
+  36: optional i32 interPacketGapBits;
 }
 
 enum LacpPortRate {

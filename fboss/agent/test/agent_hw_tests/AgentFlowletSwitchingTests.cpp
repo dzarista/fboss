@@ -108,6 +108,8 @@ class AgentFlowletMirrorTest : public AgentFlowletSwitchingTest {
     auto cfg = AgentFlowletSwitchingTest::initialConfig(ensemble);
     std::vector<std::string> udfGroups = getUdfGroupsForAcl(AclType::UDF_NAK);
     addAclTableConfig(cfg, udfGroups);
+    cfg.udfConfig() = utility::addUdfAclConfig(
+        utility::kUdfOffsetBthOpcode | utility::kUdfOffsetAethSyndrome);
 
     // mirror session for acl
     utility::configureSflowMirror(
@@ -330,8 +332,6 @@ TEST_F(AgentFlowletSprayTest, VerifyEcmpRandomSpray) {
     });
   };
   auto verify = [this, dlbPortIDs, sprayPortIDs, sprayPortIDs2]() {
-    setEcmpMemberStatus(getAgentEnsemble());
-
     auto sendTrafficAndVerifyLB = [this](
                                       const folly::IPAddress& dstIp,
                                       int reserved,
@@ -488,8 +488,6 @@ TEST_F(AgentFlowletSwitchingTest, VerifyEcmp) {
   };
 
   auto verify = [this]() {
-    setEcmpMemberStatus(getAgentEnsemble());
-
     auto verifyCounts = [this](int destPort, bool bumpOnHit) {
       // gather stats for all ECMP members
       int pktsBefore[kEcmpWidth];

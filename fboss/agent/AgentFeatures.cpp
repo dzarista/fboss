@@ -224,6 +224,11 @@ DEFINE_int32(
     "Maximum ARP entries supported by Resource Accountant");
 
 DEFINE_bool(
+    enforce_resource_hw_limits,
+    true,
+    "Weather to cap the configured maximum entries to the harwdware limit by Resource Accountant");
+
+DEFINE_bool(
     fw_drained_unrecoverable_error,
     false,
     "Enable or disable whether firmware drained(isolation) can be unrecoverable error");
@@ -324,3 +329,18 @@ DEFINE_bool(
     enable_high_frequency_stats_polling,
     false,
     "Enable high frequency stats polling");
+
+DEFINE_bool(
+    dsf_headroom_pool_size_multiplication_factor_fix,
+    false,
+    "Fix the headroom pool size multiplication factor for DSF");
+
+DEFINE_bool(
+    ignore_asic_hard_reset_notification,
+    false,
+    "Ignore ASIC hard reset notification received from SAI/SDK");
+
+DEFINE_bool(
+    cleanup_probed_kernel_data,
+    false,
+    "Remove probed routes, addresses, rules, and interfaces from the kernel");

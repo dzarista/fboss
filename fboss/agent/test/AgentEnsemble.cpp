@@ -25,6 +25,7 @@
 
 #include <folly/io/async/EventBase.h>
 #include <folly/io/async/ScopedEventBaseThread.h>
+#include <folly/testing/TestUtil.h>
 #include <thrift/lib/cpp2/async/PooledRequestChannel.h>
 #include <thrift/lib/cpp2/async/ReconnectingRequestChannel.h>
 #include <thrift/lib/cpp2/async/RetryingRequestChannel.h>
@@ -447,6 +448,16 @@ void AgentEnsemble::runDiagCommand(
   }
 }
 
+void AgentEnsemble::runCint(
+    const std::string& cintData,
+    std::string& output,
+    const SwitchID& switchId) {
+  folly::test::TemporaryFile file;
+  folly::writeFull(file.fd(), cintData.c_str(), cintData.size());
+  auto cmd = folly::sformat("cint {}\n", file.path().c_str());
+  runDiagCommand(cmd, output, switchId);
+}
+
 LinkStateToggler* AgentEnsemble::getLinkToggler() {
   return linkToggler_.get();
 }
@@ -833,6 +844,12 @@ std::map<std::string, int64_t> AgentEnsemble::getFb303RegexCounters(
   counters = facebook::fb303::fbData->getRegexCounters(regex);
 #endif
   return counters;
+}
+
+std::string AgentEnsemble::getHwDebugDump() {
+  std::string out{};
+  ThriftHandler(getSw()).getHwDebugDump(out);
+  return out;
 }
 
 } // namespace facebook::fboss

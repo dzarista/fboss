@@ -432,11 +432,16 @@ class TransceiverManager {
     cfg::PortProfileID profile;
     std::optional<NpuPortStatus> status;
   };
-  std::unordered_map<PortID, TransceiverPortInfo>
-  getProgrammedIphyPortToPortInfo(TransceiverID id) const;
+
+  using PortToPortInfo = std::unordered_map<PortID, TransceiverPortInfo>;
+  PortToPortInfo getProgrammedIphyPortToPortInfo(TransceiverID id) const;
 
   std::unordered_map<PortID, cfg::PortProfileID>
   getOverrideProgrammedIphyPortAndProfileForTest(TransceiverID id) const;
+
+  // Used for sharing data with PortManager.
+  std::shared_ptr<folly::Synchronized<PortToPortInfo>>
+  getSynchronizedProgrammedIphyPortToPortInfo(TransceiverID id);
 
   // TEST ONLY
   void setOverrideAgentPortStatusForTesting(
@@ -456,6 +461,9 @@ class TransceiverManager {
   virtual void setOverrideTcvrToPortAndProfileForTesting(
       std::optional<OverrideTcvrToPortAndProfile> overrideTcvrToPortAndProfile =
           std::nullopt) = 0;
+  OverrideTcvrToPortAndProfile getOverrideTcvrToPortAndProfileForTesting() {
+    return overrideTcvrToPortAndProfileForTest_;
+  }
 
   Transceiver* FOLLY_NULLABLE overrideTransceiverForTesting(
       TransceiverID id,
@@ -663,6 +671,10 @@ class TransceiverManager {
     return tcvrIdToTcvrName_;
   }
 
+  static bool opticalOrActiveCmisCable(const TcvrState& tcvrState);
+  static bool opticalOrActiveCable(const TcvrState& tcvrState);
+  static bool activeCable(const TcvrState& tcvrState);
+
  protected:
   /*
    * Check to see if we can attempt a warm boot.
@@ -819,8 +831,7 @@ class TransceiverManager {
 
   using TransceiverToPortInfo = std::unordered_map<
       TransceiverID,
-      std::unique_ptr<folly::Synchronized<
-          std::unordered_map<PortID, TransceiverPortInfo>>>>;
+      std::shared_ptr<folly::Synchronized<PortToPortInfo>>>;
   TransceiverToPortInfo setupTransceiverToPortInfo();
 
   void startThreads();

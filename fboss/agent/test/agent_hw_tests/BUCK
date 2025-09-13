@@ -198,6 +198,7 @@ cpp_library(
         "//folly:scope_guard",
         "//folly/container:f14_hash",
         "//folly/executors:function_scheduler",
+        "//folly/io:iobuf",
         "//folly/json:dynamic",
         "//folly/logging:logging",
         "//folly/memory:mallctl_helper",
@@ -205,6 +206,7 @@ cpp_library(
         "//thrift/lib/cpp2/test:matcher",
     ],
     exported_external_deps = [
+        "re2",
         ("boost", None, "boost_container"),
         ("boost", None, "boost_range"),
     ],

@@ -109,6 +109,7 @@ typedef enum _sai_switch_extensions_attr_t {
   SAI_SWITCH_ATTR_TRIGGER_SIMULATED_ECC_UNCORRECTABLE_ERROR,
   SAI_SWITCH_ATTR_DEFAULT_CPU_EGRESS_BUFFER_POOL,
   SAI_SWITCH_ATTR_TECH_SUPPORT_TYPE,
+  SAI_SWITCH_ATTR_MODULE_ID_FABRIC_PORT_LIST,
 } sai_switch_extensions_attr_t;
 
 typedef enum _sai_tam_event_extensions_attr_t {
@@ -125,11 +126,13 @@ typedef enum _sai_tam_event_extensions_attr_t {
 typedef enum _sai_port_extensions_attr_t {
   SAI_PORT_ATTR_EXT_FAKE_SYSTEM_PORT_ID = SAI_PORT_ATTR_CUSTOM_RANGE_START,
   SAI_PORT_ATTR_SERDES_LANE_LIST,
+  SAI_PORT_ATTR_STATIC_MODULE_ID,
   SAI_PORT_ATTR_DIAGNOSTICS_MODE_ENABLE,
   SAI_PORT_ATTR_RX_LANE_SQUELCH_ENABLE,
   SAI_PORT_ATTR_FDR_ENABLE,
   SAI_PORT_ATTR_CRC_ERROR_TOKEN_DETECT,
   SAI_PORT_ATTR_PORT_PG_PKT_DROP_STATUS,
+  SAI_PORT_ATTR_FABRIC_SYSTEM_PORT,
 } sai_port_extensions_attr_t;
 
 typedef enum _sai_ingress_priority_group_extensions_attr_t {

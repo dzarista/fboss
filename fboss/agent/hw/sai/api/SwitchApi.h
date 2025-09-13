@@ -831,6 +831,13 @@ struct SaiSwitchTraits {
     using DefaultCpuEgressBufferPool = SaiExtensionAttribute<
         sai_object_id_t,
         AttributeDefaultCpuEgressBufferPool>;
+    struct AttributeModuleIdFabricPortList {
+      std::optional<sai_attr_id_t> operator()();
+    };
+    using ModuleIdFabricPortList = SaiExtensionAttribute<
+        std::vector<sai_object_id_t>,
+        AttributeModuleIdFabricPortList,
+        SaiObjectIdListDefault>;
   };
   using AdapterKey = SwitchSaiId;
   using AdapterHostKey = std::monostate;
@@ -958,6 +965,8 @@ struct SaiSwitchTraits {
   static const std::vector<sai_stat_id_t>& egressParityCellError();
   static const std::vector<sai_stat_id_t>& ddpPacketError();
   static const std::vector<sai_stat_id_t>& packetIntegrityError();
+  static const std::vector<sai_stat_id_t>&
+  fabricInterCellJitterWatermarkStats();
 };
 
 SAI_ATTRIBUTE_NAME(Switch, InitSwitch)
@@ -1115,6 +1124,7 @@ SAI_ATTRIBUTE_NAME(Switch, TriggerSimulatedEccUnCorrectableError)
 SAI_ATTRIBUTE_NAME(Switch, DefaultCpuEgressBufferPool)
 
 SAI_ATTRIBUTE_NAME(Switch, TechSupportType)
+SAI_ATTRIBUTE_NAME(Switch, ModuleIdFabricPortList)
 
 template <>
 struct SaiObjectHasStats<SaiSwitchTraits> : public std::true_type {};

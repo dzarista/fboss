@@ -9,7 +9,6 @@
 #include <folly/logging/xlog.h>
 
 #include "fboss/platform/fw_util/FwUtilImpl.h"
-#include "fboss/platform/fw_util/fw_util_helpers.h"
 #include "fboss/platform/helpers/InitCli.h"
 
 using namespace facebook::fboss::platform::fw_util;
@@ -128,7 +127,7 @@ int main(int argc, char* argv[]) {
       fw_binary_file, config_file_path, verify_sha1sum, dry_run);
 
   if (fw_action == "version" && !fw_target_name.empty()) {
-    fwUtilImpl.printVersion(toLower(fw_target_name));
+    fwUtilImpl.printVersion(fw_target_name);
   } else if (
       fw_action == "program" || fw_action == "verify" || fw_action == "read") {
     // For actions which involve more than just reading versions/config, we want
@@ -136,7 +135,7 @@ int main(int argc, char* argv[]) {
     folly::LoggerDB::get()
         .getCategory("fboss.platform.helpers.PlatformUtils")
         ->setLevel(folly::LogLevel::DBG2);
-    fwUtilImpl.doFirmwareAction(toLower(fw_target_name), toLower(fw_action));
+    fwUtilImpl.doFirmwareAction(fw_target_name, fw_action);
   } else if (fw_action == "list") {
     XLOG(INFO) << "supported Binary names are: " << fwUtilImpl.printFpdList();
   } else if (fw_action == "audit") {

@@ -267,6 +267,8 @@ class SaiSwitch : public HwSwitch {
 
   std::shared_ptr<SwitchState> reconstructSwitchState() const override;
 
+  std::shared_ptr<SwitchState> constructSwitchStateWithFib() noexcept override;
+
   void injectSwitchReachabilityChangeNotification() override;
 
   bool getArsExhaustionStatus() override;
@@ -287,7 +289,8 @@ class SaiSwitch : public HwSwitch {
   std::shared_ptr<SwitchState> stateChangedImplLocked(
       const StateDelta& delta,
       const LockPolicyT& lk);
-  void rollback(const StateDelta& delta) noexcept override;
+  void preRollback(const StateDelta& delta) noexcept override;
+  void rollback(const std::vector<StateDelta>& deltas) noexcept override;
   std::string listObjectsLocked(
       const std::vector<sai_object_type_t>& objects,
       bool cached,

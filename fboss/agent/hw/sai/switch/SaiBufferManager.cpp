@@ -10,6 +10,7 @@
 
 #include "fboss/agent/hw/sai/switch/SaiBufferManager.h"
 
+#include "fboss/agent/AgentFeatures.h"
 #include "fboss/agent/FbossError.h"
 #include "fboss/agent/Platform.h"
 #include "fboss/agent/Utils.h"
@@ -320,10 +321,22 @@ void SaiBufferManager::setupIngressEgressBufferPool(
         platform_->getAsic()->getNumCores();
   }
   std::optional<int32_t> newXoffSize;
-  if (bufferPoolCfg &&
+  if (bufferPoolCfg && bufferPoolCfg->headroomBytes().has_value() &&
       platform_->getAsic()->isSupported(HwAsic::Feature::PFC)) {
-    newXoffSize = *(*bufferPoolCfg).headroomBytes() *
-        platform_->getAsic()->getNumMemoryBuffers();
+    if (FLAGS_dsf_headroom_pool_size_multiplication_factor_fix) {
+      // This flag is set as part of disruptive upgrade config. This
+      // flag setting needs a cold boot to take effect. Fixing the
+      // multiplication factor used in the headroom pool size
+      // computation. There are 4 cores in DNX and the headroom size
+      // expected to be passed in from agent config is the per core
+      // headroom pool size. So, multiplying it with the number of
+      // cores to get the headroom pool size at the ASIC level.
+      newXoffSize =
+          *bufferPoolCfg->headroomBytes() * platform_->getAsic()->getNumCores();
+    } else {
+      newXoffSize = *bufferPoolCfg->headroomBytes() *
+          platform_->getAsic()->getNumMemoryBuffers();
+    }
   }
   if (!ingressEgressBufferPoolHandle_) {
     createOrUpdateIngressEgressBufferPool(poolSize, newXoffSize);
@@ -542,19 +555,22 @@ void SaiBufferManager::updateIngressPriorityGroupStats(
     hwPortStats.inCongestionDiscards_() = inCongestionDiscards;
   }
 
-#if defined(BRCM_SAI_SDK_GTE_13_0) && !defined(BRCM_SAI_SDK_DNX)
-  std::vector<sai_map_t> pgDiscardStatuses(
-      cfg::switch_config_constants::PORT_PG_VALUE_MAX() + 1);
-  for (int i = 0; i < pgDiscardStatuses.size(); ++i) {
-    pgDiscardStatuses[i].key = i; // pgId to query
-  }
-  pgDiscardStatuses = SaiApiTable::getInstance()->portApi().getAttribute(
-      portHandle->port->adapterKey(),
-      SaiPortTraits::Attributes::PgDropStatus{pgDiscardStatuses});
-  hwPortStats.pgInCongestionDiscardSeen_()->clear();
-  for (const auto& status : pgDiscardStatuses) {
-    (*hwPortStats.pgInCongestionDiscardSeen_())[status.key] =
-        status.value ? 1 : 0;
+#if defined(BRCM_SAI_SDK_GTE_13_0)
+  if (platform_->getAsic()->isSupported(
+          HwAsic::Feature::SAI_PORT_PG_DROP_STATUS)) {
+    std::vector<sai_map_t> pgDiscardStatuses(
+        cfg::switch_config_constants::PORT_PG_VALUE_MAX() + 1);
+    for (int i = 0; i < pgDiscardStatuses.size(); ++i) {
+      pgDiscardStatuses[i].key = i; // pgId to query
+    }
+    pgDiscardStatuses = SaiApiTable::getInstance()->portApi().getAttribute(
+        portHandle->port->adapterKey(),
+        SaiPortTraits::Attributes::PgDropStatus{pgDiscardStatuses});
+    hwPortStats.pgInCongestionDiscardSeen_()->clear();
+    for (const auto& status : pgDiscardStatuses) {
+      (*hwPortStats.pgInCongestionDiscardSeen_())[status.key] =
+          status.value ? 1 : 0;
+    }
   }
 #endif
 }
@@ -572,7 +588,7 @@ template <typename BufferProfileTraits>
 BufferProfileTraits::CreateAttributes SaiBufferManager::profileCreateAttrs(
     typename BufferProfileTraits::Attributes::PoolId pool,
     const PortQueue& queue,
-    cfg::PortType /*type*/) const {
+    cfg::PortType portType) const {
   std::optional<typename BufferProfileTraits::Attributes::ReservedBytes>
       reservedBytes;
   if (queue.getReservedBytes()) {
@@ -626,6 +642,14 @@ BufferProfileTraits::CreateAttributes SaiBufferManager::profileCreateAttrs(
     std::optional<
         typename BufferProfileTraits::Attributes::SharedStaticThreshold>
         staticThresh{*queue.getSharedBytes()};
+#if defined(BRCM_SAI_SDK_GTE_11_0) && not defined(BRCM_SAI_SDK_DNX_GTE_11_0)
+    // TODO(maxgg): Temp workaround for CS00012420573
+    if (platform_->getAsic()->getAsicType() ==
+            cfg::AsicType::ASIC_TYPE_TOMAHAWK5 &&
+        portType == cfg::PortType::INTERFACE_PORT) {
+      *staticThresh = staticThresh.value().value() * 2;
+    }
+#endif
     return typename BufferProfileTraits::CreateAttributes{
         pool,
         reservedBytes,
@@ -810,6 +834,13 @@ SaiBufferManager::ingressProfileCreateAttrs(
     std::optional<
         typename BufferProfileTraits::Attributes::SharedStaticThreshold>
         staticThresh{*config.staticLimitBytes()};
+#if defined(BRCM_SAI_SDK_GTE_11_0) && not defined(BRCM_SAI_SDK_DNX_GTE_11_0)
+    // TODO(maxgg): Temp workaround for CS00012420573
+    if (platform_->getAsic()->getAsicType() ==
+        cfg::AsicType::ASIC_TYPE_TOMAHAWK5) {
+      *staticThresh = staticThresh.value().value() * 2;
+    }
+#endif
 
     return typename BufferProfileTraits::CreateAttributes{
         pool,

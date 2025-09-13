@@ -112,6 +112,10 @@ bool Tomahawk5Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::TEMPERATURE_MONITORING:
     case HwAsic::Feature::ACL_SET_ECMP_HASH_ALGORITHM:
     case HwAsic::Feature::SET_NEXT_HOP_GROUP_HASH_ALGORITHM:
+    case HwAsic::Feature::MANAGEMENT_PORT_MULTICAST_QUEUE_ALPHA:
+    case HwAsic::Feature::SAI_PORT_PG_DROP_STATUS:
+    case HwAsic::Feature::SAI_PORT_ERR_STATUS:
+    case HwAsic::Feature::RX_FREQUENCY_PPM:
       return true;
     // features not working well with bcmsim
     case HwAsic::Feature::MIRROR_PACKET_TRUNCATION:
@@ -136,8 +140,6 @@ bool Tomahawk5Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::PORT_EYE_VALUES:
     case HwAsic::Feature::SAI_MPLS_TTL_1_TRAP:
     case HwAsic::Feature::SAI_MPLS_LABEL_LOOKUP_FAIL_COUNTER:
-    case HwAsic::Feature::SAI_PORT_ERR_STATUS:
-    case HwAsic::Feature::RX_FREQUENCY_PPM:
     case HwAsic::Feature::FABRIC_PORTS:
     case HwAsic::Feature::FABRIC_PORT_MTU:
     case HwAsic::Feature::SAI_FIRMWARE_PATH:
@@ -215,6 +217,9 @@ bool Tomahawk5Asic::isSupported(Feature feature) const {
     case HwAsic::Feature::BULK_CREATE_ECMP_MEMBER:
     case HwAsic::Feature::TECH_SUPPORT:
     case HwAsic::Feature::DRAM_QUARANTINED_BUFFER_STATS:
+    case HwAsic::Feature::FABRIC_INTER_CELL_JITTER_WATERMARK:
+    case HwAsic::Feature::MAC_TRANSMIT_DATA_QUEUE_WATERMARK:
+    case HwAsic::Feature::FABRIC_LINK_MONITORING:
       return false;
   }
   return false;
@@ -241,6 +246,15 @@ int Tomahawk5Asic::getDefaultNumPortQueues(
       " portType: ",
       apache::thrift::util::enumNameSafe(portType),
       " combination");
+}
+
+int Tomahawk5Asic::getBasePortQueueId(
+    cfg::StreamType streamType,
+    cfg::PortType portType) const {
+  if (streamType == cfg::StreamType::MULTICAST) {
+    return portType == cfg::PortType::MANAGEMENT_PORT ? 8 : 0;
+  }
+  return 0;
 }
 
 const std::map<cfg::PortType, cfg::PortLoopbackMode>&

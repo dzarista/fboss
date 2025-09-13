@@ -17,7 +17,6 @@
 #include "fboss/platform/helpers/PlatformFsUtils.h"
 #include "fboss/platform/helpers/PlatformUtils.h"
 #include "fboss/platform/platform_manager/Utils.h"
-#include "fboss/platform/platform_manager/gen-cpp2/platform_manager_config_constants.h"
 #include "fboss/platform/weutil/FbossEepromInterface.h"
 #include "fboss/platform/weutil/IoctlSmbusEepromReader.h"
 
@@ -133,8 +132,6 @@ PlatformManagerStatus createPmStatus(
 }
 } // namespace
 
-namespace constants = platform_manager_config_constants;
-
 PlatformExplorer::PlatformExplorer(
     const PlatformConfig& config,
     std::shared_ptr<PlatformFsUtils> platformFsUtils)
@@ -164,8 +161,11 @@ void PlatformExplorer::explore() {
        *platformConfig_.symbolicLinkToDevicePath()) {
     createDeviceSymLink(linkPath, devicePath);
   }
+  XLOG(INFO) << "Publishing firmware versions ...";
   publishFirmwareVersions();
+  XLOG(INFO) << "Generating human readable EEPROM contents ...";
   genHumanReadableEeproms();
+  XLOG(INFO) << "Publishing hardware version of the unit ...";
   publishHardwareVersions();
   auto explorationStatus = explorationSummary_.summarize();
   updatePmStatus(createPmStatus(
@@ -482,6 +482,28 @@ void PlatformExplorer::exploreI2cDevices(
                 slotPath, *i2cDeviceConfig.pmUnitScopedName()),
             Utils().resolveWatchdogCharDevPath(i2cDevicePath));
       }
+      if (*i2cDeviceConfig.isEeprom()) {
+        auto i2cDevicePath = i2cExplorer_.getDeviceI2cPath(busNum, devAddr);
+        try {
+          auto eepromPath = i2cDevicePath + "/eeprom";
+          dataStore_.updateEepromContents(
+              Utils().createDevicePath(
+                  slotPath, *i2cDeviceConfig.pmUnitScopedName()),
+              FbossEepromInterface(eepromPath, 0));
+        } catch (const std::exception& e) {
+          auto errMsg = fmt::format(
+              "Could not fetch contents of EEPROM device {} in {}. {}",
+              *i2cDeviceConfig.pmUnitScopedName(),
+              slotPath,
+              e.what());
+          XLOG(ERR) << errMsg;
+          explorationSummary_.addError(
+              ExplorationErrorType::IDPROM_READ,
+              slotPath,
+              *i2cDeviceConfig.pmUnitScopedName(),
+              errMsg);
+        }
+      }
     } catch (const std::exception& ex) {
       auto errMsg = fmt::format(
           "Failed to explore I2C device {} at {}. {}",
@@ -641,13 +663,6 @@ uint32_t PlatformExplorer::getFpgaInstanceId(
 void PlatformExplorer::createDeviceSymLink(
     const std::string& linkPath,
     const std::string& devicePath) {
-  if (explorationSummary_.isDeviceExpectedToFail(devicePath)) {
-    XLOG(WARNING) << fmt::format(
-        "Device at ({}) is not supported in this hardware. Skipping creating symlink {}",
-        devicePath,
-        linkPath);
-    return;
-  }
   auto linkParentPath = std::filesystem::path(linkPath).parent_path();
   if (!platformFsUtils_->createDirectories(linkParentPath.string())) {
     XLOG(ERR) << fmt::format(
@@ -698,7 +713,7 @@ void PlatformExplorer::createDeviceSymLink(
     }
   } catch (const std::exception& ex) {
     auto errMsg = fmt::format(
-        "Failed to create a symlink {} for DevicePath {}. Reason: {}",
+        "Failed to create symlink {} for DevicePath {}. Reason: {}",
         linkPath,
         devicePath,
         ex.what());
@@ -919,10 +934,34 @@ void PlatformExplorer::genHumanReadableEeproms() {
     if (!linkPath.starts_with("/run/devmap/eeproms")) {
       continue;
     }
+
     const auto [slotPath, deviceName] = Utils().parseDevicePath(devicePath);
-    if (deviceName != "IDPROM") {
+
+    if (!dataStore_.hasPmUnit(slotPath)) {
+      XLOG(ERR) << fmt::format(
+          "No device at {}. Skipping creating parsed eeprom content for {}",
+          slotPath,
+          devicePath);
+      continue;
+    }
+
+    auto pmUnitConfig = dataStore_.resolvePmUnitConfig(slotPath);
+    std::optional<I2cDeviceConfig> matchingConfig;
+
+    // Search through i2cDeviceConfigs to find one with matching
+    // pmUnitScopedName
+    for (const auto& i2cDeviceConfig : *pmUnitConfig.i2cDeviceConfigs()) {
+      if (*i2cDeviceConfig.pmUnitScopedName() == deviceName) {
+        matchingConfig = i2cDeviceConfig;
+        break;
+      }
+    }
+
+    bool isEeprom = matchingConfig && *matchingConfig->isEeprom();
+    if (deviceName != "IDPROM" && !isEeprom) {
       XLOG(WARNING) << fmt::format(
-          "{} is not IDPROM. Skip generating eeprom content.", linkPath);
+          "{} is not IDPROM or EEPROM. Skip generating eeprom content.",
+          linkPath);
       continue;
     }
 

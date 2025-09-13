@@ -87,13 +87,15 @@ void Utils::printI2cDetails() {
   std::cout << output << std::endl;
 
   auto i2cBuses = i2cHelper_.findI2cBuses();
-  for (const auto& busInfo : i2cBuses) {
-    if (config_.i2cBusIgnore() &&
-        (*config_.i2cBusIgnore()).contains(busInfo.second)) {
+  for (const auto& [busNum, busName] : i2cBuses) {
+    if (config_.i2cBusIgnore()->contains(busName)) {
+      std::cout << fmt::format("Skipping bus `i2c-{} - {}`", busNum, busName)
+                << std::endl;
       continue;
     }
-    auto cmd = fmt::format("time i2cdetect -y {}", busInfo.first);
-    std::cout << fmt::format("##### Running `{}` #####", cmd) << std::endl;
+    auto cmd = fmt::format("time i2cdetect -y {}", busNum);
+    std::cout << fmt::format("##### Running `{}` for {} #####", cmd, busName)
+              << std::endl;
     std::cout << platformUtils_.execCommand(cmd).second << std::endl;
   }
 }

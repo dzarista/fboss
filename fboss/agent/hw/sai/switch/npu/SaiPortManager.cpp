@@ -15,7 +15,7 @@
 #include "fboss/agent/hw/switch_asics/HwAsic.h"
 #include "fboss/agent/platforms/sai/SaiPlatform.h"
 
-#if defined(BRCM_SAI_SDK_DNX)
+#if defined(BRCM_SAI_SDK_DNX) || defined(BRCM_SAI_SDK_XGS)
 #ifndef IS_OSS_BRCM_SAI
 #include <experimental/saiportextensions.h>
 #else
@@ -66,6 +66,12 @@ sai_int32_t getPortTypeFromCfg(const cfg::PortType& cfgPortType) {
 #else
       throw FbossError("RECYCLE_PORT is not supported");
 #endif
+    case cfg::PortType::HYPER_PORT:
+#if defined(BRCM_SAI_SDK_DNX_GTE_14_0)
+      return SAI_PORT_TYPE_HYPERPORT;
+#else
+      throw FbossError("HYPER_PORT is not supported");
+#endif
   }
 
   throw FbossError(
@@ -112,6 +118,17 @@ void SaiPortManager::fillInSupportedStats(PortID port) {
         counterIds.emplace_back(SAI_PORT_STAT_IF_IN_LINK_DOWN_CELL_DROP);
       }
 #endif
+      if (platform_->getAsic()->isSupported(
+              HwAsic::Feature::FABRIC_LINK_MONITORING)) {
+        counterIds.insert(
+            counterIds.end(),
+            SaiPortTraits::fabricControlRxPacketStats().begin(),
+            SaiPortTraits::fabricControlRxPacketStats().end());
+        counterIds.insert(
+            counterIds.end(),
+            SaiPortTraits::fabricControlTxPacketStats().begin(),
+            SaiPortTraits::fabricControlTxPacketStats().end());
+      }
       return counterIds;
     }
     if (getPortType(port) == cfg::PortType::RECYCLE_PORT) {
@@ -208,6 +225,17 @@ void SaiPortManager::fillInSupportedStats(PortID port) {
     if (platform_->getAsic()->isSupported(
             HwAsic::Feature::SAI_PORT_IN_CONGESTION_DISCARDS)) {
       counterIds.emplace_back(SAI_PORT_STAT_IN_DROPPED_PKTS);
+    }
+    if (platform_->getAsic()->isSupported(
+            HwAsic::Feature::FABRIC_LINK_MONITORING)) {
+      counterIds.insert(
+          counterIds.end(),
+          SaiPortTraits::fabricControlRxPacketStats().begin(),
+          SaiPortTraits::fabricControlRxPacketStats().end());
+      counterIds.insert(
+          counterIds.end(),
+          SaiPortTraits::fabricControlTxPacketStats().begin(),
+          SaiPortTraits::fabricControlTxPacketStats().end());
     }
     return counterIds;
   };
@@ -600,6 +628,17 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
   if (platform_->getAsic()->isSupported(HwAsic::Feature::MACSEC) &&
       portProfileConfig.interPacketGapBits().has_value()) {
     interFrameGap = *portProfileConfig.interPacketGapBits();
+    XLOG(DBG2) << "Setting interFrameGap from platformMapping for port "
+               << swPort->getID()
+               << " to value: " << *portProfileConfig.interPacketGapBits();
+  }
+  // If interpacket gaps bits are set in switch state, overwrite interFrameGap
+  // value
+  if (swPort->getInterPacketGapBits().has_value()) {
+    interFrameGap = *swPort->getInterPacketGapBits();
+    XLOG(DBG2) << "Setting interFrameGap from switchState for port "
+               << swPort->getID()
+               << " to value: " << *swPort->getInterPacketGapBits();
   }
 #endif
   std::optional<SaiPortTraits::Attributes::LinkTrainingEnable>
@@ -659,6 +698,10 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
       arsPortLoadPastWeight = std::nullopt;
   std::optional<SaiPortTraits::Attributes::ArsPortLoadFutureWeight>
       arsPortLoadFutureWeight = std::nullopt;
+#if SAI_API_VERSION >= SAI_VERSION(1, 16, 0) && defined(BRCM_SAI_SDK_XGS)
+  std::optional<SaiPortTraits::Attributes::ArsLinkState> arsLinkState =
+      std::nullopt;
+#endif
   if (FLAGS_flowletSwitchingEnable &&
       platform_->getAsic()->isSupported(HwAsic::Feature::ARS)) {
     auto flowletCfg = swPort->getPortFlowletConfig();
@@ -672,6 +715,13 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
         arsPortLoadPastWeight = flowletCfgPtr->getLoadWeight();
         arsPortLoadFutureWeight = flowletCfgPtr->getQueueWeight();
       }
+      // exclude 14.0 until this attr is ported there by BCM
+#if SAI_API_VERSION >= SAI_VERSION(1, 16, 0) && defined(BRCM_SAI_SDK_XGS) && \
+    defined(BRCM_SAI_SDK_GTE_13_0) && !defined(BRCM_SAI_SDK_GTE_14_0)
+      if (swPort->getLoopbackMode() == cfg::PortLoopbackMode::MAC) {
+        arsLinkState = SAI_PORT_ARS_LINK_STATE_UP;
+      }
+#endif
     }
   }
 #endif
@@ -763,6 +813,9 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
         std::nullopt, // ARS port load past weight
         std::nullopt, // ARS port load future weight
 #endif
+#if SAI_API_VERSION >= SAI_VERSION(1, 16, 0) && defined(BRCM_SAI_SDK_XGS)
+        std::nullopt, // ARS link state
+#endif
         std::nullopt, // Reachability Group
         std::nullopt, // CondEntropyRehashEnable
         std::nullopt, // CondEntropyRehashPeriodUS
@@ -772,6 +825,8 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
         false,
 #endif
         fecErrorDetectEnable,
+        std::nullopt, // FabricSystemPort
+        std::nullopt, // StaticModuleId
     };
   }
   std::optional<SaiPortTraits::Attributes::PortVlanId> vlanIdAttr{vlanId};
@@ -846,6 +901,9 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
       arsPortLoadPastWeight, // ARS port load past weight
       arsPortLoadFutureWeight, // ARS port load future weight
 #endif
+#if SAI_API_VERSION >= SAI_VERSION(1, 16, 0) && defined(BRCM_SAI_SDK_XGS)
+      arsLinkState,
+#endif
       reachabilityGroup,
       condEntropyRehashEnable,
       std::nullopt, // CondEntropyRehashPeriodUS
@@ -855,6 +913,8 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
       false,
 #endif
       fecErrorDetectEnable,
+      std::nullopt, // FabricSystemPort
+      std::nullopt, // StaticModuleId
   };
 }
 

@@ -16,7 +16,6 @@
 #include "fboss/agent/state/StateDelta.h"
 #include "fboss/lib/RefMap.h"
 
-#include <gtest/gtest.h>
 #include <memory>
 #include <ostream>
 
@@ -36,9 +35,9 @@ class EcmpResourceManager : public PreUpdateStateModifier {
   using NextHopGroupId = uint32_t;
   using NextHopGroupIds = std::set<NextHopGroupId>;
   using NextHops2GroupId = std::map<RouteNextHopSet, NextHopGroupId>;
-  using PrefixToGroupInfo = std::unordered_map<
-      std::pair<RouterID, folly::CIDRNetwork>,
-      std::shared_ptr<NextHopGroupInfo>>;
+  using Prefix = std::pair<RouterID, folly::CIDRNetwork>;
+  using PrefixToGroupInfo =
+      std::unordered_map<Prefix, std::shared_ptr<NextHopGroupInfo>>;
 
   std::vector<StateDelta> modifyState(
       const std::vector<StateDelta>& deltas) override;
@@ -49,6 +48,7 @@ class EcmpResourceManager : public PreUpdateStateModifier {
     return nextHopGroup2Id_;
   }
   size_t getRouteUsageCount(NextHopGroupId nhopGrpId) const;
+  size_t getCost(NextHopGroupId nhopGrpId) const;
   void updateDone() override;
   void updateFailed(const std::shared_ptr<SwitchState>& curState) override;
   std::optional<cfg::SwitchingMode> getBackupEcmpSwitchingMode() const {
@@ -61,10 +61,6 @@ class EcmpResourceManager : public PreUpdateStateModifier {
     return maxEcmpGroups_;
   }
 
-  const NextHopGroupInfo* getGroupInfo(
-      RouterID rid,
-      const folly::CIDRNetwork& nw) const;
-
   struct ConsolidationInfo {
     int maxPenalty() const;
     bool operator==(const ConsolidationInfo& other) const {
@@ -76,15 +72,35 @@ class EcmpResourceManager : public PreUpdateStateModifier {
   };
   using GroupIds2ConsolidationInfo =
       std::map<NextHopGroupIds, ConsolidationInfo>;
-  GroupIds2ConsolidationInfo getConsolidationInfo(NextHopGroupId grpId) const;
+  using GroupIds2ConsolidationInfoItr = GroupIds2ConsolidationInfo::iterator;
+  NextHopGroupIds getUnMergedGids() const;
+  NextHopGroupIds getMergedGids() const;
+  /*
+   * Test helper APIs. Used mainly in UTs. Not neccessarily opimized for
+   * non test code.
+   */
+  std::optional<ConsolidationInfo> getMergeGroupConsolidationInfo(
+      NextHopGroupId grpId) const;
+  GroupIds2ConsolidationInfo getCandidateMergeConsolidationInfo(
+      NextHopGroupId grpId) const;
+  std::set<NextHopGroupId> getOptimalMergeGroupSet() const;
+  std::map<NextHopGroupId, std::set<Prefix>> getGroupIdToPrefix() const;
+  const NextHopGroupInfo* getGroupInfo(
+      RouterID rid,
+      const folly::CIDRNetwork& nw) const;
+  /* Test helper API end */
 
  private:
-  FRIEND_TEST(EcmpResourceMgrCandidateMergeTest, optimalMergeSet);
-  void nextHopGroupDeleted(NextHopGroupId groupId);
-  bool pruneFromCandidateMerges(const NextHopGroupIds& groupId);
-  bool pruneFromMergedGroups(NextHopGroupId groupId);
+  GroupIds2ConsolidationInfoItr fixAndGetMergeGroupItr(
+      const NextHopGroupId newMemberGroup,
+      const RouteNextHopSet& mergedNhops);
+  void fixMergeItreators(
+      const NextHopGroupIds& newMergeSet,
+      GroupIds2ConsolidationInfoItr mitr,
+      const NextHopGroupIds& toIgnore);
+  bool pruneFromCandidateMerges(const NextHopGroupIds& groupIds);
   template <typename AddrT>
-  bool routesEqual(
+  bool routeFwdEqual(
       const std::shared_ptr<Route<AddrT>>& oldRoute,
       const std::shared_ptr<Route<AddrT>>& newRoute) const;
 
@@ -159,8 +175,25 @@ class EcmpResourceManager : public PreUpdateStateModifier {
   std::vector<StateDelta> consolidateImpl(
       const StateDelta& delta,
       InputOutputState* inOutState);
+  std::vector<std::shared_ptr<NextHopGroupInfo>> getGroupsToReclaimOrdered(
+      uint32_t canReclaim) const;
+  void reclaimBackupGroups(
+      const std::vector<std::shared_ptr<NextHopGroupInfo>>& toReclaimSorted,
+      const NextHopGroupIds& groupIdsToReclaimIn,
+      InputOutputState* inOutState);
+  void reclaimMergeGroups(
+      const std::vector<std::shared_ptr<NextHopGroupInfo>>& toReclaimSorted,
+      const NextHopGroupIds& groupIdsToReclaim,
+      InputOutputState* inOutState);
+  enum class MergeGroupUpdateOp { RECLAIM_GROUPS, DELETE_GROUPS };
+  void updateMergedGroups(
+      const std::set<NextHopGroupIds>& mergeSetsToUpdate,
+      MergeGroupUpdateOp op,
+      const NextHopGroupIds& groupIdsToReclaim,
+      InputOutputState* inOutState);
+  std::unordered_map<NextHopGroupId, std::vector<Prefix>> getGidToPrefixes()
+      const;
   void reclaimEcmpGroups(InputOutputState* inOutState);
-  std::set<NextHopGroupId> getOptimalMergeGroupSet() const;
   template <typename AddrT>
   std::shared_ptr<NextHopGroupInfo> updateForwardingInfoAndInsertDelta(
       RouterID rid,
@@ -174,7 +207,8 @@ class EcmpResourceManager : public PreUpdateStateModifier {
       const std::shared_ptr<Route<AddrT>>& route,
       std::shared_ptr<NextHopGroupInfo>& grpInfo,
       bool ecmpDemandExceeded,
-      InputOutputState* inOutState);
+      InputOutputState* inOutState,
+      bool addNewDelta = false);
   template <typename AddrT>
   std::shared_ptr<NextHopGroupInfo> ecmpGroupDemandExceeded(
       RouterID rid,
@@ -217,7 +251,17 @@ class EcmpResourceManager : public PreUpdateStateModifier {
   NextHopGroupId findNextAvailableId() const;
   ConsolidationInfo computeConsolidationInfo(
       const NextHopGroupIds& grpIds) const;
-  void computeCandidateMerges(const std::vector<NextHopGroupId>& groupIds);
+  template <std::forward_iterator ForwardIt>
+  void computeCandidateMergesForNewUnmergedGroups(
+      ForwardIt begin,
+      ForwardIt end);
+  void computeCandidateMergesForNewUnmergedGroups(
+      const std::vector<NextHopGroupId>& gids) {
+    computeCandidateMergesForNewUnmergedGroups(gids.begin(), gids.end());
+  }
+  void computeCandidateMergesForNewMergedGroup(
+      const NextHopGroupIds& newMergeSet);
+  void addCandidateMerge(const NextHopGroupIds& candidateMerge);
 
   NextHops2GroupId nextHopGroup2Id_;
   StdRefMap<NextHopGroupId, NextHopGroupInfo> nextHopGroupIdToInfo_;
@@ -238,13 +282,13 @@ class NextHopGroupInfo {
  public:
   using NextHopGroupId = EcmpResourceManager::NextHopGroupId;
   using NextHopGroupItr = EcmpResourceManager::NextHops2GroupId::iterator;
-  using Groups2ConsolidationInfoItr =
+  using GroupIds2ConsolidationInfoItr =
       EcmpResourceManager::GroupIds2ConsolidationInfo::iterator;
   NextHopGroupInfo(
       NextHopGroupId id,
       NextHopGroupItr ngItr,
       bool isBackupEcmpGroupType = false,
-      std::optional<Groups2ConsolidationInfoItr> mergedGroupsToInfoItr =
+      std::optional<GroupIds2ConsolidationInfoItr> mergedGroupsToInfoItr =
           std::nullopt)
       : id_(id),
         ngItr_(ngItr),
@@ -269,8 +313,12 @@ class NextHopGroupInfo {
   void setIsBackupEcmpGroupType(bool isBackupEcmp) {
     isBackupEcmpGroupType_ = isBackupEcmp;
   }
-  void setMergedGroupInfoItr(std::optional<Groups2ConsolidationInfoItr> gitr) {
+  void setMergedGroupInfoItr(
+      std::optional<GroupIds2ConsolidationInfoItr> gitr) {
     mergedGroupsToInfoItr_ = gitr;
+  }
+  std::optional<GroupIds2ConsolidationInfoItr> getMergedGroupInfoItr() const {
+    return mergedGroupsToInfoItr_;
   }
   const RouteNextHopSet& getNhops() const {
     return ngItr_->first;
@@ -280,6 +328,12 @@ class NextHopGroupInfo {
   }
   bool hasOverrides() const {
     return isBackupEcmpGroupType() || hasOverrideNextHops();
+  }
+
+  int cost() const {
+    return mergedGroupsToInfoItr_.has_value()
+        ? (*mergedGroupsToInfoItr_)->second.maxPenalty()
+        : routeUsageCount_;
   }
 
   std::optional<RouteNextHopSet> getOverrideNextHops() const {
@@ -295,7 +349,7 @@ class NextHopGroupInfo {
   NextHopGroupId id_;
   NextHopGroupItr ngItr_;
   bool isBackupEcmpGroupType_{false};
-  std::optional<Groups2ConsolidationInfoItr> mergedGroupsToInfoItr_;
+  std::optional<GroupIds2ConsolidationInfoItr> mergedGroupsToInfoItr_;
   int routeUsageCount_{kInvalidRouteUsageCount};
 };
 
@@ -307,4 +361,8 @@ std::unique_ptr<EcmpResourceManager> makeEcmpResourceManager(
 std::ostream& operator<<(
     std::ostream& os,
     const EcmpResourceManager::ConsolidationInfo& info);
+
+std::ostream& operator<<(
+    std::ostream& os,
+    const EcmpResourceManager::Prefix& pfx);
 } // namespace facebook::fboss

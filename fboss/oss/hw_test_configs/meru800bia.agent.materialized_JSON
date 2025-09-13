@@ -271,7 +271,6 @@
       "asicConfig": {
         "common": {
           "config": {
-            "AI23_mode": "1",
             "appl_enable_oam.BCM8889X": "0",
             "appl_param_rcy_mirror_ports_range.BCM8889X": "100-143",
             "bcm_stat_interval": "1000000",
@@ -287,6 +286,7 @@
             "custom_feature_use_new_access.BCM8889X_ADAPTER": "1",
             "custom_feature_vsqd_lossless_reject_enable": "1",
             "customer_x_fap_ss": "1",
+            "deleted_buffers_file_path": "/tmp/dram_quarantine_deleted_buffers_file",
             "dpp_db_path": "/tmp/db",
             "dram_temperature_monitor_enable.BCM8889X_ADAPTER": "0",
             "dtm_flow_mapping_mode_region_65.BCM8889X": "0",

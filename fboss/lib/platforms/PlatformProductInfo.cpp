@@ -188,6 +188,10 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_TAHAN800BC;
     } else if (modelName.find("ICECUBE") == 0) {
       type_ = PlatformType::PLATFORM_ICECUBE800BC;
+    } else if (modelName.find("WEDGE800BA") == 0) {
+      type_ = PlatformType::PLATFORM_WEDGE800BA;
+    } else if (modelName.find("ICETEA") == 0) {
+      type_ = PlatformType::PLATFORM_ICETEA800BC;
     } else if (
         modelName.find("Glath05a-64o") == 0 ||
         modelName.find("GLATH05A-64O") == 0) {
@@ -246,8 +250,10 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_WEDGE400C_FABRIC;
     } else if (FLAGS_mode == "montblanc" || FLAGS_mode == "minipack3ba") {
       type_ = PlatformType::PLATFORM_MONTBLANC;
-    } else if (FLAGS_mode == "icecube") {
+    } else if (FLAGS_mode == "icecube800bc") {
       type_ = PlatformType::PLATFORM_ICECUBE800BC;
+    } else if (FLAGS_mode == "icetea800bc") {
+      type_ = PlatformType::PLATFORM_ICETEA800BC;
     } else if (FLAGS_mode == "fake_sai") {
       type_ = PlatformType::PLATFORM_FAKE_SAI;
     } else if (FLAGS_mode == "janga800bic") {
@@ -260,6 +266,8 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_YANGRA;
     } else if (FLAGS_mode == "minipack3n") {
       type_ = PlatformType::PLATFORM_MINIPACK3N;
+    } else if (FLAGS_mode == "wedge800ba") {
+      type_ = PlatformType::PLATFORM_WEDGE800BA;
     } else if (FLAGS_mode == "glath05a-64o") {
       type_ = PlatformType::PLATFORM_GLATH05A_64O;
     } else {

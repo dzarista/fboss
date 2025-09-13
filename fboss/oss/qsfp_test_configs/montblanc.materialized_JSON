@@ -128,6 +128,21 @@
         "profileID": 38
       },
       {
+        "aPortName": "eth1/52/1",
+        "zPortName": "eth1/53/1",
+        "profileID": 45
+      },
+      {
+        "aPortName": "eth1/52/5",
+        "zPortName": "eth1/53/5",
+        "profileID": 45
+      },
+      {
+        "aPortName": "eth1/54/1",
+        "zPortName": "eth1/55/1",
+        "profileID": 50
+      },
+      {
         "aPortName": "eth1/58/1",
         "zPortName": "eth1/59/1",
         "profileID": 38
@@ -213,6 +228,22 @@
           ]
       },
       "EOLO-168HG-02-1T": {
+          "versions": [
+            {
+              "fwType": 1,
+              "version": "3.12"
+            }
+          ]
+      },
+      "EOLO-168HG-02-9B": {
+          "versions": [
+            {
+              "fwType": 1,
+              "version": "3.12"
+            }
+          ]
+      },
+      "EOLO-168HG-02-9T": {
           "versions": [
             {
               "fwType": 1,
@@ -317,6 +348,22 @@
           ]
       },
       "FTCE4717E1PCB-FB": {
+          "versions": [
+            {
+              "fwType": 1,
+              "version": "1.16"
+            }
+          ]
+      },
+      "FTCE4717E1PCBFB1": {
+          "versions": [
+            {
+              "fwType": 1,
+              "version": "1.16"
+            }
+          ]
+      },
+      "FTCE4717E1PCBFB3": {
           "versions": [
             {
               "fwType": 1,
@@ -508,7 +555,15 @@
           "versions": [
             {
               "fwType": 1,
-              "version": "103.134"
+              "version": "103.137"
+            }
+          ]
+      },
+      "T-OL8CNT-NFB": {
+          "versions": [
+            {
+              "fwType": 1,
+              "version": "103.137"
             }
           ]
       },
@@ -516,7 +571,15 @@
           "versions": [
             {
               "fwType": 1,
-              "version": "103.134"
+              "version": "103.137"
+            }
+          ]
+      },
+      "T-OL8CNT-NFM": {
+          "versions": [
+            {
+              "fwType": 1,
+              "version": "103.137"
             }
           ]
       }

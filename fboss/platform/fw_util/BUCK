@@ -19,7 +19,7 @@ cpp_binary(
 cpp_library(
     name = "core",
     srcs = [
-        "Flags.cpp",
+        "ConfigValidator.cpp",
         "FwUtilFlashrom.cpp",
         "FwUtilImpl.cpp",
         "FwUtilOperations.cpp",
@@ -46,7 +46,7 @@ cpp_library(
         "//thrift/lib/cpp2/protocol:protocol",
     ],
     exported_external_deps = [
-        "gflags",
+        "re2",
     ],
 )
 

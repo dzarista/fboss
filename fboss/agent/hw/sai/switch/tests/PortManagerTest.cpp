@@ -175,6 +175,8 @@ class PortManagerTest : public ManagerTestBase {
         std::nullopt, // CondEntropyRehashSeed
         std::nullopt, // ShelEnable
         std::nullopt, // FecErrorDetectEnable
+        std::nullopt, // FabricSystemPort
+        std::nullopt, // StaticModuleId
     };
     return portApi.create<SaiPortTraits>(a, 0);
   }

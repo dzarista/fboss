@@ -6,13 +6,11 @@
 #include "fboss/platform/showtech/I2cHelper.h"
 #include "fboss/platform/showtech/gen-cpp2/showtech_config_types.h"
 
-using namespace facebook::fboss::platform::showtech_config;
-
 namespace facebook::fboss::platform {
 
 class Utils {
  public:
-  Utils(ShowtechConfig config) : config_(config){};
+  Utils(const showtech_config::ShowtechConfig& config) : config_(config){};
   ~Utils() = default;
 
   void printHostDetails();
@@ -26,7 +24,7 @@ class Utils {
   void runFbossCliCmd(const std::string& cmd);
 
  private:
-  ShowtechConfig config_;
+  const showtech_config::ShowtechConfig& config_;
   PlatformUtils platformUtils_{};
   I2cHelper i2cHelper_{};
 };

@@ -33,6 +33,10 @@ class TunManager : public StateObserver {
   TunManager(SwSwitch* sw, FbossEventBase* evb);
   ~TunManager() override;
 
+#ifdef TUNMANAGER_ROUTE_PROCESSOR_FRIEND_TESTS
+  TUNMANAGER_ROUTE_PROCESSOR_FRIEND_TESTS
+#endif
+
   /**
    * Update the intfs_ map based on the given state update. This
    * overrides the StateObserver stateUpdated api, which is always
@@ -89,6 +93,38 @@ class TunManager : public StateObserver {
   bool isValidNlSocket();
 
  private:
+  /**
+   * @brief Probed route from the kernel.
+   */
+  struct ProbedRoute {
+    /*< Address family (AF_INET for IPv4, AF_INET6 for IPv6) */
+    int family{};
+    /*< Routing table identifier */
+    int tableId{};
+    /*< Destination address/network as string */
+    std::string destination;
+    /*< Network interface index */
+    int ifIndex{};
+
+    /**
+     * @brief Constructor for initializing family, tableId, and destination.
+     *
+     * @param family Address family (AF_INET for IPv4, AF_INET6 for IPv6)
+     * @param tableId Routing table identifier
+     * @param destination Destination address/network as string
+     */
+    ProbedRoute(int family, int tableId, const std::string& destination)
+        : family(family),
+          tableId(tableId),
+          destination(destination),
+          ifIndex(0) {}
+
+    /**
+     * @brief Default constructor.
+     */
+    ProbedRoute() = default;
+  };
+
   // no copy to assign
   TunManager(const TunManager&) = delete;
   TunManager& operator=(const TunManager&) = delete;
@@ -128,6 +164,11 @@ class TunManager : public StateObserver {
    * will eventually go out of corresponding switch interface.
    */
   void addRemoveRouteTable(InterfaceID ifID, int ifIndex, bool add);
+  virtual void addRemoveRouteTable(
+      int tableId,
+      int ifIndex,
+      bool add,
+      std::optional<InterfaceID> ifID = std::nullopt);
   void addRouteTable(InterfaceID ifID, int ifIndex) {
     addRemoveRouteTable(ifID, ifIndex, true);
   }
@@ -193,6 +234,27 @@ class TunManager : public StateObserver {
   static void addressProcessor(struct nl_object* obj, void* data);
 
   /**
+   * Netlink callback for processing routes read from kernel.
+   *
+   * Process routes discovered during kernel probing and stores
+   * them for later cleanup. It filters routes based on address family
+   * (IPv4/IPv6 only), table ID (1-253 range), and extracts destination,
+   * nexthop, and interface information.
+   *
+   * @param obj Netlink route object to process
+   * @param data Pointer to TunManager instance for storing probed routes
+   */
+  static void routeProcessor(struct nl_object* obj, void* data);
+
+  /**
+   * Delete probed routes from kernel routing tables.
+   *
+   * Removes default routes (0.0.0.0/0 and ::/0) that were discovered
+   * during kernel probing.
+   */
+  void deleteProbedRoutes();
+
+  /**
    * Lookup host for existing Tun interfaces and their addresses.
    */
   virtual void doProbe(std::lock_guard<std::mutex>& mutex);
@@ -254,6 +316,9 @@ class TunManager : public StateObserver {
   bool probeDone_{false};
 
   uint64_t numSyncs_{0};
+
+  /*< Container to store probed routes from kernel */
+  std::vector<ProbedRoute> probedRoutes_;
 
   enum : uint8_t {
     /**

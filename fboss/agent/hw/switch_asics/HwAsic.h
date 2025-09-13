@@ -226,6 +226,11 @@ class HwAsic {
     BULK_CREATE_ECMP_MEMBER,
     TECH_SUPPORT,
     DRAM_QUARANTINED_BUFFER_STATS,
+    MANAGEMENT_PORT_MULTICAST_QUEUE_ALPHA,
+    SAI_PORT_PG_DROP_STATUS,
+    FABRIC_INTER_CELL_JITTER_WATERMARK,
+    MAC_TRANSMIT_DATA_QUEUE_WATERMARK,
+    FABRIC_LINK_MONITORING,
   };
 
   enum class AsicMode {
@@ -273,6 +278,11 @@ class HwAsic {
   virtual int getDefaultNumPortQueues(
       cfg::StreamType streamType,
       cfg::PortType portType) const = 0;
+  virtual int getBasePortQueueId(
+      cfg::StreamType streamType,
+      cfg::PortType portType) const {
+    return 0;
+  }
   virtual uint32_t getMaxLabelStackDepth() const = 0;
   virtual uint64_t getMMUSizeBytes() const = 0;
   virtual uint32_t getMaxMirrors() const = 0;
@@ -384,6 +394,11 @@ class HwAsic {
   }
 
   virtual std::optional<uint32_t> getMaxArpTableSize() const {
+    return std::nullopt;
+  }
+
+  // Set this if NDP/ARP uses a single unified neighbor table
+  virtual std::optional<uint32_t> getMaxUnifiedNeighborTableSize() const {
     return std::nullopt;
   }
 

@@ -100,6 +100,15 @@ struct HwPortStats {
   66: optional i64 pfcDeadlockDetection_;
   67: optional i64 pfcDeadlockRecovery_;
   68: map<i16, bool> pgInCongestionDiscardSeen_ = {};
+  // MAC transmit data queue min/max watermark is added to
+  // monitor for TX stuck conditions which could result in
+  // RCI stuck like in S545783. Watermark is in cells and
+  // not converted to bytes, details in CS00012417758.
+  69: optional i64 macTransmitQueueMinWatermarkCells_;
+  70: optional i64 macTransmitQueueMaxWatermarkCells_;
+  71: optional bool macTransmitQueueStuck_;
+  72: optional i64 fabricControlRxPackets_;
+  73: optional i64 fabricControlTxPackets_;
 }
 
 struct HwSysPortStats {
@@ -333,6 +342,7 @@ struct HwSwitchWatermarkStats {
   7: optional i64 egressCoreBufferWatermarkBytes;
   8: optional i64 sramMinBufferWatermarkBytes;
   9: optional i64 fdrFifoWatermarkBytes;
+  10: optional i64 fabricInterCellJitterWatermarkUsec;
 }
 
 struct CpuPortStats {

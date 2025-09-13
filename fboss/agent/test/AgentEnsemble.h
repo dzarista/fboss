@@ -235,6 +235,11 @@ class AgentEnsemble : public TestEnsembleIf {
       std::string& output,
       std::optional<SwitchID> switchId = std::nullopt) override;
 
+  void runCint(
+      const std::string& cintData,
+      std::string& output,
+      const SwitchID& switchId);
+
   void clearPortStats(
       const std::unique_ptr<std::vector<int32_t>>& ports) override;
 
@@ -371,6 +376,8 @@ class AgentEnsemble : public TestEnsembleIf {
   std::optional<int64_t> getFb303CounterIfExists(
       const PortID& portId,
       const std::string& regex);
+
+  std::string getHwDebugDump();
 
  protected:
   void joinAsyncInitThread() {
