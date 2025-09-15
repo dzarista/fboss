@@ -22,6 +22,7 @@
 #include <linux/time64.h>
 #include <linux/rtc.h>
 #include <linux/list.h>
+#include <linux/workqueue.h>
 #include "pmbus.h"
 #include "aucd9000-reload-cause.h"
 #include "aucd9000-darwin-reload-cause.h"
@@ -71,7 +72,8 @@ enum chips { ucd9000, ucd90120, ucd90124, ucd90160, ucd90320, ucd9090,
 #define UCD9000_GPI_COUNT		8
 #define UCD90320_GPI_COUNT		32
 
-#define UCD9000_RTC_SET_LEN 8
+#define UCD9000_RTC_SET_LEN	8
+#define UCD9000_RTC_UPDATE_INTERVAL_MSECS	(10 * 60 * 1000) // 10 minutes
 #define SECS_PER_DAY		86400
 #define MSECS_PER_DAY		(SECS_PER_DAY * 1000)
 
@@ -232,6 +234,8 @@ struct ucd9000_data {
 	struct dentry *debugfs;
 	ktime_t write_time;
 	struct ucd9000_fault_log fault_log;
+	struct i2c_client *client;
+	struct delayed_work rtc_work;
 };
 #define to_ucd9000_data(_info) container_of(_info, struct ucd9000_data, info)
 
@@ -1093,9 +1097,9 @@ static int ucd9000_probe_fault_log(struct i2c_client *client,
 	return 0;
 }
 
-static int ucd9000_set_rtc(struct i2c_client *client,
-			struct ucd9000_data *data)
+static int ucd9000_set_rtc(struct ucd9000_data *data)
 {
+	struct i2c_client *client = data->client;
 	u8 write_buffer[UCD9000_RTC_SET_LEN];
 	u64 sys_run_time_msecs;
 	u32 sys_msecs, sys_days;
@@ -1127,6 +1131,20 @@ static int ucd9000_set_rtc(struct i2c_client *client,
 	return i2c_smbus_write_block_data(client, UCD9000_RTC_SET,
 				sizeof(write_buffer),
 				write_buffer);
+}
+
+static void ucd9000_rtc_work(struct work_struct *__work)
+{
+	struct delayed_work *delayed_work = container_of(__work,
+											struct delayed_work,
+											work);
+	struct ucd9000_data *data = container_of(delayed_work,
+											struct ucd9000_data,
+											rtc_work);
+
+	ucd9000_set_rtc(data);
+	schedule_delayed_work(&data->rtc_work,
+		msecs_to_jiffies(UCD9000_RTC_UPDATE_INTERVAL_MSECS));
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -1381,7 +1399,8 @@ static int ucd9000_probe(struct i2c_client *client)
 	if (ret)
 		dev_warn(&client->dev, "Failed to read fault log: %d\n", ret);
 
-	ret = ucd9000_set_rtc(client, data);
+	data->client = client;
+	ret = ucd9000_set_rtc(data);
 	if (ret)
 		dev_warn(&client->dev, "Failed to set RTC: %d\n", ret);
 
@@ -1393,6 +1412,10 @@ static int ucd9000_probe(struct i2c_client *client)
 	if (ret)
 		dev_warn(&client->dev, "Failed to register debugfs: %d\n",
 			 ret);
+
+	INIT_DELAYED_WORK(&data->rtc_work, ucd9000_rtc_work);
+	schedule_delayed_work(&data->rtc_work,
+		msecs_to_jiffies(UCD9000_RTC_UPDATE_INTERVAL_MSECS));
 
 	return 0;
 }
