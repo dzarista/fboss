@@ -15,18 +15,20 @@ obj-m += scd-smbus.o
 obj-m += scd-leds.o
 obj-m += scd-xcvr.o
 obj-m += scd-spi.o
-obj-m += aucd9000.o
 
 # Backported drivers
 obj-y += backports/
 
+# DPM drivers
+obj-y += dpm/
+
 # Device drivers for Viper and Whistler
 obj-y += dsf/
 
-#Device drivers for Darwin.
+# Device drivers for Darwin.
 obj-y += darwin/
 
-#Device drivers for QuickSilver.
+# Device drivers for QuickSilver.
 obj-y += glath05a-64o/
 
 KDIR ?= /lib/modules/${BUILD_KERNEL}/build

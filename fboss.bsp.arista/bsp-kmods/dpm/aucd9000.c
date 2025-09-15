@@ -23,6 +23,9 @@
 #include <linux/rtc.h>
 #include <linux/list.h>
 #include "pmbus.h"
+#include "aucd9000-reload-cause.h"
+#include "aucd9000-darwin-reload-cause.h"
+#include "aucd9000-meru800bfa-reload-cause.h"
 
 enum chips { ucd9000, ucd90120, ucd90124, ucd90160, ucd90320, ucd9090,
 	     ucd90910 };
@@ -74,6 +77,12 @@ enum chips { ucd9000, ucd90120, ucd90124, ucd90160, ucd90320, ucd9090,
 
 #define UCD9000_LOGGED_FAULTS_NOT_EMPTY_BIT	1
 
+#define UCD9000_LOGGED_FAULTS_BYTE_COUNT	12
+#define UCD9012X_LOGGED_FAULTS_BYTE_COUNT	13
+#define UCD90320_LOGGED_FAULTS_BYTE_COUNT	32
+#define UCD90160_LOGGED_FAULTS_BYTE_COUNT	18
+#define UCD90910_LOGGED_FAULTS_BYTE_COUNT	14
+
 #define UCD9000_FAULT_DETAIL_BYTE_COUNT	10
 #define UCD90320_FAULT_DETAIL_BYTE_COUNT	12
 enum {
@@ -121,50 +130,50 @@ struct ucd9000_fault_type {
 static const struct ucd9000_fault_type ucd9000_fault_types[][BITS_PER_BYTE] = {
 	// Non-paged faults
 	{
-		UCD9000_FAULT_TYPE(0, "unknown", FAULT_FORMAT_NA, ""),
-		UCD9000_FAULT_TYPE(1, "system-watchdog-timeout", FAULT_FORMAT_NA, ""),
-		UCD9000_FAULT_TYPE(2, "resequence-error", FAULT_FORMAT_NA, ""),
-		UCD9000_FAULT_TYPE(3, "watchdog-timeout", FAULT_FORMAT_NA, ""),
-		UCD9000_FAULT_TYPE(4, "unknown", FAULT_FORMAT_NA, ""),
-		UCD9000_FAULT_TYPE(5, "unknown", FAULT_FORMAT_NA, ""),
-		UCD9000_FAULT_TYPE(6, "unknown", FAULT_FORMAT_NA, ""),
-		UCD9000_FAULT_TYPE(7, "unknown", FAULT_FORMAT_NA, ""),
+		UCD9000_FAULT_TYPE(0, "Unknown", FAULT_FORMAT_NA, ""),
+		UCD9000_FAULT_TYPE(1, "System Watchdog Timeout", FAULT_FORMAT_NA, ""),
+		UCD9000_FAULT_TYPE(2, "Resequence Error", FAULT_FORMAT_NA, ""),
+		UCD9000_FAULT_TYPE(3, "Watchdog Timeout", FAULT_FORMAT_NA, ""),
+		UCD9000_FAULT_TYPE(4, "Unknown", FAULT_FORMAT_NA, ""),
+		UCD9000_FAULT_TYPE(5, "Unknown", FAULT_FORMAT_NA, ""),
+		UCD9000_FAULT_TYPE(6, "Unknown", FAULT_FORMAT_NA, ""),
+		UCD9000_FAULT_TYPE(7, "Unknown", FAULT_FORMAT_NA, ""),
 	},
 	// Paged faults
 	{
-		UCD9000_FAULT_TYPE(0, "over-voltage", FAULT_FORMAT_LINEAR16, "mV"),
-		UCD9000_FAULT_TYPE(1, "under-voltage", FAULT_FORMAT_LINEAR16, "mV"),
-		UCD9000_FAULT_TYPE(2, "ton-max", FAULT_FORMAT_LINEAR16, "mV"),
-		UCD9000_FAULT_TYPE(3, "over-current", FAULT_FORMAT_LINEAR11, "mA"),
-		UCD9000_FAULT_TYPE(4, "under-current", FAULT_FORMAT_LINEAR11, "mA"),
-		UCD9000_FAULT_TYPE(5, "over-temp", FAULT_FORMAT_LINEAR11, "C"),
-		UCD9000_FAULT_TYPE(6, "sequence-on-timeout", FAULT_FORMAT_BITMASK, ""),
-		UCD9000_FAULT_TYPE(7, "sequence-off-timeout", FAULT_FORMAT_BITMASK, "")
+		UCD9000_FAULT_TYPE(0, "Over-Voltage", FAULT_FORMAT_LINEAR16, "mV"),
+		UCD9000_FAULT_TYPE(1, "Under-Voltage", FAULT_FORMAT_LINEAR16, "mV"),
+		UCD9000_FAULT_TYPE(2, "Ton Max", FAULT_FORMAT_LINEAR16, "mV"),
+		UCD9000_FAULT_TYPE(3, "Over-Current", FAULT_FORMAT_LINEAR11, "mA"),
+		UCD9000_FAULT_TYPE(4, "Under-Current", FAULT_FORMAT_LINEAR11, "mA"),
+		UCD9000_FAULT_TYPE(5, "Over-Temperature", FAULT_FORMAT_LINEAR11, "C"),
+		UCD9000_FAULT_TYPE(6, "Sequence On Timeout", FAULT_FORMAT_BITMASK, ""),
+		UCD9000_FAULT_TYPE(7, "Sequence Off Timeout", FAULT_FORMAT_BITMASK, "")
 	}
 };
 
-static const struct ucd9000_fault_type ucd901xx_fault_types[][BITS_PER_BYTE] = {
+static const struct ucd9000_fault_type ucd9012x_fault_types[][BITS_PER_BYTE] = {
 	// Non-paged faults
 	{
-		UCD9000_FAULT_TYPE(0, "unknown", FAULT_FORMAT_NA, ""),
-		UCD9000_FAULT_TYPE(1, "unknown", FAULT_FORMAT_NA, ""),
-		UCD9000_FAULT_TYPE(2, "resequence-error", FAULT_FORMAT_NA, ""),
-		UCD9000_FAULT_TYPE(3, "watchdog-timeout", FAULT_FORMAT_NA, ""),
-		UCD9000_FAULT_TYPE(4, "fan-1", FAULT_FORMAT_LINEAR11, "RPM"),
-		UCD9000_FAULT_TYPE(5, "fan-2", FAULT_FORMAT_LINEAR11, "RPM"),
-		UCD9000_FAULT_TYPE(6, "fan-3", FAULT_FORMAT_LINEAR11, "RPM"),
-		UCD9000_FAULT_TYPE(7, "fan-4", FAULT_FORMAT_LINEAR11, "RPM")
+		UCD9000_FAULT_TYPE(0, "Unknown", FAULT_FORMAT_NA, ""),
+		UCD9000_FAULT_TYPE(1, "Unknown", FAULT_FORMAT_NA, ""),
+		UCD9000_FAULT_TYPE(2, "Resequence Error", FAULT_FORMAT_NA, ""),
+		UCD9000_FAULT_TYPE(3, "Watchdog Timeout", FAULT_FORMAT_NA, ""),
+		UCD9000_FAULT_TYPE(4, "Fan 1", FAULT_FORMAT_LINEAR11, "RPM"),
+		UCD9000_FAULT_TYPE(5, "Fan 2", FAULT_FORMAT_LINEAR11, "RPM"),
+		UCD9000_FAULT_TYPE(6, "Fan 3", FAULT_FORMAT_LINEAR11, "RPM"),
+		UCD9000_FAULT_TYPE(7, "Fan 4", FAULT_FORMAT_LINEAR11, "RPM")
 	},
 	// Paged faults
 	{
-		UCD9000_FAULT_TYPE(0, "over-voltage", FAULT_FORMAT_LINEAR16, "mV"),
-		UCD9000_FAULT_TYPE(1, "under-voltage", FAULT_FORMAT_LINEAR16, "mV"),
-		UCD9000_FAULT_TYPE(2, "ton-max", FAULT_FORMAT_LINEAR16, "mV"),
-		UCD9000_FAULT_TYPE(3, "over-current", FAULT_FORMAT_LINEAR11, "mA"),
-		UCD9000_FAULT_TYPE(4, "under-current", FAULT_FORMAT_LINEAR11, "mA"),
-		UCD9000_FAULT_TYPE(5, "over-temp", FAULT_FORMAT_LINEAR11, "C"),
-		UCD9000_FAULT_TYPE(6, "sequence-timeout", FAULT_FORMAT_BITMASK, ""),
-		UCD9000_FAULT_TYPE(7, "slaved-fault", FAULT_FORMAT_NA, ""),
+		UCD9000_FAULT_TYPE(0, "Over-Voltage", FAULT_FORMAT_LINEAR16, "mV"),
+		UCD9000_FAULT_TYPE(1, "Under-Voltage", FAULT_FORMAT_LINEAR16, "mV"),
+		UCD9000_FAULT_TYPE(2, "Ton Max", FAULT_FORMAT_LINEAR16, "mV"),
+		UCD9000_FAULT_TYPE(3, "Over-Current", FAULT_FORMAT_LINEAR11, "mA"),
+		UCD9000_FAULT_TYPE(4, "Under-Current", FAULT_FORMAT_LINEAR11, "mA"),
+		UCD9000_FAULT_TYPE(5, "Over-Temperature", FAULT_FORMAT_LINEAR11, "C"),
+		UCD9000_FAULT_TYPE(6, "Sequence On Timeout", FAULT_FORMAT_BITMASK, ""),
+		UCD9000_FAULT_TYPE(7, "Slaved Fault", FAULT_FORMAT_NA, ""),
 	}
 };
 
@@ -174,11 +183,12 @@ struct ucd9000_fault_detail {
 	u8 type;
 	u32 value;
 	struct rtc_time timestamp;
+	s32 time_msecs;
 };
 
-#define UCD9000_FAULT_REASON_STR_LEN	32
+#define UCD9000_FAULT_REASON_STR_LEN	64
 #define UCD9000_FAULT_VALUE_STR_LEN	16
-#define UCD9000_FAULT_TIMESTAMP_STR_LEN	22
+#define UCD9000_FAULT_TIMESTAMP_STR_LEN	24
 #define UCD9000_FAULT_DESC_STR_LEN	256
 
 struct ucd9000_fault {
@@ -194,10 +204,19 @@ struct ucd9000_exponent {
 	s16 value;
 };
 
+const struct encoded_reload_cause ucd9000_encoded_gpis[] = {};
+const struct encoded_reload_cause ucd9000_encoded_rails[] = {};
+
 struct ucd9000_fault_log {
+	u8 logged_faults_byte_count;
 	u8 detail_byte_count;
 	time64_t base_time;
 	const struct ucd9000_fault_type (*fault_types)[BITS_PER_BYTE];
+	const struct encoded_reload_cause *encoded_gpis;
+	u8 encoded_gpi_count;
+	const struct encoded_reload_cause *encoded_rails;
+	u8 encoded_rail_count;
+
 	struct ucd9000_exponent exponents[PMBUS_PAGES];
 
 	u8 raw_bytes[I2C_SMBUS_BLOCK_MAX];
@@ -356,6 +375,10 @@ static const struct i2c_device_id aucd9000_id[] = {
 	{"aucd90320", ucd90320},
 	{"aucd9090", ucd9090},
 	{"aucd90910", ucd90910},
+	/* Platform-specific devices used for encoded reload causes. */
+	{"darwin_aucd90160", ucd90160},
+	{"darwin_aucd90320", ucd90320},
+	{"meru_aucd90320", ucd90320},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, aucd9000_id);
@@ -388,6 +411,18 @@ static const struct of_device_id __maybe_unused aucd9000_of_match[] = {
 	{
 		.compatible = "ti,aucd90910",
 		.data = (void *)ucd90910
+	},
+	{
+		.compatible = "ti,darwin_aucd90160",
+		.data = (void *)ucd90160
+	},
+	{
+		.compatible = "ti,darwin_aucd90320",
+		.data = (void *)ucd90320
+	},
+	{
+		.compatible = "ti,meru_aucd90320",
+		.data = (void *)ucd90320
 	},
 	{ },
 };
@@ -592,22 +627,59 @@ static void ucd9000_fault_log_get_config(const struct i2c_device_id *mid,
 	int i;
 
 	switch(mid->driver_data) {
+	case ucd90120:
+	case ucd90124:
+		fault_log->base_time = 0;
+		fault_log->logged_faults_byte_count = UCD9012X_LOGGED_FAULTS_BYTE_COUNT;
+		fault_log->detail_byte_count = UCD9000_FAULT_DETAIL_BYTE_COUNT;
+		fault_log->fault_types = ucd9012x_fault_types;
+		break;
+	case ucd90160:
+		fault_log->base_time = 0;
+		fault_log->logged_faults_byte_count = UCD90160_LOGGED_FAULTS_BYTE_COUNT;
+		fault_log->detail_byte_count = UCD9000_FAULT_DETAIL_BYTE_COUNT;
+		fault_log->fault_types = ucd9000_fault_types;
+		break;
 	case ucd90320:
 		fault_log->base_time = RTC_TIMESTAMP_BEGIN_2000;
+		fault_log->logged_faults_byte_count = UCD90320_LOGGED_FAULTS_BYTE_COUNT;
 		fault_log->detail_byte_count = UCD90320_FAULT_DETAIL_BYTE_COUNT;
 		fault_log->fault_types = ucd9000_fault_types;
 		break;
-	case ucd90120:
-	case ucd90124:
-		fault_log->base_time = 0; // Epoch
-		fault_log->detail_byte_count = UCD9000_FAULT_DETAIL_BYTE_COUNT;
-		fault_log->fault_types = ucd901xx_fault_types;
-		break;
-	default:
-		fault_log->base_time = 0; // Epoch
+	case ucd90910:
+		fault_log->base_time = 0;
+		fault_log->logged_faults_byte_count = UCD90910_LOGGED_FAULTS_BYTE_COUNT;
 		fault_log->detail_byte_count = UCD9000_FAULT_DETAIL_BYTE_COUNT;
 		fault_log->fault_types = ucd9000_fault_types;
 		break;
+	default:
+		fault_log->base_time = 0;
+		fault_log->logged_faults_byte_count = UCD9000_LOGGED_FAULTS_BYTE_COUNT;
+		fault_log->detail_byte_count = UCD9000_FAULT_DETAIL_BYTE_COUNT;
+		fault_log->fault_types = ucd9000_fault_types;
+		break;
+	}
+
+	if (!strcmp(mid->name, "darwin_aucd90160")) {
+		fault_log->encoded_gpis = darwin_aucd90160_encoded_gpis;
+		fault_log->encoded_gpi_count = ARRAY_SIZE(darwin_aucd90160_encoded_gpis);
+		fault_log->encoded_rails = darwin_aucd90160_encoded_rails;
+		fault_log->encoded_rail_count = ARRAY_SIZE(darwin_aucd90160_encoded_rails);
+	} else if (!strcmp(mid->name, "darwin_aucd90320")) {
+		fault_log->encoded_gpis = darwin_aucd90320_encoded_gpis;
+		fault_log->encoded_gpi_count = ARRAY_SIZE(darwin_aucd90320_encoded_gpis);
+		fault_log->encoded_rails = darwin_aucd90320_encoded_rails;
+		fault_log->encoded_rail_count = ARRAY_SIZE(darwin_aucd90320_encoded_rails);
+	} else if (!strcmp(mid->name, "meru_aucd90320")) {
+		fault_log->encoded_gpis = meru800bfa_aucd90320_encoded_gpis;
+		fault_log->encoded_gpi_count = ARRAY_SIZE(meru800bfa_aucd90320_encoded_gpis);
+		fault_log->encoded_rails = meru800bfa_aucd90320_encoded_rails;
+		fault_log->encoded_rail_count = ARRAY_SIZE(meru800bfa_aucd90320_encoded_rails);
+	} else {
+		fault_log->encoded_gpis = ucd9000_encoded_gpis;
+		fault_log->encoded_gpi_count = ARRAY_SIZE(ucd9000_encoded_gpis);
+		fault_log->encoded_rails = ucd9000_encoded_rails;
+		fault_log->encoded_rail_count = ARRAY_SIZE(ucd9000_encoded_rails);
 	}
 
 	for (i = 0; i < PMBUS_PAGES; i++)
@@ -617,12 +689,17 @@ static void ucd9000_fault_log_get_config(const struct i2c_device_id *mid,
 static int ucd9000_fault_log_read_faults(struct i2c_client *client,
 				struct ucd9000_fault_log *fault_log)
 {
+	u8 read_byte_count;
 	u8 read_buffer[I2C_SMBUS_BLOCK_MAX];
 	char hex_str[I2C_SMBUS_BLOCK_MAX * 2] = { 0 };
 	int i, count, pos, ret;
 
+	read_byte_count = fault_log->logged_faults_byte_count + 1;
+	if (read_byte_count > I2C_SMBUS_BLOCK_MAX)
+		read_byte_count = I2C_SMBUS_BLOCK_MAX;
+
 	ret = i2c_smbus_read_i2c_block_data(client, UCD9000_LOGGED_FAULTS,
-			I2C_SMBUS_BLOCK_MAX, read_buffer);
+			read_byte_count, read_buffer);
 	if (ret < 0) {
 		dev_dbg(&client->dev, "Failed to read logged faults register: %d\n",
 			ret);
@@ -652,13 +729,19 @@ static int ucd9000_fault_log_read_faults(struct i2c_client *client,
 }
 
 static void ucd9000_fault_log_clear_faults(struct i2c_client *client,
-				const struct i2c_device_id *mid)
+				const struct i2c_device_id *mid,
+				struct ucd9000_fault_log *fault_log)
 {
+	u8 clear_byte_count;
 	u8 clear_buffer[I2C_SMBUS_BLOCK_MAX] = {0};
 	int ret;
 
+	clear_byte_count = fault_log->logged_faults_byte_count + 1;
+	if (clear_byte_count > I2C_SMBUS_BLOCK_MAX)
+		clear_byte_count = I2C_SMBUS_BLOCK_MAX;
+
 	ret = i2c_smbus_write_block_data(client, UCD9000_LOGGED_FAULTS,
-			I2C_SMBUS_BLOCK_MAX, clear_buffer);
+			clear_byte_count, clear_buffer);
 	if (mid->driver_data == ucd90320)
 		udelay(UCD90320_WAIT_DELAY_US);
 	if (ret < 0)
@@ -726,14 +809,15 @@ static void ucd9000_fault_log_parse_fault_detail(u8 *detail_buffer,
 	secs_since_base += msecs / 1000;
 	fault_time = base_time + secs_since_base;
 	rtc_time64_to_tm(fault_time, &detail->timestamp);
+	detail->time_msecs = msecs % 1000;
 }
 
 static void ucd9000_fault_log_create_timestamp_str(const struct rtc_time *tm,
-				char *timestamp_str, size_t timestamp_str_len)
+				s32 time_msecs, char *timestamp_str, size_t timestamp_str_len)
 {
-    snprintf(timestamp_str, timestamp_str_len, "%02d-%02d-%04d %02d:%02d:%02d",
+    snprintf(timestamp_str, timestamp_str_len, "%02d-%02d-%04d %02d:%02d:%02d.%03d",
         tm->tm_mon + 1, tm->tm_mday, tm->tm_year + 1900, tm->tm_hour,
-        tm->tm_min, tm->tm_sec);
+        tm->tm_min, tm->tm_sec, time_msecs);
 }
 
 static int ucd9000_read_vout_mode_exponent(struct i2c_client *client,
@@ -786,7 +870,7 @@ static void ucd9000_fault_log_create_value_str(struct i2c_client *client,
 	case FAULT_FORMAT_LINEAR16:
 		ret = ucd9000_read_vout_mode_exponent(client, mid, exponents, page);
 		if (ret < 0) {
-			snprintf(value_str, value_str_len, "unknown");
+			snprintf(value_str, value_str_len, "Unknown");
 		} else {
 			exponent = exponents[page].value;
 			linear16_mantissa = (u16) value;
@@ -802,9 +886,30 @@ static void ucd9000_fault_log_create_value_str(struct i2c_client *client,
 		break;
 	case FAULT_FORMAT_NA:
 	default:
-		snprintf(value_str, value_str_len, "n/a");
+		snprintf(value_str, value_str_len, "N/A");
 		break;
 	}
+}
+
+static bool ucd9000_get_encoded_reload_cause(
+				const struct encoded_reload_cause *encoded_reload_causes,
+				u8 encoded_reload_cause_count, u8 fault_id,
+				const struct encoded_reload_cause **found_encoded_reload_cause)
+
+{
+	u8 i;
+
+	if (encoded_reload_cause_count < 0)
+		return false;
+
+    for (i = 0; i < encoded_reload_cause_count; i++) {
+        if (encoded_reload_causes[i].id == fault_id) {
+            *found_encoded_reload_cause = &encoded_reload_causes[i];
+            return true;
+        }
+    }
+
+    return false;
 }
 
 static void ucd9000_fault_log_create_description_str(struct i2c_client *client,
@@ -816,25 +921,42 @@ static void ucd9000_fault_log_create_description_str(struct i2c_client *client,
 	char reason_str[UCD9000_FAULT_REASON_STR_LEN];
 	char value_str[UCD9000_FAULT_VALUE_STR_LEN];
 	enum ucd9000_fault_format fault_fmt;
+	const struct encoded_reload_cause *encoded_reload_cause;
 	const char *unit;
 	bool paged;
 
 	if (fault->detail.type == UCD9000_FAULT_TYPE_GPI) {
-		snprintf(reason_str, sizeof(reason_str), "gpi-%u", fault->detail.page + 1);
+		if (ucd9000_get_encoded_reload_cause(fault_log->encoded_gpis,
+				fault_log->encoded_gpi_count, fault->detail.page + 1,
+				&encoded_reload_cause)) {
+			snprintf(reason_str, sizeof(reason_str), "%s",
+				encoded_reload_cause->description);
+		} else {
+			snprintf(reason_str, sizeof(reason_str), "GPI %u",
+				fault->detail.page + 1);
+		}
 		fault_fmt = FAULT_FORMAT_NA;
 		unit = "";
 	} else if (fault->detail.type == UCD9000_FAULT_TYPE_FAN) {
-		snprintf(reason_str, sizeof(reason_str), "fan-%u", fault->detail.page + 1);
+		snprintf(reason_str, sizeof(reason_str), "Fan %u", fault->detail.page + 1);
 		fault_fmt = FAULT_FORMAT_LINEAR11;
 		unit = "RPM";
 	} else if (fault->detail.type < BITS_PER_BYTE) {
 		paged = fault->detail.paged;
-		snprintf(reason_str, sizeof(reason_str), "%s",
-			fault_log->fault_types[paged][fault->detail.type].reason);
+		if (paged && ucd9000_get_encoded_reload_cause(fault_log->encoded_rails,
+				fault_log->encoded_rail_count, fault->detail.page + 1,
+				&encoded_reload_cause)) {
+					snprintf(reason_str, sizeof(reason_str), "%s %s",
+						encoded_reload_cause->description,
+						fault_log->fault_types[paged][fault->detail.type].reason);
+		} else {
+			snprintf(reason_str, sizeof(reason_str), "%s",
+				fault_log->fault_types[paged][fault->detail.type].reason);
+		}
 		fault_fmt = fault_log->fault_types[paged][fault->detail.type].format;
 		unit = fault_log->fault_types[paged][fault->detail.type].unit;
 	} else {
-		snprintf(reason_str, sizeof(reason_str), "unknown");
+		snprintf(reason_str, sizeof(reason_str), "Unknown");
 		fault_fmt = FAULT_FORMAT_NA;
 		unit = "";
 	}
@@ -844,9 +966,9 @@ static void ucd9000_fault_log_create_description_str(struct i2c_client *client,
 			sizeof(value_str));
 
 	snprintf(description_str, description_str_len,
-		"%s %s fault (type: %u, rail: %u, value: %s%s)",
+		"%s %s Fault (Type: %u, Rail: %u, Value: %s%s)",
 		reason_str,
-		fault->detail.paged ? "paged" : "non-paged",
+		fault->detail.paged ? "Paged" : "Non-Paged",
 		fault->detail.type,
 		fault->detail.page + 1,
 		value_str,
@@ -870,7 +992,8 @@ static int ucd9000_fault_log_add_fault(struct i2c_client *client,
 		fault_log->base_time, &fault->detail);
 
 	ucd9000_fault_log_create_timestamp_str(&fault->detail.timestamp,
-		fault->timestamp_str, sizeof(fault->timestamp_str));
+		fault->detail.time_msecs, fault->timestamp_str,
+		sizeof(fault->timestamp_str));
 
 	ucd9000_fault_log_create_description_str(client, mid, fault_log, fault,
 		fault->description_str, sizeof(fault->description_str));
@@ -965,7 +1088,7 @@ static int ucd9000_probe_fault_log(struct i2c_client *client,
 			fault_iter->timestamp_str);
 	}
 
-	ucd9000_fault_log_clear_faults(client, mid);
+	ucd9000_fault_log_clear_faults(client, mid, fault_log);
 
 	return 0;
 }
