@@ -1135,6 +1135,7 @@ static int ucd9000_set_rtc(struct ucd9000_data *data)
 
 static void ucd9000_rtc_work(struct work_struct *__work)
 {
+	int ret;
 	struct delayed_work *delayed_work = container_of(__work,
 											struct delayed_work,
 											work);
@@ -1142,7 +1143,10 @@ static void ucd9000_rtc_work(struct work_struct *__work)
 											struct ucd9000_data,
 											rtc_work);
 
-	ucd9000_set_rtc(data);
+	ret = ucd9000_set_rtc(data);
+	if (ret)
+		dev_warn(&data->client->dev, "Failed to set RTC: %d\n", ret);
+
 	schedule_delayed_work(&data->rtc_work,
 		msecs_to_jiffies(UCD9000_RTC_UPDATE_INTERVAL_MSECS));
 }
