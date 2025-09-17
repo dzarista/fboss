@@ -34,13 +34,13 @@ if [ -z "$kernel_devel_rpm" ]; then
 fi
 
 # Extract the kernel source from the RPM and create a tarball
-tarball_dir_path=$build_dir_path/tarball
-mkdir -p $tarball_dir_path
-cd $tarball_dir_path
-echo "Extracting RPM contents to $tarball_dir_path"
+content_dir_path=$build_dir_path/RPM_contents
+mkdir -p $content_dir_path
+cd $content_dir_path
+echo "Extracting RPM contents to $content_dir_path"
 rpm2cpio $kernel_devel_rpm | cpio -idm
 
-kernel_src_dir_path=$tarball_dir_path/usr/src/kernels
+kernel_src_dir_path=$content_dir_path/usr/src/kernels
 if [ -z "$kernel_src_dir_path" ]; then
    echo "Kernel source directory $kernel_src_dir_path not found"
    exit 1
