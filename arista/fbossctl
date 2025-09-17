@@ -54,6 +54,7 @@ usage() {
    echo "      --rebuild-all: rebuild SDK and FBOSS OSS"
    echo "      --rebuild-fboss: rebuild FBOSS OSS only"
    echo "      --fboss-bins-only: rebuild only FBOSS OSS binaries (fastest)"
+   echo "      --bsp-kmods-only: rebuild only BSP kmods"
    echo "      --sai: specify the SAI architecture-version: ${!SAI_MAP[@]}"
    echo "      --known-good-hash: build FBOSS at known good hash rather than local"
    echo "      --with-debug-symbols: Build with debug symbols."
@@ -87,7 +88,8 @@ maybe_pull_docker_image() {
    fi
 }
 
-declare -A kernel_map=( ["6.4"]="FBOSS_KERNEL_SRC_6.4.3-0_fbk747_rc2_1199_ga95cd85c72c4.tar.gz" )
+declare -A kernel_map=( ["6.4"]="FBOSS_KERNEL_SRC_6.4.3-0_fbk747_rc2_1199_ga95cd85c72c4.tar.gz",
+						["6.11"]="FBOSS_KERNEL_SRC_6.11.1-0_fbk9_0_g2bb6f7f1c90e.tar.gz" )
 kernel_pull() {
    kerneltar=${kernel_map["$1"]}
    if [ -z "${kerneltar}" ]; then
