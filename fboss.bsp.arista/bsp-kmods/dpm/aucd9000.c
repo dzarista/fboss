@@ -122,11 +122,11 @@ struct ucd9000_fault_type {
 #define UCD9000_FAULT_TYPE_GPI 9
 
 #define UCD9000_FAULT_TYPE(fault_id, fault_reason, fault_format, fault_unit)	\
-{																				\
-	.id = fault_id,																\
-	.reason = fault_reason,														\
-	.format = fault_format,														\
-	.unit = fault_unit															\
+{										\
+	.id = fault_id,								\
+	.reason = fault_reason,							\
+	.format = fault_format,							\
+	.unit = fault_unit							\
 }
 
 static const struct ucd9000_fault_type ucd9000_fault_types[][BITS_PER_BYTE] = {
@@ -1133,15 +1133,15 @@ static int ucd9000_set_rtc(struct ucd9000_data *data)
 				write_buffer);
 }
 
-static void ucd9000_rtc_work(struct work_struct *__work)
+static void ucd9000_rtc_work_start(struct work_struct *__work)
 {
 	int ret;
 	struct delayed_work *delayed_work = container_of(__work,
-											struct delayed_work,
-											work);
+						struct delayed_work,
+						work);
 	struct ucd9000_data *data = container_of(delayed_work,
-											struct ucd9000_data,
-											rtc_work);
+					struct ucd9000_data,
+					rtc_work);
 
 	ret = ucd9000_set_rtc(data);
 	if (ret)
@@ -1149,6 +1149,14 @@ static void ucd9000_rtc_work(struct work_struct *__work)
 
 	schedule_delayed_work(&data->rtc_work,
 		msecs_to_jiffies(UCD9000_RTC_UPDATE_INTERVAL_MSECS));
+}
+
+static void ucd9000_rtc_work_stop(struct i2c_client *client)
+{
+	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
+	struct ucd9000_data *data = to_ucd9000_data(info);
+
+	cancel_delayed_work_sync(&data->rtc_work);
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -1417,11 +1425,19 @@ static int ucd9000_probe(struct i2c_client *client)
 		dev_warn(&client->dev, "Failed to register debugfs: %d\n",
 			 ret);
 
-	INIT_DELAYED_WORK(&data->rtc_work, ucd9000_rtc_work);
+	INIT_DELAYED_WORK(&data->rtc_work, ucd9000_rtc_work_start);
 	schedule_delayed_work(&data->rtc_work,
 		msecs_to_jiffies(UCD9000_RTC_UPDATE_INTERVAL_MSECS));
 
 	return 0;
+}
+
+static void ucd9000_remove(struct i2c_client *client)
+{
+	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
+	struct ucd9000_data *data = to_ucd9000_data(info);
+
+	cancel_delayed_work_sync(&data->rtc_work);
 }
 
 /* This is the driver that will be inserted */
@@ -1431,6 +1447,8 @@ static struct i2c_driver aucd9000_driver = {
 		.of_match_table = of_match_ptr(aucd9000_of_match),
 	},
 	.probe = ucd9000_probe,
+	.probe = ucd9000_probe,
+	.remove = ucd9000_remove,
 	.id_table = aucd9000_id,
 };
 
