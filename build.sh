@@ -111,7 +111,7 @@ if ! [ -z $fboss_bins_only ]; then
    exit 0
 fi
 
-if [ -z $bsp_kmods_only ]; then
+if ! [ -z $bsp_kmods_only ]; then
    build_bsp_kmods
    exit 0
 fi
@@ -122,7 +122,7 @@ fi
 
 build_type="Debug"
 if [ -z $debug_symbols ]; then
-   build_type="MinSizeRel"   
+   build_type="MinSizeRel"
 fi
 
 # workaround for barney
@@ -168,7 +168,7 @@ echo "==== Building psu-upgrade ===="
 make -C arista/psu-upgrade
 
 echo "==== Generating python thrift libraries ===="
-thrift_files=( 
+thrift_files=(
    fboss/agent/if/ctrl.thrift
    fboss/agent/if/hw_ctrl.thrift
    fboss/qsfp_service/if/qsfp.thrift
