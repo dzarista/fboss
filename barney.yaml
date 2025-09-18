@@ -25,7 +25,7 @@ images:
       - image: code.arista.io/fboss/fboss-bcm-sdk%sdk-6.5.29-xgs-kernel-6.4
       - image: .%kernel-6.4
 
-  platform:
+  package_platform:
     units:
     - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
       build: |
