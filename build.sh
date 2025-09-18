@@ -19,8 +19,10 @@ kernel_dir=/kernel-6.4
 getdeps=build/fbcode_builder/getdeps.py
 # map of sai arch-version to "<OCP SAI version> <SAI Version flag from SaiVersion.h>"
 declare -A sai_map=( ["dnx-11.7"]="1.14.0 SAI_VERSION_11_7_0_0_DNX_ODP"
+                     ["dnx-12.2"]="1.16.0 SAI_VERSION_12_2_0_0_DNX_ODP"
                      ["xgs-10.2"]="1.13.2 SAI_VERSION_10_2_0_0_ODP"
-                     ["dnx-12.2"]="1.16.0 SAI_VERSION_12_2_0_0_DNX_ODP" )
+                     ["xgs-11.7"]="1.14.0 SAI_VERSION_11_7_0_0_ODP"
+                     ["xgs-14.0"]="1.16.1 SAI_VERSION_14_0_EA_ODP" )
 
 while [[ $# -gt 0 ]]; do
    case $1 in
