@@ -112,14 +112,12 @@ class WhistlerSMB( SMBUnit ):
                        incomingBusIndex=1 )
       smbRaa0.addSensorConfigs( [
          SensorConfig( "VRM_R3R0_CORE_VIN", "in1_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=14.4, lowerCriticalVal=9.6
+                           upperCriticalVal=14400, lowerCriticalVal=9600
                        ) ),
          SensorConfig( "VRM_R3R0_CORE_VOUT_0V75", "in3_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=1.008, lowerCriticalVal=0.504
+                           upperCriticalVal=1008, lowerCriticalVal=504
                        ) ),
          SensorConfig( "VRM_R3R0_CORE_TEMP", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
@@ -132,24 +130,20 @@ class WhistlerSMB( SMBUnit ):
                                 incomingBusIndex=1 )
       smbIslR3R0Analog0.addSensorConfigs( [
          SensorConfig( "VRM_R3R0_ANLG0_VIN", "in1_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=14.4, lowerCriticalVal=9.6
+                           upperCriticalVal=14400, lowerCriticalVal=9600
                        ) ),
          SensorConfig( "VRM_R3R0_ANLG0_VOUT_0V9", "in3_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=1.08, lowerCriticalVal=0.72
+                           upperCriticalVal=1080, lowerCriticalVal=720
                        ) ),
          SensorConfig( "VRM_R3R0_ANLG0_VOUT_0V75", "in4_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=0.9, lowerCriticalVal=0.6
+                           upperCriticalVal=900, lowerCriticalVal=600
                        ) ),
          SensorConfig( "VRM_R3R0_ANLG0_VOUT_1V2", "in5_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=1.44, lowerCriticalVal=0.96
+                           upperCriticalVal=1440, lowerCriticalVal=960
                        ) ),
          SensorConfig( "VRM_R3R0_ANLG0_TEMP_0V9", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
@@ -172,24 +166,20 @@ class WhistlerSMB( SMBUnit ):
                                 incomingBusIndex=1 )
       smbIslR3R0Analog1.addSensorConfigs( [
          SensorConfig( "VRM_R3R0_ANLG1_VIN", "in1_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=14.4, lowerCriticalVal=9.6
+                           upperCriticalVal=14400, lowerCriticalVal=9600
                        ) ),
          SensorConfig( "VRM_R3R0_ANLG1_VOUT_0V9", "in3_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=1.08, lowerCriticalVal=0.72
+                           upperCriticalVal=1080, lowerCriticalVal=720
                        ) ),
          SensorConfig( "VRM_R3R0_ANLG1_VOUT_0V75", "in4_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=0.9, lowerCriticalVal=0.6
+                           upperCriticalVal=900, lowerCriticalVal=600
                        ) ),
          SensorConfig( "VRM_R3R0_ANLG1_VOUT_1V8", "in5_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=2.16, lowerCriticalVal=1.44
+                           upperCriticalVal=2160, lowerCriticalVal=1440
                        ) ),
          SensorConfig( "VRM_R3R0_ANLG1_TEMP_0V9", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
@@ -212,14 +202,12 @@ class WhistlerSMB( SMBUnit ):
                         incomingBusIndex=1 )
       smbRaa1.addSensorConfigs( [
          SensorConfig( "VRM_R3R1_CORE_VIN", "in1_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=14.4, lowerCriticalVal=9.6
+                           upperCriticalVal=14400, lowerCriticalVal=9600
                        ) ),
          SensorConfig( "VRM_R3R1_CORE_VOUT_0V75", "in3_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=1.008, lowerCriticalVal=0.504
+                           upperCriticalVal=1008, lowerCriticalVal=504
                        ) ),
          SensorConfig( "VRM_R3R1_CORE_TEMP", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
@@ -232,24 +220,20 @@ class WhistlerSMB( SMBUnit ):
                  incomingBusIndex=1 )
       smbIslR3R1Analog0.addSensorConfigs( [
          SensorConfig( "VRM_R3R1_ANLG0_VIN", "in1_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=14.4, lowerCriticalVal=9.6
+                           upperCriticalVal=14400, lowerCriticalVal=9600
                        ) ),
          SensorConfig( "VRM_R3R1_ANLG0_VOUT_0V9", "in3_input",SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=1.08, lowerCriticalVal=0.72
+                           upperCriticalVal=1080, lowerCriticalVal=720
                        ) ),
          SensorConfig( "VRM_R3R1_ANLG0_VOUT_0V75", "in4_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=0.9, lowerCriticalVal=0.6
+                           upperCriticalVal=900, lowerCriticalVal=600
                        ) ),
          SensorConfig( "VRM_R3R1_ANLG0_VOUT_1V2", "in5_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=1.44, lowerCriticalVal=0.96
+                           upperCriticalVal=1440, lowerCriticalVal=960
                        ) ),
          SensorConfig( "VRM_R3R1_ANLG0_TEMP_0V9", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
@@ -272,24 +256,20 @@ class WhistlerSMB( SMBUnit ):
                                   incomingBusIndex=1 )
       smbIslR3R1Analog1.addSensorConfigs( [
          SensorConfig( "VRM_R3R1_ANLG1_VIN", "in1_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=14.4, lowerCriticalVal=9.6
+                           upperCriticalVal=14400, lowerCriticalVal=9600
                        ) ),
          SensorConfig( "VRM_R3R1_ANLG1_VOUT_0V9", "in3_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=1.08, lowerCriticalVal=0.72
+                           upperCriticalVal=1080, lowerCriticalVal=720
                        ) ),
          SensorConfig( "VRM_R3R1_ANLG1_VOUT_0V75", "in4_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=0.9, lowerCriticalVal=0.6
+                           upperCriticalVal=900, lowerCriticalVal=600
                        ) ),
          SensorConfig( "VRM_R3R1_ANLG1_VOUT_1V8", "in5_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=2.16, lowerCriticalVal=1.44
+                           upperCriticalVal=2160, lowerCriticalVal=1440
                        ) ),
          SensorConfig( "VRM_R3R1_ANLG1_TEMP_0V9", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
@@ -312,14 +292,13 @@ class WhistlerSMB( SMBUnit ):
                               incomingBusIndex=1 )
       smbIslTopLeft.addSensorConfigs( [
          SensorConfig( "VRM_OSFP_TL_VIN", "in1_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=14.4, lowerCriticalVal=9.6
+                           upperCriticalVal=14400, lowerCriticalVal=9600
                        ) ),
          SensorConfig( "VRM_OSFP_TL_VOUT_3V3", "in3_input", SensorType.VOLTAGE,
-                       compute="1.2*@/1000.0",
+                       compute="1.2*@",
                        thresholds=Thresholds(
-                           upperCriticalVal=3.7, lowerCriticalVal=2.64
+                           upperCriticalVal=3700, lowerCriticalVal=2640
                        ) ),
          SensorConfig( "VRM_OSFP_TL_TEMP_3V3", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
@@ -332,14 +311,13 @@ class WhistlerSMB( SMBUnit ):
                                incomingBusIndex=1 )
       smbIslTopRight.addSensorConfigs( [
          SensorConfig( "VRM_OSFP_TR_VIN", "in1_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=14.4, lowerCriticalVal=9.6
+                           upperCriticalVal=14400, lowerCriticalVal=9600
                        ) ),
          SensorConfig( "VRM_OSFP_TR_VOUT_3V3", "in3_input", SensorType.VOLTAGE,
-                       compute="1.2*@/1000.0",
+                       compute="1.2*@",
                        thresholds=Thresholds(
-                           upperCriticalVal=3.7, lowerCriticalVal=2.64
+                           upperCriticalVal=3700, lowerCriticalVal=2640
                        ) ),
          SensorConfig( "VRM_OSFP_TR_TEMP_3V3", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
@@ -352,14 +330,13 @@ class WhistlerSMB( SMBUnit ):
                                incomingBusIndex=1 )
       smbIslBackLeft.addSensorConfigs( [
          SensorConfig( "VRM_OSFP_BL_VIN", "in1_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=14.4, lowerCriticalVal=9.6
+                           upperCriticalVal=14400, lowerCriticalVal=9600
                        ) ),
          SensorConfig( "VRM_OSFP_BL_VOUT_3V3", "in3_input", SensorType.VOLTAGE,
-                       compute="1.2*@/1000.0",
+                       compute="1.2*@",
                        thresholds=Thresholds(
-                           upperCriticalVal=3.7, lowerCriticalVal=2.64
+                           upperCriticalVal=3700, lowerCriticalVal=2640
                        ) ),
          SensorConfig( "VRM_OSFP_BL_TEMP_3V3", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
@@ -372,14 +349,13 @@ class WhistlerSMB( SMBUnit ):
                                 incomingBusIndex=1 )
       smbIslBackRight.addSensorConfigs( [
          SensorConfig( "VRM_OSFP_BR_VIN", "in1_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=14.4, lowerCriticalVal=9.6
+                           upperCriticalVal=14400, lowerCriticalVal=9600
                        ) ),
          SensorConfig( "VRM_OSFP_BR_VOUT_3V3", "in3_input", SensorType.VOLTAGE,
-                       compute="1.2*@/1000.0",
+                       compute="1.2*@",
                        thresholds=Thresholds(
-                           upperCriticalVal=3.7, lowerCriticalVal=2.64
+                           upperCriticalVal=3700, lowerCriticalVal=2640
                        ) ),
          SensorConfig( "VRM_OSFP_BR_TEMP_3V3", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
@@ -391,34 +367,28 @@ class WhistlerSMB( SMBUnit ):
       smbUcd = Sensor( "0x11", "ucd90320", "SMB_UCD90320", incomingBusIndex=2 )
       smbUcd.addSensorConfigs( [
          SensorConfig( "DPM_12V", "in1_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=14.4, lowerCriticalVal=9.6
+                           upperCriticalVal=14400, lowerCriticalVal=9600
                        ) ),
          SensorConfig( "DPM_3V3_DKR", "in2_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=3.96, lowerCriticalVal=2.64
+                           upperCriticalVal=3960, lowerCriticalVal=2640
                        ) ),
          SensorConfig( "DPM_1V9_DKR", "in3_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=2.16, lowerCriticalVal=1.44
+                           upperCriticalVal=2160, lowerCriticalVal=1440
                        ) ),
          SensorConfig( "DPM_1V2_DKR", "in4_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=1.44, lowerCriticalVal=0.96
+                           upperCriticalVal=1440, lowerCriticalVal=960
                        ) ),
          SensorConfig( "DPM_3V3", "in7_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=3.96, lowerCriticalVal=2.64
+                           upperCriticalVal=3960, lowerCriticalVal=2640
                        ) ),
          SensorConfig( "DPM_5V0", "in8_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=6.0, lowerCriticalVal=4.0
+                           upperCriticalVal=6000, lowerCriticalVal=4000
                        ) )
       ] )
 

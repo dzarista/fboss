@@ -280,94 +280,94 @@ class RackhawkSwitch( PmUnitConfig ):
       cpuDpm = Sensor( '0x4E', 'ucd90160', 'CPU_POS_UCD90160' )
       cpuDpm.addSensorConfigs( [
             SensorConfig( "POS_1V7_VCCIN_VRRDY", "in1_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=1.875,
-                              lowerCriticalVal=1.12
+                              upperCriticalVal=1875,
+                              lowerCriticalVal=1120
                           ) ),
             SensorConfig( "POS_0V6_VTT", "in2_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=0.69,
-                              lowerCriticalVal=0.51
+                              upperCriticalVal=690,
+                              lowerCriticalVal=510
                           ) ),
             SensorConfig( "POS_1V2_VDDQ", "in3_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=1.38,
-                              lowerCriticalVal=1.02
+                              upperCriticalVal=1380,
+                              lowerCriticalVal=1020
                           ) ),
             SensorConfig( "POS_2V5_VPP", "in4_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=2.99,
-                              lowerCriticalVal=2.21
+                              upperCriticalVal=2990,
+                              lowerCriticalVal=2210
                           ) ),
             SensorConfig( "POS_1V5_PCH", "in5_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=1.725,
-                              lowerCriticalVal=1.27
+                              upperCriticalVal=1725,
+                              lowerCriticalVal=1270
                           ) ),
             SensorConfig( "POS_1V05_COM", "in6_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=1.208,
-                              lowerCriticalVal=0.89
+                              upperCriticalVal=1208,
+                              lowerCriticalVal=890
                           ) ),
             SensorConfig( "POS_1V3_KRHV", "in7_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=1.495,
-                              lowerCriticalVal=1.1
+                              upperCriticalVal=1495,
+                              lowerCriticalVal=1100
                           ) ),
             SensorConfig( "POS_1V7_SCFUSE", "in8_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=1.955,
-                              lowerCriticalVal=1.44
+                              upperCriticalVal=1955,
+                              lowerCriticalVal=1440
                           ) ),
             SensorConfig( "POS_3V3", "in9_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=3.795,
-                              lowerCriticalVal=2.8
+                              upperCriticalVal=3795,
+                              lowerCriticalVal=2800
                           ) ),
             SensorConfig( "POS_5V0", "in10_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=5.75,
-                              lowerCriticalVal=4.25
+                              upperCriticalVal=5750,
+                              lowerCriticalVal=4250
                           ) ),
             SensorConfig( "POS_1V2_ALW", "in11_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=1.38,
-                              lowerCriticalVal=1.02
+                              upperCriticalVal=1380,
+                              lowerCriticalVal=1020
                           ) ),
             SensorConfig( "POS_3V3_ALW", "in12_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=3.795,
-                              lowerCriticalVal=2.8
+                              upperCriticalVal=3795,
+                              lowerCriticalVal=2800
                           ) ),
             SensorConfig( "POS_12V", "in13_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=13.8,
-                              lowerCriticalVal=9.72
+                              upperCriticalVal=13800,
+                              lowerCriticalVal=9720
                           ) ),
             SensorConfig( "POS_1V2_LAN1", "in14_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=1.38,
-                              lowerCriticalVal=1.02
+                              upperCriticalVal=1380,
+                              lowerCriticalVal=1020
                           ) ),
             SensorConfig( "POS_1V2_LAN2", "in15_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=1.38,
-                              lowerCriticalVal=1.02
+                              upperCriticalVal=1380,
+                              lowerCriticalVal=1020
                           ) ),
       ] )
       dpmSmbus = self.cpuCpld.cpuSmbusAccel.buses[ 1 ]
@@ -379,10 +379,10 @@ class RackhawkSwitch( PmUnitConfig ):
       cpuVrm1 = Sensor( '0x21', 'pmbus', 'CPU_MPS1_PMBUS' )
       cpuVrm1.addSensorConfigs( [
             SensorConfig( "MPS1_VIN", "in1_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=14.0,
-                              lowerCriticalVal=9.0
+                              upperCriticalVal=14000,
+                              lowerCriticalVal=9000
                           ) ),
             SensorConfig( "MPS1_TEMP", "temp1_input", SensorType.TEMP,
                           compute="@/1000.0", prependPmUnit=False,
@@ -403,10 +403,10 @@ class RackhawkSwitch( PmUnitConfig ):
       cpuVrm2 = Sensor( '0x27', 'pmbus', 'CPU_MPS2_PMBUS' )
       cpuVrm2.addSensorConfigs( [
             SensorConfig( "MPS2_VIN", "in1_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=14.0,
-                              lowerCriticalVal=9.0
+                              upperCriticalVal=14000,
+                              lowerCriticalVal=9000
                           ) ),
             SensorConfig( "MPS2_TEMP", "temp1_input", SensorType.TEMP,
                           compute="@/1000.0", prependPmUnit=False,
@@ -491,100 +491,100 @@ class RackhawkSwitch( PmUnitConfig ):
       switchcardDpm = Sensor( '0x11', 'ucd90320', 'SC_POS_UCD90320' )
       switchcardDpm.addSensorConfigs( [
             SensorConfig( "SC_POS_12V_TH3_A", "in1_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=13.8,
-                              lowerCriticalVal=9.5
+                              upperCriticalVal=13800,
+                              lowerCriticalVal=9500
                           ) ),
             SensorConfig( "SC_POS_12V_TH3_B", "in2_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=13.8,
-                              lowerCriticalVal=9.5
+                              upperCriticalVal=13800,
+                              lowerCriticalVal=9500
                           ) ),
             SensorConfig( "SC_POS_12V_STDBY", "in3_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=13.8,
-                              lowerCriticalVal=9.5
+                              upperCriticalVal=13800,
+                              lowerCriticalVal=9500
                           ) ),
             SensorConfig( "SC_POS_5V0", "in4_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=5.75,
-                              lowerCriticalVal=4.25
+                              upperCriticalVal=5750,
+                              lowerCriticalVal=4250
                           ) ),
             SensorConfig( "SC_POS_3V3", "in5_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=3.795,
-                              lowerCriticalVal=2.805
+                              upperCriticalVal=3795,
+                              lowerCriticalVal=2805
                           ) ),
             SensorConfig( "SC_POS_3V3_QSFPDD_A", "in6_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=3.795,
-                              lowerCriticalVal=2.805
+                              upperCriticalVal=3795,
+                              lowerCriticalVal=2805
                           ) ),
             SensorConfig( "SC_POS_3V3_QSFPDD_B", "in7_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=3.795,
-                              lowerCriticalVal=2.805
+                              upperCriticalVal=3795,
+                              lowerCriticalVal=2805
                           ) ),
             SensorConfig( "SC_POS_3V3_STDBY", "in8_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=3.795,
-                              lowerCriticalVal=2.475
+                              upperCriticalVal=3795,
+                              lowerCriticalVal=2475
                           ) ),
             SensorConfig( "SC_POS_2V5_LT", "in9_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=5.1,
-                              lowerCriticalVal=0.5
+                              upperCriticalVal=5100,
+                              lowerCriticalVal=500
                           ) ),
             SensorConfig( "SC_POS_2V5_RT", "in10_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=5.1,
-                              lowerCriticalVal=0.5
+                              upperCriticalVal=5100,
+                              lowerCriticalVal=500
                           ) ),
             SensorConfig( "SC_POS_1V8", "in11_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=2.07,
-                              lowerCriticalVal=1.53
+                              upperCriticalVal=2070,
+                              lowerCriticalVal=1530
                           ) ),
             SensorConfig( "SC_POS_1V5_A", "in12_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=1.725,
-                              lowerCriticalVal=1.275
+                              upperCriticalVal=1725,
+                              lowerCriticalVal=1275
                           ) ),
             SensorConfig( "SC_POS_1V5_B", "in13_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=1.725,
-                              lowerCriticalVal=1.275
+                              upperCriticalVal=1725,
+                              lowerCriticalVal=1275
                           ) ),
             SensorConfig( "SC_POS_1V2", "in14_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=1.38,
-                              lowerCriticalVal=1.02
+                              upperCriticalVal=1380,
+                              lowerCriticalVal=1020
                           ) ),
             SensorConfig( "SC_POS_0V8_AVDD", "in15_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=0.92,
-                              lowerCriticalVal=0.72
+                              upperCriticalVal=920,
+                              lowerCriticalVal=720
                           ) ),
             SensorConfig( "SC_POS_0V9_VDD", "in16_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=1.35,
-                              lowerCriticalVal=0.38
+                              upperCriticalVal=1350,
+                              lowerCriticalVal=380
                           ) ),
       ] )
       switchcardDpmSmbus = self.cpuCpld.switchcardSmbusAccel.buses[ 2 ]
@@ -596,14 +596,13 @@ class RackhawkSwitch( PmUnitConfig ):
       th3CoreIr35223 = Sensor( '0x40', 'pmbus', 'SC_TH3_CORE_IR35223' )
       th3CoreIr35223.addSensorConfigs( [
             SensorConfig( "TH3_VRD1_VIN", "in1_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=14.5,
-                              lowerCriticalVal=9.0
+                              upperCriticalVal=14500,
+                              lowerCriticalVal=9000
                           ) ),
             SensorConfig( "TH3_VRD1_VOUT", "in2_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
-                          thresholds=None
+                          prependPmUnit=False, thresholds=None
                         ),
             SensorConfig( "TH3_VRD1_TEMP", "temp1_input", SensorType.TEMP,
                           compute="@/1000.0", prependPmUnit=False,
@@ -633,14 +632,13 @@ class RackhawkSwitch( PmUnitConfig ):
       th3AnlgIr35223 = Sensor( '0x41', 'pmbus', 'SC_TH3_ANLG_IR35223' )
       th3AnlgIr35223.addSensorConfigs( [
             SensorConfig( "TH3_VRD2_VIN", "in1_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=14.5,
-                              lowerCriticalVal=9.0
+                              upperCriticalVal=14500,
+                              lowerCriticalVal=9000
                           ) ),
             SensorConfig( "TH3_VRD2_VOUT", "in2_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
-                          thresholds=None
+                          prependPmUnit=False, thresholds=None
                         ),
             SensorConfig( "TH3_VRD2_TEMP", "temp1_input", SensorType.TEMP,
                           compute="@/1000.0", prependPmUnit=False,
@@ -670,18 +668,16 @@ class RackhawkSwitch( PmUnitConfig ):
       qsfpDdIr35223 = Sensor( '0x42', 'pmbus', 'SC_QSFPDD_IR35223' )
       qsfpDdIr35223.addSensorConfigs( [
             SensorConfig( "QSFPDD_VRD_VIN", "in1_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
+                          prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=14.5,
-                              lowerCriticalVal=9.0
+                              upperCriticalVal=14500,
+                              lowerCriticalVal=9000
                           ) ),
             SensorConfig( "QSFPDD_VRD_VOUT_A", "in2_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
-                          thresholds=None
+                          prependPmUnit=False, thresholds=None
                         ),
             SensorConfig( "QSFPDD_VRD_VOUT_B", "in3_input", SensorType.VOLTAGE,
-                          compute="@/1000.0", prependPmUnit=False,
-                          thresholds=None
+                          prependPmUnit=False, thresholds=None
                         ),
             SensorConfig( "QSFPDD_VRD_TEMP", "temp1_input", SensorType.TEMP,
                           compute="@/1000.0", prependPmUnit=False,
@@ -776,14 +772,14 @@ class RackhawkPEM( PmUnitConfig ):
       pemEcb = Sensor( '0x3A', 'amax5970', 'PEM_ECB_MAX5970', incomingBusIndex=0 )
       pemEcb.addSensorConfigs( [
             SensorConfig( "PEM_ECB_VOUT_CH1", "in1_input", SensorType.VOLTAGE,
-                          compute="(15.5*@)/1000.0", prependPmUnit=False,
+                          compute="15.5*@", prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=14.0
+                              upperCriticalVal=14000
                           ) ),
             SensorConfig( "PEM_ECB_VOUT_CH2", "in2_input", SensorType.VOLTAGE,
-                          compute="(15.5*@)/1000.0", prependPmUnit=False,
+                          compute="15.5*@", prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=14.0
+                              upperCriticalVal=14000
                           ) ),
             SensorConfig( "PEM_ECB_IOUT_CH1", "curr1_input", SensorType.CURRENT,
                           compute="(48390/343)*@/1000.0", prependPmUnit=False,
@@ -803,21 +799,21 @@ class RackhawkPEM( PmUnitConfig ):
                        incomingBusIndex=0 )
       pemAdc.addSensorConfigs( [
             SensorConfig( "PEM_ADC_VIN", "in_voltage1_raw", SensorType.VOLTAGE,
-                          compute="@*2.048*7.64/4096", prependPmUnit=False,
+                          compute="@*2048*7.64/4096", prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=13.5,
-                              lowerCriticalVal=10.9
+                              upperCriticalVal=13500,
+                              lowerCriticalVal=10900
                           ) ),
             SensorConfig( "PEM_ADC_VOUT", "in_voltage0_raw", SensorType.VOLTAGE,
-                          compute="@*2.048*7.64/4096", prependPmUnit=False,
+                          compute="@*2048*7.64/4096", prependPmUnit=False,
                           thresholds=Thresholds(
-                              lowerCriticalVal=10.8
+                              lowerCriticalVal=10800
                           ) ),
             SensorConfig( "PEM_ADC_VDROP", "in_voltage1-voltage0_raw",
-                          SensorType.VOLTAGE, compute="@/1000.0",
+                          SensorType.VOLTAGE,
                           prependPmUnit=False,
                           thresholds=Thresholds(
-                              upperCriticalVal=0.08,
+                              upperCriticalVal=80,
                               lowerCriticalVal=0
                           ) ),
       ] )

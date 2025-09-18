@@ -162,14 +162,12 @@ class ViperSMB( SMBUnit ):
       smbRaa = Sensor( "0x45", "raa228228", "SMB_RAA228926_J3" )
       smbRaa.addSensorConfigs( [
          SensorConfig( "VRM1_VIN", "in1_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=14.4, lowerCriticalVal=9.6
+                           upperCriticalVal=14400, lowerCriticalVal=9600
                        ) ),
          SensorConfig( "VRM1_VOUT_J3_0V85_CORE", "in3_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=0.93, lowerCriticalVal=0.62
+                           upperCriticalVal=930, lowerCriticalVal=620
                        ) ),
          SensorConfig( "VRM1_TEMP", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
@@ -190,24 +188,20 @@ class ViperSMB( SMBUnit ):
       smbIsl = Sensor( "0x54", "isl68226", "SMB_ISL68226_J3" )
       smbIsl.addSensorConfigs( [
          SensorConfig( "VRM2_VIN", "in1_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=14.4, lowerCriticalVal=9.6
+                           upperCriticalVal=14400, lowerCriticalVal=9600
                        ) ),
          SensorConfig( "VRM2_VOUT_J3_0V9", "in3_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=1.08, lowerCriticalVal=0.72
+                           upperCriticalVal=1080, lowerCriticalVal=720
                        ) ),
          SensorConfig( "VRM2_VOUT_J3_0V75", "in4_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=0.9, lowerCriticalVal=0.6
+                           upperCriticalVal=900, lowerCriticalVal=600
                        ) ),
          SensorConfig( "VRM2_VOUT_J3_1V2", "in5_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=1.44, lowerCriticalVal=0.96
+                           upperCriticalVal=1440, lowerCriticalVal=960
                        ) ),
          SensorConfig( "VRM2_TEMP1", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
@@ -256,14 +250,13 @@ class ViperSMB( SMBUnit ):
       smbIslOptics = Sensor( "0x55", "isl68226", "SMB_ISL68226_OPTICS" )
       smbIslOptics.addSensorConfigs( [
          SensorConfig( "VRM3_VIN", "in1_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=14.4, lowerCriticalVal=9.6
+                           upperCriticalVal=14400, lowerCriticalVal=9600
                        ) ),
          SensorConfig( "VRM3_VOUT_OPTICS_3V3", "in3_input", SensorType.VOLTAGE,
-                       compute="1.2*@/1000.0",
+                       compute="1.2*@",
                        thresholds=Thresholds(
-                           upperCriticalVal=3.96, lowerCriticalVal=2.64
+                           upperCriticalVal=3960, lowerCriticalVal=2640
                        ) ),
          SensorConfig( "VRM3_TEMP", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",

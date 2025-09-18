@@ -126,14 +126,12 @@ class QuicksilverPFbSMB( SMBUnit ):
                            upperCriticalVal=115.0, maxAlarmVal=105.0
                        ) ),
          SensorConfig( "RAA_TH5_CORE_VIN", "in1_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                          upperCriticalVal=15.0, lowerCriticalVal=9.0
+                          upperCriticalVal=15000, lowerCriticalVal=9000
                        ) ),
          SensorConfig( "RAA_TH5_CORE_VDD", "in3_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                          upperCriticalVal=1.0, lowerCriticalVal=0.6
+                          upperCriticalVal=1000, lowerCriticalVal=600
                        ) )
       ] )
 
@@ -150,19 +148,16 @@ class QuicksilverPFbSMB( SMBUnit ):
                           upperCriticalVal=115.0, maxAlarmVal=105.0
                        ) ),
          SensorConfig( "ISL_TH5_0V9_VIN", "in1_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                          upperCriticalVal=15.0, lowerCriticalVal=9.0
+                          upperCriticalVal=15000, lowerCriticalVal=9000
                        ) ),
          SensorConfig( "ISL_TH5_0V9_AVDD_0", "in3_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                          upperCriticalVal=1.08, lowerCriticalVal=0.675
+                          upperCriticalVal=1080, lowerCriticalVal=675
                        ) ),
          SensorConfig( "ISL_TH5_0V9_AVDD_1", "in4_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                          upperCriticalVal=1.08, lowerCriticalVal=0.675
+                          upperCriticalVal=1080, lowerCriticalVal=675
                        ) )
       ] )
 
@@ -179,19 +174,16 @@ class QuicksilverPFbSMB( SMBUnit ):
                           upperCriticalVal=115.0, maxAlarmVal=105.0
                        ) ),
          SensorConfig( "ISL_TH5_0V75_VIN", "in1_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                          upperCriticalVal=15.0, lowerCriticalVal=9.0
+                          upperCriticalVal=15000, lowerCriticalVal=9000
                        ) ),
          SensorConfig( "ISL_TH5_0V75_AVDD_0", "in3_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                          upperCriticalVal=0.9375, lowerCriticalVal=0.5625
+                          upperCriticalVal=937.5, lowerCriticalVal=562.5
                        ) ),
          SensorConfig( "ISL_TH5_0V75_AVDD_1", "in4_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                          upperCriticalVal=0.9375, lowerCriticalVal=0.5625
+                          upperCriticalVal=937.5, lowerCriticalVal=562.5
                        ) )
       ] )
 
@@ -203,14 +195,13 @@ class QuicksilverPFbSMB( SMBUnit ):
                            upperCriticalVal=115.0, maxAlarmVal=105.0
                        ) ),
          SensorConfig( "ISL_OPTICS_A_VIN", "in1_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                          upperCriticalVal=15.0, lowerCriticalVal=9.0
+                          upperCriticalVal=15000, lowerCriticalVal=9000
                        ) ),
          SensorConfig( "ISL_OPTICS_A_VOUT_3V3", "in3_input", SensorType.VOLTAGE,
-                       compute="1.2*@/1000.0",
+                       compute="1.2*@",
                        thresholds=Thresholds(
-                          upperCriticalVal=4.125, lowerCriticalVal=2.475
+                          upperCriticalVal=4125, lowerCriticalVal=2475
                        ) )
       ] )
 
@@ -222,14 +213,13 @@ class QuicksilverPFbSMB( SMBUnit ):
                            upperCriticalVal=115.0, maxAlarmVal=105.0
                        ) ),
          SensorConfig( "ISL_OPTICS_B_VIN", "in1_input", SensorType.VOLTAGE,
-                       compute="@/1000.0",
                        thresholds=Thresholds(
-                          upperCriticalVal=15.0, lowerCriticalVal=9.0
+                          upperCriticalVal=15000, lowerCriticalVal=9000
                        ) ),
          SensorConfig( "ISL_OPTICS_B_VOUT_3V3", "in3_input", SensorType.VOLTAGE,
-                       compute="1.2@/1000.0",
+                       compute="1.2*@",
                        thresholds=Thresholds(
-                          upperCriticalVal=4.125, lowerCriticalVal=2.475
+                          upperCriticalVal=4125, lowerCriticalVal=2475
                        ) )
       ] )
 

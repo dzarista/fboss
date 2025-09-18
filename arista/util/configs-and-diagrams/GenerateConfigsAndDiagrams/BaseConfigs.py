@@ -1675,14 +1675,14 @@ class SCMFairywren( SCMUnit ):
       scmMpsDev = FairywrenSensor( "0x40", "pmbus", "SCM_MPS_PMBUS" )
       scmMpsDev.addSensorConfigs( [
          SensorConfig( "ECB_VIN", "in1_input", SensorType.VOLTAGE,
-                       compute="@/32000.0",
+                       compute="@/32.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=14.4, lowerCriticalVal=10.5
+                           upperCriticalVal=14400, lowerCriticalVal=10500
                        ) ),
          SensorConfig( "ECB_VOUT", "in2_input", SensorType.VOLTAGE,
-                       compute="@/32000.0",
+                       compute="@/32.0",
                        thresholds=Thresholds(
-                           upperCriticalVal=14.4, lowerCriticalVal=9.6
+                           upperCriticalVal=14400, lowerCriticalVal=9600
                        ) ),
          SensorConfig( "ECB_IOUT", "curr1_input", SensorType.CURRENT,
                        compute="@/1000.0" )
@@ -1801,10 +1801,10 @@ class PSUUnit( PmUnitConfig ):
       psuBus = PSUBus( "0x58", "pmbus", "PSU_PMBUS", incomingBusIndex=0,
                        singlePSU=singlePSU, *args, **kwargs )
       psuBus.addSensorConfigs( [
-         SensorConfig( "VIN", "in1_input", SensorType.VOLTAGE, compute="@/1000.0" ),
-         SensorConfig( "VOUT", "in3_input", SensorType.VOLTAGE, compute="@/1000.0",
+         SensorConfig( "VIN", "in1_input", SensorType.VOLTAGE ),
+         SensorConfig( "VOUT", "in3_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
-                           upperCriticalVal=14.4, lowerCriticalVal=9.6
+                           upperCriticalVal=14400, lowerCriticalVal=9600
                        ) ),
          SensorConfig( "FAN1_RPM", "fan1_input", SensorType.FAN_SPEED,
                        thresholds=Thresholds(
