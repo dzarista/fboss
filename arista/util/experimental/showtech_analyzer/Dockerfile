@@ -28,8 +28,9 @@ WORKDIR /app
 COPY showtech-backend/requirements.txt ./
 RUN pip3 install --no-cache-dir -r ./requirements.txt
 
-# Copy Python backend code
+# Copy Python backend and database code
 COPY showtech-backend/ ./
+COPY database/ /database/
 
 # Copy built React frontend into same directory as app.py
 COPY --from=frontend-build /app/showtech-viewer/build ./build
@@ -56,8 +57,9 @@ WORKDIR /app
 COPY showtech-backend/requirements.txt ./backend/
 RUN pip3 install --no-cache-dir -r ./backend/requirements.txt
 
-# Copy Python backend code
+# Copy Python backend and database code
 COPY showtech-backend/ ./backend/
+COPY database/ /app/database/
 
 # Copy React source for development with hot reloading
 COPY showtech-viewer/ ./frontend/
@@ -113,3 +115,4 @@ CMD ["/app/start-dev.sh"]
 
 # Stage 4: Default to production
 FROM production
+

@@ -25,9 +25,14 @@ export const checkBackendStatus = async () => {
 
 
 // Calls the function that processes the file and returns it to the front end
-export const uploadFiles = async (filesArray) => {
+export const uploadFiles = async (filesArray, sessionId = null) => {
   const formData = new FormData();
   filesArray.forEach((file) => formData.append('file', file));
+
+  // Add session_id if provided
+  if (sessionId) {
+    formData.append('session_id', sessionId);
+  }
 
   const res = await fetch(`${API_ENDPOINT}/upload`, {
     method: 'POST',
@@ -93,7 +98,7 @@ export const unrollZips = async (filesArray) => {
 };
 
 // Upload files with progress tracking - accounts for individual files in zip archives
-export const uploadFilesWithProgress = async (filesArray, onProgress) => {
+export const uploadFilesWithProgress = async (filesArray, onProgress, sessionId = null) => {
   // First, count total files to be processed
   const countResult = await countFiles(filesArray);
   const totalFilesToProcess = countResult.total_count;
@@ -129,6 +134,11 @@ export const uploadFilesWithProgress = async (filesArray, onProgress) => {
     // Upload single file
     const formData = new FormData();
     formData.append('file', file);
+
+    // Add session_id if provided
+    if (sessionId) {
+      formData.append('session_id', sessionId);
+    }
 
     const res = await fetch(`${API_ENDPOINT}/upload`, {
       method: 'POST',

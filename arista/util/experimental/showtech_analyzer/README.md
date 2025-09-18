@@ -1,4 +1,4 @@
-# Showtech Analyzer
+# Showtech Viewer
 
 A web-based diagnostic tool that transforms showtech logs into interactive, structured visualizations for faster troubleshooting and analysis.
 
@@ -21,10 +21,11 @@ Instead of manually scanning through thousands of lines of raw text, the tool au
 - Section filtering and adapatable font sizing
 
 ### **Anomaly Detection**
-- Catches known issues with the systems using configs
-- Highlights and summarizes the anomalies
+- Detects critical sensor values, port issues, and other hardware issues
+- Detects regex patterns in the raw content
+- Highlights and summarizes the anomalies in a modal with a click-to-jump navigation
 
-## Deployment
+## Deployment ( Locally )
 
 ### Prerequisites
 - Docker installed and running on your system

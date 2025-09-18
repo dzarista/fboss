@@ -50,7 +50,7 @@ cleanup_container() {
 # Function to build the production image
 build_production_image() {
     print_status "Building Showtech Analyzer Docker image (production)..."
-    docker build -t $IMAGE_NAME . || {
+    docker build --no-cache -t $IMAGE_NAME . || {
         print_error "Failed to build Docker image"
         exit 1
     }
@@ -74,7 +74,12 @@ run_production() {
     docker run -d \
         --name $CONTAINER_NAME \
         -p 80:80 \
-        -v $(pwd)/data:/app/data \
+        --network showtech_analyzer_showtech-network \
+        -v $(pwd)/database:/app/database \
+        -e DB_HOST=showtech-sessions-db \
+        -e MONGO_INITDB_ROOT_USERNAME=admin \
+        -e MONGO_INITDB_ROOT_PASSWORD=showtech123 \
+        -e MONGO_DATABASE=showtech_sessions \
         --restart unless-stopped \
         $IMAGE_NAME || {
         print_error "Failed to start container in production mode"
@@ -85,7 +90,7 @@ run_production() {
     echo ""
     echo "Frontend: http://localhost"
     echo "Backend API: http://localhost/api/status"
-    echo "Data directory: $(pwd)/data"
+
     echo ""
     echo "Management commands:"
     echo "  View logs: docker logs -f $CONTAINER_NAME"
@@ -101,13 +106,18 @@ run_development() {
         --name $CONTAINER_NAME \
         -p 80:80 \
         -p 3000:3000 \
-        -v $(pwd)/data:/app/data \
         -v $(pwd)/showtech-viewer/src:/app/frontend/src \
         -v $(pwd)/showtech-viewer/public:/app/frontend/public \
         -v $(pwd)/showtech-backend:/app/backend \
+        -v $(pwd)/database:/app/database \
         -e FLASK_ENV=development \
         -e FLASK_DEBUG=1 \
         -e CHOKIDAR_USEPOLLING=true \
+        --network showtech_analyzer_showtech-network \
+        -e DB_HOST=showtech-sessions-db \
+        -e MONGO_INITDB_ROOT_USERNAME=admin \
+        -e MONGO_INITDB_ROOT_PASSWORD=showtech123 \
+        -e MONGO_DATABASE=showtech_sessions \
         --restart unless-stopped \
         ${IMAGE_NAME}:dev || {
         print_error "Failed to start container in development mode"
@@ -119,7 +129,7 @@ run_development() {
     echo "DEVELOPMENT MODE ACTIVE"
     echo "React Dev Server: http://localhost:3000 (with hot reloading)"
     echo "Flask Backend: http://localhost/api/status (with hot reloading)"
-    echo "Data directory: $(pwd)/data"
+
     echo "Management commands:"
     echo "  View logs: docker logs -f $CONTAINER_NAME"
     echo "  Stop: docker stop $CONTAINER_NAME"
@@ -141,19 +151,39 @@ show_logs() {
 check_health() {
     print_status "Checking application health..."
 
-    # Wait a moment for services to start
-    sleep 5
+    # Wait longer for services to start (especially backend with database connection)
+    print_status "Waiting for services to initialize..."
+    sleep 10
 
     # Check if we're in dev or prod mode by checking which ports are exposed
     if docker port $CONTAINER_NAME | grep -q "3000/tcp"; then
         # Development mode - has both 80 and 3000 ports
         print_status "Development mode detected"
 
-        if curl -s http://localhost/api/status >/dev/null 2>&1; then
-            print_success "✅ Backend API is responding (Flask on port 80)"
-        else
-            print_warning "⚠️  Backend API not responding yet (may still be starting)"
-        fi
+        # Check backend API with retries
+        backend_ready=false
+        for i in {1..6}; do
+            if response=$(curl -s http://localhost/api/status 2>/dev/null); then
+                print_success "✅ Backend API is responding (Flask on port 80)"
+
+                # Check database connection status from API response
+                if echo "$response" | grep -q '"database":"connected"'; then
+                    print_success "✅ Database connection established"
+                elif echo "$response" | grep -q '"database":"disconnected"'; then
+                    print_warning "⚠️  Database connection failed - check if MongoDB is running"
+                fi
+
+                backend_ready=true
+                break
+            else
+                if [ $i -eq 6 ]; then
+                    print_error "❌ Backend API failed to start after 30 seconds"
+                else
+                    print_status "Backend starting... (attempt $i/6)"
+                    sleep 5
+                fi
+            fi
+        done
 
         if curl -s -I http://localhost:3000 >/dev/null 2>&1; then
             print_success "✅ React dev server is accessible (port 3000 with hot reloading)"
@@ -166,11 +196,28 @@ check_health() {
         # Production mode - only port 80
         print_status "Production mode detected"
 
-        if curl -s http://localhost/api/status >/dev/null 2>&1; then
-            print_success "✅ Backend API is responding (Flask)"
-        else
-            print_warning "⚠️  Backend API not responding yet (may still be starting)"
-        fi
+        # Check backend API with retries
+        for i in {1..6}; do
+            if response=$(curl -s http://localhost/api/status 2>/dev/null); then
+                print_success "✅ Backend API is responding (Flask)"
+
+                # Check database connection status from API response
+                if echo "$response" | grep -q '"database":"connected"'; then
+                    print_success "✅ Database connection established"
+                elif echo "$response" | grep -q '"database":"disconnected"'; then
+                    print_warning "⚠️  Database connection failed - check if MongoDB is running"
+                fi
+
+                break
+            else
+                if [ $i -eq 6 ]; then
+                    print_error "❌ Backend API failed to start after 30 seconds"
+                else
+                    print_status "Backend starting... (attempt $i/6)"
+                    sleep 5
+                fi
+            fi
+        done
 
         if curl -s -I http://localhost >/dev/null 2>&1; then
             print_success "✅ Frontend is accessible (Flask static)"

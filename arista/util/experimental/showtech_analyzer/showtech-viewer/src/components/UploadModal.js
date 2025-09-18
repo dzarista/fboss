@@ -1,7 +1,9 @@
 import React, { useRef, useState } from 'react';
 import { uploadFiles, uploadFilesWithProgress, unrollZips } from '../utils/api';
+import { createSession } from '../utils/sessionApi';
+import { navigateToSession } from '../utils/urlManager';
 
-export default function UploadModal({ onClose, onFilesProcessed }) {
+export default function UploadModal({ onClose, onFilesProcessed, currentSession }) {
   const fileInputRef = useRef(null);
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -61,6 +63,9 @@ export default function UploadModal({ onClose, onFilesProcessed }) {
 
     const handleUpload = async () => {
     if (!selectedFiles.length) return;
+
+    // Session will be created automatically if none exists
+
     setIsUploading(true);
     setError('');
     setProgressPercent(0);
@@ -99,48 +104,140 @@ export default function UploadModal({ onClose, onFilesProcessed }) {
           setTotalFiles(filesToProcess.length);
         }
 
+
+
         // Step 2: Process all individual files
-        if (filesToProcess.length > 1) {
-          const uploaded = await uploadFilesWithProgress(filesToProcess, (progress) => {
-            setCurrentFile(progress.currentFile);
-            setTotalFiles(progress.totalFiles);
-            setProgressPercent(progress.percent);
+        if (!currentSession) {
+          // No session - create session and upload with progress
+          setUploadProgress('Creating session...');
 
-            if (progress.fileName === 'Complete') {
-              setUploadProgress('Upload complete!');
-            } else if (progress.fileName === 'No valid files found') {
-              setUploadProgress('No valid showtech files found');
+          try {
+            // Generate session name with date
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric'
+            });
+            const timeStr = now.toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true
+            });
+            const sessionName = `Session ${dateStr} ${timeStr}`;
+
+            // Create the session
+            const newSession = await createSession({
+              name: sessionName
+            });
+
+            const sessionId = newSession.session_id;
+            setUploadProgress('Session created. Uploading files...');
+
+            // Upload files with progress
+            if (filesToProcess.length > 1) {
+              const uploaded = await uploadFilesWithProgress(filesToProcess, (progress) => {
+                setCurrentFile(progress.currentFile);
+                setTotalFiles(progress.totalFiles);
+                setProgressPercent(progress.percent);
+
+                if (progress.fileName === 'Complete') {
+                  setUploadProgress('Upload complete!');
+                } else if (progress.fileName === 'No valid files found') {
+                  setUploadProgress('No valid showtech files found');
+                } else {
+                  setUploadProgress(`Processing ${progress.fileName}... (${progress.currentFile} of ${progress.totalFiles} files)`);
+                }
+              }, sessionId);
+
+              // Pass results to App.js, then navigate to URL after a delay
+
+              setTimeout(() => {
+                if (uploaded && uploaded.length > 0) {
+                  onFilesProcessed(uploaded, newSession);
+                  // Small delay to ensure session state is set before navigation
+                  setTimeout(() => {
+                    navigateToSession(newSession.session_id);
+                  }, 100);
+                }
+                onClose();
+              }, 500);
+
             } else {
-              setUploadProgress(`Processing ${progress.fileName}... (${progress.currentFile} of ${progress.totalFiles} files)`);
-            }
-          });
+              // Single file - use simpler progress
+              setUploadProgress('Processing file...');
+              const uploaded = await uploadFiles(filesToProcess, sessionId);
 
-          // Brief completion message before closing
-          setTimeout(() => {
-            if (uploaded && uploaded.length > 0) {
-              onFilesProcessed(uploaded);
+              if (uploaded && uploaded.length > 0) {
+                setUploadProgress('Upload complete!');
+                setTimeout(() => {
+                  onFilesProcessed(uploaded, newSession);
+                  // Small delay to ensure session state is set before navigation
+                  setTimeout(() => {
+                    navigateToSession(newSession.session_id);
+                  }, 100);
+                  onClose();
+                }, 500);
+              } else {
+                setUploadProgress('No valid showtech files found');
+                setTimeout(() => {
+                  onClose();
+                }, 1000);
+              }
             }
-            onClose();
-          }, 100);
+          } catch (error) {
+            setUploadProgress('Upload failed');
+            setError(error.message);
+          }
 
         } else {
-          // Single file - use simpler progress
-          setUploadProgress('Processing file...');
-          const uploaded = await uploadFiles(filesToProcess);
+          // Has session - upload to existing session
+          const sessionId = currentSession.session_id;
 
-          // Check if any files were actually processed
-          if (uploaded && uploaded.length > 0) {
-            setUploadProgress('Upload complete!');
+          if (filesToProcess.length > 1) {
+            const uploaded = await uploadFilesWithProgress(filesToProcess, (progress) => {
+              setCurrentFile(progress.currentFile);
+              setTotalFiles(progress.totalFiles);
+              setProgressPercent(progress.percent);
+
+              if (progress.fileName === 'Complete') {
+                setUploadProgress('Upload complete!');
+              } else if (progress.fileName === 'No valid files found') {
+                setUploadProgress('No valid showtech files found');
+              } else {
+                setUploadProgress(`Processing ${progress.fileName}... (${progress.currentFile} of ${progress.totalFiles} files)`);
+              }
+            }, sessionId);
+
+
+
+            // Brief completion message before closing
             setTimeout(() => {
-              onFilesProcessed(uploaded);
+              if (uploaded && uploaded.length > 0) {
+                onFilesProcessed(uploaded);
+              }
               onClose();
             }, 100);
+
           } else {
-            // No valid showtech files found - just close quietly
-            setUploadProgress('No valid showtech files found');
-            setTimeout(() => {
-              onClose();
-            }, 200);
+            // Single file - use simpler progress
+            setUploadProgress('Processing file...');
+            const uploaded = await uploadFiles(filesToProcess, sessionId);
+
+            // Check if any files were actually processed
+            if (uploaded && uploaded.length > 0) {
+              setUploadProgress('Upload complete!');
+              setTimeout(() => {
+                onFilesProcessed(uploaded);
+                onClose();
+              }, 100);
+            } else {
+              // No valid showtech files found - just close quietly
+              setUploadProgress('No valid showtech files found');
+              setTimeout(() => {
+                onClose();
+              }, 200);
+            }
           }
         }
 
@@ -253,7 +350,7 @@ export default function UploadModal({ onClose, onFilesProcessed }) {
               onClick={handleUpload}
               disabled={isUploading || !selectedFiles.length}
             >
-              {isUploading ? 'Processing…' : 'Upload'}
+              {isUploading ? 'Processing…' : (currentSession ? 'Upload' : 'Upload & Create Session')}
             </button>
         </div>
         </div>

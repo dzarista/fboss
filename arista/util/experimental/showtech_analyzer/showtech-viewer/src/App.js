@@ -2,27 +2,30 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 import { checkBackendStatus } from './utils/api';
 import packageJson from '../package.json';
-import {
-  getCachedFiles,
-  addFilesToCache,
-  removeFileFromCache,
-  isStorageAvailable,
-  getCacheInfo,
-  saveFilterState,
-  getFilterState,
-  removeFilterState
-} from './utils/fileCache';
 import { findDiff } from './utils/findDiff';
-
+import {
+  parseUrlState,
+  updateUrl,
+  setupUrlChangeListener,
+  navigateToSession
+} from './utils/urlManager';
+import { getSession, deleteFileFromSession, updateSession } from './utils/sessionApi';
 
 import Sidebar from './components/Sidebar';
 import Content from './components/Content';
 import SectionFilter from './components/SectionFilter';
 import UploadModal from './components/UploadModal';
+import SessionManager from './components/SessionManager';
 
 function App() {
   const [isError, setIsError] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Session management
+  const [currentSession, setCurrentSession] = useState(null);
+  const [sessionFiles, setSessionFiles] = useState([]);
+  const [showSessionManager, setShowSessionManager] = useState(false);
+  const [loadingSession, setLoadingSession] = useState(false);
 
   // Stores a list of all the logs uploaded
   // Before saving them, they must be processed by the backend
@@ -42,162 +45,161 @@ function App() {
   const [diffs, setDiffs] = useState({ file1Diffs: new Map(), file2Diffs: new Map() }); // Store all diffs
   const [alignMode, setAlignMode] = useState(false); // Whether files are aligned for synchronized scrolling
 
-  // On startup: check backend connection and load cached files
+  // On startup: check backend connection and handle URL-based session loading
   useEffect(() => {
     const initializeApp = async () => {
-      // Check backend status
+      // Quick backend status check with minimal loading time
       try {
         await checkBackendStatus();
         setIsError(false);
+        setIsLoading(false);
       } catch {
         setIsError(true);
-      } finally {
         setIsLoading(false);
       }
 
-      // Load cached files if storage is available
-      if (isStorageAvailable()) {
-        const cachedFiles = getCachedFiles();
-        if (cachedFiles.length > 0) {
-          setLogs(cachedFiles);
-          console.log(`Loaded ${cachedFiles.length} files from cache`);
-
-          // After loading cached files, check for URL fragments
-          handleUrlFragments(cachedFiles);
+      // Parse URL to see if we should load a session (don't show loading for this)
+      const urlState = parseUrlState();
+      if (urlState.sessionId) {
+        try {
+          await loadSessionFromUrl(urlState);
+        } catch (error) {
+          console.error('Failed to load session from URL:', error);
+          // If session loading fails, show session manager
+          setShowSessionManager(true);
         }
       } else {
-        console.warn('localStorage not available - files will not be cached');
+        // No session in URL - start with no active session, allow file uploads
+        // Session manager will be shown when user clicks the Sessions button
       }
     };
 
     initializeApp();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Listen for hash changes
+  // Set up URL change listener for browser navigation
   useEffect(() => {
-    const handleHashChange = () => {
-      handleUrlFragments();
-    };
-
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Handle URL fragment navigation
-  const handleUrlFragments = (availableLogs = logs) => {
-    const hash = window.location.hash;
-    if (!hash || hash === '#') return;
-
-    // Ensure we have logs to work with
-    if (!availableLogs || availableLogs.length === 0) {
-      console.warn('No logs available for URL fragment navigation');
-      return;
-    }
-
-    // Parse fragments: #fileIndex/sectionIndex
-    const fragments = hash.substring(1).split('/');
-    const fileIndex = parseInt(fragments[0], 10);
-    const sectionIndex = fragments[1] ? parseInt(fragments[1], 10) : null;
-
-    // Validate file index
-    if (isNaN(fileIndex) || fileIndex < 0 || fileIndex >= availableLogs.length) {
-      console.warn(`Invalid file index in URL fragment: ${fileIndex}`);
-      return;
-    }
-
-    const targetFile = availableLogs[fileIndex];
-    if (!targetFile) {
-      console.warn(`File not found at index: ${fileIndex}`);
-      return;
-    }
-
-    // Check if file is already open
-    const leftFile = openedFiles[0];
-    const rightFile = openedFiles[1];
-    let targetSlotIndex = null;
-
-    if (leftFile?.name === targetFile.name) {
-      targetSlotIndex = 0;
-    } else if (rightFile?.name === targetFile.name) {
-      targetSlotIndex = 1;
-    }
-
-    if (targetSlotIndex !== null) {
-      // File is already open, activate its window and navigate to section
-      setActiveWindow(targetSlotIndex);
-      setActiveFilterTab(targetSlotIndex);
-
-      if (sectionIndex !== null && !isNaN(sectionIndex)) {
-        // Validate section index
-        const openFile = openedFiles[targetSlotIndex];
-        if (openFile?.sections && sectionIndex >= 0 && sectionIndex < openFile.sections.length) {
-          // Navigate to section after a brief delay to ensure window is active
-          setTimeout(() => {
-            handleJumpToSection(sectionIndex);
-          }, 50);
-        } else {
-          console.warn(`Invalid section index in URL fragment: ${sectionIndex} (file has ${openFile?.sections?.length || 0} sections)`);
+    const cleanup = setupUrlChangeListener(async (urlState) => {
+      if (urlState.sessionId) {
+        // Check if we already have this session loaded
+        if (currentSession && currentSession.session_id === urlState.sessionId) {
+          return;
         }
+
+        try {
+          await loadSessionFromUrl(urlState);
+        } catch (error) {
+          console.error('Failed to load session from URL change:', error);
+        }
+      } else {
+        // No session - clear current session and show manager
+        setCurrentSession(null);
+        setSessionFiles([]);
+        setOpenedFiles([null, null]);
+        setLoadingSession(false);
+        setShowSessionManager(true);
+      }
+    });
+
+    return cleanup;
+  }, []);
+
+  // Load session from URL state
+  const loadSessionFromUrl = async (urlState) => {
+    try {
+      setLoadingSession(true);
+      const sessionData = await getSession(urlState.sessionId);
+      setCurrentSession(sessionData.metadata);
+      setSessionFiles(sessionData.files || []);
+      setLogs(sessionData.files || []); // For compatibility with existing code
+    } catch (error) {
+      throw new Error(`Failed to load session: ${error.message}`);
+    } finally {
+      setLoadingSession(false);
+    }
+  };
+
+  // Handle session loading from SessionManager
+  const handleSessionLoad = async (sessionData) => {
+    setCurrentSession(sessionData.metadata);
+    setSessionFiles(sessionData.files || []);
+    setLogs(sessionData.files || []); // For compatibility
+    setOpenedFiles([null, null]); // Clear opened files
+
+    // Update URL to reflect loaded session
+    navigateToSession(sessionData.metadata.session_id);
+  };
+
+  // Handle session rename from Sidebar
+  const handleSessionRename = async (session, newName) => {
+    if (newName && newName.trim() !== session.name) {
+      try {
+        await updateSession(session.session_id, { name: newName.trim() });
+        // Update the local state
+        setCurrentSession({ ...session, name: newName.trim() });
+      } catch (error) {
+        console.error('Failed to rename session:', error);
+        alert('Failed to rename session. Please try again.');
+      }
+    }
+  };
+
+  // Handle session rename from SessionManager
+  const handleSessionManagerRename = (sessionId, newName) => {
+    if (currentSession && currentSession.session_id === sessionId) {
+      setCurrentSession({ ...currentSession, name: newName });
+    }
+  };
+
+  // Handle file uploads to current session
+  const handleFilesUploaded = async (uploadedFiles, newSession = null) => {
+
+    if (newSession) {
+      // New session was created by UploadModal - set it as current and display files
+      setCurrentSession(newSession);
+      setSessionFiles(uploadedFiles || []);
+      setLogs(uploadedFiles || []);
+    } else if (currentSession) {
+      // Files were already uploaded by UploadModal to the current session
+      // Show loading state while refreshing session files
+      setLoadingSession(true);
+
+      try {
+        const updatedSession = await getSession(currentSession.session_id);
+
+        setSessionFiles(updatedSession.files || []);
+        setLogs(updatedSession.files || []);
+      } catch (error) {
+        console.error('Failed to reload session after upload:', error);
+        // Fall back to local handling if session reload fails
+        setLogs(prevLogs => [...prevLogs, ...uploadedFiles]);
+      } finally {
+        // Clear loading state
+        setLoadingSession(false);
       }
     } else {
-      // File is not open, open it and then navigate to section
-      handleOpenFile(fileIndex).then(() => {
-        if (sectionIndex !== null && !isNaN(sectionIndex)) {
-          // Validate section index after file is loaded
-          setTimeout(() => {
-            const loadedFile = logs[fileIndex];
-            if (loadedFile?.sections && sectionIndex >= 0 && sectionIndex < loadedFile.sections.length) {
-              handleJumpToSection(sectionIndex);
-            } else {
-              console.warn(`Invalid section index in URL fragment: ${sectionIndex} (file has ${loadedFile?.sections?.length || 0} sections)`);
-            }
-          }, 200); // Brief wait for file to load
-        }
-      });
+      // No current session and no new session provided - fall back to local handling
+      setLogs(prevLogs => [...prevLogs, ...uploadedFiles]);
     }
   };
+
+
 
   // Update URL fragment based on current state
-  const updateUrlFragment = (fileIndex = null, sectionIndex = null) => {
-    if (fileIndex === null) {
-      // Clear fragment
-      if (window.location.hash) {
-        window.history.replaceState(null, '', window.location.pathname + window.location.search);
-      }
-      return;
-    }
+  // Update URL to reflect current session and file state
+  const updateSessionUrl = () => {
+    if (!currentSession) return;
 
-    let fragment = `#${fileIndex}`;
-    if (sectionIndex !== null && sectionIndex >= 0) {
-      fragment += `/${sectionIndex}`;
-    }
-
-    if (window.location.hash !== fragment) {
-      window.history.replaceState(null, '', window.location.pathname + window.location.search + fragment);
-    }
+    // Update URL with current session state
+    updateUrl(currentSession.session_id, true);
   };
 
-  const statusClass = isError ? 'error' : isLoading ? 'loading' : 'success';
-  const statusTitle = isLoading ? 'Connecting' : isError ? 'Failure' : 'Success';
+  const statusClass = isError ? 'error' : 'success';
+  const statusTitle = isError ? 'Failure' : 'Success';
 
-  // Get cache info for display
-  const cacheInfo = isStorageAvailable() ? getCacheInfo() : null;
 
-  // Appends new logs to the previous ones at the end of each upload
-  const handleFilesProcessed = (newLogs) => {
-    const updatedLogs = [...logs, ...newLogs];
-    setLogs(updatedLogs);
 
-    // Save to cache
-    if (isStorageAvailable()) {
-      const success = addFilesToCache(newLogs);
-      if (success) {
-        console.log(`Cached ${newLogs.length} new files`);
-      } else {
-        console.warn('Failed to cache files - storage may be full');
-      }
-    }
-  };
+
 
   const handleOpenFile = async (idx) => {
     // Validate index and file existence
@@ -216,19 +218,17 @@ function App() {
     const leftFile = openedFiles[0];
     const rightFile = openedFiles[1];
 
-    if (leftFile?.name === file.name) {
-      console.log(`File "${file.name}" is already open in left window`);
+    if (leftFile?.file_id === file.file_id) {
       // Activate the left window and update URL
       setActiveWindow(0);
       setActiveFilterTab(0);
-      updateUrlFragment(idx);
+      updateSessionUrl();
       return;
-    } else if (rightFile?.name === file.name) {
-      console.log(`File "${file.name}" is already open in right window`);
+    } else if (rightFile?.file_id === file.file_id) {
       // Activate the right window and update URL
       setActiveWindow(1);
       setActiveFilterTab(1);
-      updateUrlFragment(idx);
+      updateSessionUrl();
       return;
     }
 
@@ -269,26 +269,12 @@ function App() {
       // Now load the actual file data
       const actualFile = { ...file };
 
-      // Load cached filter state or initialize all sections as visible
+      // Initialize all sections as visible
       if (actualFile?.sections) {
-        const cachedFilterState = getFilterState(actualFile.name);
         const newVisibleSections = [...visibleSections];
-
-        if (cachedFilterState && cachedFilterState.size > 0) {
-          // Use cached filter state
-          newVisibleSections[slotIndex] = cachedFilterState;
-          console.log(`Loaded filter state for "${actualFile.name}": ${cachedFilterState.size} sections visible`);
-        } else {
-          // Default: all sections visible
-          const allSectionIds = new Set(actualFile.sections.map((_, sectionIdx) => sectionIdx));
-          newVisibleSections[slotIndex] = allSectionIds;
-
-          // Save the default state to cache
-          if (isStorageAvailable()) {
-            saveFilterState(actualFile.name, allSectionIds);
-          }
-        }
-
+        // Default: all sections visible
+        const allSectionIds = new Set(actualFile.sections.map((_, sectionIdx) => sectionIdx));
+        newVisibleSections[slotIndex] = allSectionIds;
         setVisibleSections(newVisibleSections);
       }
 
@@ -317,8 +303,8 @@ function App() {
     setActiveFilterTab(slotIndex);
     setActiveWindow(slotIndex);
 
-    // Update URL fragment to reflect the opened file
-    updateUrlFragment(idx);
+    // Update URL to reflect the opened file
+    updateSessionUrl();
   };
 
   const handleCloseFile = (slotIndex) => {
@@ -364,18 +350,14 @@ function App() {
         setActiveFilterTab(otherSlot);
 
         // Update URL to reflect the now-active file
-        const activeFile = newOpenedFiles[otherSlot];
-        const fileIndex = logs.findIndex(log => log.name === activeFile.name);
-        if (fileIndex !== -1) {
-          updateUrlFragment(fileIndex);
-        }
+        updateSessionUrl();
       } else {
-        // No files open, clear URL fragment
-        updateUrlFragment(null);
+        // No files open, update URL
+        updateSessionUrl();
       }
     } else if (newOpenedFiles[0] === null && newOpenedFiles[1] === null) {
-      // All files closed, clear URL fragment
-      updateUrlFragment(null);
+      // All files closed, update URL
+      updateSessionUrl();
     }
   };
 
@@ -399,11 +381,6 @@ function App() {
             }
 
             newVisibleSections[slotIndex] = currentSet;
-
-            // Save the updated filter state to cache for both files
-            if (isStorageAvailable()) {
-              saveFilterState(openedFiles[slotIndex].name, currentSet);
-            }
           }
         });
       } else {
@@ -417,11 +394,6 @@ function App() {
         }
 
         newVisibleSections[activeFilterTab] = currentSet;
-
-        // Save the updated filter state to cache
-        if (isStorageAvailable()) {
-          saveFilterState(activeFile.name, currentSet);
-        }
       }
 
       return newVisibleSections;
@@ -459,14 +431,8 @@ function App() {
       }
     }
 
-    // Update URL fragment to include section index
-    const activeFile = openedFiles[activeFilterTab];
-    if (activeFile) {
-      const fileIndex = logs.findIndex(log => log.name === activeFile.name);
-      if (fileIndex !== -1) {
-        updateUrlFragment(fileIndex, sectionIdx);
-      }
-    }
+    // Update URL to reflect current state
+    updateSessionUrl();
   };
 
   const handleBulkToggleSections = (showAll) => {
@@ -485,11 +451,6 @@ function App() {
               : new Set(); // Hide all
 
             newVisibleSections[slotIndex] = newSectionSet;
-
-            // Save the updated filter state to cache for both files
-            if (isStorageAvailable()) {
-              saveFilterState(openedFiles[slotIndex].name, newSectionSet);
-            }
           }
         });
 
@@ -507,10 +468,7 @@ function App() {
         return newVisibleSections;
       });
 
-      // Save the updated filter state to cache
-      if (isStorageAvailable()) {
-        saveFilterState(activeFile.name, newSectionSet);
-      }
+
     }
   };
 
@@ -532,13 +490,7 @@ function App() {
     setActiveFilterTab(slotIndex);
 
     // Update URL to reflect the active file
-    const activeFile = openedFiles[slotIndex];
-    if (activeFile) {
-      const fileIndex = logs.findIndex(log => log.name === activeFile.name);
-      if (fileIndex !== -1) {
-        updateUrlFragment(fileIndex);
-      }
-    }
+    updateSessionUrl();
   };
 
   // Check if align mode should be available
@@ -638,31 +590,42 @@ function App() {
     setActiveWindow(slotIndex);
 
     // Update URL to reflect the active file
-    const activeFile = openedFiles[slotIndex];
-    if (activeFile) {
-      const fileIndex = logs.findIndex(log => log.name === activeFile.name);
-      if (fileIndex !== -1) {
-        updateUrlFragment(fileIndex);
-      }
-    }
+    updateSessionUrl();
   };
 
-  const handleRemoveFile = (idx) => {
+  const handleRemoveFile = async (idx) => {
     const fileToRemove = logs[idx];
-    const updatedLogs = logs.filter((_, i) => i !== idx);
+
+    // Prevent duplicate calls by checking if file is already being removed
+    if (!fileToRemove || fileToRemove.isRemoving) {
+      return;
+    }
+
+    // Mark file as being removed to prevent duplicate calls
+    const updatedLogs = logs.map((log, i) =>
+      i === idx ? { ...log, isRemoving: true } : log
+    );
     setLogs(updatedLogs);
 
-    // Remove from cache
-    if (isStorageAvailable()) {
-      const fileSuccess = removeFileFromCache(idx);
-      const filterSuccess = removeFilterState(fileToRemove.name);
+    // Remove from session if we have one
+    if (currentSession && fileToRemove.file_id) {
+      try {
+        await deleteFileFromSession(currentSession.session_id, fileToRemove.file_id);
 
-      if (fileSuccess) {
-        console.log(`Removed file "${fileToRemove.name}" from cache`);
+        // Reload session to get updated file list
+        const updatedSession = await getSession(currentSession.session_id);
+        setSessionFiles(updatedSession.files || []);
+        setLogs(updatedSession.files || []);
+      } catch (error) {
+        console.error('Failed to remove file from session:', error);
+        // Fall back to local removal if session update fails
+        const finalLogs = logs.filter((_, i) => i !== idx);
+        setLogs(finalLogs);
       }
-      if (filterSuccess) {
-        console.log(`Removed filter state for "${fileToRemove.name}"`);
-      }
+    } else {
+      // No session or no file_id - just remove locally
+      const finalLogs = logs.filter((_, i) => i !== idx);
+      setLogs(finalLogs);
     }
 
     // If the removed file is currently opened, close it
@@ -704,6 +667,10 @@ function App() {
           statusClass={statusClass}
           statusTitle={statusTitle}
           version={`v${packageJson.version}-${process.env.NODE_ENV === 'production' ? 'prod' : 'dev'}`}
+          currentSession={currentSession}
+          onSessionManagerClick={() => setShowSessionManager(true)}
+          onSessionRename={handleSessionRename}
+          loadingSession={loadingSession}
         />
 
         <div className="content-area">
@@ -780,7 +747,18 @@ function App() {
       {isModalOpen && (
         <UploadModal
           onClose={() => setIsModalOpen(false)}
-          onFilesProcessed={handleFilesProcessed}
+          onFilesProcessed={handleFilesUploaded}
+          currentSession={currentSession}
+        />
+      )}
+
+      {/* render the session manager if it's set to true */}
+      {showSessionManager && (
+        <SessionManager
+          onSessionLoad={handleSessionLoad}
+          onClose={() => setShowSessionManager(false)}
+          currentSessionId={currentSession?.session_id}
+          onSessionRename={handleSessionManagerRename}
         />
       )}
 

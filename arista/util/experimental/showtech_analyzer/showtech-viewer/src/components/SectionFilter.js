@@ -23,7 +23,7 @@ export default function SectionFilter({
     if (showAlignPopup) {
       const timer = setTimeout(() => {
         setShowAlignPopup(false);
-      }, 4000);
+      }, 5500);
       return () => clearTimeout(timer);
     }
   }, [showAlignPopup]);

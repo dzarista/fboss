@@ -11,6 +11,7 @@ import { ReactComponent as BackArrowSVG } from './back-arrow.svg';
 import { ReactComponent as ErrorTriangleSVG } from './error-triangle.svg';
 import { ReactComponent as ChevronDownSVG } from './chevron-down.svg';
 import { ReactComponent as UploadSVG } from './upload.svg';
+import { ReactComponent as PencilSVG } from './pencil.svg';
 
 // Map of icon names to their SVG components
 const iconMap = {
@@ -20,6 +21,7 @@ const iconMap = {
   'error-triangle': ErrorTriangleSVG,
   'chevron-down': ChevronDownSVG,
   'upload': UploadSVG,
+  'pencil': PencilSVG,
 };
 
 // General Icon component that renders the appropriate SVG
@@ -47,6 +49,7 @@ export const BackArrowIcon = (props) => <Icon name="back-arrow" {...props} />;
 export const ErrorTriangleIcon = (props) => <Icon name="error-triangle" {...props} />;
 export const ChevronDownIcon = (props) => <Icon name="chevron-down" {...props} />;
 export const UploadIcon = (props) => <Icon name="upload" {...props} />;
+export const PencilIcon = (props) => <Icon name="pencil" {...props} />;
 export const ToggleRawIcon = (props) => <Icon name="toggle-raw" {...props} />;
 
 export default Icon;

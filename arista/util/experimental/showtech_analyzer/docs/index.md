@@ -6,10 +6,15 @@ This is the main documentation page for the Showtech Fiewer tool, covering archi
 
 ## System Architecture
 
-### Component Overview
+### Docker Containers
 
-- **[Frontend (React)](frontend/overview.md)**: User interface and visualization. 
-- **[Backend (Flask)](backend/overview.md)**:File processing and data transformation
+- **Application Container**: Runs both React frontend and Flask backend with session management
+- **[Database Container (MongoDB & GridFS)](database/README.md)**: For persistent session and file storage.
+
+### Application Overview
+
+- **[Frontend (React)](frontend/overview.md)**: User interface and visualization.
+- **[Backend (Flask)](backend/overview.md)**: File processing and data transformation
 
 ## Data Flow Architecture
 
@@ -53,6 +58,7 @@ This is the main documentation page for the Showtech Fiewer tool, covering archi
 - **Critical Sensors**: Scans table values for "critical" strings
 - **Port Status**: Identifies enabled+present+down port combinations
 - **I2C Issues**: (Future) highlights unexpected values of registers
+- **Regex Matches**: Detects user-defined patterns in raw content
 
 #### Frontend Highlighting
 - **Visual Indicators**: Color-coded table rows

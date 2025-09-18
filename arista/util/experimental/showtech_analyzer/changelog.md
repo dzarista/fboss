@@ -1,3 +1,6 @@
+# v1.8.0
+- [FEATURE]: Complete database and session management system with MongoDB backend, enabling persistent storage, file uploads, session sharing, and URL-based deep linking to specific sessions. (files and sections automatic opening to be covered).
+
 # v1.7.0
 - [FEATURE]: URL fragment navigation added to support linking to specific files and sections. (currently only supports open files in the local cache, will be covered with the DB PR).
 - [FEATURE]: Showtech files matching the same product and version have the two features:

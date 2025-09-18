@@ -4,18 +4,16 @@
 
 This document covers the frontend architecture of Showtech Viewer.
 
-**Technology**
-- **React 18** - Component-based UI framework
-- **JavaScript ES6+** - Modern JavaScript features
-- **CSS3** - Component-scoped styling
+**Technology**: React, JavaScript, CSS, Docker
 
 ## Core Components
-
-**App.js - Application Root**: Main application container and state management
-**Sidebar.js - File Management Panel**: File upload and management interface
-**Content.js - Main Content Display**: Primary data visualization and interaction area
-**UploadModal.js - File Upload Interface**: File upload with drag & drop functionality
-**SectionFilter.js - Navigation & Filtering** Section management and quick navigation
+- **App.js - Application Root**: Main application container and state management
+- **Sidebar.js - File Management Panel**: File upload and session management interface
+- **Content.js - Main Content Display**: Primary data visualization and interaction area
+- **UploadModal.js - File Upload Interface**: File upload with drag & drop functionality
+- **SectionFilter.js - Navigation & Filtering**: Section management and quick navigation
+- **SessionManager.js - Session Management**: Session creation, listing, and management
+- **SystemSummary.js - Hardware Overview**: Visual hardware status and monitoring
 
 ## Styling System
 
@@ -55,22 +53,12 @@ styles/
 
 ## Utility Functions
 
-### API Communication (utils/api.js)
-
-**Purpose**: Centralized backend communication with error handling and timeout management.
-
-```javascript
-// File upload with progress tracking
-export const uploadFiles = async (files, onProgress) => {
-  const formData = new FormData();
-  // Implementation with fetch API and progress callbacks
-};
-
-// Health check for backend connectivity
-export const checkBackendHealth = async () => {
-  // Verify backend is running and responsive
-};
-```
+### API Communication
+- **`utils/api.js`**: File upload and backend health checks
+- **`utils/sessionApi.js`**: Session management (create, list, update, delete)
+- **`utils/urlManager.js`**: URL state management and deep linking
+- **`utils/extractors.js`**: Data extraction utilities
+- **`utils/app_utils.js`**: General application utilities
 
 ## Setup
 For complete deployment instructions including Docker setup and troubleshooting, see [`../deployment.md`](../deployment.md)

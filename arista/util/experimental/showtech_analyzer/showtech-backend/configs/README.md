@@ -1,31 +1,40 @@
-# Platform Configuration Files
+# Configuration Files
 
-This directory contains platform-specific configuration files used for hardware validation and anomaly detection.
+This directory contains configuration files for hardware validation, anomaly detection, I2C device specifications, and regex pattern matching.
 
 ## Adding a New Platform
 
-1. **Create platform config file** in `Platforms/NewPlatform.json`:
+1. **Create platform config file** in `platform_configs/NewPlatform.json`:
 ```json
 {
   "platform": "NewPlatform",
-  "product_name": "NEW_PRODUCT_CODE", 
+  "product_name": "NEW_PRODUCT_CODE",
   "description": "Platform description",
-  "pcie_devices": [
+  "pcie_devices": [...],
+  "i2c_devices": {...},
+  "system_map": {...}
+}
+```
+
+2. **Create platform regex file** in `platform_regexes/NewPlatform.json`:
+```json
+{
+  "platform": "NewPlatform",
+  "product_name": "NEW_PRODUCT_CODE",
+  "description": "Platform-specific regex patterns",
+  "regexes": [
     {
-      "slot": "07:00.0",
-      "location": "SCM",
-      "device_type": "FPGA",
-      "description": "SCM FPGA",
-      "expected_speed": "Gen1x1"
+      "name": "Pattern Name",
+      "patterns": ["regex1", "regex2"]
     }
   ]
 }
 ```
 
-2. **Update `config.json`** to map product name:
+3. **Update `config.json`** to map product name:
 ```json
 {
-  "PRODUCT_CODE": "NewPlatform.json"
+  "NEW_PRODUCT_CODE": "NewPlatform.json"
 }
 ```
 
@@ -34,33 +43,98 @@ This directory contains platform-specific configuration files used for hardware 
 ```
 configs/
 ├── config.json              # Product name → platform file mapping
-├── Platforms/               # Platform-specific configurations
-│   ├── platform.json       # Platform config file
-│   └── ...
+├── main_regex.json          # Global regex patterns for all platforms
+├── platform_configs/        # Platform-specific hardware configurations
+│   ├── Viper.json          # Viper platform config
+│   ├── Whistler.json       # Whistler platform config
+│   └── QuicksilverPFb.json  # Quicksilver platform config
+├── platform_regexes/        # Platform-specific regex patterns
+│   ├── Viper.json          # Viper regex patterns
+│   ├── Whistler.json       # Whistler regex patterns
+│   └── QuicksilverPFb.json  # Quicksilver regex patterns
+├── i2c_specs/               # I2C device command specifications
+│   ├── pmbus_commands.json  # Standard PMBus commands
+│   ├── isl68226_commands.json # Intersil ISL68226 commands
+│   ├── ucd90320_commands.json # TI UCD90320 commands
+│   └── no_spec_commands.json  # Fallback for unknown devices
 └── README.md
 ```
 
 ## Configuration Format
 
-### Platform File Structure
+### Platform Config Structure (`platform_configs/`)
 ```json
 {
   "platform": "Name",
   "product_name": "Product code",
-  "description": "Brief description", 
-  "pcie_devices": [
+  "description": "Brief description",
+  "pcie_devices": [...],
+  "i2c_devices": {...},
+  "system_map": {...}
+}
+```
+
+### Platform Regex Structure (`platform_regexes/`)
+```json
+{
+  "platform": "Name",
+  "product_name": "Product code",
+  "description": "Platform-specific regex patterns",
+  "regexes": [
     {
-      "slot": "PCIe slot (e.g., 07:00.0)",
-      "location": "Physical location (SCM/SMB/ASIC0)",
-      "device_type": "FPGA/ASIC/etc",
-      "description": "Human readable description",
-      "expected_speed": "GenXxY (optional, defaults to Gen1x1)"
+      "name": "Pattern description",
+      "patterns": ["regex1", "regex2"]
     }
   ]
 }
 ```
 
-### PCIe Speed Format
+### Global Regex Structure (`main_regex.json`)
+```json
+{
+  "description": "Global regex patterns for all platforms",
+  "regexes": [
+    {
+      "name": "Pattern category name",
+      "patterns": ["regex_1", "regex_2"]
+    }
+  ]
+}
+```
+
+### I2C Device Specifications (`i2c_specs/`)
+```json
+[
+  {
+    "code": "0x00",
+    "name": "COMMAND_NAME",
+    "type": "R/W",
+    "bytes": "1",
+    "bitRanges": [...]
+  }
+]
+```
+
+## Regex Pattern System
+
+### Global Patterns (`main_regex.json`)
+- Contains regex patterns that apply to all platforms
+- Used for general anomaly detection across all devices
+- Patterns here are checked against all showtech files regardless of platform
+
+### Platform-Specific Patterns (`platform_regexes/`)
+- Contains regex patterns specific to each platform
+- Used for platform-specific anomaly detection
+
+### Pattern Structure
+```json
+{
+  "name": "Descriptive name for the pattern",
+  "patterns": ["regex_pattern_1", "regex_pattern_2"]
+}
+```
+
+## PCIe Speed Format
 - `Gen1x1` = 2.5GT/s x1 (default for FPGAs)
 - `Gen4x4` = 16.0GT/s x4 (typical for ASICs)
 
@@ -76,8 +150,11 @@ configs/
 
 The system automatically detects:
 
-- **Missing Devices**: Expected devices not found in LSPCI
-- **Speed Mismatches**: Devices running at wrong PCIe speeds
+- **Missing PCIe Devices**: Expected devices not found in LSPCI
+- **PCIe Speed Mismatches**: Devices running at wrong speeds
+- **Critical Sensors**: Temperature/voltage sensors in critical state
+- **Regex Matches**: Custom patterns found in raw content
+- **I2C Communication Issues**: Failed I2C device communications
 
 ## Validation Process
 

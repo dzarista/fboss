@@ -13,8 +13,10 @@ This document outlines the backend architecture of the File Processing Pipeline.
 ```
        Upload
          |
+   Session Validation
+         |
      File Handler
-	     |
+         |
     File Parsing
          |
 Section Type Detection
@@ -22,6 +24,8 @@ Section Type Detection
   Specific Parser (or Raw)
          |
    Anomaly Detection
+         |
+   Database Storage
          |
     JSON Output
 ```
@@ -34,10 +38,12 @@ Section Type Detection
 
 ### `/api/upload` (POST Endpoint)
 
-- **Purpose:** Main entrypoint for file uploads from the frontend.
+- **Purpose:** Upload files to existing session.
+- **Requirements:** Requires `session_id` parameter
 - **Responsibilities:**
     - Accept individual or ZIP file uploads.
-    - Call the appropriate file handler based on file type.
+    - Process and parse file contents.
+    - Store processed data in database via session.
     - Return structured JSON containing parsed sections.
 ---
 
@@ -254,10 +260,12 @@ Anomalies are added to each section's parsed data:
 
 ### Pipeline Summary
 
-1. **Upload** → File received via `/api/upload`
-2. **File Handler** → Single file or ZIP processing
-3. **File Parsing** → Content split into sections
-4. **Section Type Detection** → Determine parser type
-5. **Specific Parser** → Convert to structured data
-6. **Anomaly Detection** → Analyze for hardware issues
-7. **JSON Output** → Return structured data with anomalies
+1. **Upload** → File received via `/api/upload` with session_id
+2. **Session Validation** → Verify session exists in database
+3. **File Handler** → Single file or ZIP processing
+4. **File Parsing** → Content split into sections
+5. **Section Type Detection** → Determine parser type
+6. **Specific Parser** → Convert to structured data
+7. **Anomaly Detection** → Analyze for hardware issues
+8. **Database Storage** → Save processed data to MongoDB
+9. **JSON Output** → Return structured data with anomalies

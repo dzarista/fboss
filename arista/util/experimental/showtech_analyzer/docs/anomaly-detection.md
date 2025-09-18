@@ -2,10 +2,6 @@
 
 This document explains how the anomaly detection system works in the Showtech Analyzer and how to extend it with new detection capabilities.
 
-## Overview
-
-The Showtech Analyzer includes a comprehensive anomaly detection system that can identify hardware issues, configuration problems, and performance anomalies in showtech files. The system is designed to be extensible, allowing developers to add new types of anomaly detection easily.
-
 ## Platform Configuration
 
 > **Adding New Platforms:** For information on adding platform-specific configurations and PCIe device validation, see the [Platform Configuration README](../showtech-backend/configs/README.md).
@@ -58,11 +54,16 @@ Each anomaly should be a dictionary with these fields:
 {
     'type': 'anomaly_type_name',           # Unique identifier for anomaly type
     'message': 'Human readable message',    # Description of the issue
-    'row_index': 0,                        # For table-based anomalies (optional)
-    'device_index': 0,                     # For device-based anomalies (optional)
+    'value': 'problematic_value',          # The actual problematic value (optional)
+    'view': 'parsed',                      # View type (parsed/raw)
+    'row': 0,                              # For table-based anomalies (optional)
+    'slot': 'slot_name',                   # For slot-based anomalies (optional)
+    'severity': 'high|medium|low',         # Severity level (optional)
     # ... additional fields specific to anomaly type
 }
 ```
+
+**Note:** Use the `_mk_anomaly()` helper function to create properly formatted anomaly dictionaries.
 
 ### Section Anomaly Detectors Map
 
@@ -92,7 +93,8 @@ Showtech File → Section Parsing → Product Detection → Platform Config Load
 
 ### 1. Critical Sensors (`critical_sensor`)
 - **Function**: `detect_critical_sensors()`
-- **Trigger**: Table cells containing "critical" values
+- **Trigger**: Table cells containing "critical" or "alarm" values
+- **Severity**: High (critical), Medium (alarm)
 - **Navigation**: Scrolls to specific table row
 - **Sections**: Temperature tables, sensor data
 
@@ -114,6 +116,12 @@ Showtech File → Section Parsing → Product Detection → Platform Config Load
 - **Navigation**: Scrolls to specific device with red highlighting
 - **Sections**: "LSPCI" (requires platform config)
 
+### 5. Regex Matches (`regex_match`)
+- **Function**: `detect_regex_matches()`
+- **Trigger**: User-defined regex patterns found in raw content
+- **Navigation**: Highlights matching text in raw view
+- **Sections**: All sections (searches raw content)
+
 ## Adding New Anomaly Detection
 
 ### Step 1: Create Detection Function
@@ -134,12 +142,14 @@ def detect_new_anomaly_type(section, platform_config=None):
     # Your detection logic here
     # Example: check for specific conditions
     if some_condition:
-        anomalies.append({
-            'type': 'new_anomaly_type',
-            'message': 'Description of the issue',
-            'row_index': row_index,  # For table navigation
-            # Add other relevant fields
-        })
+        anomalies.append(_mk_anomaly(
+            type='new_anomaly_type',
+            message='Description of the issue',
+            row=row_index,  # For table navigation
+            value=problematic_value,
+            severity='high',  # optional
+            # Add other relevant fields as **extra
+        ))
 
     return anomalies
 ```
@@ -255,24 +265,31 @@ Here's how the existing critical sensor detection is implemented, showing the co
 def detect_critical_sensors(section):
     """Detect critical values in table sections"""
     anomalies = []
-
     if section.get('section_type') in ('table', 'temperature_table'):
         parsed_data = section.get('parsed_data', {})
-        rows = parsed_data.get('rows', [])
-
-        if rows:
-            for row_index, row in enumerate(rows):
-                # Check if any field in the row contains "critical"
-                for key, value in row.items():
-                    if value and str(value).lower().find('critical') != -1:
-                        anomalies.append({
-                            'type': 'critical_sensor',
-                            'row_index': row_index,
-                            'field': key,
-                            'value': value,
-                            'message': f'Critical value detected in {key}: {value}'
-                        })
-
+        for row_index, row in enumerate(parsed_data.get('rows', [])):
+            for key, value in row.items():
+                if not value:
+                    continue
+                value_str = str(value).lower()
+                if "critical" in value_str:
+                    anomalies.append(_mk_anomaly(
+                        type='critical_sensor',
+                        row=row_index,
+                        value=value,
+                        message=f'Critical value detected in {key}: {value}',
+                        view='parsed',
+                        severity='high'
+                    ))
+                elif "alarm" in value_str:
+                    anomalies.append(_mk_anomaly(
+                        type='critical_sensor',
+                        row=row_index,
+                        value=value,
+                        message=f'Alarm value detected in {key}: {value}',
+                        view='parsed',
+                        severity='medium'
+                    ))
     return anomalies
 ```
 
@@ -291,7 +308,7 @@ SECTION_ANOMALY_DETECTORS = {
 ```javascript
 // ErrorDetection.js - getLocationForAnomaly()
 case 'critical_sensor':
-  return `Row ${anomaly.row_index + 1}, ${anomaly.field}`;
+  return `Row ${anomaly.row + 1}`;
 
 // ErrorDetection.js - getValueForAnomaly()
 case 'critical_sensor':

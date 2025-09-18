@@ -341,17 +341,13 @@ const handleNavigateToError = useCallback((error) => {
 
         // ---- Raw line/match navigation ----
         if (wantsRaw && line !== undefined) {
-          console.log('Navigating to line:', line, 'in section:', sectionIndex);
-
           // Ensure we're in raw view: we already toggled earlier if needed
           const rawContainer = sectionRef.querySelector('.section-content-view.raw-view .section-text-content');
-          console.log('Raw container found:', !!rawContainer);
 
           if (!rawContainer) {
             console.error('Raw container element not found for raw navigation');
             // Try alternative selectors
             const altContainer = sectionRef.querySelector('.section-text-content');
-            console.log('Alternative container found:', !!altContainer);
             if (!altContainer) return;
           }
 
@@ -359,10 +355,8 @@ const handleNavigateToError = useCallback((error) => {
 
           // Look for the specific line element using data-line attribute
           const lineElement = container.querySelector(`[data-line="${line}"]`);
-          console.log('Line element found:', !!lineElement, 'for line:', line);
 
           if (lineElement) {
-            console.log('Scrolling to line element');
             // Direct navigation to the specific line element
             lineElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
@@ -378,10 +372,7 @@ const handleNavigateToError = useCallback((error) => {
               setTimeout(() => { mark.style.boxShadow = ''; }, 1000);
             });
           } else {
-            console.log('Line element not found, trying fallback method');
-            // Debug: log all available line elements
-            const allLines = container.querySelectorAll('[data-line]');
-            console.log('Available line elements:', Array.from(allLines).map(el => el.getAttribute('data-line')));
+            // Fallback method if line element not found
 
             // Fallback: try the old method for backward compatibility
             const wrapper = sectionContentWrapper; // scroll container
