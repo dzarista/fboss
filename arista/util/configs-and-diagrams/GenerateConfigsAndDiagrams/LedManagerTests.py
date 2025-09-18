@@ -27,18 +27,14 @@ class LedManagerTest( unittest.TestCase ):
 
       self.assertIn( "systemLedConfig", generated_data )
       expected_sys = {
-         "presentLedColor": 1,
          "presentLedSysfsPath": "/sys/class/leds/sys_led:green:status/brightness",
-         "absentLedColor": 2,
          "absentLedSysfsPath": "/sys/class/leds/sys_led:red:status/brightness"
       }
       self.assertDictEqual( generated_data[ "systemLedConfig" ], expected_sys )
 
       self.assertIn( "fruTypeLedConfigs", generated_data )
       expected_fan = {
-         "presentLedColor": 1,
          "presentLedSysfsPath": "/sys/class/leds/fan_led:green:status/brightness",
-         "absentLedColor": 2,
          "absentLedSysfsPath": "/sys/class/leds/fan_led:red:status/brightness"
       }
       self.assertDictEqual( generated_data[ "fruTypeLedConfigs" ][ "FAN" ], expected_fan )

@@ -22,3 +22,6 @@ fboss.bsp.arista/**/*.mod.c
 fboss.bsp.arista/**/*.order
 fboss.bsp.arista/**/*.symvers
 fboss.bsp.arista/showtech/platform-showtech
+
+# Ignore config-gen test coverage files
+.coverage.*

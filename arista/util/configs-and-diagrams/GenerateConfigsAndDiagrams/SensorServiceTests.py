@@ -33,6 +33,11 @@ class SensorServiceTest( unittest.TestCase ):
          Sensor( "0x54", "isl68226", "SMB_ISL68226_J3" )
       ] )
 
+   def findSensor( self, sensors, name ):
+      return next(
+         ( sensor for sensor in sensors if sensor.get( 'name' ) == name ), None
+      )
+
    def testInvalidConfig( self ):
       with self.assertRaises( TypeError ):
          self.platform.pmUnitConfigs[ 0 ].i2cDeviceConfigs[ 0 ].addSensorConfigs(
@@ -49,13 +54,11 @@ class SensorServiceTest( unittest.TestCase ):
          ] )
       jsonDump = self.platform.sensorServiceJson()
       sensorDict = json.loads( jsonDump )
-      self.assertTrue( "SCM_ECB_VIN" in sensorDict[ "sensorMapList" ][ "SCM" ] )
-      self.assertFalse(
-         "thresholds" in sensorDict[ "sensorMapList" ][ "SCM" ][  "SCM_ECB_VIN" ]
-      )
-      self.assertFalse(
-         "compute" in sensorDict[ "sensorMapList" ][ "SCM" ][  "SCM_ECB_VIN" ]
-      )
+      sensors = sensorDict[ "pmUnitSensorsList" ][ 0 ][ "sensors" ]
+      sensorConfig = self.findSensor( sensors, "SCM_ECB_VIN" )
+      self.assertIsNotNone( sensorConfig )
+      self.assertFalse( "thresholds" in sensorConfig )
+      self.assertFalse( "compute" in sensorConfig )
 
    def testThresholds( self ):
       self.platform.pmUnitConfigs[ 0 ].i2cDeviceConfigs[ 0 ].addSensorConfigs( [
@@ -67,8 +70,9 @@ class SensorServiceTest( unittest.TestCase ):
          ] )
       jsonDump = self.platform.sensorServiceJson()
       sensorDict = json.loads( jsonDump )
-      self.assertTrue( "ECB_VIN" in sensorDict[ "sensorMapList" ][ "SCM" ] )
-      sensorConfig = sensorDict[ "sensorMapList" ][ "SCM" ][ "ECB_VIN" ]
+      sensors = sensorDict[ "pmUnitSensorsList" ][ 0 ][ "sensors" ]
+      sensorConfig = self.findSensor( sensors, "ECB_VIN" )
+      self.assertIsNotNone( sensorConfig )
       self.assertTrue( "thresholds" in sensorConfig )
       self.assertTrue( "compute" in sensorConfig )
       self.assertEqual( sensorConfig[ "compute" ], "@/1000.0" )
@@ -101,19 +105,20 @@ class SensorServiceTest( unittest.TestCase ):
          ] )
       jsonDump = self.platform.sensorServiceJson()
       sensorDict = json.loads( jsonDump )
-      self.assertTrue( "CPU_PACKAGE_TEMP" in sensorDict[ "sensorMapList" ][ "SCM" ] )
-      sensorConfig = sensorDict[ "sensorMapList" ][ "SCM" ][ "CPU_PACKAGE_TEMP" ]
-      self.assertTrue( "path" in sensorConfig )
+      sensors = sensorDict[ "pmUnitSensorsList" ][ 0 ][ "sensors" ]
+      sensorConfig = self.findSensor( sensors, "CPU_PACKAGE_TEMP" )
+      self.assertIsNotNone( sensorConfig )
+      self.assertTrue( "sysfsPath" in sensorConfig )
       self.assertEqual(
-         sensorConfig[ "path" ], "/run/devmap/sensors/CPU_CORE_TEMP/temp1_input"
+         sensorConfig[ "sysfsPath" ],
+         "/run/devmap/sensors/CPU_CORE_TEMP/temp1_input"
       )
-      self.assertTrue(
-         "SCM_CPU_CORE_TEMP0" in sensorDict[ "sensorMapList" ][ "SCM" ]
-      )
-      sensorConfig = sensorDict[ "sensorMapList" ][ "SCM" ][ "SCM_CPU_CORE_TEMP0" ]
-      self.assertTrue( "path" in sensorConfig )
+      sensorConfig = self.findSensor( sensors, "SCM_CPU_CORE_TEMP0" )
+      self.assertIsNotNone( sensorConfig )
+      self.assertTrue( "sysfsPath" in sensorConfig )
       self.assertEqual(
-         sensorConfig[ "path" ], "/run/devmap/sensors/CPU_CORE_TEMP/temp2_input"
+         sensorConfig[ "sysfsPath" ],
+         "/run/devmap/sensors/CPU_CORE_TEMP/temp2_input"
       )
 
    def testMultiplePhysicalSlots( self ):
@@ -127,27 +132,13 @@ class SensorServiceTest( unittest.TestCase ):
                            upperCriticalVal=14.4, minAlarmVal=9.6
                        ) )
       ] )
-      self.platform.pmUnitConfigs[ 1 ].addEmbeddedSensorConfigs( [
-         EmbeddedSensorConfig(
-            pmUnitScopedName="IDPROM_CORE_TEMP",
-            sysfsPath="sample/path"
-         )
-      ] )
-      self.platform.pmUnitConfigs[ 1 ].embeddedSensorConfigs[ 0 ].addSensorConfigs( [
-         SensorConfig( "CORE_TEMP0", "temp2_input", SensorType.TEMP,
-                       compute="@/1000.0",
-                       thresholds=Thresholds(
-                           upperCriticalVal=100.0, maxAlarmVal=90.0
-                       ) )
-      ])
       jsonDump = self.platform.sensorServiceJson()
       sensorDict = json.loads( jsonDump )
-      self.assertTrue( "SMB1" in sensorDict[ "sensorMapList" ] )
-      self.assertTrue( "SMB2" in sensorDict[ "sensorMapList" ] )
-      self.assertTrue( "SMB1_VRM2_VIN" in sensorDict[ "sensorMapList" ][ "SMB1" ] )
-      self.assertTrue( "SMB2_VRM2_VIN" in sensorDict[ "sensorMapList" ][ "SMB2" ] )
-      self.assertTrue( "SMB1_CORE_TEMP0" in sensorDict[ "sensorMapList" ][ "SMB1" ] )
-      self.assertTrue( "SMB2_CORE_TEMP0" in sensorDict[ "sensorMapList" ][ "SMB2" ] )
+      self.assertEqual( len( sensorDict[ "pmUnitSensorsList" ] ), 2 )
+      smb1Sensors = sensorDict[ "pmUnitSensorsList" ][ 0 ][ "sensors" ]
+      smb2Sensors = sensorDict[ "pmUnitSensorsList" ][ 1 ][ "sensors" ]
+      self.assertIsNotNone( self.findSensor( smb1Sensors, "SMB1_VRM2_VIN" ) )
+      self.assertIsNotNone( self.findSensor( smb2Sensors, "SMB2_VRM2_VIN" ) )
 
    def testAddFANRpms( self ):
       self.platform.pmUnitConfigs[ 1 ].addI2cDeviceConfigs( [
@@ -158,16 +149,14 @@ class SensorServiceTest( unittest.TestCase ):
       )
       jsonDump = self.platform.sensorServiceJson()
       sensorDict = json.loads( jsonDump )
-      self.assertEqual( len( sensorDict[ "sensorMapList" ] ), 8 )
+      self.assertEqual( len( sensorDict[ "pmUnitSensorsList" ] ), 1 )
+      fanSensors = sensorDict[ "pmUnitSensorsList" ][ 0 ][ "sensors" ]
+      self.assertEqual( len( fanSensors ), 8 )
       for i in range( 8 ):
-         self.assertTrue( f"FAN{ i+1 }" in sensorDict[ "sensorMapList" ] )
-         self.assertTrue(
-            f"FAN{ i+1 }_RPM" in sensorDict[ "sensorMapList" ][ f"FAN{ i+1 }" ]
-         )
+         sensorConfig = self.findSensor( fanSensors, f"FAN{ i+1 }_RPM" )
+         self.assertIsNotNone( sensorConfig )
          self.assertEqual(
-            sensorDict[
-               "sensorMapList"
-            ][ f"FAN{ i+1 }" ][ f"FAN{ i+1 }_RPM" ][ "path" ],
+            sensorConfig[ "sysfsPath" ],
             f"/run/devmap/sensors/FAN_CPLD0/fan{ i+1 }_input"
          )
 

@@ -621,7 +621,8 @@ class PmUnitConfig:
 
             if len( slotPaths ) > 1 and '@' in slotPath:
                slotIdx = int( slotPath.split( '@' )[ -1 ] )
-               sensorsList2 = filterByPrefix( sensorsList, f'PSU{slotIdx + 1}' )
+               sensorsList2 = filterByPrefix( sensorsList,
+                                              f'{self.pmUnitName}{slotIdx + 1}' )
                sensorServiceDict.update( {"sensors": sensorsList2} )
             else:
                sensorServiceDict.update( {"sensors": sensorsList} )   
@@ -758,13 +759,11 @@ class EmbeddedSensorConfig:
    def getSensorConfigsList( self ):
       sensorsList = []
       devicePaths = constructDevicePaths( self )
-      pmUnitName = self.parentConfig.pmUnitName
       if len( devicePaths ) == 1:
          for config in self.sensorConfigs:
             sensorsList.append( config.toDict() )
       else:
          for i in range( len( devicePaths ) ):
-            pmUnit = f"{ pmUnitName }{ i+1 }"
             for config in self.sensorConfigs:
                sensorsList.append( config.toDict( i+1 ) )
       return sensorsList

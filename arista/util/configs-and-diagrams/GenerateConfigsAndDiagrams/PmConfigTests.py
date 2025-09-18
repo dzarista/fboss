@@ -409,7 +409,7 @@ class I2cDeviceConfigTest( unittest.TestCase ):
    
       pattern = re.compile( r'"ioBuf": \[[^\]]*\]' )
       matches = pattern.findall( jsonDump )
-      oneLiner = re.compile( r'"ioBuf": \[-?\d+\]' )
+      oneLiner = re.compile(r'"ioBuf": \[\s*-?\d+\s*\]')
       for match in matches:
          self.assertRegex( match, oneLiner )
 

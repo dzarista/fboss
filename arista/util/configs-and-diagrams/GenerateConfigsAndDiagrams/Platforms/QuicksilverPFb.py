@@ -1,7 +1,7 @@
 # Copyright (c) 2025 Arista Networks, Inc.  All rights reserved.
 # Arista Networks, Inc. Confidential and Proprietary.
 
-from ..BaseConfigs import (
+from GenerateConfigsAndDiagrams.BaseConfigs import (
    enumerateFANSlotConfigs,
    FANCpld,
    FANUnit,
