@@ -51,6 +51,5 @@ fi
 
 %files
 /var/facebook/fboss/fruid.json
-/opt/fboss/share/db
 /opt/fboss/share/platform_configs
 /opt/fboss/share/firmware
