@@ -1,13 +1,13 @@
-Name: arista-fboss-platform-meru800biab
+Name: arista-fboss-platform-meru800biac
 Version: 1
 Release: 1%{?dist}
-Summary: Arista FBOSS OSS Meru800biab Platform Utilities
+Summary: Arista FBOSS OSS Meru800biac Platform Utilities
 Requires: arista-fboss-core
 
 License: GPLv2
 URL: https://github.com/aristanetworks/arista-fboss
 
-%define _fboss_meru800biab_dir %{_fboss_dir}/arista/platform/meru800bia
+%define _fboss_meru800biac_dir %{_fboss_dir}/arista/platform/meru800bia
 %define _fboss_config_dir %{_fboss_dir}/fboss/platform/configs
 %define _fboss_fw_dir %{_fboss_dir}/fboss.bsp.arista/meru800bia/firmware
 
@@ -20,17 +20,15 @@ URL: https://github.com/aristanetworks/arista-fboss
 
 %description
 This package provides platform-specific utilities to run Meta FBOSS OSS on Arista
-Meru800biab (ViperB0) switches.
+Meru800biac (ViperC0) switches.
 
 %install
-mkdir -p %{_fboss_target_share}
-cp -rf %{_sai_sdk_dir}/db %{_fboss_target_share}/
-
 mkdir -p %{_fboss_target_var}
-install %{_fboss_meru800biab_dir}/config/fruid/fruid.json %{_fboss_target_var}
+install %{_fboss_meru800biac_dir}/config/fruid/fruid.json %{_fboss_target_var}
 # Overwrite the product name in the fruid
-sed -i 's/"Product Name": "Meru800bia"/"Product Name": "Meru800biab"/' %{_fboss_target_var}/fruid.json
+sed -i 's/"Product Name": "Meru800bia"/"Product Name": "Meru800biac"/' %{_fboss_target_var}/fruid.json
 
+mkdir -p %{_fboss_target_share}
 mkdir -p %{_fboss_target_share}/platform_configs
 cp -rf %{_fboss_config_dir}/meru800bia/* %{_fboss_target_share}/platform_configs/
 
@@ -42,11 +40,11 @@ cp -rf %{_fboss_fw_dir}/firmware_downgrade/* %{_fboss_target_share}/firmware/old
 
 # TODO: Move this to the spec for RPM that provides these files
 %post
-# Copy the platform configs from meru800bia and rename them to meru800biab
+# Copy the platform configs from meru800bia and rename them to meru800biac
 if [ -f %{_link_test_configs}/meru800bia.materialized_JSON ]; then
-    cp -f %{_link_test_configs}/meru800bia.materialized_JSON %{_link_test_configs}/meru800biab.materialized_JSON
-    cp -f %{_hw_test_configs}/meru800bia.agent.materialized_JSON %{_hw_test_configs}/meru800biab.agent.materialized_JSON
-    cp -f %{_qsfp_test_configs}/meru800bia.materialized_JSON %{_qsfp_test_configs}/meru800biab.materialized_JSON
+    cp -f %{_link_test_configs}/meru800bia.materialized_JSON %{_link_test_configs}/meru800biac.materialized_JSON
+    cp -f %{_hw_test_configs}/meru800bia.agent.materialized_JSON %{_hw_test_configs}/meru800biac.agent.materialized_JSON
+    cp -f %{_qsfp_test_configs}/meru800bia.materialized_JSON %{_qsfp_test_configs}/meru800biac.materialized_JSON
 else
     echo "Meru800bia agent configs not found." >&2
 fi
