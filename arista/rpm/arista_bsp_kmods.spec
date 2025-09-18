@@ -15,6 +15,7 @@ This package provides Linux kernel drivers to manage Arista switch devices
 set -x
 find %{_kmods_build_dir} -type f -name "*.ko" -exec cp {} . \;
 find %{_kmods_build_dir} -type f -name "kmods.json" -exec cp {} . \;
+find %{_kmods_build_dir} -type f -name "fbsp-remove.sh" -exec cp {} . \;
 
 %define _kversion `modinfo *.ko | grep vermagic | awk 'NR==1{print $2}'`
 %define _drv_destdir %{buildroot}/lib/modules/%{_kversion}
@@ -24,6 +25,7 @@ find %{_kmods_build_dir} -type f -name "kmods.json" -exec cp {} . \;
 mkdir -p %{_drv_destdir} %{_bspdir}
 cp -f *.ko %{_drv_destdir}
 cp -f kmods.json %{_bspdir}
+cp -f fbsp-remove.sh %{_bspdir}
 
 %files
 /lib/modules/*
