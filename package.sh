@@ -59,18 +59,17 @@ done
 
 set -ex
 
-if [[ ! -f $scratch_dir/.saisdkdir && -z $sai_sdk_dir ]]; then
-   echo "$scratch_dir/.saisdkdir does not exist. Pass sai-sdk path with --sai-sdk-dir"
-   exit 1
-fi
-sai_sdk_dir=${sai_sdk_dir:-$(cat $scratch_dir/.saisdkdir)}
-
 build_rpms() {
    # Build RPMs
    export QA_SKIP_RPATHS=1 # Needed to skip rpath check
+   sai_define_args=()
+   if [[ ! -z $sai_sdk_dir ]]; then
+      # Only pass SAI definition when needed
+      sai_define_args+=("--define" "_sai_sdk_dir $sai_sdk_dir")
+   fi
    for rpm in $rpms; do
-      rpmbuild -v --define '_topdir /tmp/rpmbuild' --define "_fboss_dir $PWD" \
-         --define "_sai_sdk_dir $sai_sdk_dir" --define "_scratch_dir $scratch_dir" \
+      rpmbuild -v --define "_topdir /tmp/rpmbuild" --define "_fboss_dir $PWD" \
+         "${sai_define_args[@]}" --define "_scratch_dir $scratch_dir" \
          --define "_tmppath /tmp" --define "_binary_payload w$compression_level.zstdio" \
          --undefine __brp_mangle_shebangs -bb $rpm
    done
@@ -93,6 +92,12 @@ elif [[ ${#args[@]} -lt 1 ]]; then
 else
    rpms="${args[@]/#/$fboss_spec_dir/}"
 fi
+
+if [[ ! -f $scratch_dir/.saisdkdir && -z $sai_sdk_dir ]]; then
+   echo "$scratch_dir/.saisdkdir does not exist. Pass sai-sdk path with --sai-sdk-dir"
+   exit 1
+fi
+sai_sdk_dir=${sai_sdk_dir:-$(cat $scratch_dir/.saisdkdir)}
 
 # Clear old fboss_bins-* dir and package
 rm -rf "$scratch_dir"/fboss_bins-1*
