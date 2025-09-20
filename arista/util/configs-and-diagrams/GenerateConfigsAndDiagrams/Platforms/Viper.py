@@ -406,6 +406,11 @@ class Viper( PlatformConfig ):
       opticConfig = fanServiceConfig.addOpticConfig( "osfp_group_1", "QSFP" )
       opticLookupTable = {
          "5": 43,
+         "64": 45,
+         "65": 47,
+         "66": 49,
+         "67": 51,
+         "68": 53,
          "69": 56,
          "70": 73,
          "71": 100
