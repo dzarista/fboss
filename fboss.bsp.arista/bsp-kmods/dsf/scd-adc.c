@@ -181,12 +181,11 @@ static int scd_adc_read_string(struct device *dev, enum hwmon_sensor_types type,
 			       u32 attr, int channel, const char **str)
 {
 	struct scd_adc_priv *priv = dev_get_drvdata(dev);
+	static const char *const fairywren_labels[FAIRYWREN_NUM_ADC_RAILS] = FAIRYWREN_ADC_LABELS;
+	static const char *const viper_labels[VIPER_NUM_ADC_RAILS] = VIPER_ADC_LABELS;
 
 	if (type != hwmon_in || attr != hwmon_in_label)
 		return -EOPNOTSUPP;
-
-	static const char *const fairywren_labels[FAIRYWREN_NUM_ADC_RAILS] = FAIRYWREN_ADC_LABELS;
-	static const char *const viper_labels[VIPER_NUM_ADC_RAILS] = VIPER_ADC_LABELS;
 
 	switch (priv->subsys_id) {
 	case FAIRYWREN_SCD_PCI_SUBDEVICE_ID:

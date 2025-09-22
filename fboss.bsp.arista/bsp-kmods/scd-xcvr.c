@@ -123,7 +123,7 @@ static const struct gpio_cfg gpios[] = {
 	{ 2, true, false, false, "present" },
 	{ 3, true, false, true, "interrupt_changed" },
 	{ 5, true, false, true, "present_changed" },
-	{ 6, false, false, false, "lp_mode" },
+	{ 6, false, false, false, "low_power" },
 	{ 7, false, true, false, "reset" },
 	{ 8, false, true, false, "modsel" },
 };
@@ -134,21 +134,18 @@ static int scd_xcvr_register(struct scd_xcvr *xcvr, const struct gpio_cfg *cfgs,
 	struct gpio_cfg gpio;
 	int res;
 	size_t i;
-	size_t name_size;
 	char name[GPIO_NAME_MAX_SZ];
 
 	for (i = 0; i < gpio_count; i++) {
 		gpio = cfgs[i];
-		name_size = strlen(xcvr->name) + strlen(gpio.name) + 2;
-		BUG_ON(name_size > GPIO_NAME_MAX_SZ);
-		snprintf(name, name_size, "%s_%s", xcvr->name, gpio.name);
+		snprintf(name, GPIO_NAME_MAX_SZ, "%s_%s_%u", xcvr->name, gpio.name, xcvr->port_num);
 		if (gpio.read_only) {
 			SCD_RO_XCVR_ATTR(xcvr->attr[gpio.bitpos], name,
-					 name_size, xcvr, gpio.bitpos,
+					 sizeof(name), xcvr, gpio.bitpos,
 					 gpio.active_low, gpio.clear_on_read);
 		} else {
 			SCD_RW_XCVR_ATTR(xcvr->attr[gpio.bitpos], name,
-					 name_size, xcvr, gpio.bitpos,
+					 sizeof(name), xcvr, gpio.bitpos,
 					 gpio.active_low, gpio.clear_on_read);
 		}
 		res = sysfs_create_file(&xcvr->priv->auxdev->dev.kobj,
@@ -198,8 +195,7 @@ static int scd_xcvr_init(struct scd_xcvr_priv *priv)
 
 	dev_info(&priv->auxdev->dev, "%s %u @ %pS\n", prefix, dev->port_num,
 		   priv->mmio_csr);
-	ret = snprintf(dev->name, sizeof_field(typeof(*dev), name), "%s%u",
-		       prefix, dev->port_num);
+	ret = snprintf(dev->name, sizeof_field(typeof(*dev), name), "%s", prefix);
 	if (ret < 0)
 		return ret;
 

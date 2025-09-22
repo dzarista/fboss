@@ -246,7 +246,7 @@ static int scd_led_init(struct scd_led_priv *priv,
 			const char *color,
 			struct scd_led_dev *ldev)
 {
-	if (!strcmp(color, "yellow"))
+	if (!strcmp(color, "amber"))
 		ldev->led_on_mask = (SCD_LED_RED | SCD_LED_GREEN |
 			 SCD_LED_INTENSITY_RED | SCD_LED_INTENSITY_GREEN);
 	else if (!strcmp(color, "blue"))
@@ -273,8 +273,8 @@ static int scd_leds_init(struct scd_led_priv *priv, const char *name)
 {
 	u32 reg;
 	int ret = 0;
-	const char *portColors[] = {"blue", "yellow"};
-	const char *statusColors[] = {"green", "red", "blue", "yellow"};
+	const char *portColors[] = {"blue", "amber"};
+	const char *statusColors[] = {"green", "red", "blue", "amber"};
 	const char **colors;
 
 	// Init color and brightness to ON depending on led type

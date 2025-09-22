@@ -162,10 +162,6 @@ MODULE_PARM_DESC(lpc_irq, "interrupt of LPC SCD");
    hence the register might be updated at different places */
 static DEFINE_MUTEX(scratchpad_mutex);
 
-/* Variables to cache FPGA major and minor revisions */
-static u16 fpga_major_rev;
-static u8 fpga_minor_rev;
-
 /* fpga_major_rev_show() and fpga_minor_rev_show() reads the version register value
    cached in pci private data structure instead of directly accessing the registers.
    The revision register is managed by scd_info driver and scd driver reads the

@@ -1422,10 +1422,10 @@ class XcvrConfig:
             "PimId": 1, # All fixed systems are ID 1
             "AccessControllerId": self.portNumber, # Not used
             "AccessControlType": "CPLD",
-            "ResetPath": f"{self.ctrlSymlink}/xcvr{port}_reset",
+            "ResetPath": f"{self.ctrlSymlink}/xcvr_reset_{port}",
             "ResetMask": "1",
             "ResetHoldHi": "0",
-            "PresentPath": f"{self.ctrlSymlink}/xcvr{port}_present",
+            "PresentPath": f"{self.ctrlSymlink}/xcvr_present_{port}",
             "PresentMask": "1",
             "PresentHoldHi": "0",
             "IoControllerId": port,
@@ -1433,7 +1433,7 @@ class XcvrConfig:
             "IoPath": self.ioSymlink,
             "LedId": ledId,
             "LedBluePath": f"/sys/class/leds/port{port}_led{ledIdx}:{color}:status",
-            "LedYellowPath": f"/sys/class/leds/port{port}_led{ledIdx}:yellow:status",
+            "LedYellowPath": f"/sys/class/leds/port{port}_led{ledIdx}:amber:status",
          }
 
       lanes = self.lanesCount // 4 if self.portType == "qsfp" else self.lanesCount // 2

@@ -2,11 +2,6 @@
 # Arista Networks, Inc. Confidential and Proprietary.
 
 from collections import OrderedDict
-import csv
-from diagrams import Diagram, Cluster, Edge, Node as _Node
-from enum import Enum
-import io
-import json
 import re
 
 class OpticConfig:
@@ -14,20 +9,20 @@ class OpticConfig:
       self.opticName = opticName
 
       validAccessTypes = [ "QSFP", "THRIFT" ]
-      assert accessType in validAccessTypes, f"Optic type throughput invalid. Please choose from {validAccessTypes}."
+      assert accessType in validAccessTypes, (
+         f"Optic type throughput invalid. Please choose from {validAccessTypes}." )
       self.accessType = f"ACCESS_TYPE_{accessType}"
 
-      # Hardcoding future argument for future PID support
       aggregationType = "MAX"
       self.aggregationType = f"OPTIC_AGGREGATION_TYPE_{aggregationType}"
 
       self.portlist = []
       self.tempToPwmMaps = {}
 
-   # "opticTypeThrpt" is the Gbps throughput of the opticPort (e.g. 100, 200, 400, 800 Gbps)
    def addTempToPwmMap( self, opticTypeThrpt, tempToPwm ):
-      validThrpts = [ 100, 200, 400, 800 ]
-      assert opticTypeThrpt in validThrpts, f"Optic type throughput invalid. Please choose from {validThrpts}."
+      validThrpts = [ 100, 200, 400, 800, 1600 ]
+      assert opticTypeThrpt in validThrpts, (
+         f"Optic type throughput invalid. Please choose from {validThrpts}." )
       opticKey = f"OPTIC_TYPE_{opticTypeThrpt}_GENERIC"
       self.tempToPwmMaps[ opticKey ] = tempToPwm
 
@@ -73,20 +68,23 @@ class FanServiceConfig:
       for pmUnitFans in fanSlots.values():
          platformFanConfigs.update( pmUnitFans )
       inverseSymlinkLookupTable = {v: k for k, v in allSymlinks.items()}
-      
+
       # Determine fans per CPLD by analyzing presence file names
       fansPerCpld = 4  # default
       if platformFanConfigs:
-         presence_files = [slot["presenceDetection"]["sysfsFileHandle"]["presenceFileName"] 
-                          for slot in platformFanConfigs.values()]
-         fan_numbers = [int(re.search(r'fan(\d+)_present', f).group(1)) 
-                       for f in presence_files if re.search(r'fan(\d+)_present', f)]
+         presence_files = [ slot["presenceDetection"]
+                            ["sysfsFileHandle"]
+                            ["presenceFileName"] 
+                          for slot in platformFanConfigs.values() ]
+         fan_numbers = [ int( re.search( r'fan(\d+)_present', f ).group( 1 ) ) 
+                         for f in presence_files
+                         if re.search( r'fan(\d+)_present', f ) ]
          if fan_numbers:
-            fansPerCpld = max(fan_numbers)
-      
+            fansPerCpld = max( fan_numbers )
+
       for slotName, slot in platformFanConfigs.items():
          fanIndex = int( slotName.split( '@' )[ 1 ] ) + 1
-         localFanIndex = ((fanIndex - 1) % fansPerCpld) + 1
+         localFanIndex = ( ( fanIndex - 1 ) % fansPerCpld ) + 1
          presenceDetection = slot[ "presenceDetection" ][ "sysfsFileHandle" ]
          symlink = inverseSymlinkLookupTable.get( presenceDetection[ "devicePath" ] )
          if symlink:
@@ -94,8 +92,10 @@ class FanServiceConfig:
             fanData[ "fanName" ] = f"fan_{fanIndex}"
             fanData[ "rpmSysfsPath" ] = f"{symlink}/fan{localFanIndex}_input"
             fanData[ "pwmSysfsPath" ] = f"{symlink}/pwm{localFanIndex}"
-            fanData[ "presenceSysfsPath" ] = f"{symlink}/{presenceDetection[ 'presenceFileName' ]}"
-            fanData[ "ledSysfsPath" ] = f"/sys/class/leds/fan{fanIndex}::status/brightness"
+            fanData[ "presenceSysfsPath" ] = (
+               f"{symlink}/{presenceDetection[ 'presenceFileName' ]}" )
+            fanData[ "ledSysfsPath" ] = (
+               f"/sys/class/leds/fan{fanIndex}:blue:status/brightness" )
             fanData[ "pwmMin" ] = 1
             fanData[ "pwmMax" ] = 255
             fanData[ "fanPresentVal" ] = 1
@@ -115,7 +115,8 @@ class FanServiceConfig:
       sensor["sensorName"] = sensorName
 
       validAccessTypes = [ "QSFP", "THRIFT" ]
-      assert accessType in validAccessTypes, f"Optic type throughput invalid. Please choose from {validAccessTypes}."
+      assert accessType in validAccessTypes, (
+         f"Optic type throughput invalid. Please choose from {validAccessTypes}." )
       sensor[ "access" ] = {"accessType": f"ACCESS_TYPE_{accessType}"}
 
       sensor[ "pwmCalcType" ] = "SENSOR_PWM_CALC_TYPE_FOUR_LINEAR_TABLE"
@@ -147,7 +148,8 @@ class FanServiceConfig:
          pwmBoostOnNumDeadFan, pwmBoostOnNumDeadSensor, pwmBoostOnNoQsfpAfterInSec,
          pwmBoostValue, pwmTransitionValue, pwmLowerThreshold, pwmUpperThreshold,
       ]
-      assert all( arg is not None for arg in args ), "All fan PWM config arguments must be provided."
+      assert all( arg is not None for arg in args ), (
+         "All fan PWM config arguments must be provided." )
       self.pwmConfig = {
          "pwmBoostOnNumDeadFan": pwmBoostOnNumDeadFan,
          "pwmBoostOnNumDeadSensor": pwmBoostOnNumDeadSensor,
@@ -164,10 +166,11 @@ class FanServiceConfig:
          platformSensorNames.update( pmUnitSensors )
       for sensor in self.sensors.values():
          suffix = sensor[ "sensorName" ]
-         assert suffix in platformSensorNames, f"'{suffix}' is not a valid sensor name in {platformSensorNames}."
+         assert suffix in platformSensorNames, (
+            f"'{suffix}' is not a valid sensor name in {platformSensorNames}." )
          sensor[ "sensorName" ] = platformSensorNames[ suffix ]
       return list( self.sensors.values() )
-   
+
    def getResolvedZoneConfigs( self ):
       resolved_zones_list = []
       for zone in self.zones:
@@ -177,16 +180,18 @@ class FanServiceConfig:
                # Check if the name is a key in the sensors dictionary
                if name in self.sensors:
                   # If yes, extract the final resolved name
-                  resolved_sensor_names.append( self.sensors[ name ][ 'sensorName' ] )
+                  resolved_sensor_names.append(
+                     self.sensors[ name ][ 'sensorName' ] )
                # Else, check if it's a known optic name
                elif any( optic.opticName == name for optic in self.optics ):
                   resolved_sensor_names.append( name )
                else:
-                  raise ValueError( f"Zone name '{name}' not found in configured sensors or optics." )
+                  raise ValueError( 
+                     f"Zone '{name}' not found in configured sensors or optics." )
 
          # Create the final zone dictionary with the resolved names
          zone_dict = zone.toDict()
          zone_dict[ 'sensorNames' ] = resolved_sensor_names
          resolved_zones_list.append( zone_dict )
-      
+
       return resolved_zones_list

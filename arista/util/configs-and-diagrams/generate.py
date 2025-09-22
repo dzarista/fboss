@@ -12,7 +12,7 @@ from GenerateConfigsAndDiagrams.Platforms.Whistler import Whistler
 EXCLUDE_LIST = {
    'pm-config': [],
    'sensor-config': [],
-   'bsp-mapping': [ 'RackhawkORv3' ],
+   'bsp-mapping': [ 'Rackhawk', 'RackhawkORv3' ],
    'fan-config': [ 'Rackhawk', 'RackhawkORv3' ],
    'led-config': [ 'Rackhawk', 'RackhawkORv3' ],
    'weutil-config': [ 'Rackhawk', 'RackhawkORv3' ],
