@@ -8,10 +8,13 @@ images:
     entry:
       env:
         FBOSS_BARNEY_BUILD: "True"
-        FBOSS_ARTIFACTORY_TOKEN: ${secrets.fboss_artifactory_reference_token}
+        FBOSS_ARTIFACTORY_TOKEN: ${secrets.fboss-artifactory-token}
         CCACHE_SECONDARY_STORAGE: ${secrets.fboss_ccache_remote_storage_url:-redis://fboss-ccache-redis.infra.corp.arista.io:65530}
       mutables:
         - /var/FBOSS
+      secrets:
+        fboss-artifactory-token:
+          global-name: "fboss-artifactory-reference-token"
 
   bus:
     entry:
