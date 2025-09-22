@@ -7,8 +7,9 @@ usage() {
    echo "          [ --scratch-dir <Scratch directory> ] "
    echo "          [ --sai-sdk-dir <Sai/Sdk directory> ] "
    echo "          [ --clean ] [ --known-good-hash ] "
-   echo "          [ --fboss-bins-only ] [ --with-debug-symbols ] "
-   echo "          [ --rebuild-fboss ] [ --cmake-target ][ --help ] "
+   echo "          [ --fboss-bins-only ] [ --bsp-kmods-only ] "
+   echo "          [ --with-debug-symbols ] [ --rebuild-fboss ] "
+   echo "          [ --cmake-target ][ --help ] "
 }
 
 cd "$(dirname "$0")"
@@ -42,6 +43,10 @@ while [[ $# -gt 0 ]]; do
          ;;
       --fboss-bins-only)
          fboss_bins_only=1
+         shift
+         ;;
+      --bsp-kmods-only)
+         bsp_kmods_only=1
          shift
          ;;
       --known-good-hash)
@@ -78,6 +83,11 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+build_bsp_kmods() {
+   echo "==== Building bsp-kmods ===="
+   make -C $kernel_dir M=~+/fboss.bsp.arista/bsp-kmods modules
+}
+
 # Clean FBOSS
 if ! [[ -z $clean_fboss ]]; then
    echo "==== Clean up FBOSS build artifacts ===="
@@ -101,13 +111,18 @@ if ! [ -z $fboss_bins_only ]; then
    exit 0
 fi
 
+if ! [ -z $bsp_kmods_only ]; then
+   build_bsp_kmods
+   exit 0
+fi
+
 if [ -z $known_good_hash ]; then
    src_dir_arg=(--src-dir $PWD)
 fi
 
 build_type="Debug"
 if [ -z $debug_symbols ]; then
-   build_type="MinSizeRel"   
+   build_type="MinSizeRel"
 fi
 
 # workaround for barney
@@ -144,8 +159,7 @@ time $getdeps build --allow-system-packages --num-jobs 40 \
    --extra-cmake-defines='{"CMAKE_CXX_STANDARD":"20"}' ${cmake_target+--cmake-target $cmake_target} \
    ${FBOSS_BARNEY_BUILD+--schedule-type continuous}
 
-echo "==== Building bsp-kmods ===="
-make -C $kernel_dir M=~+/fboss.bsp.arista/bsp-kmods modules
+build_bsp_kmods
 
 echo "==== Building showtech ===="
 make -C fboss.bsp.arista/showtech
@@ -154,7 +168,7 @@ echo "==== Building psu-upgrade ===="
 make -C arista/psu-upgrade
 
 echo "==== Generating python thrift libraries ===="
-thrift_files=( 
+thrift_files=(
    fboss/agent/if/ctrl.thrift
    fboss/agent/if/hw_ctrl.thrift
    fboss/qsfp_service/if/qsfp.thrift
