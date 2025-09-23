@@ -26,7 +26,7 @@ std::string getEepromName(const std::string& symbolicPath) {
   // Edge case: /run/devmap/eeproms/MERU800BFA_SCM_EEPROM -> SCM
 
   static const re2::RE2 re(
-      "^/run/devmap/eeproms/([A-Za-z0-9_]+?)(?:_EEPROM)?$");
+      "^/run/devmap/eeproms/([A-Za-z0-9_-]+?)(?:_EEPROM)?$");
   re2::StringPiece match;
   if (!re2::RE2::FullMatch(symbolicPath, re, &match)) {
     throw std::runtime_error(fmt::format(
@@ -37,7 +37,7 @@ std::string getEepromName(const std::string& symbolicPath) {
   // Special handling for MERU platforms: extract text after underscore
   folly::StringPiece sp(eepromName);
   if (sp.removePrefix("MERU800BFA_") || sp.removePrefix("MERU_") ||
-      sp.removePrefix("MERU800BIA_")) {
+      sp.removePrefix("MERU800BIA_") || sp.removePrefix("GLATH05A-64O_")) {
     eepromName = sp.str();
   }
 
