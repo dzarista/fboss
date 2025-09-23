@@ -1434,10 +1434,7 @@ static int ucd9000_probe(struct i2c_client *client)
 
 static void ucd9000_remove(struct i2c_client *client)
 {
-	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
-	struct ucd9000_data *data = to_ucd9000_data(info);
-
-	cancel_delayed_work_sync(&data->rtc_work);
+	ucd9000_rtc_work_stop(client);
 }
 
 /* This is the driver that will be inserted */
