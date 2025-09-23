@@ -114,7 +114,7 @@ class PlatformConfig:
       self.setChassisEepromDevicePath = True
       self.kmodsSettings = {
          "bspKmodsRpmName": "arista_bsp_kmods",
-         "bspKmodsRpmVersion": "0.7.14-1",
+         "bspKmodsRpmVersion": "0.7.15-1",
          "requiredKmodsToLoad": [],
       }
       self.PlatformFanServiceConfig = None
@@ -221,13 +221,6 @@ class PlatformConfig:
 
       jsonDump = json.dumps( jsonDict, indent=2 )
       return jsonDump
-
-   def weutilJson( self ):
-      weutil_data = OrderedDict()
-      weutil_data[ "chassisEepromName" ] = "SMB"
-      weutil_data[ "fruEepromList" ] = self.getFruEepromList()
-      output_json_dump = json.dumps( weutil_data, indent=2 )
-      return output_json_dump
 
    def bspMappingCsv( self ):
       output = io.StringIO()
@@ -790,6 +783,7 @@ class I2cDeviceConfig:
       self.hasCpuMac = hasCpuMac
       self.hasSwitchAsicMac = hasSwitchAsicMac
       self.hasReservedMac = hasReservedMac
+      self.isEeprom = None
       self.numOutgoingChannels = numOutgoingChannels
       self.initRegSettings = initRegSettings
       self.parentConfig = None
@@ -839,6 +833,7 @@ class I2cDeviceConfig:
       hasSwitchAsicMac = self.hasSwitchAsicMac
       hasReservedMac = self.hasReservedMac
       isGpioChip = self.isGpioChip
+      isEeprom = self.isEeprom
       initRegSettings = self.initRegSettings
 
       assert busName and address and kernelDeviceName and pmUnitScopedName, (
@@ -858,7 +853,8 @@ class I2cDeviceConfig:
          **({ "hasReservedMac": hasReservedMac } if hasReservedMac else {}),
          **({ "isGpioChip": isGpioChip } if isGpioChip else {}),
          **({ "initRegSettings": initRegSettings.list }
-            if initRegSettings and initRegSettings.list else {})
+            if initRegSettings and initRegSettings.list else {}),
+         **({ "isEeprom": isEeprom } if isEeprom else {})
       }
 
    def renderNode( self ):
@@ -943,6 +939,7 @@ class I2cIdProm( I2cDeviceConfig ):
    def __init__( self, *args, **kwargs ):
       super().__init__( *args, **kwargs )
       self.symlinkPath = f"/run/devmap/eeproms/{ self.pmUnitScopedName }"
+      self.isEeprom = True
 
 
 class FairywrenIdProm( I2cDeviceConfig ):

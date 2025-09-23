@@ -741,6 +741,7 @@ class RackhawkRackmon( PmUnitConfig ):
       pcaGpio = GpioChip( '0x74', 'pca9539', 'RACKMON_PLS', incomingBusIndex=0 )
       fanspinnerIdProm = I2cIdProm( '0x50', '24c512', 'FANSPINNER_EEPROM',
                                     incomingBusIndex=0 )
+      fanspinnerIdProm.isEeprom = False
       self.addI2cDeviceConfigs( [
          aslg4f4527,
          pcaGpio,
