@@ -271,23 +271,23 @@ void MeruShowtech::printI2cInfo() {
   for (const auto &fanCpld : fanCplds) {
     std::cout << fanCpld->i2cDump() << std::endl;
   }
-
-  printGpioShowtechInfo();
 }
 
 void MeruShowtech::printGpioShowtechInfo() {
-  printMainHeader("GPIO EXPANDER I2C DUMP");
+  printMainHeader("GPIO DEBUG INFO");
+  printSubHeader("PCA9539 GPIO INFO");
   if (pca9539 == nullptr || pca9539->gpioPath == "") {
-    std::cout << "PCA9539 GPIO Expander NOT DETECTED \n" << std::endl;
+    std::cout << "PCA9539 GPIO Expander NOT DETECTED" << std::endl;
   } else {
-    const std::map<int, std::string> gpioNames = {
+    const std::map<int, std::string> gpioLines = {
         {0, "SCD_DONE"},      {1, "OVER_TEMP_L"},   {2, "SYS_PGOOD"},
         {3, "P1V2_CP_PGOOD"}, {4, "SCD_CRC_ERR"},   {5, "P1V0_CP_PGOOD"},
         {6, "P1V8_CP_PGOOD"}, {7, "P3V3_CP_PGOOD"}, {8, "SCD_PRGM_L"},
         {9, "SCD_HOLD_L"},    {12, "CPU_QSPI_SEL"}, {14, "SCD_RESET_L"},
     };
-    pca9539->printGpioDump(gpioNames);
+    pca9539->printGpioDump(gpioLines);
   }
+  std::cout << std::endl;
 }
 
 void MeruShowtech::printPsuShowtechInfo() {
@@ -317,6 +317,7 @@ void MeruShowtech::printPlatformInfo() {
   printAllFpgaVersions();
   printFanInfo();
   printPsuShowtechInfo();
+  printGpioShowtechInfo();
   if (!ramdisk_) {
     printCfmShowtechInfo();
   }

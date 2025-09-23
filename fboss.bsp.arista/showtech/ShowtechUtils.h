@@ -77,9 +77,8 @@ public:
     gpioPath = getGpioPath();
   }
   std::string gpioPath;
-  std::string getGpioInfo(int num, std::string label);
-  std::string getGpioValue(int num, std::string label);
-  void printGpioDump(const std::map<int, std::string> &gpioNames);
+  std::string getGpioValue(int lineIndex);
+  void printGpioDump(const std::map<int, std::string> &gpioLines);
 
 private:
   std::string getGpioPath();

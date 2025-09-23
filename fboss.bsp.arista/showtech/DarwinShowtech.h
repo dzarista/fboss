@@ -27,6 +27,7 @@ private:
   void printPsuShowtechInfo();
   void printRackmonInfo();
   void printI2cInfo();
+  void printGpioShowtechInfo();
   std::string product;
 
   // Platform devices defined here.
