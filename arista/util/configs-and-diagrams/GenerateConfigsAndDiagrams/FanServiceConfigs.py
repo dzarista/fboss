@@ -95,7 +95,7 @@ class FanServiceConfig:
             fanData[ "presenceSysfsPath" ] = (
                f"{symlink}/{presenceDetection[ 'presenceFileName' ]}" )
             fanData[ "ledSysfsPath" ] = (
-               f"/sys/class/leds/fan{fanIndex}:blue:status/brightness" )
+               f"/sys/class/leds/fan{fanIndex}_led:blue:status/brightness" )
             fanData[ "pwmMin" ] = 1
             fanData[ "pwmMax" ] = 255
             fanData[ "fanPresentVal" ] = 1

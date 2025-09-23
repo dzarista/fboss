@@ -28,7 +28,7 @@
 
 #define DRIVER_NAME "glath05a-64o-fan-cpld"
 
-#define LED_NAME_MAX_SZ 20
+#define LED_NAME_MAX_SZ 30
 #define FAN_LED_COUNT 2
 #define MAX_FAN_COUNT 4
 
@@ -52,9 +52,6 @@
 
 #define FAN_BLUE_LED_REG 0x73
 #define FAN_AMBER_LED_REG 0x74
-#define FAN_LED_BLUE_BIT 0
-#define FAN_LED_AMBER_BIT 1
-#define FAN_MAX_LED_VALUE 3
 
 #define FAN_INT_REG 0x77
 #define FAN_ID_CHNG_REG 0x78
@@ -107,6 +104,7 @@ struct cpld_fan_led_data {
 	u8 fan_index;
 	char name[LED_NAME_MAX_SZ];
 	struct led_classdev cdev;
+	char color[LED_NAME_MAX_SZ];
 };
 
 struct cpld_fan_data {
@@ -118,7 +116,7 @@ struct cpld_fan_data {
 	u8 ident;
 	u8 index; /* index relative to this CPLD */
 	u8 global_index; /* index relative to all CPLDs */
-	struct cpld_fan_led_data led;
+	struct cpld_fan_led_data leds[FAN_LED_COUNT];
 };
 
 struct cpld_data {
@@ -439,43 +437,41 @@ static s32 cpld_read_fan_pwm(struct cpld_data *cpld, u8 fan_id)
 	return 0;
 }
 
-static s32 cpld_read_fan_led(struct cpld_data *data,
-			     struct cpld_fan_led_data *led, u8 *val)
-{
-	*val = 0;
-	*val += ((data->blue_led >> led->fan_index) & 1) << FAN_LED_BLUE_BIT;
-	*val += ((data->amber_led >> led->fan_index) & 1) << FAN_LED_AMBER_BIT;
-	return 0;
+static enum led_brightness cpld_read_fan_led(struct cpld_data *data,
+			     struct cpld_fan_led_data *led) {
+	int is_on;
+	if (!strcmp(led->color, "blue")) {
+		is_on = ((data->blue_led >> led->fan_index) & 1);
+	} else {
+		is_on = ((data->amber_led >> led->fan_index) & 1);
+	}
+	if (is_on)
+		return LED_FULL;
+	return LED_OFF;
 }
 
 static s32 cpld_write_fan_led(struct cpld_data *cpld,
 			      struct cpld_fan_led_data *led, u8 val)
 {
-	int err = 0;
+	int err1, err2 = 0;
 
-	/* Possible values:
-	 * 0 = blue off, amber off
-	 * 1 = blue on, amber off
-	 * 2 = blue off, amber on
-	 * 3 = bluer on, Amber on
-	 */
-	if (val > FAN_MAX_LED_VALUE)
-		return -EINVAL;
-
-	if ((val >> FAN_LED_BLUE_BIT) & 1)
-		cpld->blue_led |= (1 << led->fan_index);
-	else
+	if (val == LED_OFF) {
+		// turn both leds off
 		cpld->blue_led &= ~(1 << led->fan_index);
-	err = cpld_write_byte(cpld, FAN_BLUE_LED_REG, cpld->blue_led);
-	if (err)
-		return err;
-
-	if ((val >> FAN_LED_AMBER_BIT) & 1)
-		cpld->amber_led |= (1 << led->fan_index);
-	else
 		cpld->amber_led &= ~(1 << led->fan_index);
-	err = cpld_write_byte(cpld, FAN_AMBER_LED_REG, cpld->amber_led);
-	return err;
+	} else {
+		if (!strcmp(led->color, "blue")) {
+		cpld->blue_led |= (1 << led->fan_index);
+		cpld->amber_led &= ~(1 << led->fan_index);
+		} else {
+		cpld->amber_led |= (1 << led->fan_index);
+		cpld->blue_led &= ~(1 << led->fan_index);
+		}
+	}
+
+	err1 = cpld_write_byte(cpld, FAN_BLUE_LED_REG, cpld->blue_led);
+	err2 = cpld_write_byte(cpld, FAN_AMBER_LED_REG, cpld->amber_led);
+	return err1|err2;
 }
 
 static void brightness_set(struct led_classdev *led_cdev,
@@ -488,31 +484,34 @@ static void brightness_set(struct led_classdev *led_cdev,
 	cpld_write_fan_led(data, led, val);
 }
 
-static enum led_brightness brightness_get(struct led_classdev *led_cdev)
-{
+static enum led_brightness brightness_get(struct led_classdev *led_cdev) {
 	struct cpld_fan_led_data *led =
 		container_of(led_cdev, struct cpld_fan_led_data, cdev);
 	struct cpld_data *data = dev_get_drvdata(led_cdev->dev->parent);
-	int err;
-	u8 val;
-
-	err = cpld_read_fan_led(data, led, &val);
-	if (err)
-		return 0;
-
-	return val;
+	return cpld_read_fan_led(data, led);
 }
 
-static int led_init(struct cpld_fan_led_data *led,
-		    struct i2c_client *client, struct cpld_fan_data *fan)
-{
-	scnprintf(led->name, LED_NAME_MAX_SZ, "fan%d::status", fan->global_index + 1);
-	led->fan_index = fan->index;
-	led->cdev.name = led->name;
-	led->cdev.brightness_set = brightness_set;
-	led->cdev.brightness_get = brightness_get;
+static int led_init(struct cpld_fan_led_data leds[], struct i2c_client *client,
+					struct cpld_fan_data *fan) {
+	int err;
+	const char *colors[] = {"blue", "amber"};
+	for (int i = 0; i < FAN_LED_COUNT; i++) {
+		scnprintf(leds[i].name, LED_NAME_MAX_SZ, "fan%d_led:%s:status",
+				fan->global_index + 1, colors[i]);
+		leds[i].fan_index = fan->index;
+		leds[i].cdev.name = leds[i].name;
+		scnprintf(leds[i].color, LED_NAME_MAX_SZ, "%s", colors[i]);
+		leds[i].cdev.brightness_set = brightness_set;
+		leds[i].cdev.brightness_get = brightness_get;
+		leds[i].cdev.max_brightness = LED_FULL;
 
-	return devm_led_classdev_register(&client->dev, &led->cdev);
+		err = devm_led_classdev_register(&client->dev, &leds[i].cdev);
+		if (err) {
+		dev_err(&client->dev, "failed to register %s led\n", colors[i]);
+		return err;
+		}
+	}
+	return 0;
 }
 
 static ssize_t cpld_fan_pwm_show(struct device *dev,
@@ -865,7 +864,6 @@ static void cpld_work_fn(struct work_struct *work)
 static int cpld_init(struct cpld_data *cpld)
 {
 	struct cpld_fan_data *fan;
-	struct cpld_fan_led_data *led;
 	int err;
 	int i;
 
@@ -908,8 +906,7 @@ static int cpld_init(struct cpld_data *cpld)
 		// Add LED even if the fan isn't currently present.
 		cpld->blue_led = 0;
 		cpld->amber_led = 0;
-		led = &fan->led;
-		err = led_init(led, cpld->client, fan);
+		err = led_init(fan->leds, cpld->client, fan);
 		if (err)
 			return err;
 	}
@@ -1022,13 +1019,13 @@ static int cpld_probe(struct i2c_client *client)
 
 
 static struct i2c_driver cpld_driver = {
-   .class = I2C_CLASS_HWMON,
-   .driver = {
-      .name = DRIVER_NAME,
-   },
-   .id_table = cpld_id,
-   .probe = cpld_probe,
-   .remove = cpld_remove,
+	.class = I2C_CLASS_HWMON,
+	.driver = {
+		.name = DRIVER_NAME,
+	},
+	.id_table = cpld_id,
+	.probe = cpld_probe,
+	.remove = cpld_remove,
 };
 
 static int __init quicksilver_fan_cpld_init(void)
