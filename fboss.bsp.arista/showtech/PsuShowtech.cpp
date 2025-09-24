@@ -303,11 +303,13 @@ void printPsuInfo() {
       } else if (valueType == ValueType::HEX && regInfo.size() == 1) {
         std::cout << std::hex << "0x" << std::setw(2) << std::setfill('0')
                   << static_cast<int>(regInfo[0]) << " ";
+        std::cout << std::dec;
       } else if (valueType == ValueType::HEX && regInfo.size() == 2) {
         uint16_t combinedRegInfo =
             (static_cast<uint16_t>(regInfo[0]) << 8) | regInfo[1];
         std::cout << std::hex << "0x" << std::setw(4) << std::setfill('0')
                   << combinedRegInfo;
+        std::cout << std::dec;
       } else if (valueType == ValueType::LINEAR_11 && regInfo.size() == 2) {
         uint16_t combinedRegInfo =
             (static_cast<uint16_t>(regInfo[1]) << 8) | regInfo[0];
