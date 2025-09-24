@@ -1444,7 +1444,6 @@ static struct i2c_driver aucd9000_driver = {
 		.of_match_table = of_match_ptr(aucd9000_of_match),
 	},
 	.probe = ucd9000_probe,
-	.probe = ucd9000_probe,
 	.remove = ucd9000_remove,
 	.id_table = aucd9000_id,
 };
