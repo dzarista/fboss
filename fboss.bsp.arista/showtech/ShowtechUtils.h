@@ -15,7 +15,6 @@ std::string run_cmd_with_limit(std::string cmd, int max_lines = 5000);
 std::string run_cmd_with_timeout(std::string cmd, int timeout_s = 30);
 void strip(std::string &str);
 int get_max_i2c_bus();
-std::string i2c_dump(int bus, int addr, char type = 'b');
 int getI2cBusForScd(std::string pciAddr, int master, int bus);
 void printMainHeader(std::string_view headerName);
 void printSubHeader(std::string_view headerName);
