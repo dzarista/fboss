@@ -10,7 +10,7 @@ from GenerateConfigsAndDiagrams.BaseConfigs import (
    Flash,
    InitRegSettings,
    LedConfig,
-   OpticConfig,     
+   OpticConfig,
    PlatformConfig,
    PSUUnit,
    SCMFairywren,
@@ -364,7 +364,7 @@ class WhistlerSMB( SMBUnit ):
                        ) )
       ] )
 
-      smbUcd = Sensor( "0x11", "ucd90320", "SMB_UCD90320", incomingBusIndex=2 )
+      smbUcd = Sensor( "0x11", "meru_aucd90320", "SMB_UCD90320", incomingBusIndex=2 )
       smbUcd.addSensorConfigs( [
          SensorConfig( "DPM_12V", "in1_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
@@ -574,7 +574,7 @@ class Whistler( PlatformConfig ):
 
       # Fan Service Config
       fanServiceConfig = FanServiceConfig()
-   
+
       # 1. Set global PWM parameters from the JSON config
       fanServiceConfig.setPwmConfig(  pwmBoostOnNumDeadFan=1,
                                        pwmBoostOnNumDeadSensor=0,
