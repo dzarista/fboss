@@ -33,6 +33,7 @@ class Utils {
   I2cHelper i2cHelper_{};
   void runFbossCliCmd(const std::string& cmd);
   void printSysfsAttribute(const std::string& label, const std::string& path);
+  std::pair<int, std::string> safeExecCommand(const std::string& cmd) const;
 };
 
 } // namespace facebook::fboss::platform
