@@ -8,6 +8,15 @@ import pytz
 from datetime import datetime, timedelta
 from SuiteReport import SuiteReport
 
+limits = ['7d', '14d', '21d', '28d']
+suites = [
+   ["FbossOssViperShip"],
+   ["FbossOssViperBShip"],
+   ["FbossOssWhistlerShip"],
+   ["FbossRackhawkShip"],
+   ["FbossRackhawkShip", "rkdo"],
+   ["FbossOssShip", "qsfb"],
+]
 
 def split_by_indices(text, indices):
    if not indices:
@@ -39,11 +48,11 @@ def get_latest_build_info(project):
 
 # Generate ship report json and csv with
 #   generate_fboss_suite_reports.sh
-def generate_suite_reports(host, project):
+def generate_suite_reports(container, host, project):
    print(f"--- Generating suite reports on {host} ---")
    script_path = "./generate_fboss_suite_reports.sh"
    try:
-      command = [script_path, host, project]
+      command = [script_path, container, host, project]
       subprocess.run(command, check=True)
       print("Sucessfully generated suite reports")
    except subprocess.CalledProcessError as e:
@@ -184,6 +193,7 @@ parser = argparse.ArgumentParser(
    "  4. Run the tool providing your spreadsheet ID and worksheet names\n\n",
    formatter_class=LineWrapRawTextHelpFormatter,
 )
+parser.add_argument("CONTAINER", action="store", help="container name")
 parser.add_argument("HOST", action="store", help="full container hostname")
 parser.add_argument(
    "-s", "--spreadsheet",
@@ -215,18 +225,9 @@ if __name__ == '__main__':
    args = parser.parse_args()
 
    # --- Generate suite reports ---
-   generate_suite_reports(args.HOST, args.project)
+   generate_suite_reports(args.CONTAINER, args.HOST, args.project)
 
    # --- Parse suite report json and csv files ---
-   limits = ['7d', '14d', '21d', '28d']
-   suites = [
-      ["FbossOssViperShip"],
-      ["FbossOssViperBShip"],
-      ["FbossOssWhistlerShip"],
-      ["FbossRackhawkShip"],
-      ["FbossRackhawkShip", "rkdo"],
-      ["FbossOssShip", "qsfb"],
-   ]
    suite_report_dir = "fboss-suite-reports"
    suite_reports_all = []
 
