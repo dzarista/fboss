@@ -1,0 +1,120 @@
+/* src/App.css */
+
+/* Add these styles to fill the entire screen */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+
+body {
+  font-family: Arial, sans-serif;
+  background-color: #f4f7f6;
+  color: #333;
+}
+
+.dashboard-app {
+  display: flex;
+  height: 100%;
+}
+
+.sidebar {
+  width: 250px;
+  background-color: #2c3e50;
+  color: white;
+  padding: 20px;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.sidebar h1 {
+  text-align: center;
+  margin-bottom: 30px;
+  color: #ecf0f1;
+}
+
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+}
+
+.sidebar li {
+  margin-bottom: 10px;
+}
+
+.sidebar button {
+  background: none;
+  border: none;
+  color: white;
+  padding: 10px 15px;
+  width: 100%;
+  text-align: left;
+  font-size: 1.1em;
+  cursor: pointer;
+  border-radius: 5px;
+  transition: background-color 0.3s ease;
+}
+
+.sidebar button:hover {
+  background-color: #34495e;
+}
+
+.sidebar button.active {
+  background-color: #3498db;
+  font-weight: bold;
+}
+
+.content {
+  flex-grow: 1;
+  padding: 30px;
+  background-color: #ecf0f1;
+  overflow-y: auto;
+}
+
+.page-content {
+  background-color: white;
+  padding: 25px;
+  border-radius: 8px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+}
+
+.page-content h2 {
+  color: #2c3e50;
+  margin-bottom: 15px;
+}
+
+.page-content p {
+  line-height: 1.6;
+  color: #555;
+}
+
+.iframe-container {
+  margin-top: 30px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.iframe-container h3 {
+  background-color: #f0f0f0;
+  padding: 10px 15px;
+  margin: 0;
+  border-bottom: 1px solid #eee;
+  color: #2c3e50;
+}
+
+.iframe-container iframe {
+  border: none;
+  display: block;
+}
+
+.iframe-container a {
+  color: #3498db;
+  text-decoration: none;
+}
+
+.iframe-container a:hover {
+  text-decoration: underline;
+}
