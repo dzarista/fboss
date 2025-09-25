@@ -1,0 +1,8 @@
+{
+
+"platform": "Viper",
+"product_name": "MERU800BIA",
+"description": "This file contains Viper's regex patterns to look for in showtech files",
+"regexes": []
+}
+

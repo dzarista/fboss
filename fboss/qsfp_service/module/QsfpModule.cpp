@@ -1392,10 +1392,12 @@ void QsfpModule::programTransceiver(
       // Don't consider ports for programming if they have a startHostLane >=
       // the number of lanes on the plugged in transceiver.
       auto hostLaneCount = numHostLanes();
-      for (auto portIt : programTcvrState.ports) {
+      for (auto portIt = programTcvrState.ports.begin();
+           portIt != programTcvrState.ports.end();
+           ++portIt) {
         // startHostLane is 0-indexed hence the >= comparison
-        if (portIt.second.startHostLane >= hostLaneCount) {
-          programTcvrState.ports.erase(portIt.first);
+        if (portIt->second.startHostLane >= hostLaneCount) {
+          portIt = programTcvrState.ports.erase(portIt);
         }
       }
 

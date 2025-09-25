@@ -1,0 +1,116 @@
+[
+  {
+    "code": "0x00",
+    "name": "PAGE",
+    "description": "Page selection command",
+    "bytes": "1",
+    "bitRanges": []
+  },
+  {
+    "code": "0x01",
+    "name": "OPERATION",
+    "description": "Operation control",
+    "bytes": "2",
+    "bitRanges": [
+      {
+        "bits": "7:0",
+        "name": "OPERATION",
+        "description": "Operation mode"
+      }
+    ]
+  },
+  {
+    "code": "0x02",
+    "name": "ON_OFF_CONFIG",
+    "description": "On/Off configuration",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "4",
+        "name": "PU",
+        "description": "Control pin polarity"
+      },
+      {
+        "bits": "3",
+        "name": "CMD",
+        "description": "Command bit"
+      },
+      {
+        "bits": "2:0",
+        "name": "ON_OFF_CONFIG",
+        "description": "On/Off configuration"
+      }
+    ]
+  },
+  {
+    "code": "0x03",
+    "name": "CLEAR_FAULTS",
+    "description": "Clear faults command",
+    "bytes": "1",
+    "bitRanges": []
+  },
+  {
+    "code": "0x04",
+    "name": "PAGE_PLUS_WRITE",
+    "description": "Page plus write command",
+    "bytes": "2",
+    "bitRanges": [
+      {
+        "bits": "15:8",
+        "name": "PAGE",
+        "description": "Page number"
+      },
+      {
+        "bits": "7:0",
+        "name": "COMMAND",
+        "description": "Command code"
+      }
+    ]
+  },
+  {
+    "code": "0x10",
+    "name": "WRITE_PROTECT",
+    "description": "Write protect command",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "WP_ALL",
+        "description": "Write protect all"
+      },
+      {
+        "bits": "6",
+        "name": "WP_OP",
+        "description": "Write protect operation"
+      },
+      {
+        "bits": "5:0",
+        "name": "RESERVED",
+        "description": "Reserved bits"
+      }
+    ]
+  },
+  {
+    "code": "0x19",
+    "name": "CAPABILITY",
+    "description": "Capability register",
+    "bytes": "1",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "PEC",
+        "description": "Packet Error Checking"
+      },
+      {
+        "bits": "6:4",
+        "name": "RESERVED",
+        "description": "Reserved bits"
+      },
+      {
+        "bits": "3:0",
+        "name": "CAPABILITY",
+        "description": "Device capability"
+      }
+    ]
+  }
+]

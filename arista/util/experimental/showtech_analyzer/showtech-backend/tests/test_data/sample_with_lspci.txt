@@ -1,0 +1,32 @@
+### SHOWTECH TEST ###
+### SMB SERIAL NUMBER ###
+Product Name: TestSwitch
+Serial Number: TST11111111
+MAC Address: 00:1c:73:11:22:33
+
+### LSPCI ###
+03:00.0 Ethernet controller: Test ASIC Chip (rev 01)
+        Subsystem: Test ASIC Chip
+        Flags: bus master, fast devsel, latency 0, IRQ 24
+        Memory at f7000000 (64-bit, non-prefetchable) [size=16M]
+        Capabilities: [40] Power Management version 3
+        Capabilities: [50] MSI: Enable+ Count=1/1 Maskable- 64bit+
+        Capabilities: [70] Express (v2) Endpoint, MSI 00
+                LnkCap: Port #0, Speed 16GT/s, Width x8, ASPM L0s L1, Exit Latency L0s <64ns, L1 <1us
+                LnkSta: Speed 16GT/s, Width x8, TrErr- Train- SlotClk+ DLActive+ BWMgmt- ABWMgmt-
+
+05:00.0 FPGA: Test FPGA (rev 01)
+        Subsystem: Test FPGA
+        Flags: bus master, fast devsel, latency 0, IRQ 25
+        Memory at f6000000 (64-bit, non-prefetchable) [size=8M]
+        Capabilities: [40] Power Management version 3
+        Capabilities: [50] MSI: Enable+ Count=1/1 Maskable- 64bit+
+        Capabilities: [70] Express (v2) Endpoint, MSI 00
+                LnkCap: Port #0, Speed 8GT/s, Width x4, ASPM L0s L1, Exit Latency L0s <64ns, L1 <1us
+                LnkSta: Speed 8GT/s, Width x4, TrErr- Train- SlotClk+ DLActive+ BWMgmt- ABWMgmt-
+
+### fboss2 show environment sensor ###
+Sensor                  Value    Status    Threshold
+-------------------------------------------------
+Temperature             45.5     OK        85.0
+Voltage                 12.0     OK        15.0

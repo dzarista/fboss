@@ -1,0 +1,1060 @@
+diff -Naru xapp058_v5.01/Makefile ../fboss_xapp_patch_1/xapp058_v5.01/Makefile
+--- xapp058_v5.01/Makefile	1969-12-31 16:00:00.000000000 -0800
++++ ../fboss_xapp_patch_1/xapp058_v5.01/Makefile	2023-10-10 19:39:11.404170587 -0700
+@@ -0,0 +1,22 @@
++VERSION := 0.0.1
++
++TARGET_EXEC := xapp
++
++BUILD_DIR := ./bld
++SRC_DIRS := ./src
++
++SRCS := $(shell find $(SRC_DIRS) -name '*.c')
++OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
++
++CFLAGS := -O2
++
++$(BUILD_DIR)/$(TARGET_EXEC): $(OBJS)
++	$(CC) $(OBJS) -o $@ $(LDFLAGS)
++
++$(BUILD_DIR)/%.c.o: %.c
++	mkdir -p $(dir $@)
++	$(CC) $(CFLAGS) -c $< -o $@
++
++.PHONY: clean
++clean:
++	rm -rf $(BUILD_DIR)
+diff -Naru xapp058_v5.01/src/jtag_intf.c ../fboss_xapp_patch_1/xapp058_v5.01/src/jtag_intf.c
+--- xapp058_v5.01/src/jtag_intf.c	1969-12-31 16:00:00.000000000 -0800
++++ ../fboss_xapp_patch_1/xapp058_v5.01/src/jtag_intf.c	2023-10-10 19:40:31.110914417 -0700
+@@ -0,0 +1,407 @@
++// Copyright (c) 2021 Arista Networks, Inc.  All rights reserved.
++// Arista Networks, Inc. Confidential and Proprietary.
++
++#include <assert.h>
++#include <errno.h>
++#include <stdbool.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <sys/file.h>
++#include <sys/io.h>
++#include <sys/stat.h>
++#include <fcntl.h>
++#include <unistd.h>
++#include <sys/mman.h>
++#include "jtag_intf.h"
++
++static const U32 WEST_PORT_ID = 0xc2;
++static const U32 EAST_PORT_ID = 0xc5;
++
++// Grab a kernel flock on LOCK_FILE to prevent more than one
++// process from accessing the JTAG pins at once.
++static void jtag_intf_flock(jtag_intf * jif) {
++   int32_t fd = creat(LOCK_FILE, S_IRUSR);
++   if (fd < 0) {
++      perror("Failed to create lock file");
++      exit(1);
++   }
++   int32_t err = flock(fd, LOCK_EX|LOCK_NB);
++   if (err < 0) {
++      if (errno == EWOULDBLOCK) {
++         fprintf(stderr,"Lock file is locked by another process.");
++      } else {
++         perror("Error locking lock file");
++      }
++      exit(1);
++   }
++}
++
++// Map GPIO register space.
++static void jtag_intf_gpio_mmap(jtag_intf * jif) {
++   int fd;
++   size_t map_size;
++   off_t offset, pa_offset;
++
++   fd = open("/dev/mem", O_RDWR);
++   assert (fd >= 0);
++   // GPIOs are in base + 0xc20800 - 0xc50c40, just map up to 0xc60000
++   map_size = 0xc60000;
++   offset = 0xfd000000;
++   pa_offset = offset & ~(sysconf(_SC_PAGE_SIZE) - 1);
++   jif->gpio_details.gpio_base_ptr = mmap(NULL, map_size + offset - pa_offset, PROT_READ | PROT_WRITE,
++                        MAP_SHARED, fd, pa_offset);
++   close(fd);
++}
++
++// Read GPIO Offset from PCH.
++static void jtag_intf_gpio_offset(jtag_intf * jif) {
++   FILE *filep;
++   int32_t rc;
++
++   filep = fopen(LPC_PCI_SYSFS, "rb");
++   assert(filep);
++
++   fseek(filep, GPIO_BASE_ADDR, SEEK_SET);
++   rc = fread(&jif->gpio_details.gpio_offset, sizeof(jif->gpio_details.gpio_offset), 1, filep);
++   assert(rc == 1);
++
++   // Apply offset mask.
++   jif->gpio_details.gpio_offset &= GPIO_BASE_ADDR_MASK;
++}
++
++// Helper functions to return the correct gpio offset based on gpio num.
++static U32 use_select_gpio_reg(U32 gpio_offset, U8 gpo) {
++   switch (gpo/32) {
++      case 0:
++         return gpio_offset + GPIO_USE_SEL;
++      case 1:
++         return gpio_offset + GPIO_USE_SEL2;
++      case 2:
++         return gpio_offset + GPIO_USE_SEL3;
++   }
++   assert(0);
++}
++
++static U32 io_select_gpio_reg(U32 gpio_offset, U8 gpo) {
++   switch (gpo/32) {
++      case 0:
++         return gpio_offset + GPIO_IO_SEL;
++      case 1:
++         return gpio_offset + GPIO_IO_SEL2;
++      case 2:
++         return gpio_offset + GPIO_IO_SEL3;
++   }
++   assert(0);
++}
++
++static U32 read_write_gpio_reg(U32 gpio_offset, U8 gpo) {
++   switch (gpo/32) {
++      case 0:
++         return gpio_offset + GPIO_LVL;
++      case 1:
++         return gpio_offset + GPIO_LVL2;
++      case 2:
++         return gpio_offset + GPIO_LVL3;
++   }
++   assert(0);
++}
++
++// Read PCH port.
++static U32 do_read(U32 addr) {
++   return inl(addr);
++}
++
++// Write to PCH port.
++static void do_write(U32 addr, U32 data) {
++   outl(data, addr);
++}
++
++
++static void set_output(U32 gpio_offset, U8 gpo) {
++   if (gpo == 0xff) return;
++
++   // First set the use_select pin.
++   U32 reg = use_select_gpio_reg(gpio_offset, gpo);
++   U32 old = do_read(reg);
++   U32 new_val = old | ( 1 << ( gpo % GPIO_REG_SIZE ) );
++   do_write(reg, new_val);
++
++   // Now unset the io_select pin (0:output, 1:input).
++   reg = io_select_gpio_reg(gpio_offset, gpo);
++   old = do_read(reg);
++   new_val = old & ~( 1 << ( gpo % GPIO_REG_SIZE ) );
++   do_write(reg, new_val);
++}
++
++static void set_output_meru(U32 *gpio_base_ptr, U32 reg) {
++   if( reg == 0xffffffff ) return;
++
++   U32 old_val = *( ( volatile U32 * ) ( (char *)gpio_base_ptr + reg ) );
++   // Turn off TX disable and turn on RX disable
++   U32 new_val = ( old_val | 0x200 ) & 0xfffffeff;
++   *( ( volatile U32 * ) ( (char *)gpio_base_ptr + reg ) ) = new_val;
++}
++
++static void set_input(U32 gpio_offset, U8 gpo) {
++   if (gpo == 0xff) return;
++
++   // First set the use_select pin.
++   U32 reg = use_select_gpio_reg(gpio_offset, gpo);
++   U32 old = do_read(reg);
++   U32 new_val = old | ( 1 << ( gpo % GPIO_REG_SIZE ) );
++   do_write(reg, new_val);
++
++   // Now unset the io_select pin (0:output, 1:input).
++   reg = io_select_gpio_reg(gpio_offset, gpo);
++   old = do_read(reg);
++   new_val = old | ( 1 << ( gpo % GPIO_REG_SIZE ) );
++   do_write(reg, new_val);
++}
++
++static void set_input_meru(U32 *gpio_base_ptr, U32 reg) {
++   if( reg == 0xffffffff ) return;
++
++   U32 old_val = *( ( volatile U32 * ) ( (char *)gpio_base_ptr + reg ) );
++   // Turn off RX disable and turn on TX disable
++   U32 new_val = ( old_val | 0x100 ) & 0xfffffdff;
++   *( ( volatile U32 * ) ( (char *)gpio_base_ptr + reg ) ) = new_val;
++}
++
++static void set_bit_meru(U32 *gpio_base_ptr, U32 reg, bool value) {
++   if( reg == 0xffffffff ) return;
++
++   // Bit 0 is the output value
++   U32 old_val = *( ( volatile U32 * ) ( (char *)gpio_base_ptr + reg ) );
++   U32 new_val = 0;
++   if( value ) {
++      new_val = old_val | 0x1;
++   } else {
++      new_val = old_val & 0xfffffffe;
++   }
++   *( ( volatile U32 * ) ( (char *)gpio_base_ptr + reg ) ) = new_val;
++}
++
++static void set_bit(U32 gpio_offset, U8 gpo, bool value) {
++   if (gpo == 0xff) return;
++
++   // Set bit 0 or 1 in given GPO.
++   U32 reg = read_write_gpio_reg(gpio_offset, gpo);
++   U32 old = do_read(reg);
++   U32 new_val = 0;
++   if (value) {
++      new_val = old | ( 1 << ( gpo % GPIO_REG_SIZE ) );
++   } else {
++      new_val = old & ~( 1 << ( gpo % GPIO_REG_SIZE ) );
++   }
++   do_write(reg, new_val);
++}
++
++static bool get_bit_meru(U32 *gpio_base_ptr, U32 reg) {
++   if( reg == 0xffffffff ) return false;
++
++   // Bit 1 is the input value
++   U32 val = *( ( volatile U32 * ) ( (char *)gpio_base_ptr + reg ) );
++   return ( val & 0x2 ) != 0;
++}
++
++static bool get_bit(U32 gpio_offset, U8 gpo) {
++   if (gpo == 0xff) return false;
++
++   // Read current bit value from GPO.
++   U32 reg = read_write_gpio_reg(gpio_offset, gpo);
++   U32 val = do_read(reg);
++   return ( val & ( 1 << ( gpo % GPIO_REG_SIZE ) ) );
++}
++
++static void tdi_is(jtag_intf * jif, bool value) {
++   if (jif->platform == MERU)
++   {
++      // Set TDI pin.
++      set_bit_meru(jif->gpio_details.gpio_base_ptr, jif->tdi.tdi_u32, value);
++      jif->tdi_val = value;
++      return;
++   }
++
++   if (jif->tdi_val == value) return;
++
++   // Set TDI pin.
++   set_bit(jif->gpio_details.gpio_offset, jif->tdi.tdi_u8, value);
++   jif->tdi_val = value;
++}
++
++static void tms_is(jtag_intf * jif, bool value) {
++   if (jif->platform == MERU)
++   {
++      // Set TMS pin.
++      set_bit_meru(jif->gpio_details.gpio_base_ptr, jif->tms.tms_u32, value);
++      jif->tms_val = value;
++      return;
++   }
++
++   if (jif->tms_val == value) return;
++
++   // Set TMS pin.
++   set_bit(jif->gpio_details.gpio_offset, jif->tms.tms_u8, value);
++   jif->tms_val = value;
++}
++
++static void tclk_is(jtag_intf * jif, bool value) {
++   if (jif->platform == MERU)
++   {
++      // Set TCK pin.
++      set_bit_meru(jif->gpio_details.gpio_base_ptr, jif->tclk.tclk_u32, value);
++      return;
++   }
++
++   // Set TCK pin.
++   set_bit(jif->gpio_details.gpio_offset, jif->tclk.tclk_u8, value);
++}
++
++// Set JTAG pins in MERU platform.
++static void jtag_intf_select_meru(jtag_intf * jif, char * fpga) {
++   jtag_intf_flock(jif);
++   jtag_intf_gpio_mmap(jif);
++
++   jif->trstl.trstl_u32 = 0xffffffff;
++   jif->sel0.sel0_u32 = 0xffffffff;
++   jif->sel1.sel1_u32 = 0xffffffff;
++   jif->sel2.sel2_u32 = 0xffffffff;
++   jif->sel0_val = false;
++   jif->sel1_val = false;
++   jif->sel2_val = false;
++   jif->sel0.sel0_u32 = ( WEST_PORT_ID << 16 ) | 0xb90;;
++   jif->tms.tms_u32 = ( EAST_PORT_ID << 16 ) | 0x920;
++   jif->tclk.tclk_u32 = ( EAST_PORT_ID << 16 ) | 0x910;
++   jif->tdi.tdi_u32 = ( WEST_PORT_ID << 16 ) | 0xaf0;
++   jif->tdo.tdo_u32 = ( EAST_PORT_ID << 16 ) | 0x930;
++   jif->trstl.trstl_u32 = ( EAST_PORT_ID << 16 ) | 0x940;
++   jif->sel0_val = true;
++
++   set_output_meru(jif->gpio_details.gpio_base_ptr, jif->tclk.tclk_u32);
++   set_output_meru(jif->gpio_details.gpio_base_ptr, jif->tdi.tdi_u32);
++   set_output_meru(jif->gpio_details.gpio_base_ptr, jif->tms.tms_u32);
++   set_output_meru(jif->gpio_details.gpio_base_ptr, jif->trstl.trstl_u32);
++   set_output_meru(jif->gpio_details.gpio_base_ptr, jif->sel0.sel0_u32);
++   set_output_meru(jif->gpio_details.gpio_base_ptr, jif->sel1.sel1_u32);
++   set_output_meru(jif->gpio_details.gpio_base_ptr, jif->sel2.sel2_u32);
++   set_input_meru(jif->gpio_details.gpio_base_ptr, jif->tdo.tdo_u32);
++   set_bit_meru(jif->gpio_details.gpio_base_ptr, jif->tclk.tclk_u32, false);
++   set_bit_meru(jif->gpio_details.gpio_base_ptr, jif->tdi.tdi_u32, false);
++   set_bit_meru(jif->gpio_details.gpio_base_ptr, jif->tms.tms_u32, false);
++   set_bit_meru(jif->gpio_details.gpio_base_ptr, jif->sel0.sel0_u32, jif->sel0_val);
++   set_bit_meru(jif->gpio_details.gpio_base_ptr, jif->sel1.sel1_u32, jif->sel1_val);
++   set_bit_meru(jif->gpio_details.gpio_base_ptr, jif->sel2.sel2_u32, jif->sel2_val);
++}
++
++static void jtag_intf_cleanup_meru(jtag_intf * jif) {
++   set_input_meru(jif->gpio_details.gpio_base_ptr, jif->tclk.tclk_u32);
++   set_input_meru(jif->gpio_details.gpio_base_ptr, jif->tdi.tdi_u32);
++   set_input_meru(jif->gpio_details.gpio_base_ptr, jif->tms.tms_u32);
++   set_input_meru(jif->gpio_details.gpio_base_ptr, jif->trstl.trstl_u32);
++   set_input_meru(jif->gpio_details.gpio_base_ptr, jif->sel0.sel0_u32 );
++   set_input_meru(jif->gpio_details.gpio_base_ptr, jif->sel1.sel1_u32 );
++   set_input_meru(jif->gpio_details.gpio_base_ptr, jif->sel2.sel2_u32 );
++}
++
++// Set JTAG pins based on given FPGA name.
++void jtag_intf_select(jtag_intf * jif, char * fpga) {
++   int32_t rc;
++
++   if (!strncmp(fpga, MERU_SCD, STR_MAX)) {
++      jif->platform = MERU;
++      jtag_intf_select_meru(jif, fpga);
++      return;
++   }
++
++   jif->platform = DARWIN;
++   jif->fpga = fpga;
++   jtag_intf_flock(jif);
++   jtag_intf_gpio_offset(jif);
++
++   // Set defaults.
++   jif->sel0.sel0_u8 = 0xFF;
++   jif->trstl.trstl_u8 = 0xFF;
++   jif->sel0_val = false;
++
++   if (!strncmp(fpga, CPU_CPLD, STR_MAX)) {
++      // GPIO pins used for JTAG to CPU CPLD.
++      jif->tclk.tclk_u8 = CPLD_JTAG_TCK;
++      jif->tdo.tdo_u8 = CPLD_JTAG_TDO;
++      jif->tdi.tdi_u8 = CPLD_JTAG_TDI;
++      jif->tms.tms_u8 = CPLD_JTAG_TMS;
++      jif->trstl.trstl_u8 = CPLD_JTAG_TRST_L;
++   } else if (!strncmp(fpga, SC_CPLD, STR_MAX)
++              || !strncmp(fpga, SC_SAT_CPLD, STR_MAX)
++              || !strncmp(fpga, SC_SCD, STR_MAX)) {
++      // GPIO pins used for JTAG to switch card.
++      jif->tclk.tclk_u8 = SW_JTAG_TCK;
++      jif->tdo.tdo_u8 = SW_JTAG_TDO;
++      jif->tdi.tdi_u8 = SW_JTAG_TDI;
++      jif->tms.tms_u8 = SW_JTAG_TMS;
++      jif->trstl.trstl_u8 = SW_JTAG_TRST_L;
++      jif->sel0.sel0_u8 = SW_CPLD_JTAG_SEL;
++      if (!strncmp(fpga, SC_CPLD, STR_MAX)) {
++         jif->sel0_val = true;
++      }
++   } else {
++      exit(1);
++   }
++
++   // Need to set IO privilege level to allow read/write.
++   if (iopl(3) < 0)
++      exit(1);
++
++   // Setup JTAG GPIOs.
++   set_output(jif->gpio_details.gpio_offset, jif->trstl.trstl_u8);
++   set_bit(jif->gpio_details.gpio_offset, jif->trstl.trstl_u8, true);
++   set_output(jif->gpio_details.gpio_offset, jif->tclk.tclk_u8);
++   set_output(jif->gpio_details.gpio_offset, jif->tdi.tdi_u8);
++   set_output(jif->gpio_details.gpio_offset, jif->tms.tms_u8);
++   set_output(jif->gpio_details.gpio_offset, jif->sel0.sel0_u8);
++   set_input(jif->gpio_details.gpio_offset, jif->tdo.tdo_u8);
++   set_bit(jif->gpio_details.gpio_offset, jif->tclk.tclk_u8, false);
++   set_bit(jif->gpio_details.gpio_offset, jif->tdi.tdi_u8, false);
++   set_bit(jif->gpio_details.gpio_offset, jif->tms.tms_u8, false);
++   set_bit(jif->gpio_details.gpio_offset, jif->sel0.sel0_u8, jif->sel0_val);
++   
++   jif->tdi_val = false;
++   jif->tms_val = false;
++}
++
++void jtag_intf_cleanup(jtag_intf * jif) {
++   if (jif->platform == MERU)
++   {
++      jtag_intf_cleanup_meru(jif);
++      return;
++   }
++   // Restore JTAG GPIOs to inputs.
++   set_input(jif->gpio_details.gpio_offset, jif->tclk.tclk_u8);
++   set_input(jif->gpio_details.gpio_offset, jif->tdi.tdi_u8);
++   set_input(jif->gpio_details.gpio_offset, jif->tms.tms_u8);
++   set_input(jif->gpio_details.gpio_offset, jif->trstl.trstl_u8);
++   set_input(jif->gpio_details.gpio_offset, jif->sel0.sel0_u8);
++}
++
++void jtag_intf_tdi_is(jtag_intf * jif, int32_t value) {
++   tdi_is(jif, (bool)value);
++}
++
++void jtag_intf_tms_is(jtag_intf * jif, int32_t value) {
++   tms_is(jif, (bool)value);
++}
++
++int32_t jtag_intf_tdo(jtag_intf * jif) {
++   if (jif->platform == MERU)
++   {
++      return (int32_t)get_bit_meru(jif->gpio_details.gpio_base_ptr, jif->tdo.tdo_u32);
++   }
++   else
++   {
++      return (int32_t)get_bit(jif->gpio_details.gpio_offset, jif->tdo.tdo_u8);
++   }
++}
++
++void jtag_intf_tclk_is(jtag_intf * jif, int32_t value) {
++   return tclk_is(jif, (bool)value);
++}
+diff -Naru xapp058_v5.01/src/jtag_intf.h ../fboss_xapp_patch_1/xapp058_v5.01/src/jtag_intf.h
+--- xapp058_v5.01/src/jtag_intf.h	1969-12-31 16:00:00.000000000 -0800
++++ ../fboss_xapp_patch_1/xapp058_v5.01/src/jtag_intf.h	2023-10-10 19:40:22.576011923 -0700
+@@ -0,0 +1,144 @@
++// Copyright (c) 2021 Arista Networks, Inc.  All rights reserved.
++// Arista Networks, Inc. Confidential and Proprietary.
++
++#ifndef SRC_PCI_INTF_H
++#define SRC_PCI_INTF_H
++
++// jtag_intf provides an interface to the CPU GPIOs used for JTAG
++// programming. This interface can be invoked from a JTAG programming
++// utility.
++
++#include <inttypes.h>
++#include <stdbool.h>
++
++// Valid FPGA names.
++#define STR_MAX 12
++#define CPU_CPLD "cpu_cpld"
++#define SC_CPLD "sc_cpld"
++#define SC_SCD "sc_scd"
++#define SC_SAT_CPLD "sc_sat_cpld"
++#define MERU_SCD "meru_scd"
++
++// Hardcoded reference to LPC PCI interface in sysfs.
++#define LPC_PCI_SYSFS "/sys/bus/pci/devices/0000:00:1f.0/config"
++
++// Lock file to prevent multiple accesses.
++#define LOCK_FILE "/var/lock/lpc_00_1f_0_jtag"
++
++// Offset at which GPIO offset value is read from PCH.
++#define GPIO_BASE_ADDR 0x48
++#define GPIO_BASE_ADDR_MASK 0xFF80
++
++// PCH GPIO registers.
++#define GPIO_REG_SIZE 32
++enum {
++   GPIO_USE_SEL = 0x0,
++   GPIO_IO_SEL = 0x04,
++   GPIO_LVL = 0x0C,
++   GPIO_USE_SEL2 = 0x30,
++   GPIO_IO_SEL2 = 0x34,
++   GPIO_LVL2 = 0x38,
++   GPIO_USE_SEL3 = 0x40,
++   GPIO_IO_SEL3 = 0x44,
++   GPIO_LVL3 = 0x48
++};
++
++// PCH GPIOs used for JTAG.
++enum {
++   SW_JTAG_TCK = 12,
++   CPLD_JTAG_TDI = 14,
++   SW_JTAG_TRST_L = 15,
++   CPLD_JTAG_TCK = 17,
++   SW_JTAG_TDO = 22,
++   SW_CPLD_JTAG_SEL = 24,
++   CPLD_JTAG_TDO = 27,
++   CPLD_JTAG_TRST_L = 39,
++   SW_JTAG_TDI = 44,
++   SW_JTAG_TMS = 45,
++   CPLD_JTAG_TMS = 48
++};
++
++#define unlikely( cond ) __builtin_expect((cond),0)
++#define likely( cond ) __builtin_expect((cond),1)
++
++typedef unsigned int U32;
++typedef unsigned short U16;
++typedef unsigned char U8;
++
++typedef union {
++   U32 gpio_offset;
++   U32 *gpio_base_ptr;
++} Gpio_Details;
++
++typedef union {
++   U8 trstl_u8;
++   U32 trstl_u32;
++} Trstl;
++
++typedef union {
++   U8 tclk_u8;
++   U32 tclk_u32;
++} Tclk;
++
++typedef union {
++   U8 tdi_u8;
++   U32 tdi_u32;
++} Tdi;
++
++typedef union {
++   U8 tms_u8;
++   U32 tms_u32;
++} Tms;
++
++typedef union {
++   U8 tdo_u8;
++   U32 tdo_u32;
++} Tdo;
++
++typedef union {
++   U8 sel0_u8;
++   U32 sel0_u32;
++} Sel0;
++
++typedef union {
++   U32 sel1_u32;
++} Sel1;
++
++typedef union {
++   U32 sel2_u32;
++} Sel2;
++
++typedef enum {
++   DARWIN,
++   MERU
++} Platform_Name;
++
++// Interface to JTAG pins for programming.
++typedef struct {
++   Platform_Name platform;
++   char * fpga;
++   Gpio_Details gpio_details;
++   Trstl trstl;
++   Tclk tclk;
++   Tdi tdi;
++   Tms tms;
++   Tdo tdo;
++   Sel0 sel0;
++   Sel1 sel1;
++   Sel2 sel2;
++   bool sel0_val;
++   bool sel1_val;
++   bool sel2_val;
++   bool tdi_val;
++   bool tms_val;
++} jtag_intf;
++
++// API used by programming utilities.
++void jtag_intf_select(jtag_intf * jif, char * fpga);
++void jtag_intf_cleanup(jtag_intf * jif);
++void jtag_intf_tdi_is(jtag_intf * jif, int32_t value);
++void jtag_intf_tms_is(jtag_intf * jif, int32_t value);
++int32_t jtag_intf_tdo(jtag_intf * jif);
++void jtag_intf_tclk_is(jtag_intf * jif, int32_t value);
++
++#endif // SRC_PCI_INTF_H
+diff -Naru xapp058_v5.01/src/lenval.h ../fboss_xapp_patch_1/xapp058_v5.01/src/lenval.h
+--- xapp058_v5.01/src/lenval.h	2003-08-14 10:21:36.000000000 -0700
++++ ../fboss_xapp_patch_1/xapp058_v5.01/src/lenval.h	2023-10-10 19:39:11.425347663 -0700
+@@ -57,7 +57,7 @@
+                      2500      20000  - required for blank check
+                                       - blank check max 1 device = 16384 bits
+ */
+-#define MAX_LEN 7000
++#define MAX_LEN 262144
+ 
+ 
+ typedef struct var_len_byte
+diff -Naru xapp058_v5.01/src/micro.c ../fboss_xapp_patch_1/xapp058_v5.01/src/micro.c
+--- xapp058_v5.01/src/micro.c	2008-11-26 16:03:54.000000000 -0800
++++ ../fboss_xapp_patch_1/xapp058_v5.01/src/micro.c	2023-10-10 19:40:11.597720160 -0700
+@@ -49,6 +49,10 @@
+ /*============================================================================
+ * #include files
+ ============================================================================*/
++/* NOTE: We depend on the DEBUG_MODE features such as the implementation
++   of main() and FILE pointer.
++*/
++#include "jtag_intf.h"
+ #define DEBUG_MODE
+ #ifdef  DEBUG_MODE
+     #include <stdio.h>
+@@ -389,7 +393,18 @@
+ #endif  /* DEBUG_MODE */
+ 
+ #ifdef DEBUG_MODE
+-    FILE* in;   /* Legacy DEBUG_MODE file pointer */
++    FILE* inputFile = NULL; /* Legacy DEBUG_MODE file pointer */
++    short quiet = 0; /* used as boolean */
++    short slow = 0; /* used as boolean */
++    jtag_intf jif;
++    long fileLen = 0;
++    long tckCtr = 0;
++    long tmsCtr = 0;
++    long tdiCtr = 0;
++    long tdoCtr = 0;
++    long pulseCtr = 0;
++    char * xsvf_data = NULL;
++
+     int xsvf_iDebugLevel;
+ #endif /* DEBUG_MODE */
+ 
+@@ -758,15 +773,15 @@
+             /* Set TCK low */
+             setPort( TCK, 0 );
+ 
++            /* Set TCK high */
++            setPort( TCK, 1 );
++
+             if ( pucTdo )
+             {
+                 /* Save the TDO value */
+                 ucTdoBit    = readTDOBit();
+                 ucTdoByte   |= ( ucTdoBit << i );
+             }
+-
+-            /* Set TCK high */
+-            setPort( TCK, 1 );
+         }
+ 
+         /* Save the TDO byte value */
+@@ -887,6 +902,17 @@
+                 }
+                 else
+                 {
++                    if ( plvTdoCaptured ) {
++                        XSVFDBG_PRINTF( 1, "    TDO Expected = ");
++                        XSVFDBG_PRINTLENVAL( 1, plvTdoExpected );
++                        XSVFDBG_PRINTF( 1, "\n");
++                        XSVFDBG_PRINTF( 1, "    TDO Captured = ");
++                        XSVFDBG_PRINTLENVAL( 1, plvTdoCaptured );
++                        XSVFDBG_PRINTF( 1, "\n");
++                        XSVFDBG_PRINTF( 1, "    TDO Mask     = ");
++                        XSVFDBG_PRINTLENVAL( 1, plvTdoMask );
++                        XSVFDBG_PRINTF( 1, "\n");
++                    }
+                     /* Do normal exit from Shift-XR */
+                     xsvfGotoTapState( pucTapState, ucEndState );
+                 }
+@@ -1745,6 +1771,18 @@
+ /*============================================================================
+ * main
+ ============================================================================*/
++#ifdef XSVF_MAIN
++void printUsage() {
++   printf( "USAGE:  xapp [options] filename.xsvf\n" );
++   printf( "Available Options:\n" );
++   printf( "        -h            = help, print this message\n" );
++   printf( "        -q            = quiet mode, no progress spinner\n" );
++   printf( "        -s            = slow mode, lots of microsleeping\n" );
++   printf( "        -t            = test mode, no actual JTAG\n" );
++   printf( "        -v <level>    = verbose, level = 0-4 (default=0)\n" );
++   printf( "        -f <fpga>     = fpga name, (e.g. \"sc_scd\")\n" );
++   printf( "filename.xsvf         = the XSVF file to execute\n" );
++}
+ 
+ /*****************************************************************************
+ * Function:     main
+@@ -1753,73 +1791,125 @@
+ *               Embedded users should call xsvfExecute() directly.
+ * Parameters:   iArgc    - number of command-line arguments.
+ *               ppzArgv  - array of ptrs to strings (command-line arguments).
+-* Returns:      int      - Legacy return value:  1 = success; 0 = error.
++* Returns:      int      - Legacy return value:  0 = success; else error code
+ *****************************************************************************/
+-#ifdef XSVF_MAIN
+-int main( int iArgc, char** ppzArgv )
+-{
++int main( int iArgc, char** ppzArgv ) {
+     int     iErrorCode;
+-    char*   pzXsvfFileName;
++   char * pzXsvfFileName;
+     int     i;
+-    clock_t startClock;
+-    clock_t endClock;
++   time_t startTime;
++   time_t endTime;
++
++   /* used as boolean */
++   short led = 1;                                                                                                                           
++   short testMode = 0;
++   char *fpga = NULL;                                                                                                                         
+ 
+     iErrorCode          = XSVF_ERRORCODE( XSVF_ERROR_NONE );
+-    pzXsvfFileName      = 0;
++   pzXsvfFileName = NULL;
++   quiet = 0;
++   inputFile = NULL;
+ 
+     printf( "XSVF Player v%s, Xilinx, Inc.\n", XSVF_VERSION );
+ 
+-    for ( i = 1; i < iArgc ; ++i )
+-    {
+-        if ( !_stricmp( ppzArgv[ i ], "-v" ) )
+-        {
++   for( i = 1; i < iArgc ; ++i ) {
++      if( !strcmp( ppzArgv[ i ], "-h" ) ) {
++         printUsage();
++         return iErrorCode;
++      }
++      if( !strcmp( ppzArgv[ i ], "-q" ) ) {
++         quiet = 1;
++         printf( "Quiet mode\n" );
++      } else if( !strcmp( ppzArgv[ i ], "-s" ) ) {
++         slow = 1;
++         printf( "Slow mode\n" );
++      } else if( !strcmp( ppzArgv[ i ], "-t" ) ) {
++         testMode = 1;
++         printf( "Unit test mode\n" );
++      } else if( !strcmp( ppzArgv[ i ], "-v" ) ) {
+             ++i;
+-            if ( i >= iArgc )
+-            {
+-                printf( "ERROR:  missing <level> parameter for -v option.\n" );
+-            }
+-            else
+-            {
++         if ( i >= iArgc || !strcmp( ppzArgv[ i ], "-" ) ) {
++            printf( "ERROR:  missing parameter for -v option.\n" );
++            return XSVF_ERRORCODE( XSVF_ERROR_UNKNOWN );
++         } else {
+                 xsvf_iDebugLevel    = atoi( ppzArgv[ i ] );
+                 printf( "Verbose level = %d\n", xsvf_iDebugLevel );
+             }
++      } else if( !strcmp( ppzArgv[ i ], "-f" ) ) {
++         ++i;
++         if ( i >= iArgc || !strcmp( ppzArgv[ i ], "-" ) ) {
++            printf( "ERROR:  missing parameter for -f option.\n" );
++            return XSVF_ERRORCODE( XSVF_ERROR_UNKNOWN );
++         } else {
++            fpga = ppzArgv[ i ];
++            printf( "FPGA = %s\n", fpga );
+         }
+-        else
+-        {
++      } else {
+             pzXsvfFileName  = ppzArgv[ i ];
+             printf( "XSVF file = %s\n", pzXsvfFileName );
+         }
+     }
+ 
+-    if ( !pzXsvfFileName )
+-    {
+-        printf( "USAGE:  playxsvf [-v level] filename.xsvf\n" );
+-        printf( "where:  -v level      = verbose, level = 0-4 (default=0)\n" );
+-        printf( "        filename.xsvf = the XSVF file to execute.\n" );
+-    }
+-    else
+-    {
++   if( !fpga ) {                                                                                                      
++      printf ( "Warning: no FPGA specified. Use -f"
++               " to specify a device.\n" );
++      return XSVF_ERRORCODE( XSVF_ERROR_UNKNOWN );
++   }                                                                                                                       
++   jtag_intf_select( &jif, fpga );                                                                                            
++   if ( !pzXsvfFileName ) {
++      printUsage();
++      iErrorCode = XSVF_ERRORCODE( XSVF_ERROR_UNKNOWN );
++   } else {
+         /* read from the XSVF file instead of a real prom */
+-        in = fopen( pzXsvfFileName, "rb" );
+-        if ( !in )
+-        {
++      inputFile = fopen( pzXsvfFileName, "rb" );
++      if ( !inputFile ) {
+             printf( "ERROR:  Cannot open file %s\n", pzXsvfFileName );
+             iErrorCode  = XSVF_ERRORCODE( XSVF_ERROR_UNKNOWN );
+-        }
+-        else
+-        {
++      } else {
++         /* determine file length */
++         fseek( inputFile, 0, SEEK_END );
++         fileLen = ftell( inputFile );
++         rewind( inputFile );
++         if( !fileLen ) {
++            printf( "ERROR:  File length 0" );
++            iErrorCode = XSVF_ERRORCODE( XSVF_ERROR_UNKNOWN );
++        }
++         /* read the entire file into memory */
++         xsvf_data = ( char * )malloc( fileLen );
++         if( !xsvf_data ) {
++            printf( "ERROR:  Cannot allocate memory for %l bytes\n", fileLen );
++            iErrorCode = XSVF_ERRORCODE( XSVF_ERROR_UNKNOWN );
++         } else {
++            size_t res = fread( xsvf_data, 1, fileLen, inputFile );
++            if( res != fileLen ) {
++               printf( "ERROR:  File read error" );
++               iErrorCode = XSVF_ERRORCODE( XSVF_ERROR_UNKNOWN );
++            } else {
+             /* Initialize the I/O.  SetPort initializes I/O on first call */
+             setPort( TMS, 1 );
+ 
+             /* Execute the XSVF in the file */
+-            startClock  = clock();
++               startTime = time( NULL );
+             iErrorCode  = xsvfExecute();
+-            endClock    = clock();
+-            fclose( in );
+-            printf( "Execution Time = %.3f seconds\n",
+-                    (((double)(endClock - startClock))/CLOCKS_PER_SEC) );
++               endTime = time( NULL );
++               printf( "Execution time: %u seconds\n", endTime - startTime );
++               printf( "Jtag ops: tck %u, tms %u, tdi %u, tdo %u\n", 
++                       tckCtr, tmsCtr, tdiCtr, tdoCtr );
++               printf( "Clock pulses %u, total jtag ops %u\n", 
++                       pulseCtr, tckCtr + tmsCtr + tdiCtr + tdoCtr );
++               if( endTime > startTime ) {
++                  printf( "Jtag operations: %u / sec\n", 
++                          ( tckCtr + tmsCtr + tdiCtr + tdoCtr )/
++                          ( endTime - startTime ) );
++               }
++            }
++            free( xsvf_data );
+         }
++         fclose( inputFile );
+     }
++   } 
++
++   jtag_intf_cleanup( &jif );
+ 
+     return( iErrorCode );
+ }
+diff -Naru xapp058_v5.01/src/ports.c ../fboss_xapp_patch_1/xapp058_v5.01/src/ports.c
+--- xapp058_v5.01/src/ports.c	2008-12-01 19:02:26.000000000 -0800
++++ ../fboss_xapp_patch_1/xapp058_v5.01/src/ports.c	2023-10-10 19:39:11.451551857 -0700
+@@ -12,11 +12,28 @@
+ #include "ports.h"
+ /*#include "prgispx.h"*/
+ 
++#include "jtag_intf.h"
+ #include "stdio.h"
+-extern FILE *in;
++#include "assert.h"
++
++/* from micro.c */
++extern jtag_intf jif;
++/* extern FILE * inputFile; */
++extern char * xsvf_data;
++extern long fileLen;
++extern short quiet; /* used as boolean */
++extern short slow;
++extern long tckCtr;
++extern long tmsCtr;
++extern long tdiCtr;
++extern long tdoCtr;
++extern long pulseCtr;
++
++#ifdef EXAMPLE_CODE
+ static int  g_iTCK = 0; /* For xapp058_example .exe */
+ static int  g_iTMS = 0; /* For xapp058_example .exe */
+ static int  g_iTDI = 0; /* For xapp058_example .exe */
++#endif
+ 
+ #ifdef WIN95PP
+ #include "conio.h"
+@@ -59,13 +76,30 @@
+ static int once = 0;
+ #endif
+ 
+-
+-/*BYTE *xsvf_data=0;*/
++/* Spinner gizmo copied from Altera pkg */ 
++#include <unistd.h>
++#include <sched.h>
++static int pcounter = 0;
++char *pstring = "-\\|/";
++char pbs = 0x8;
++
++void
++progress() {
++   int ratio = 50000;
++   int x;
++
++   pcounter++;
++   if( unlikely( pcounter % ratio == 0 ) ) {
++      x = ( pcounter / ratio ) % 4;
++      write( 2, &pstring[x], 1 );
++      write( 2, &pbs, 1 );
++   }
++}                      
+ 
+ 
+ /* setPort:  Implement to set the named JTAG signal (p) to the new value (v).*/
+ /* if in debugging mode, then just set the variables */
+-void setPort(short p,short val)
++inline void setPort(short p,short val)
+ {
+ #ifdef WIN95PP
+     /* Old Win95 example that is similar to a GPIO register implementation.
+@@ -92,6 +126,7 @@
+            of the JTAG signal values to the HW register when TCK changes. */
+     }
+ #endif
++#ifdef EXAMPLE_CODE
+     /* Printing code for the xapp058_example.exe.  You must set the specified
+        JTAG signal (p) to the new value (v).  See the above, old Win95 code
+        as an implementation example. */
+@@ -103,24 +138,54 @@
+         g_iTCK = val;
+         printf( "TCK = %d;  TMS = %d;  TDI = %d\n", g_iTCK, g_iTMS, g_iTDI );
+     }
++#endif
++    switch( p ) {
++     case TCK:
++       jtag_intf_tclk_is( &jif, val ? 1 : 0 );
++       if( likely( val && !quiet ) ) {
++          progress(); 
++       }
++       if( unlikely( slow ) ) {
++          usleep( 10 );
++       }
++       tckCtr++;
++       break;
++     case TMS:
++       jtag_intf_tms_is( &jif, val ? 1 : 0 );
++       tmsCtr++;
++       break;
++     case TDI:
++       jtag_intf_tdi_is( &jif, val ? 1 : 0 );
++       tdiCtr++;
++       break;
++     default:
++       break;
++    }
+ }
+ 
+ 
+ /* toggle tck LH.  No need to modify this code.  It is output via setPort. */
+-void pulseClock()
++inline void pulseClock()
+ {
+     setPort(TCK,0);  /* set the TCK port to low  */
+     setPort(TCK,1);  /* set the TCK port to high */
++    pulseCtr++;
+ }
+ 
++long bytesRead = 0;
+ 
+ /* readByte:  Implement to source the next byte from your XSVF file location */
+ /* read in a byte of data from the prom */
+ void readByte(unsigned char *data)
+ {
+     /* pretend reading using a file */
+-    *data   = (unsigned char)fgetc( in );
+-    /**data=*xsvf_data++;*/
++   /* *data = (unsigned char)fgetc( inputFile ); */
++   assert( bytesRead < fileLen );
++   *data = *( xsvf_data + bytesRead );
++   if( unlikely( bytesRead % ( ( fileLen + 9 ) / 10 ) == 0 ) ) {
++      printf( "\nxsvf file progress: %d%%\n", ( ( bytesRead * 10 ) / fileLen ) * 10 );
++   }
++   bytesRead++;
+ }
+ 
+ /* readTDOBit:  Implement to return the current value of the JTAG TDO signal.*/
+@@ -139,7 +204,8 @@
+     }
+ #endif
+     /* You must return the current value of the JTAG TDO signal. */
+-    return( (unsigned char) 0 );
++    tdoCtr++;
++    return( jtag_intf_tdo( &jif ) );
+ }
+ 
+ /* waitTime:  Implement as follows: */
+@@ -153,18 +219,33 @@
+ /*                              requirement is also satisfied.               */
+ void waitTime(long microsec)
+ {
++   /* NOTE (armin) at tckCyclesPerMicrosec=1 the 10 second test takes 21 
++      seconds, but we can't use the alternate for SPARTAN-6 */
+     static long tckCyclesPerMicrosec    = 1; /* must be at least 1 */
+     long        tckCycles   = microsec * tckCyclesPerMicrosec;
+     long        i;
+ 
++   /* in slow mode there are extra usleeps inside pulseClock so use alternate */
++   if( !slow ) { 
+     /* This implementation is highly recommended!!! */
+     /* This implementation requires you to tune the tckCyclesPerMicrosec 
+        variable (above) to match the performance of your embedded system
+        in order to satisfy the microsec wait time requirement. */
+-    for ( i = 0; i < tckCycles; ++i )
+-    {
++      for ( i = 0; i < tckCycles; ++i ) {
+         pulseClock();
+     }
++   } else {
++      /* Alternate implementation */
++      /* This implementation is valid for only XC9500/XL/XV, CoolRunner/II CPLDs, 
++         XC18V00 PROMs, or Platform Flash XCFxxS/XCFxxP PROMs.  
++         This implementation does not work with FPGAs JTAG configuration. */
++      /* Make sure TCK is low during wait for XC18V00/XCFxxS PROMs */
++      /* Or, a running TCK implementation as shown above is an OK alternate */
++      setPort( TCK, 0 );
++      /* Use Windows Sleep().  Round up to the nearest millisec 
++         _sleep( ( microsec + 999L ) / 1000L ); */
++      usleep( microsec );
++   }
+ 
+ #if 0
+     /* Alternate implementation */
+@@ -177,8 +258,9 @@
+         /* Or, a running TCK implementation as shown above is an OK alternate */
+         setPort( TCK, 0 );
+ 
+-        /* Use Windows Sleep().  Round up to the nearest millisec */
+-        _sleep( ( microsec + 999L ) / 1000L );
++        /* Use Windows Sleep().  Round up to the nearest millisec
++        _sleep( ( microsec + 999L ) / 1000L ); */
++        usleep( microsec );
+     }
+     else    /* Satisfy FPGA JTAG configuration, startup TCK cycles */
+     {
+@@ -188,16 +270,4 @@
+         }
+     }
+ #endif
+-
+-#if 0
+-    /* Alternate implementation */
+-    /* This implementation is valid for only XC9500/XL/XV, CoolRunner/II CPLDs, 
+-       XC18V00 PROMs, or Platform Flash XCFxxS/XCFxxP PROMs.  
+-       This implementation does not work with FPGAs JTAG configuration. */
+-    /* Make sure TCK is low during wait for XC18V00/XCFxxS PROMs */
+-    /* Or, a running TCK implementation as shown above is an OK alternate */
+-    setPort( TCK, 0 );
+-    /* Use Windows Sleep().  Round up to the nearest millisec */
+-    _sleep( ( microsec + 999L ) / 1000L );
+-#endif
+ }

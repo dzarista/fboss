@@ -1,0 +1,20 @@
+{
+	"version": 1,
+        "repomap": {
+            "barney.ci/barneyfile": {
+               "commit": "75240101522d7e213601ca17fbf1aff94acfe4a3"
+            },
+            "code.arista.io/os/fboss-centos": {
+               "commit": "2448c27389dac5c7ef5e4b31fe7803eae750a325"
+            },
+            "code.arista.io/aqua-sai/in-eos": {
+               "commit": "b5cf3f5aaa3581c247ecce0bf193cbfbf50b962f"
+            },
+            "code.arista.io/fboss/fboss-bcm-sai": {
+               "commit": "f01983a278d7eea6660d2ca7752c97f3b8db257f"
+            },
+            "code.arista.io/fboss/fboss-bcm-sdk": {
+               "commit": "501647e8bb5888cc44531907ff9282e260ae008e"
+            }
+        }
+}

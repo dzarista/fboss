@@ -1,0 +1,75 @@
+{
+  "platform": "TestPlatform",
+  "product_name": "TestSwitch",
+  "description": "Test switch configuration for unit testing",
+  "pcie_devices": [
+    {
+      "slot": "03:00.0",
+      "device_type": "ASIC",
+      "location": "Main Board",
+      "description": "Test ASIC Chip",
+      "expected_speed": "Gen4x8"
+    },
+    {
+      "slot": "05:00.0",
+      "device_type": "FPGA",
+      "location": "Control Module",
+      "description": "Test FPGA",
+      "expected_speed": "Gen2x4"
+    },
+    {
+      "slot": "07:00.0",
+      "device_type": "NIC",
+      "location": "Management Board",
+      "description": "Test Network Interface",
+      "expected_speed": "Gen3x1"
+    }
+  ],
+  "expected_ports": [
+    {
+      "name": "eth1/1",
+      "type": "25G",
+      "location": "Front Panel"
+    },
+    {
+      "name": "eth1/2",
+      "type": "25G",
+      "location": "Front Panel"
+    },
+    {
+      "name": "eth1/3",
+      "type": "25G",
+      "location": "Front Panel"
+    },
+    {
+      "name": "eth1/48",
+      "type": "25G",
+      "location": "Front Panel"
+    },
+    {
+      "name": "eth1/49",
+      "type": "100G",
+      "location": "Front Panel"
+    },
+    {
+      "name": "eth1/50",
+      "type": "100G",
+      "location": "Front Panel"
+    }
+  ],
+  "temperature_thresholds": {
+    "critical": 90.0,
+    "warning": 80.0
+  },
+  "voltage_thresholds": {
+    "min": 10.5,
+    "max": 13.5
+  },
+  "current_thresholds": {
+    "max": 6.0
+  },
+  "fan_thresholds": {
+    "min_rpm": 2000,
+    "max_rpm": 8000
+  }
+}

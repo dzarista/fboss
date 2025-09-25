@@ -35,16 +35,18 @@ $ chmod +x ./fboss/lib/bsp/bspmapping/run-helper.sh
 
 This will write the configs for each platform to a directory called `generated_configs` in the system temporary directory (for Linux, this will be `/tmp/generated_configs`). You will need to copy and paste the generated JSON configuration from those files to the C++ files located in `fboss/lib/bsp/`. The subdirectory names for each platform should match the JSON files, but for convenience we have mapped out the files below:
 
-| JSON File Name                     | C++ File Location                                           |
-|------------------------------------|-------------------------------------------------------------|
-| generated_configs/janga800bic.json | fboss/lib/bsp/janga800bic/Janga800bicBspPlatformMapping.cpp |
-| generated_configs/meru400bfu.json  | fboss/lib/bsp/meru400bfu/Meru400bfuBspPlatformMapping.cpp   |
-| generated_configs/meru400biu.json  | fboss/lib/bsp/meru400biu/Meru400biuBspPlatformMapping.cpp   |
-| generated_configs/meru800bfa.json  | fboss/lib/bsp/meru800bfa/Meru800bfaBspPlatformMapping.cpp   |
-| generated_configs/meru800bia.json  | fboss/lib/bsp/meru800bia/Meru800biaBspPlatformMapping.cpp   |
-| generated_configs/montblanc.json   | fboss/lib/bsp/montblanc/MontblancBspPlatformMapping.cpp     |
-| generated_configs/morgan800cc.json | fboss/lib/bsp/morgan800cc/Morgan800ccBspPlatformMapping.cpp |
-| generated_configs/tahan800bc.json  | fboss/lib/bsp/tahan800bc/Tahan800bcBspPlatformMapping.cpp   |
+| JSON File Name                      | C++ File Location                                             |
+|-------------------------------------|---------------------------------------------------------------|
+| generated_configs/janga800bic.json  | fboss/lib/bsp/janga800bic/Janga800bicBspPlatformMapping.cpp   |
+| generated_configs/meru400bfu.json   | fboss/lib/bsp/meru400bfu/Meru400bfuBspPlatformMapping.cpp     |
+| generated_configs/meru400biu.json   | fboss/lib/bsp/meru400biu/Meru400biuBspPlatformMapping.cpp     |
+| generated_configs/meru800bfa.json   | fboss/lib/bsp/meru800bfa/Meru800bfaBspPlatformMapping.cpp     |
+| generated_configs/meru800bia.json   | fboss/lib/bsp/meru800bia/Meru800biaBspPlatformMapping.cpp     |
+| generated_configs/montblanc.json    | fboss/lib/bsp/montblanc/MontblancBspPlatformMapping.cpp       |
+| generated_configs/morgan800cc.json  | fboss/lib/bsp/morgan800cc/Morgan800ccBspPlatformMapping.cpp   |
+| generated_configs/tahan800bc.json   | fboss/lib/bsp/tahan800bc/Tahan800bcBspPlatformMapping.cpp     |
+| generated_configs/darwin.json       | fboss/lib/bsp/darwin/DarwinBspPlatformMapping.cpp             |
+| generated_configs/glath05a-64o.json | fboss/lib/bsp/glath05a-64o/Glath05a-64oBspPlatformMapping.cpp |
 
 
 ## Instructions (Meta-Internal)
