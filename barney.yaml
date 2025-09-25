@@ -4,6 +4,11 @@ images:
     - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
       build: arista/fbossctl kernel_pull 6.4 $DESTDIR/kernel-6.4
 
+  kernel-6.11:
+    units:
+    - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
+      build: arista/fbossctl kernel_pull 6.4 $DESTDIR/kernel-6.11
+
   internal/build-env:
     entry:
       env:
@@ -26,7 +31,10 @@ images:
       - image: code.arista.io/fboss/fboss-bcm-sdk%sdk-6.5.30-dnx-kernel-6.4
       - image: code.arista.io/fboss/fboss-bcm-sai%sai-10.2.0-sdk-6.5.29-xgs-kernel-6.4
       - image: code.arista.io/fboss/fboss-bcm-sdk%sdk-6.5.29-xgs-kernel-6.4
+      - image: code.arista.io/fboss/fboss-bcm-sai%sai-14.0-sdk-6.5.34-xgs-kernel-6.11
+      - image: code.arista.io/fboss/fboss-bcm-sdk%sdk-6.5.34-xgs-kernel-6.11
       - image: .%kernel-6.4
+      - image: .%kernel-6.11
 
   build-floor/dnx_6.4-el9:
     units:
