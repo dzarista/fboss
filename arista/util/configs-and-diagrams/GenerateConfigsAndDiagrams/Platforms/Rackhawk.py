@@ -442,6 +442,7 @@ class RackhawkSwitch( PmUnitConfig ):
       switchcardIdSmbusDevices = [ switchcardCpld ]
       if not self.hasPem:
          switchcardIdProm = I2cIdProm( '0x50', '24c16', 'CHASSIS_EEPROM' )
+         switchcardIdProm.eepromOffset = 1536
          switchcardIdSmbusDevices.append( switchcardIdProm )
       switchcardIdSmbus = self.cpuCpld.switchcardSmbusAccel.buses[ 0 ]
       switchcardIdSmbus.addI2cDevices( switchcardIdSmbusDevices )
@@ -742,6 +743,8 @@ class RackhawkRackmon( PmUnitConfig ):
       fanspinnerIdProm = I2cIdProm( '0x50', '24c512', 'FANSPINNER_EEPROM',
                                     incomingBusIndex=0 )
       fanspinnerIdProm.isEeprom = False
+      fanspinnerIdProm.symlinkPath = None
+
       self.addI2cDeviceConfigs( [
          aslg4f4527,
          pcaGpio,

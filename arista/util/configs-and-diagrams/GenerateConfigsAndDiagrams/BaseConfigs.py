@@ -784,6 +784,7 @@ class I2cDeviceConfig:
       self.hasSwitchAsicMac = hasSwitchAsicMac
       self.hasReservedMac = hasReservedMac
       self.isEeprom = None
+      self.eepromOffset = None
       self.numOutgoingChannels = numOutgoingChannels
       self.initRegSettings = initRegSettings
       self.parentConfig = None
@@ -834,6 +835,7 @@ class I2cDeviceConfig:
       hasReservedMac = self.hasReservedMac
       isGpioChip = self.isGpioChip
       isEeprom = self.isEeprom
+      eepromOffset = self.eepromOffset
       initRegSettings = self.initRegSettings
 
       assert busName and address and kernelDeviceName and pmUnitScopedName, (
@@ -854,7 +856,8 @@ class I2cDeviceConfig:
          **({ "isGpioChip": isGpioChip } if isGpioChip else {}),
          **({ "initRegSettings": initRegSettings.list }
             if initRegSettings and initRegSettings.list else {}),
-         **({ "isEeprom": isEeprom } if isEeprom else {})
+         **({ "isEeprom": isEeprom } if isEeprom else {}),
+         **({ "eepromOffset": eepromOffset } if eepromOffset else {})
       }
 
    def renderNode( self ):
