@@ -1,4 +1,4 @@
-# Firmware Package #0
+# Firmware Package #1
 
 This directory contains the firmware programmable binaries for the
 glath05a-64o platform. The table below shows the programmables:
@@ -41,7 +41,7 @@ directory.
 |---------|--------------------------------------------------------------------|
 | 3.1     | Initial SCM CPLD image.                                            |
 
-## SMB FPA
+## SMB FPGA
 
 | Version | Changelog                                                          |
 |---------|--------------------------------------------------------------------|
