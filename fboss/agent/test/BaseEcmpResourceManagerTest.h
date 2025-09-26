@@ -25,23 +25,47 @@ namespace facebook::fboss {
 
 const AdminDistance kDefaultAdminDistance = AdminDistance::EBGP;
 
-RouteNextHopSet makeNextHops(int n);
+RouteNextHopSet
+makeNextHops(int n, int numNhopsPerIntf = 1, int startOffset = 0);
+RouteNextHopSet makeV4NextHops(int n);
 RouteV6::Prefix makePrefix(int offset);
+RouteV4::Prefix makeV4Prefix(int offset);
 
 std::shared_ptr<RouteV6> makeRoute(
     const RouteV6::Prefix& pfx,
     const RouteNextHopSet& nextHops);
 
-inline ForwardingInformationBaseV6* fib(
+std::shared_ptr<RouteV4> makeV4Route(
+    const RouteV4::Prefix& pfx,
+    const RouteNextHopSet& nextHops);
+
+template <typename AddrT>
+inline ForwardingInformationBase<AddrT>* fibImpl(
     std::shared_ptr<SwitchState>& newState) {
   return newState->getFibs()
       ->getNode(RouterID(0))
-      ->getFibV6()
+      ->getFib<AddrT>()
       ->modify(RouterID(0), &newState);
 }
+
+inline ForwardingInformationBaseV6* fib(
+    std::shared_ptr<SwitchState>& newState) {
+  return fibImpl<folly::IPAddressV6>(newState);
+}
+
+inline ForwardingInformationBaseV4* fib4(
+    std::shared_ptr<SwitchState>& newState) {
+  return fibImpl<folly::IPAddressV4>(newState);
+}
+
 inline const std::shared_ptr<ForwardingInformationBaseV6> cfib(
     const std::shared_ptr<SwitchState>& newState) {
   return newState->getFibs()->getNode(RouterID(0))->getFibV6();
+}
+
+inline const std::shared_ptr<ForwardingInformationBaseV4> cfib4(
+    const std::shared_ptr<SwitchState>& newState) {
+  return newState->getFibs()->getNode(RouterID(0))->getFibV4();
 }
 
 inline HwSwitchMatcher hwMatcher() {
@@ -60,6 +84,9 @@ class BaseEcmpResourceManagerTest : public ::testing::Test {
   RouteNextHopSet defaultNhops() const {
     return makeNextHops(kNumIntfs);
   }
+  RouteNextHopSet defaultV4Nhops() const {
+    return makeV4NextHops(kNumIntfs);
+  }
   using NextHopGroupId = EcmpResourceManager::NextHopGroupId;
   std::vector<StateDelta> consolidate(
       const std::shared_ptr<SwitchState>& state);
@@ -69,13 +96,17 @@ class BaseEcmpResourceManagerTest : public ::testing::Test {
       const std::shared_ptr<SwitchState>& failTo);
   RouteV6::Prefix nextPrefix() const;
   void SetUp() override;
+  void TearDown() override;
   std::set<NextHopGroupId> getNhopGroupIds() const;
   std::optional<EcmpResourceManager::NextHopGroupId> getNhopId(
       const RouteNextHopSet& nhops) const;
   virtual std::shared_ptr<EcmpResourceManager> makeResourceMgr() const {
     static constexpr auto kEcmpGroupHwLimit = 100;
-    return std::make_shared<EcmpResourceManager>(kEcmpGroupHwLimit);
+    return std::make_shared<EcmpResourceManager>(
+        kEcmpGroupHwLimit, std::optional<cfg::SwitchingMode>());
   };
+  std::shared_ptr<EcmpResourceManager> makeResourceMgrWithEcmpLimit(
+      int ecmpGroupLimit) const;
   virtual int numStartRoutes() const {
     return 5;
   }
@@ -126,6 +157,7 @@ class BaseEcmpResourceManagerTest : public ::testing::Test {
 
   std::set<RouteV6::Prefix> getPrefixesWithoutOverrides() const;
   EcmpResourceManager::NextHopGroupIds getGroupsWithoutOverrides() const;
+  EcmpResourceManager::NextHopGroupIds getAllGroups() const;
 
  private:
   std::vector<StateDelta> addOrUpdateRoute(
@@ -134,6 +166,10 @@ class BaseEcmpResourceManagerTest : public ::testing::Test {
   virtual void setupFlags() const;
 
  public:
+  void assertMergedGroup(
+      const EcmpResourceManager::NextHopGroupIds& mergedGroup) const;
+  void assertGroupsAreUnMerged(
+      const EcmpResourceManager::NextHopGroupIds& unmergedGroups) const;
   int32_t virtual getEcmpCompressionThresholdPct() const {
     return 0;
   }

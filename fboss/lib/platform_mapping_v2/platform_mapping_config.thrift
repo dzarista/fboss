@@ -69,6 +69,7 @@ struct Port {
   7: optional i32 virtual_device_id;
   8: switch_config.PortType port_type;
   9: switch_config.Scope scope;
+  10: optional i32 parent_port_id;
 }
 
 struct ChipSetting {
@@ -87,11 +88,17 @@ struct SpeedSetting {
   7: transceiver.TransmitterTechnology media_type;
 }
 
+struct TransceiverOverrideSetting {
+  1: transceiver.Vendor vendor;
+  2: transceiver.MediaInterfaceCode media_interface_code;
+}
+
 // Represents all the factors in the SI Settings CSV
 struct SiSettingFactor {
   1: optional switch_config.PortSpeed lane_speed;
   2: optional transceiver.TransmitterTechnology media_type;
   3: optional float cable_length;
+  4: optional TransceiverOverrideSetting tcvr_override_setting;
 }
 
 struct SiSettingPinConnection {

@@ -90,6 +90,7 @@ struct UnicastRoute {
   7: optional RouteCounterID counterID;
   8: optional switch_config.AclLookupClass classID;
   9: optional switch_config.SwitchingMode overrideEcmpSwitchingMode;
+  10: optional list<common.NextHopThrift> overrideNextHops;
 }
 
 struct MplsRoute {
@@ -128,6 +129,7 @@ struct RouteDetails {
   9: optional RouteCounterID counterID;
   10: optional switch_config.AclLookupClass classID;
   11: optional switch_config.SwitchingMode overridenEcmpMode;
+  12: optional list<common.NextHopThrift> overridenNextHops;
 }
 
 struct MplsRouteDetails {
@@ -206,6 +208,7 @@ struct AggregatePortThrift {
   6: string systemID;
   7: byte minimumLinkCount;
   8: bool isUp;
+  9: optional byte minimumLinkCountToUp;
 }
 
 struct LacpStateThrift {

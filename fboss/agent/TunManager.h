@@ -11,10 +11,12 @@
 
 #include "fboss/agent/FbossEventBase.h"
 #include "fboss/agent/StateObserver.h"
+#include "fboss/agent/TunIntfBase.h"
 #include "fboss/agent/state/Interface.h"
 #include "fboss/agent/types.h"
 
 #include <boost/container/flat_map.hpp>
+#include <fb303/ThreadCachedServiceData.h>
 
 extern "C" {
 #include <netlink/object.h>
@@ -35,6 +37,14 @@ class TunManager : public StateObserver {
 
 #ifdef TUNMANAGER_ROUTE_PROCESSOR_FRIEND_TESTS
   TUNMANAGER_ROUTE_PROCESSOR_FRIEND_TESTS
+#endif
+
+#ifdef TUNMANAGER_RULE_PROCESSOR_FRIEND_TESTS
+  TUNMANAGER_RULE_PROCESSOR_FRIEND_TESTS
+#endif
+
+#ifdef AGENT_TUNNEL_MGR_FRIEND_TESTS
+  AGENT_TUNNEL_MGR_FRIEND_TESTS
 #endif
 
   /**
@@ -83,6 +93,11 @@ class TunManager : public StateObserver {
    */
   virtual void probe();
 
+  /*
+   * Perform initial cleanup of probed data if required
+   */
+  void performInitialCleanup(std::shared_ptr<SwitchState> state);
+
   void stopProcessing();
 
   /**
@@ -123,6 +138,33 @@ class TunManager : public StateObserver {
      * @brief Default constructor.
      */
     ProbedRoute() = default;
+  };
+
+  /**
+   * @brief Probed rule from the kernel.
+   */
+  struct ProbedRule {
+    /*< Address family (AF_INET for IPv4, AF_INET6 for IPv6) */
+    int family{};
+    /*< Routing table identifier */
+    int tableId{};
+    /*< Source address as string */
+    std::string srcAddr;
+
+    /**
+     * @brief Constructor for initializing family, tableId, and srcAddr.
+     *
+     * @param family Address family (AF_INET for IPv4, AF_INET6 for IPv6)
+     * @param tableId Routing table identifier
+     * @param srcAddr Source address as string
+     */
+    ProbedRule(int family, int tableId, const std::string& srcAddr)
+        : family(family), tableId(tableId), srcAddr(srcAddr) {}
+
+    /**
+     * @brief Default constructor.
+     */
+    ProbedRule() = default;
   };
 
   // no copy to assign
@@ -181,6 +223,46 @@ class TunManager : public StateObserver {
    */
   int getTableId(InterfaceID ifID) const;
 
+  /**
+   * Build a mapping from interface ID to table ID from SwitchState.
+   */
+  std::unordered_map<InterfaceID, int> buildIfIdToTableIdMap(
+      std::shared_ptr<SwitchState> state) const;
+
+  /**
+   * Build a mapping from interface index to table ID from probed routes.
+   */
+  std::unordered_map<int, int> buildIfIndexToTableIdMapFromProbedRoutes() const;
+
+  /**
+   * Build a mapping from interface index to table ID from source rules.
+   */
+  std::unordered_map<int, int> buildIfIndexToTableIdMapFromRules() const;
+
+  /**
+   * Build a mapping from interface index to table ID from probed data.
+   *
+   * Combines data from probed routes and rules to create a comprehensive
+   * mapping of interface indices to routing table IDs.
+   */
+  std::unordered_map<int, int> buildIfIndextoTableMapFromProbedData() const;
+
+  /**
+   * Build a mapping from interface ID to table ID from probed interfaces.
+   */
+  std::unordered_map<InterfaceID, int> buildProbedIfIdToTableIdMap() const;
+
+  /**
+   * Check if probed data cleanup is required by comparing interface mappings.
+   *
+   * @param stateMap Interface ID to table ID mapping from SwitchState
+   * @param probedMap Interface ID to table ID mapping from probed interfaces
+   * @return true if cleanup is required (mappings differ), false otherwise
+   */
+  bool requiresProbedDataCleanup(
+      const std::unordered_map<InterfaceID, int>& stateMap,
+      const std::unordered_map<InterfaceID, int>& probedMap) const;
+
   int getTableIdForNpu(InterfaceID ifID) const;
   int getTableIdForVoq(InterfaceID ifID) const;
 
@@ -196,11 +278,16 @@ class TunManager : public StateObserver {
       InterfaceID ifID,
       const folly::IPAddress& addr,
       bool add);
+  virtual void addRemoveSourceRouteRule(
+      int tableId,
+      const folly::IPAddress& addr,
+      bool add,
+      std::optional<InterfaceID> ifID = std::nullopt);
 
   /**
    * Add/Remove an address to/from a TUN interface on the host
    */
-  void addRemoveTunAddress(
+  virtual void addRemoveTunAddress(
       const std::string& ifName,
       uint32_t ifIndex,
       const folly::IPAddress& addr,
@@ -247,12 +334,43 @@ class TunManager : public StateObserver {
   static void routeProcessor(struct nl_object* obj, void* data);
 
   /**
+   * Netlink callback for processing source routing rules read from kernel.
+   *
+   * Process source routing rules discovered during kernel probing and stores
+   * them for later cleanup. It filters rules based on address family
+   * (IPv4/IPv6 only), table ID (1-253 range), and extracts source address
+   * and table information.
+   *
+   * @param obj Netlink rule object to process
+   * @param data Pointer to TunManager instance for storing probed rules
+   */
+  static void ruleProcessor(struct nl_object* obj, void* data);
+
+  /**
    * Delete probed routes from kernel routing tables.
    *
    * Removes default routes (0.0.0.0/0 and ::/0) that were discovered
    * during kernel probing.
+   *
+   * @param ifIndexToTableId Map from interface index to routing table ID
    */
-  void deleteProbedRoutes();
+  void deleteProbedRoutes(const std::unordered_map<int, int>& ifIndexToTableId);
+
+  /**
+   * Delete probed addresses and source routing rules from kernel.
+   *
+   * Removes IP addresses and their associated source routing rules that were
+   * discovered during kernel probing.
+   *
+   * @param ifIndexToTableId Map from interface index to routing table ID
+   */
+  void deleteProbedAddressesAndRules(
+      const std::unordered_map<int, int>& ifIndexToTableId);
+
+  /**
+   * Delete probed interfaces from kernel.
+   */
+  void deleteProbedInterfaces();
 
   /**
    * Lookup host for existing Tun interfaces and their addresses.
@@ -263,6 +381,12 @@ class TunManager : public StateObserver {
    * Add an address to a TUN interface during probe process.
    */
   void addProbedAddr(int ifIndex, const folly::IPAddress& addr, uint8_t mask);
+
+  /**
+   * Delete all probed data from kernel including routes, addresses, rules and
+   * tunnel interfaces.
+   */
+  void deleteAllProbedData();
 
   /**
    * Get MTU of switch interface
@@ -305,7 +429,7 @@ class TunManager : public StateObserver {
    * sync() could manipulate intfs_. Called on the thread that serves evb_.
    * sendPacketToHost() uses intfs_, it can be called from any thread.
    */
-  boost::container::flat_map<InterfaceID, std::unique_ptr<TunIntf>> intfs_;
+  boost::container::flat_map<InterfaceID, std::unique_ptr<TunIntfBase>> intfs_;
   std::mutex mutex_;
 
   // Whether the manager has registered itself to listen for state updates
@@ -315,10 +439,19 @@ class TunManager : public StateObserver {
   // Initial probe done
   bool probeDone_{false};
 
+  // Initial cleanup done
+  bool initialCleanupDone_{false};
+
+  // Was probed state cleaned up?
+  bool probedStateCleanedUp_{false};
+
   uint64_t numSyncs_{0};
 
   /*< Container to store probed routes from kernel */
   std::vector<ProbedRoute> probedRoutes_;
+
+  /*< Container to store probed rules from kernel */
+  std::vector<ProbedRule> probedRules_;
 
   enum : uint8_t {
     /**

@@ -139,6 +139,31 @@ target_link_libraries(agent_hw_test_src
   neighbor_test_utils
 )
 
+add_executable(multi_switch_agent_hw_test
+  fboss/agent/test/agent_hw_tests/MultiSwitchAgentHwTest.cpp
+)
+
+target_link_libraries(multi_switch_agent_hw_test
+  -Wl,--whole-archive
+  acl_test_utils
+  agent_test_utils
+  copp_test_utils
+  pkt_test_utils
+  agent_hw_test_src
+  agent_hw_test
+  multi_switch_agent_ensemble
+  olympic_qos_utils
+  network_ai_qos_utils
+  setup_thrift_prod
+  trunk_utils
+  traffic_policy_utils
+  Folly::folly
+  hw_packet_utils
+  -Wl,--no-whole-archive
+  ${GTEST}
+  ${LIBGMOCK_LIBRARIES}
+)
+
 function(BUILD_SAI_AGENT_HW_TEST SAI_IMPL_NAME SAI_IMPL_ARG)
 
   message(STATUS "Building SAI_IMPL_NAME: ${SAI_IMPL_NAME} SAI_IMPL_ARG: ${SAI_IMPL_ARG}")
@@ -161,6 +186,7 @@ function(BUILD_SAI_AGENT_HW_TEST SAI_IMPL_NAME SAI_IMPL_ARG)
     network_ai_qos_utils
     traffic_policy_utils
     sai_traced_api
+    setup_thrift_prod
     -Wl,--no-whole-archive
   )
 
@@ -204,6 +230,7 @@ function(BUILD_SAI_AGENT_HW_TEST SAI_IMPL_NAME SAI_IMPL_ARG)
     sai_acl_utils
     mono_agent_ensemble
     agent_hw_test_thrift_handler
+    setup_thrift_prod
     -Wl,--no-whole-archive
     ${GTEST}
     ${LIBGMOCK_LIBRARIES}

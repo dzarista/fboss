@@ -21,6 +21,7 @@ function(BUILD_AGENT_ENSEMBLE_SAI_LINK_TEST SAI_IMPL_NAME SAI_IMPL_ARG)
 #    sai_ecmp_utils
 #    sai_port_utils
 #    sai_traced_api
+#    setup_thrift_prod
 #    trap_packet_utils
 #    -Wl,--no-whole-archive
 #    ref_map
@@ -34,7 +35,7 @@ function(BUILD_AGENT_ENSEMBLE_SAI_LINK_TEST SAI_IMPL_NAME SAI_IMPL_ARG)
 #      -DSAI_VER_MINOR=${SAI_VER_MINOR}  \
 #      -DSAI_VER_RELEASE=${SAI_VER_RELEASE}"
 #    )
-#
+
   add_executable(sai_multi_link_test-${SAI_IMPL_NAME}
     fboss/agent/test/link_tests/SaiMultiSwitchLinkTest.cpp
   )
@@ -52,6 +53,7 @@ function(BUILD_AGENT_ENSEMBLE_SAI_LINK_TEST SAI_IMPL_NAME SAI_IMPL_ARG)
     sai_ecmp_utils
     sai_port_utils
     sai_traced_api
+    setup_thrift_prod
     trap_packet_utils
     -Wl,--no-whole-archive
     ref_map

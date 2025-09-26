@@ -110,6 +110,9 @@ class AgentHwTest : public ::testing::Test {
 
   SwSwitch* getSw() const;
   const std::map<SwitchID, const HwAsic*> getAsics() const;
+  std::vector<const HwAsic*> getL3Asics() const {
+    return getAgentEnsemble()->getL3Asics();
+  }
   const HwAsic& getAsic(SwitchID swId) const {
     return *getAsics().find(swId)->second;
   }
@@ -274,6 +277,8 @@ class AgentHwTest : public ::testing::Test {
 
   std::unique_ptr<AgentEnsemble> agentEnsemble_;
 };
+
+bool isWarmbootSetupRequested();
 
 void initAgentHwTest(
     int argc,

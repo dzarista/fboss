@@ -35,6 +35,7 @@
 #include "fboss/agent/platforms/common/montblanc/MontblancPlatformMapping.h"
 #include "fboss/agent/platforms/common/morgan800cc/Morgan800ccPlatformMapping.h"
 #include "fboss/agent/platforms/common/tahan800bc/Tahan800bcPlatformMapping.h"
+#include "fboss/agent/platforms/common/tahansb800bc/Tahansb800bcPlatformMapping.h"
 #include "fboss/agent/platforms/common/wedge100/Wedge100PlatformMapping.h"
 #include "fboss/agent/platforms/common/wedge40/Wedge40PlatformMapping.h"
 #include "fboss/agent/platforms/common/wedge400/Wedge400GrandTetonPlatformMapping.h"
@@ -195,6 +196,10 @@ std::unique_ptr<PlatformMapping> initPlatformMapping(PlatformType type) {
       return platformMappingStr.empty()
           ? std::make_unique<Icetea800bcPlatformMapping>()
           : std::make_unique<Icetea800bcPlatformMapping>(platformMappingStr);
+    case PlatformType::PLATFORM_TAHANSB800BC:
+      return platformMappingStr.empty()
+          ? std::make_unique<Tahansb800bcPlatformMapping>()
+          : std::make_unique<Tahansb800bcPlatformMapping>(platformMappingStr);
     case PlatformType::PLATFORM_GLATH05A_64O:
       return platformMappingStr.empty()
           ? std::make_unique<Glath05a_64oPlatformMapping>()

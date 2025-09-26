@@ -149,13 +149,17 @@ class CmdShowRouteDetails
 
       out << fmt::format("  Action: {}\n", entry.get_action());
 
-      std::map<int, int> planeIdToPathCount;
-      auto& nextHops = entry.get_nextHops();
-      if (nextHops.size() > 0) {
-        out << fmt::format("  Forwarding via:\n");
+      auto printNextHops = [this, &out](
+                               const std::string& header,
+                               const auto& nextHops,
+                               bool isOverride) {
+        std::map<int, int> planeIdToPathCount;
+        out << fmt::format("  {}\n", header);
+        std::string overrideStr = (isOverride ? "(override) :" : "");
         for (const auto& nextHop : nextHops) {
           out << fmt::format(
-              "    {}\n",
+              "  {}  {}\n",
+              overrideStr,
               show::route::utils::getNextHopInfoStr(
                   nextHop, vlanAggregatePortMap, vlanPortMap));
           auto topologyInfo =
@@ -171,8 +175,25 @@ class CmdShowRouteDetails
             out << fmt::format("    Plane {}: {}\n", planeId, pathCount);
           }
         }
-      } else {
+      };
+      auto& nextHops = entry.get_nextHops();
+      if (nextHops.size() > 0) {
+        std::string header =
+            (entry.overridenNextHops() ? "Original next hops:"
+                                       : "Forwarding via:");
+        printNextHops(header, nextHops, false /*isOverride*/);
+      } else if (!entry.overridenNextHops().has_value()) {
         out << "  No Forwarding Info\n";
+      }
+      if (entry.overridenNextHops()) {
+        if (entry.overridenNextHops()->size()) {
+          printNextHops("Forwarding via:", nextHops, true /*isOverride*/);
+        } else if (!entry.overridenNextHops().has_value()) {
+          out << "  No Forwarding Info\n";
+        }
+        out << fmt::format(
+            " Num next hops lost: {}\n",
+            nextHops.size() - entry.overridenNextHops()->size());
       }
 
       out << fmt::format("  Admin Distance: {}\n", entry.get_adminDistance());
@@ -241,6 +262,17 @@ class CmdShowRouteDetails
           }
         }
 
+        if (entry.overridenNextHops().has_value()) {
+          routeDetails.overridenNextHops() = std::vector<cli::NextHopInfo>();
+          for (const auto& nextHop : *entry.overridenNextHops()) {
+            cli::NextHopInfo nextHopInfo;
+            show::route::utils::getNextHopInfoThrift(nextHop, nextHopInfo);
+            routeDetails.overridenNextHops()->emplace_back(nextHopInfo);
+          }
+          routeDetails.nhopsLostDueToOverride() =
+              nextHops.size() - entry.overridenNextHops()->size();
+        }
+
         auto adminDistancePtr = entry.get_adminDistance();
         routeDetails.adminDistance() = adminDistancePtr == nullptr
             ? "None"
@@ -298,6 +330,8 @@ class CmdShowRouteDetails
         return fmt::format("CLASS_UNRESOLVED_ROUTE_TO_CPU({})", classId);
       case cfg::AclLookupClass::DEPRECATED_CLASS_CONNECTED_ROUTE_TO_INTF:
         return fmt::format("CLASS_CONNECTED_ROUTE_TO_INTF({})", classId);
+      case cfg::AclLookupClass::ARS_ALTERNATE_MEMBERS_CLASS:
+        return fmt::format("ARS_ALTERNATE_MEMBERS_CLASS({})", classId);
     }
     throw std::runtime_error(
         "Unsupported ClassID: " + std::to_string(static_cast<int>(classID)));

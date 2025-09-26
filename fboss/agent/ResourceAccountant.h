@@ -23,12 +23,11 @@ namespace facebook::fboss {
 
 class ResourceAccountant {
  public:
-  explicit ResourceAccountant(
+  ResourceAccountant(
       const HwAsicTable* asicTable,
       const SwitchIdScopeResolver* scopeResolver);
 
   bool isValidUpdate(const StateDelta& delta);
-  bool isValidRouteUpdate(const StateDelta& delta);
   void stateChanged(const StateDelta& delta);
 
  private:
@@ -36,6 +35,7 @@ class ResourceAccountant {
   bool checkEcmpResource(bool intermediateState) const;
   bool checkArsResource(bool intermediateState) const;
   bool routeAndEcmpStateChangedImpl(const StateDelta& delta);
+  bool isValidRouteUpdate(const StateDelta& delta);
   bool shouldCheckRouteUpdate() const;
   bool isEcmp(const RouteNextHopEntry& fwd) const;
   int computeWeightedEcmpMemberCount(
@@ -106,11 +106,14 @@ class ResourceAccountant {
   FRIEND_TEST(ResourceAccountantTest, checkArsResource);
   FRIEND_TEST(ResourceAccountantTest, checkEcmpResource);
   FRIEND_TEST(ResourceAccountantTest, checkAndUpdateEcmpResource);
+  FRIEND_TEST(ResourceAccountantTest, checkEcmpResourceForUcmpWeights);
   FRIEND_TEST(ResourceAccountantTest, checkAndUpdateGenericEcmpResource);
+  FRIEND_TEST(
+      ResourceAccountantTest,
+      checkAndUpdateGenericEcmpResourceForUcmpWeights);
   FRIEND_TEST(ResourceAccountantTest, checkAndUpdateArsEcmpResource);
   FRIEND_TEST(ResourceAccountantTest, computeWeightedEcmpMemberCount);
   FRIEND_TEST(ResourceAccountantTest, checkNeighborResource);
-  FRIEND_TEST(ResourceAccountantTest, getNeighborEntriesMap);
   FRIEND_TEST(MacTableManagerTest, MacLearnedBulkCb);
 };
 } // namespace facebook::fboss

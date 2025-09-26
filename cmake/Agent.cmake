@@ -159,6 +159,7 @@ target_link_libraries(utils
   janga800bic_platform_mapping
   icecube800bc_platform_mapping
   icetea800bc_platform_mapping
+  tahansb800bc_platform_mapping
 )
 
 add_library(stats
@@ -212,6 +213,7 @@ target_link_libraries(fib_helpers
 
 add_library(ecmp_resource_manager
   fboss/agent/EcmpResourceManager.cpp
+  fboss/agent/EcmpResourceManagerConfig.cpp
 )
 
 target_link_libraries(ecmp_resource_manager
@@ -256,6 +258,7 @@ add_library(core
   fboss/agent/DsfSubscription.cpp
   fboss/agent/DsfUpdateValidator.cpp
   fboss/agent/FabricConnectivityManager.cpp
+  fboss/agent/FabricLinkMonitoring.cpp
   fboss/agent/EncapIndexAllocator.cpp
   fboss/agent/HwAsicTable.cpp
   fboss/agent/HwSwitch.cpp
@@ -431,6 +434,16 @@ target_link_libraries(handler
   log_thrift_call
   Folly::folly
   thrifthandler_utils
+)
+
+add_library(setup_thrift_prod
+  fboss/agent/SetupThriftProd.cpp
+)
+
+target_link_libraries(setup_thrift_prod
+   handler
+   setup_thrift
+   thrift_method_rate_limit
 )
 
 target_link_libraries(fboss_types
@@ -708,6 +721,10 @@ add_executable(fboss_sw_agent
 target_link_libraries(fboss_sw_agent
   main
   split_agent_initializer
+  handler
+  -Wl,--whole-archive
+  setup_thrift_prod
+  -Wl,--no-whole-archive
 )
 
 add_library(sw_switch_warmboot_helper

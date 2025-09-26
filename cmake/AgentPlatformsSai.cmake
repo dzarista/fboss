@@ -40,10 +40,10 @@ add_library(sai_platform
   fboss/agent/platforms/sai/SaiYangraPlatform.cpp
   fboss/agent/platforms/sai/SaiMinipack3NPlatform.cpp
   fboss/agent/platforms/sai/SaiBcmIcecube800bcPlatform.cpp
+  fboss/agent/platforms/sai/SaiBcmIcetea800bcPlatform.cpp
   fboss/agent/platforms/sai/SaiBcmWedge800baPlatform.cpp
   fboss/agent/platforms/sai/SaiBcmWedge800baPlatformPort.cpp
   fboss/agent/platforms/sai/SaiGlath05a-64oPlatform.cpp
-
   fboss/agent/platforms/sai/oss/SaiBcmMinipackPlatform.cpp
   fboss/agent/platforms/sai/oss/SaiTajoPlatform.cpp
   fboss/agent/platforms/sai/oss/SaiBcmMinipackPlatformPort.cpp
@@ -70,6 +70,7 @@ add_library(sai_platform
   fboss/agent/platforms/sai/SaiYangraPlatformPort.cpp
   fboss/agent/platforms/sai/SaiMinipack3NPlatformPort.cpp
   fboss/agent/platforms/sai/SaiBcmIcecube800bcPlatformPort.cpp
+  fboss/agent/platforms/sai/SaiBcmIcetea800bcPlatformPort.cpp
   fboss/agent/platforms/sai/oss/SaiGlath05a-64oPlatform.cpp
   fboss/agent/platforms/sai/oss/SaiGlath05a-64oPlatformPort.cpp
 )
@@ -109,6 +110,7 @@ target_link_libraries(sai_platform
   janga800bic_platform_mapping
   tahan800bc_platform_mapping
   icecube800bc_platform_mapping
+  icetea800bc_platform_mapping
   glath05a-64o_platform_mapping
   led_structs_types_cpp2
   led_mapping_cpp2
@@ -137,6 +139,7 @@ function(BUILD_SAI_WEDGE_AGENT SAI_IMPL_NAME SAI_IMPL_ARG)
     monolithic_agent_initializer
     sai_platform
     sai_traced_api
+    setup_thrift_prod
     ${SAI_IMPL_ARG}
     -Wl,--no-whole-archive
     ${CMAKE_THREAD_LIBS_INIT}

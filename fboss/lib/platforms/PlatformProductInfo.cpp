@@ -192,6 +192,8 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_WEDGE800BA;
     } else if (modelName.find("ICETEA") == 0) {
       type_ = PlatformType::PLATFORM_ICETEA800BC;
+    } else if (modelName.find("TAHANSB") == 0) {
+      type_ = PlatformType::PLATFORM_TAHANSB800BC;
     } else if (
         modelName.find("Glath05a-64o") == 0 ||
         modelName.find("GLATH05A-64O") == 0) {
@@ -268,6 +270,8 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_MINIPACK3N;
     } else if (FLAGS_mode == "wedge800ba") {
       type_ = PlatformType::PLATFORM_WEDGE800BA;
+    } else if (FLAGS_mode == "tahansb800bc") {
+      type_ = PlatformType::PLATFORM_TAHANSB800BC;
     } else if (FLAGS_mode == "glath05a-64o") {
       type_ = PlatformType::PLATFORM_GLATH05A_64O;
     } else {
@@ -291,18 +295,21 @@ std::string PlatformProductInfo::getField(
 void PlatformProductInfo::parse(std::string data) {
   dynamic info;
   try {
-    info = parseJson(data).at(kInfo);
-  } catch (const std::exception& err) {
-    XLOG(ERR) << err.what();
-    // Handle fruid data present outside of "Information" i.e.
+    // Fruid data can be in two formats.
+    // old format (deprecated). If used, it is probably in old BMC Classic
+    // hardware
     // {
     //   "Information" : fruid json
     // }
-    // vs
+    // new format (BMC Lite Devices)
     // {
     //  Fruid json
     // }
-    info = parseJson(data);
+    info = data.find(kInfo) != std::string::npos ? parseJson(data).at(kInfo)
+                                                 : parseJson(data);
+  } catch (const std::exception& err) {
+    XLOG(ERR) << err.what();
+    throw;
   }
 
   productInfo_.product() = getField(info, {kProdName});

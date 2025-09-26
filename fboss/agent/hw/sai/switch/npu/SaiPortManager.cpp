@@ -95,7 +95,7 @@ static const std::vector<PfcPriority> allPfcPriorities() {
   if (priorities.empty()) {
     for (int i = 0; i <= cfg::switch_config_constants::PFC_PRIORITY_VALUE_MAX();
          i++) {
-      priorities.push_back(PfcPriority(i));
+      priorities.emplace_back(i);
     }
   }
   return priorities;
@@ -225,17 +225,6 @@ void SaiPortManager::fillInSupportedStats(PortID port) {
     if (platform_->getAsic()->isSupported(
             HwAsic::Feature::SAI_PORT_IN_CONGESTION_DISCARDS)) {
       counterIds.emplace_back(SAI_PORT_STAT_IN_DROPPED_PKTS);
-    }
-    if (platform_->getAsic()->isSupported(
-            HwAsic::Feature::FABRIC_LINK_MONITORING)) {
-      counterIds.insert(
-          counterIds.end(),
-          SaiPortTraits::fabricControlRxPacketStats().begin(),
-          SaiPortTraits::fabricControlRxPacketStats().end());
-      counterIds.insert(
-          counterIds.end(),
-          SaiPortTraits::fabricControlTxPacketStats().begin(),
-          SaiPortTraits::fabricControlTxPacketStats().end());
     }
     return counterIds;
   };
@@ -393,6 +382,7 @@ void SaiPortManager::changePortImpl(
   changePfc(oldPort, newPort);
   changeRxLaneSquelch(oldPort, newPort);
   changeTxEnable(oldPort, newPort);
+  changeResetQueueCreditBalance(oldPort, newPort);
   changePfcBuffers(oldPort, newPort);
 
   if (newPort->isEnabled()) {
@@ -641,6 +631,13 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
                << " to value: " << *swPort->getInterPacketGapBits();
   }
 #endif
+  std::optional<bool> amIdles{};
+  // If amIdles is set in switch state, use that value
+  if (swPort->getAmIdles().has_value()) {
+    amIdles = *swPort->getAmIdles();
+    XLOG(DBG2) << "Setting amIdles from switchState for port "
+               << swPort->getID() << " to value: " << *swPort->getAmIdles();
+  }
   std::optional<SaiPortTraits::Attributes::LinkTrainingEnable>
       linkTrainingEnable;
   if (platform_->getAsic()->isSupported(HwAsic::Feature::LINK_TRAINING)) {
@@ -825,6 +822,7 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
         false,
 #endif
         fecErrorDetectEnable,
+        std::nullopt, // AmIdles
         std::nullopt, // FabricSystemPort
         std::nullopt, // StaticModuleId
     };
@@ -913,6 +911,7 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
       false,
 #endif
       fecErrorDetectEnable,
+      amIdles, // AmIdles
       std::nullopt, // FabricSystemPort
       std::nullopt, // StaticModuleId
   };

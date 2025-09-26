@@ -1,12 +1,23 @@
 echo "Running sw_tests - requires a prior successful build"
 echo "This script needs to be run from arista-fboss root"
 
-# Add failing btests we should ignore to this list
-EXCLUDE_LIST=(
+# Add failing test binaries we should ignore to this list
+EXCLUDE_BIN_LIST=(
+    # Skipping bsp_tests from running as it causes the script to report a failure
+    # TODO: 1226925 [FBOSS] running & generating bsp_tests internally
+    bsp_tests
+    # bb/1277145: Skipping platform testing
+    platform_manager_platform_explorer_test
+    platform_mapping_gen_no_regression_test
+)
+
+# Add failing gtest cases  we should ignore to this list
+EXCLUDE_GTEST_LIST=(
     # "UtilsTest.ParseDevicePath"
 )
-gtest_filter=-$(IFS=:; echo "${EXCLUDE_LIST[*]}")
 
+gtest_filter=-$(IFS=:; echo "${EXCLUDE_LIST[*]}")
+bin_filter=$(for i in ${EXCLUDE_BIN_LIST[*]}; do echo "-not -name $i"; done)
 test_regex=".*tests?$"
 hwtest_regex=".*hw_tests?$"
 
@@ -22,15 +33,8 @@ if [ ! -d "$BUILD_DIR" ]; then
     exit 1
 fi
 
-tests=$(find $BUILD_DIR -type f -executable -regex $test_regex -not -regex $hwtest_regex)
+tests=$(find $BUILD_DIR -type f -executable -regex $test_regex -not -regex $hwtest_regex $bin_filter)
 for test in $tests; do
-    # Skipping bsp_tests from running as it causes the script to report a failure
-    # TODO: 1226925 [FBOSS] running & generating bsp_tests internally
-    if [[ "$test" == *"bsp_tests"* ]]; then
-        echo "Skipping test: $test (contains bsp_tests)"
-        continue # Skip to the next iteration of the loop
-    fi
-
     $test --gtest_filter=$gtest_filter
     if [[ $? -eq 0 ]]; then
         passed+=($(basename "$test"))

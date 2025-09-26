@@ -27,6 +27,14 @@ add_fbthrift_cpp_library(
 )
 
 add_fbthrift_cpp_library(
+  platform_manager_validators_cpp2
+  fboss/platform/platform_manager/platform_manager_validators.thrift
+  OPTIONS
+    json
+    reflection
+)
+
+add_fbthrift_cpp_library(
   platform_manager_config_cpp2
   fboss/platform/platform_manager/platform_manager_config.thrift
   OPTIONS
@@ -116,6 +124,7 @@ target_link_libraries(platform_manager_pci_explorer
   platform_manager_config_cpp2
   platform_manager_utils
   Folly::folly
+  fb303::fb303
 )
 
 add_library(platform_manager_device_path_resolver
@@ -159,6 +168,7 @@ add_library(platform_manager_config_validator
 target_link_libraries(platform_manager_config_validator
   platform_manager_i2c_explorer
   platform_manager_config_cpp2
+  platform_manager_validators_cpp2
   Folly::folly
   range-v3
 )

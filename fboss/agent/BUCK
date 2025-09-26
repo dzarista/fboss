@@ -759,12 +759,15 @@ cpp_library(
     name = "ecmp_resource_manager",
     srcs = [
         "EcmpResourceManager.cpp",
+        "EcmpResourceManagerConfig.cpp",
     ],
     exported_deps = [
         ":agent_features",
         ":fib_helpers",
         ":pre_update_state_modifier",
         ":stats",
+        ":switch_config-cpp2-types",
+        ":utils",
         "//fboss/agent/hw/switch_asics:switch_asics",
         "//fboss/agent/state:state",
         "//fboss/lib:ref_map",
@@ -802,6 +805,7 @@ cpp_library(
         "DsfUpdateValidator.cpp",
         "EncapIndexAllocator.cpp",
         "FabricConnectivityManager.cpp",
+        "FabricLinkMonitoring.cpp",
         "FsdbSyncer.cpp",
         "HwAsicTable.cpp",
         "HwSwitchConnectionStatusTable.cpp",
@@ -873,6 +877,7 @@ cpp_library(
         "NlError.h",
         "PacketLogger.h",
         "SwitchInfoTable.h",
+        "TunIntfBase.h",
         "facebook/ScubaRouteLogger.h",
     ],
     exported_deps = [
@@ -1083,6 +1088,22 @@ cpp_library(
         "//thrift/lib/cpp/util:enum_utils",
         "//thrift/lib/cpp2:server",
         "//thrift/lib/cpp2/async:duplex_channel",
+    ],
+)
+
+cpp_library(
+    name = "test_thrift_handler",
+    srcs = [
+        "TestThriftHandler.cpp",
+    ],
+    headers = [
+        "TestThriftHandler.h",
+    ],
+    exported_deps = [
+        ":core",
+        ":handler",
+        ":utils",
+        "//fboss/agent/if:test_ctrl-cpp2-services",
     ],
 )
 
@@ -1718,7 +1739,44 @@ cpp_binary(
         ":fboss_common_init",
         ":load_agent_config",
         ":main-common",
+        ":setup_thrift_prod",  # @manual
         ":split_agent_initializer",
+    ],
+)
+
+cpp_binary(
+    name = "fboss_sw_agent_test",
+    srcs = [
+        "FbossSwAgent.cpp",
+    ],
+    deps = [
+        ":fboss_common_init",
+        ":load_agent_config",
+        ":main-common",
+        ":setup_thrift_test",  # @manual
+        ":split_agent_initializer",
+    ],
+)
+
+cpp_library(
+    name = "setup_thrift_prod",
+    srcs = [
+        "SetupThriftProd.cpp",
+    ],
+    exported_deps = [
+        ":handler",
+        ":setup_thrift",
+    ],
+)
+
+cpp_library(
+    name = "setup_thrift_test",
+    srcs = [
+        "SetupThriftTest.cpp",
+    ],
+    exported_deps = [
+        ":setup_thrift",
+        ":test_thrift_handler",
     ],
 )
 

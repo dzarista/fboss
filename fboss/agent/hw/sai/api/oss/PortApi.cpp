@@ -154,6 +154,16 @@ SaiPortTraits::Attributes::AttributeFecErrorDetectEnable::operator()() {
 }
 
 std::optional<sai_attr_id_t>
+SaiPortTraits::Attributes::AttributeAmIdles::operator()() {
+  return std::nullopt;
+}
+
+std::optional<sai_attr_id_t>
+SaiPortTraits::Attributes::AttributeResetQueueCreditBalance::operator()() {
+  return std::nullopt;
+}
+
+std::optional<sai_attr_id_t>
 SaiPortTraits::Attributes::AttributePgDropStatus::operator()() {
   return std::nullopt;
 }
@@ -371,6 +381,11 @@ SaiPortTraits::Attributes::AttributeArsLinkState::operator()() {
 
 std::optional<sai_attr_id_t>
 SaiPortTraits::Attributes::AttributeIsHyperPortMember::operator()() {
+  return std::nullopt;
+}
+
+std::optional<sai_attr_id_t>
+SaiPortTraits::Attributes::AttributeHyperPortMemberList::operator()() {
   return std::nullopt;
 }
 

@@ -13,7 +13,6 @@
 
 #include "fboss/qsfp_service/TransceiverStateMachine.h"
 #include "fboss/qsfp_service/module/cmis/CmisModule.h"
-#include "fboss/qsfp_service/module/sff/Sff8472Module.h"
 #include "fboss/qsfp_service/module/tests/FakeTransceiverImpl.h"
 #include "fboss/qsfp_service/module/tests/MockSffModule.h"
 #include "fboss/qsfp_service/test/MockTransceivers.h"
@@ -168,7 +167,7 @@ class TransceiverStateMachineTest : public TransceiverManagerTestHelper {
     transceiverManager_->setPauseRemediation(60, nullptr);
     enableTransceiverFirmwareUpgradeTesting(false);
 
-    auto discoverTransceiver = [this]() {
+    auto discoverTransceiverFn = [this]() {
       // One refresh can finish discoverring xcvr after detectPresence
       transceiverManager_->refreshStateMachines();
     };
@@ -222,7 +221,7 @@ class TransceiverStateMachineTest : public TransceiverManagerTestHelper {
         xcvr_->updateQsfpData(true);
         break;
       case TransceiverStateMachineState::DISCOVERED:
-        discoverTransceiver();
+        discoverTransceiverFn();
         break;
       case TransceiverStateMachineState::IPHY_PORTS_PROGRAMMED:
         programIphy();

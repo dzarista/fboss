@@ -471,6 +471,18 @@ struct SaiPortTraits {
         bool,
         AttributeFecErrorDetectEnable,
         SaiBoolDefaultFalse>;
+    struct AttributeAmIdles {
+      std::optional<sai_attr_id_t> operator()();
+    };
+    using AmIdles =
+        SaiExtensionAttribute<bool, AttributeAmIdles, SaiBoolDefaultFalse>;
+    struct AttributeResetQueueCreditBalance {
+      std::optional<sai_attr_id_t> operator()();
+    };
+    using ResetQueueCreditBalance = SaiExtensionAttribute<
+        bool,
+        AttributeResetQueueCreditBalance,
+        SaiBoolDefaultFalse>;
     struct AttributeFabricSystemPort {
       std::optional<sai_attr_id_t> operator()();
     };
@@ -498,6 +510,13 @@ struct SaiPortTraits {
     using IsHyperPortMember = SaiExtensionAttribute<
         bool,
         AttributeIsHyperPortMember,
+        SaiBoolDefaultFalse>;
+    struct AttributeHyperPortMemberList {
+      std::optional<sai_attr_id_t> operator()();
+    };
+    using HyperPortMemberList = SaiExtensionAttribute<
+        std::vector<sai_object_id_t>,
+        AttributeHyperPortMemberList,
         SaiBoolDefaultFalse>;
   };
   using AdapterKey = PortSaiId;
@@ -616,6 +635,7 @@ struct SaiPortTraits {
       std::optional<Attributes::AutoNegotiationMode>,
 #endif
       std::optional<Attributes::FecErrorDetectEnable>,
+      std::optional<Attributes::AmIdles>,
       std::optional<Attributes::FabricSystemPort>,
       std::optional<Attributes::StaticModuleId>>;
   static constexpr std::array<sai_stat_id_t, 16> CounterIdsToRead = {
@@ -781,10 +801,13 @@ SAI_ATTRIBUTE_NAME(Port, CondEntropyRehashPeriodUS)
 SAI_ATTRIBUTE_NAME(Port, CondEntropyRehashSeed)
 SAI_ATTRIBUTE_NAME(Port, ShelEnable)
 SAI_ATTRIBUTE_NAME(Port, FecErrorDetectEnable)
+SAI_ATTRIBUTE_NAME(Port, AmIdles)
+SAI_ATTRIBUTE_NAME(Port, ResetQueueCreditBalance)
 SAI_ATTRIBUTE_NAME(Port, FabricSystemPort)
 SAI_ATTRIBUTE_NAME(Port, StaticModuleId)
 SAI_ATTRIBUTE_NAME(Port, PgDropStatus)
 SAI_ATTRIBUTE_NAME(Port, IsHyperPortMember)
+SAI_ATTRIBUTE_NAME(Port, HyperPortMemberList)
 
 #if defined(CHENAB_SAI_SDK)
 SAI_ATTRIBUTE_NAME(Port, AutoNegotiationMode)

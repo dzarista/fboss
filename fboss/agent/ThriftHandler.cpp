@@ -462,6 +462,10 @@ void populateAggregatePortThrift(
   *aggregatePortThrift.minimumLinkCount() =
       aggregatePort->getMinimumLinkCount();
   *aggregatePortThrift.isUp() = aggregatePort->isUp();
+  if (aggregatePort->getMinimumLinkCountToUp().has_value()) {
+    aggregatePortThrift.minimumLinkCountToUp() =
+        aggregatePort->getMinimumLinkCountToUp().value();
+  }
 
   // Since aggregatePortThrift.memberPorts is being push_back'ed to, but is an
   // out parameter, make sure it's clear() first
@@ -795,7 +799,15 @@ void ThriftHandler::deleteUnicastRoutesInVrf(
   for (const auto& prefix : *prefixes) {
     updater.delRoute(routerID, prefix, clientID);
   }
-  updater.program();
+  // count the number of times we attempt to update the FIB
+  sw_->stats()->routeProgrammingUpdateAttempts();
+
+  try {
+    updater.program();
+  } catch (const FbossHwUpdateError& ex) {
+    sw_->stats()->routeProgrammingUpdateFailures();
+    translateToFibError(ex);
+  }
 }
 
 void ThriftHandler::deleteUnicastRoutes(
@@ -862,6 +874,11 @@ void ThriftHandler::updateUnicastRoutesImpl(
   auto routerID = RouterID(vrf);
   auto clientID = ClientID(client);
   for (const auto& route : *routes) {
+    if (route.overrideEcmpSwitchingMode().has_value() ||
+        route.overrideNextHops().has_value()) {
+      throw FbossError(
+          "Override nhops or switching mode cannot be set by clients");
+    }
     updater.addRoute(routerID, clientID, route);
   }
   RouteUpdateWrapper::SyncFibFor syncFibs;
@@ -869,10 +886,14 @@ void ThriftHandler::updateUnicastRoutesImpl(
   if (sync) {
     syncFibs.insert({routerID, clientID});
   }
+  // count the number of times we attempt to update the FIB
+  sw_->stats()->routeProgrammingUpdateAttempts();
+
   try {
     updater.program(
         {syncFibs, RouteUpdateWrapper::SyncFibInfo::SyncFibType::IP_ONLY});
   } catch (const FbossHwUpdateError& ex) {
+    sw_->stats()->routeProgrammingUpdateFailures();
     translateToFibError(ex);
   }
 }
@@ -1694,7 +1715,7 @@ void ThriftHandler::programInternalPhyPorts(
     std::map<int32_t, cfg::PortProfileID>& programmedPorts,
     std::unique_ptr<TransceiverInfo> transceiver,
     bool force) {
-  int32_t id = *transceiver->tcvrState()->port();
+  const int32_t id = *transceiver->tcvrState()->port();
   auto log = LOG_THRIFT_CALL_WITH_STATS(DBG1, sw_->stats(), id, force);
   ensureConfigured(__func__);
 
@@ -1826,8 +1847,10 @@ void ThriftHandler::getRouteTable(std::vector<UnicastRoute>& routes) {
     tempRoute.dest()->ip() = toBinaryAddress(route->prefix().network());
     tempRoute.dest()->prefixLength() = route->prefix().mask();
     tempRoute.nextHopAddrs() = util::fromFwdNextHops(fwdInfo.getNextHopSet());
+    // If there are no overrides, nonOverrideNormalizedNextHops ==
+    // normalizedNextHops
     tempRoute.nextHops() =
-        util::fromRouteNextHopSet(fwdInfo.normalizedNextHops());
+        util::fromRouteNextHopSet(fwdInfo.nonOverrideNormalizedNextHops());
     if (fwdInfo.getCounterID().has_value()) {
       tempRoute.counterID() = *fwdInfo.getCounterID();
     }
@@ -1837,6 +1860,10 @@ void ThriftHandler::getRouteTable(std::vector<UnicastRoute>& routes) {
     if (fwdInfo.getOverrideEcmpSwitchingMode().has_value()) {
       tempRoute.overrideEcmpSwitchingMode() =
           *fwdInfo.getOverrideEcmpSwitchingMode();
+    }
+    if (fwdInfo.getOverrideNextHops().has_value()) {
+      tempRoute.overrideNextHops() =
+          util::fromRouteNextHopSet(fwdInfo.normalizedNextHops());
     }
     routes.emplace_back(std::move(tempRoute));
   });
@@ -2585,10 +2612,14 @@ void ThriftHandler::addMplsRibRoutes(
   if (sync) {
     syncFibs.insert({RouterID(0), clientID});
   }
+  // count the number of times we attempt to update the FIB
+  sw_->stats()->routeProgrammingUpdateAttempts();
+
   try {
     updater.program(
         {syncFibs, RouteUpdateWrapper::SyncFibInfo::SyncFibType::MPLS_ONLY});
   } catch (const FbossHwUpdateError& ex) {
+    sw_->stats()->routeProgrammingUpdateFailures();
     translateToFibError(ex);
   }
 }
@@ -2628,9 +2659,13 @@ void ThriftHandler::deleteMplsRibRoutes(
     }
     updater.delRoute(MplsLabel(label), clientID);
   }
+  // count the number of times we attempt to update the FIB
+  sw_->stats()->routeProgrammingUpdateAttempts();
+
   try {
     updater.program();
   } catch (const FbossHwUpdateError& ex) {
+    sw_->stats()->routeProgrammingUpdateFailures();
     translateToFibError(ex);
   }
   return;

@@ -242,8 +242,8 @@ class CmdShowInterface
         model.interfaces()->begin(),
         model.interfaces()->end(),
         [&nameToPortPosition](cli::Interface& a, cli::Interface b) {
-          if (nameToPortPosition.find(*a.name()) != nameToPortPosition.end() and
-              nameToPortPosition.find(*b.name()) != nameToPortPosition.end()) {
+          if (nameToPortPosition.contains(*a.name()) &&
+              nameToPortPosition.contains(*b.name())) {
             const auto& aPos = nameToPortPosition[*a.name()];
             const auto& bPos = nameToPortPosition[*b.name()];
             if (aPos.linecard != bPos.linecard) {
