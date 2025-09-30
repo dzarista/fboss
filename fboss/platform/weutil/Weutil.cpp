@@ -156,7 +156,8 @@ weutil_config::WeutilConfig getWeUtilConfig() {
   See: https://github.com/facebookexternal/fboss.bsp.arista/pull/31/files
   */
   if (platformConfig.platformName().value() == "meru800bfa" ||
-      platformConfig.platformName().value() == "meru800bia") {
+      platformConfig.platformName().value() == "meru800bia" ||
+      platformConfig.platformName().value() == "glath05a-64o") {
     if (std::filesystem::exists("/run/devmap/eeproms/MERU_SCM_EEPROM")) {
       std::string eepromName = "SCM";
       weutil_config::FruEepromConfig fruEepromConfig;
