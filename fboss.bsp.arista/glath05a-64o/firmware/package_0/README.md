@@ -39,13 +39,13 @@ directory.
 
 | Version | Changelog                                                          |
 |---------|--------------------------------------------------------------------|
-| 3.1     | Initial SCM CPLD image.                                            |
+| 3.1     | Initial SMB CPLD image.                                            |
 
-## SMB FPA
+## SMB FPGA
 
 | Version | Changelog                                                          |
 |---------|--------------------------------------------------------------------|
-| 3.1     | Initial SMB CPLD image.                                            |
+| 3.1     | Initial SMB FPGA image.                                            |
 
 ## FAN CPLD
 
