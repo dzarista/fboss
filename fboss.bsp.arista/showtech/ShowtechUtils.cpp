@@ -211,6 +211,5 @@ void I2cGpioDevice::printGpioDump(const std::map<int, std::string> &gpioLines) {
     std::cout << "line " << std::setw(2) << lineIndex << ": " << label << " -> "
               << getGpioValue(lineIndex) << std::endl;
   }
-  std::cout << std::endl;
 }
 } // namespace showtech
