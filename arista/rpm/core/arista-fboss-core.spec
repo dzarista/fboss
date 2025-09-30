@@ -72,6 +72,9 @@ cp -r %{_sai_sdk_dir}/modules %{_fboss_target_lib}
 # Copy firmware files
 cp -r %{_sai_sdk_dir}/firmwares/* %{_fboss_target_opt}
 
+# Copy DB files
+cp -rf %{_sai_sdk_dir}/db %{_fboss_target_share}/
+
 # Install systemd services.
 mkdir -p %{_fboss_target_systemd}
 install %{_fboss_repo_core}/systemd/platform_manager.service %{_fboss_target_systemd}

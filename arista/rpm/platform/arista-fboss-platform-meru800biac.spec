@@ -23,14 +23,12 @@ This package provides platform-specific utilities to run Meta FBOSS OSS on Arist
 Meru800biac (ViperC0) switches.
 
 %install
-mkdir -p %{_fboss_target_share}
-cp -rf %{_sai_sdk_dir}/db %{_fboss_target_share}/
-
 mkdir -p %{_fboss_target_var}
 install %{_fboss_meru800biac_dir}/config/fruid/fruid.json %{_fboss_target_var}
 # Overwrite the product name in the fruid
 sed -i 's/"Product Name": "Meru800bia"/"Product Name": "Meru800biac"/' %{_fboss_target_var}/fruid.json
 
+mkdir -p %{_fboss_target_share}
 mkdir -p %{_fboss_target_share}/platform_configs
 cp -rf %{_fboss_config_dir}/meru800bia/* %{_fboss_target_share}/platform_configs/
 
@@ -53,6 +51,5 @@ fi
 
 %files
 /var/facebook/fboss/fruid.json
-/opt/fboss/share/db
 /opt/fboss/share/platform_configs
 /opt/fboss/share/firmware

@@ -4,6 +4,7 @@ usage() {
    echo "  [ --scratch-dir <Scratch directory> ] "
    echo "  [ --sai-sdk-dir <Sai/Sdk directory> ] "
    echo "  [ --export-dir  <RPM export dir> ] "
+   echo "  [ --platform-only ] [ --core-only ] "
    echo "  [ --compress ] [ --help ] "
 }
 
@@ -34,6 +35,14 @@ while [[ $# -gt 0 ]]; do
          compression_level=9
          shift
          ;;
+      --platform-only)
+         platform_only=1
+         shift
+         ;;
+      --core-only)
+         core_only=1
+         shift
+         ;;
       --help)
          usage; exit 0
          shift
@@ -49,6 +58,40 @@ while [[ $# -gt 0 ]]; do
 done
 
 set -ex
+
+build_rpms() {
+   # Build RPMs
+   export QA_SKIP_RPATHS=1 # Needed to skip rpath check
+   sai_define_args=()
+   if [[ ! -z $sai_sdk_dir ]]; then
+      # Only pass SAI definition when needed
+      sai_define_args+=("--define" "_sai_sdk_dir $sai_sdk_dir")
+   fi
+   for rpm in $rpms; do
+      rpmbuild -v --define "_topdir /tmp/rpmbuild" --define "_fboss_dir $PWD" \
+         "${sai_define_args[@]}" --define "_scratch_dir $scratch_dir" \
+         --define "_tmppath /tmp" --define "_binary_payload w$compression_level.zstdio" \
+         --undefine __brp_mangle_shebangs -bb $rpm
+   done
+
+   # Move built RPMS
+   mkdir -p "$export_dir"/RPMS
+   mv /tmp/rpmbuild/RPMS/x86_64/* "$export_dir"/RPMS/
+}
+
+# Get RPM specs from either the command line or all from arista/rpm
+if [[ ! -z $platform_only ]]; then
+   # If we're building platform RPMs, then we don't need to run package-fboss.py.
+   rpms=$fboss_spec_dir/platform/*
+   build_rpms
+   exit 0
+elif [[ ! -z $core_only ]]; then
+   rpms=$fboss_spec_dir/core/*
+elif [[ ${#args[@]} -lt 1 ]]; then
+   rpms=$fboss_spec_dir/*/*
+else
+   rpms="${args[@]/#/$fboss_spec_dir/}"
+fi
 
 if [[ ! -f $scratch_dir/.saisdkdir && -z $sai_sdk_dir ]]; then
    echo "$scratch_dir/.saisdkdir does not exist. Pass sai-sdk path with --sai-sdk-dir"
@@ -69,25 +112,7 @@ else
    echo "$SRC_0" > $fboss_out_dir/arista-fboss-version
 fi
 
-# Get RPM specs from either the command line or all from arista/rpm
-if [[ ${#args[@]} -lt 1 ]]; then
-   rpms=$fboss_spec_dir/*
-else
-   rpms="${args[@]/#/$fboss_spec_dir/}"
-fi
-
-# Build RPMs
-export QA_SKIP_RPATHS=1 # Needed to skip rpath check
-for rpm in $rpms; do
-   rpmbuild -v --define '_topdir /tmp/rpmbuild' --define "_fboss_dir $PWD" \
-      --define "_sai_sdk_dir $sai_sdk_dir" --define "_scratch_dir $scratch_dir" \
-      --define "_tmppath /tmp" --define "_binary_payload w$compression_level.zstdio" \
-      --undefine __brp_mangle_shebangs -bb $rpm
-done
-
-# Move built RPMS
-mkdir -p "$export_dir"/RPMS
-mv /tmp/rpmbuild/RPMS/x86_64/* "$export_dir"/RPMS/
+build_rpms
 
 # Copy platform mappings
 cp -rf "$scratch_dir"/PlatformMappings "$export_dir"

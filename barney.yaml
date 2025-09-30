@@ -36,6 +36,15 @@ images:
       - image: .%kernel-6.4
       - image: .%kernel-6.11
 
+  package_platform:
+    units:
+    - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
+      build: |
+        export PTESTDIR=$DESTDIR/usr/share/ptest-data/Fboss
+        ./package.sh --export-dir $PTESTDIR --platform-only --compress
+        mkdir -p $PTESTDIR/RPMS/platform/
+        mv $PTESTDIR/RPMS/*.rpm $PTESTDIR/RPMS/platform
+
   build-floor/dnx_6.4-el9:
     units:
       - image: code.arista.io/os/fboss-centos%fboss-centos-image-el9
@@ -50,9 +59,9 @@ images:
         build: |
           export PTESTDIR=$DESTDIR/usr/share/ptest-data/Fboss
           ./build.sh --sai dnx-11.7 --kernel-dir /kernel-6.4
-          ./package.sh --export-dir $PTESTDIR --compress
-          mkdir -p $PTESTDIR/RPMS/dnx/6.4
-          mv $PTESTDIR/RPMS/*.rpm $PTESTDIR/RPMS/dnx/6.4
+          ./package.sh --export-dir $PTESTDIR --core-only --compress
+          mkdir -p $PTESTDIR/RPMS/core/dnx/6.4
+          mv $PTESTDIR/RPMS/*.rpm $PTESTDIR/RPMS/core/dnx/6.4
         quota:
           memory: 270G
           cpu: 10
@@ -71,9 +80,9 @@ images:
         build: |
           export PTESTDIR=$DESTDIR/usr/share/ptest-data/Fboss
           ./build.sh --sai xgs-10.2 --kernel-dir /kernel-6.4
-          ./package.sh --export-dir $PTESTDIR --compress
-          mkdir -p $PTESTDIR/RPMS/xgs/6.4
-          mv $PTESTDIR/RPMS/*.rpm $PTESTDIR/RPMS/xgs/6.4
+          ./package.sh --export-dir $PTESTDIR --core-only --compress
+          mkdir -p $PTESTDIR/RPMS/core/xgs/6.4
+          mv $PTESTDIR/RPMS/*.rpm $PTESTDIR/RPMS/core/xgs/6.4
         quota:
           memory: 270G
           cpu: 10
@@ -85,7 +94,7 @@ images:
         mappings:
           /src/out: .%package_dnx_6.4-el9
         build: |
-          core_rpm=/src/out/usr/share/ptest-data/Fboss/RPMS/dnx/6.4/arista-fboss-core-1-1.el9.x86_64.rpm
+          core_rpm=/src/out/usr/share/ptest-data/Fboss/RPMS/core/dnx/6.4/arista-fboss-core-1-1.el9.x86_64.rpm
           rpm2cpio $core_rpm | cpio -D /tmp -idmv
           LD_LIBRARY_PATH=/tmp/opt/fboss/lib ./arista/core/scripts/run_sw_tests.sh /tmp/opt/fboss/bin
 
@@ -96,6 +105,6 @@ images:
         mappings:
           /src/out: .%package_xgs_6.4-el9
         build: |
-          core_rpm=/src/out/usr/share/ptest-data/Fboss/RPMS/xgs/6.4/arista-fboss-core-1-1.el9.x86_64.rpm
+          core_rpm=/src/out/usr/share/ptest-data/Fboss/RPMS/core/xgs/6.4/arista-fboss-core-1-1.el9.x86_64.rpm
           rpm2cpio $core_rpm | cpio -D /tmp -idmv
           LD_LIBRARY_PATH=/tmp/opt/fboss/lib ./arista/core/scripts/run_sw_tests.sh /tmp/opt/fboss/bin

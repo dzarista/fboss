@@ -19,12 +19,10 @@ This package provides platform-specific utilities to run Meta FBOSS OSS on Arist
 Glath05a_64o (QuicksilverPFb) switches.
 
 %install
-mkdir -p %{_fboss_target_share}
-cp -rf %{_sai_sdk_dir}/db %{_fboss_target_share}/
-
 mkdir -p %{_fboss_target_var}
 install %{_fboss_glath05a_64o_dir}/config/fruid/fruid.json %{_fboss_target_var}
 
+mkdir -p %{_fboss_target_share}
 mkdir -p %{_fboss_target_share}/platform_configs
 cp -rf %{_fboss_config_dir}/glath05a-64o/* %{_fboss_target_share}/platform_configs/
 
@@ -36,6 +34,5 @@ cp -rf %{_fboss_fw_dir}/firmware_downgrade/* %{_fboss_target_share}/firmware/old
 
 %files
 /var/facebook/fboss/fruid.json
-/opt/fboss/share/db
 /opt/fboss/share/platform_configs
 /opt/fboss/share/firmware
