@@ -21,7 +21,7 @@ directory.
 ## Changes From Last Package
 | Programmable Name                                                            | Description                                                            |
 |------------------------------------------------------------------------------|------------------------------------------------------------------------|
-| Initial images                                                               | N/A                                                                    |
+| P_glath05a-64o_F_smb_fpga_V_3.3.astp                                         | Port LED brightness bug fixes                                          |
 
 ## BIOS
 
