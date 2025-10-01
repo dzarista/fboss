@@ -1,0 +1,73 @@
+{
+  "patterns": {
+    "temperature": {
+      "name": "Temperature",
+      "description": "Matches temperature metrics from time series data",
+      "pattern": ".*::qsfp_service\\.qsfp\\.interface\\.(fab1|eth1)\\/(\\d+)\\/\\d+\\.temp",
+      "testCases": [
+        {
+          "input": "host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/1/1.temp",
+          "shouldMatch": true,
+          "expectedPort": "1"
+        },
+        {
+          "input": "host.name::qsfp_service.qsfp.interface.eth1/25/1.temp",
+          "shouldMatch": true,
+          "expectedPort": "25"
+        },
+        {
+          "input": "host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/1/1.vcc.mv",
+          "shouldMatch": false
+        }
+      ]
+    },
+    "voltage": {
+      "name": "Voltage",
+      "description": "Matches voltage metrics from time series data",
+      "pattern": ".*::qsfp_service\\.qsfp\\.interface\\.(fab1|eth1)\\/(\\d+)\\/\\d+\\.vcc\\.mv",
+      "testCases": [
+        {
+          "input": "host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/1/1.vcc.mv",
+          "shouldMatch": true,
+          "expectedPort": "1"
+        },
+        {
+          "input": "host.name::qsfp_service.qsfp.interface.eth1/25/1.vcc.mv",
+          "shouldMatch": true,
+          "expectedPort": "25"
+        },
+        {
+          "input": "host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/1/1.temp",
+          "shouldMatch": false
+        }
+      ]
+    },
+    "fan": {
+      "name": "Fan RPM",
+      "description": "Matches fan RPM metrics from time series data",
+      "pattern": ".*::sensor_service\\.sensor_read\\.FAN(\\d+)_RPM\\.value",
+      "testCases": [
+        {
+          "input": "host123.n123.c123.abc1::sensor_service.sensor_read.FAN1_RPM.value",
+          "shouldMatch": true,
+          "expectedPort": "1"
+        },
+        {
+          "input": "host.name::sensor_service.sensor_read.FAN12_RPM.value",
+          "shouldMatch": true,
+          "expectedPort": "12"
+        }
+      ]
+    }
+  },
+  "metadata": {
+    "version": "1.0",
+    "lastUpdated": "2025-01-08",
+    "description": "Regex patterns for parsing time series metrics",
+    "notes": [
+      "Patterns use double backslashes for JavaScript compatibility",
+      "Port numbers are captured in group 2 for temperature/voltage, group 1 for fans",
+      "Patterns are designed to be flexible with hostname prefixes"
+    ]
+  }
+}

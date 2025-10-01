@@ -1,0 +1,18 @@
+Name,Min Alarm,Max Alarm,remediation,Logs To Collect
+SMB_VRM1_VIN,9.6,14.4,Powercycle the system,platform-showtech; sensor logs
+SMB_VRM1_VOUT_J3_0V85_CORE,0.62,0.93,Powercycle the system,platform-showtech; sensor logs
+SMB_VRM2_VIN,9.6,14.4,Powercycle the system,platform-showtech; sensor logs
+SMB_VRM2_VOUT_J3_0V9,0.72,1.08,Powercycle the system,platform-showtech; sensor logs
+SMB_VRM2_VOUT_J3_0V75,0.6,0.9,Powercycle the system,platform-showtech; sensor logs
+SMB_VRM2_VOUT_J3_1V2,0.96,1.44,Powercycle the system,platform-showtech; sensor logs
+SMB_VRM3_VIN,9.6,14.4,Powercycle the system,platform-showtech; sensor logs
+SMB_VRM3_VOUT_OPTICS_3V3,2.64,3.96,Powercycle the system,platform-showtech; sensor logs
+FAN1,4000,25000,Check connection,platform-showtech; sensor logs; fan service logs
+FAN2,4000,25000,Check connection,platform-showtech; sensor logs; fan service logs
+FAN3,4000,25000,Check connection,platform-showtech; sensor logs; fan service logs
+FAN4,4000,25000,Check connection,platform-showtech; sensor logs; fan service logs
+PSU1_VIN,35,300,Reinsert PSU; Inspect for missing/broken cables,platform-showtech; sensor logs
+PSU2_VIN,35,300,Reinsert PSU; Inspect for missing/broken cables,platform-showtech; sensor logs
+PSU1_VOUT,9.6,14.4,Reinsert PSU; Inspect for missing/broken cables,platform-showtech; sensor logs
+PSU2_VOUT,9.6,14.4,Reinsert PSU; Inspect for missing/broken cables,platform-showtech; sensor logs
+OPTICS_TEMP,NA,78,"Check transceiver for damage, replace if needed.",platform-showtech; sensor logs; fan service logs

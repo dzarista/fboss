@@ -1,0 +1,17 @@
+showtech version 1.0
+
+################## CPU HOSTNAME ##################
+switch01.example.com
+################## SMB SERIAL NUMBER ##################
+ABC123456789
+
+################## fboss2 show port ##################
+Port  Status  Speed  Profile  
+1     Up      100G   100G-4   
+2     Down    -      -        
+
+################## fboss2 show environment sensor ##################
+Sensor                    Value    Status
+Temperature Sensor 1      45.2°C   OK
+Temperature Sensor 2      42.1°C   OK
+Fan 1                     3500 RPM OK

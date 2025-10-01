@@ -35,6 +35,7 @@ class Utils {
   void runFbossCliCmd(const std::string& cmd);
   void printSysfsAttribute(const std::string& label, const std::string& path);
   std::optional<std::tuple<int, int>> getI2cInfoForDevice(const std::string&);
+  std::pair<int, std::string> safeExecCommand(const std::string& cmd) const;
 };
 
 } // namespace facebook::fboss::platform
