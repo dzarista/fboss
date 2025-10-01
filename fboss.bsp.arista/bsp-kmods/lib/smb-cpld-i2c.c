@@ -140,7 +140,7 @@ int smb_cpld_fw_ver_read(struct i2c_client *client, char *buf,
 	} else {
 		dev_info(&client->dev, "%s cpld revision: %02x.%02x\n",
 			 device_name, major_rev, minor_rev);
-    	return 0;
+		return 0;
 	}
 }
 
