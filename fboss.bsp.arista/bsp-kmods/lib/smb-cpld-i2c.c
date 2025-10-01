@@ -191,6 +191,12 @@ int smb_cpld_init_with_attrs(struct device *dev,
 	return ret;
 }
 
+void smb_cpld_i2c_remove(struct i2c_client *client)
+{
+	/* Must clean up fw_ver */
+    sysfs_remove_file(&client->dev.kobj, &dev_attr_fw_ver.attr);
+}
+
 MODULE_AUTHOR("Arista Networks");
 MODULE_DESCRIPTION("SMB CPLD I2C Common Functions");
 MODULE_LICENSE("GPL");

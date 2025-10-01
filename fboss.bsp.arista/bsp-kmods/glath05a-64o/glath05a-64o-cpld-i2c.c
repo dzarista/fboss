@@ -14,7 +14,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <linux/version.h>
@@ -22,7 +21,7 @@
 #include "regbit-sysfs.h"
 #include "smb-cpld-i2c.h"
 
-static const struct regbit_sysfs_config glath05a_64o_attrs[] = {
+static const struct regbit_sysfs_config glath05a_64o_cpld_attrs[] = {
 	/*
 	 * JTAG selectors @ address/offset 0xC.
 	 */
@@ -49,36 +48,23 @@ static const struct regbit_sysfs_config glath05a_64o_attrs[] = {
 	},
 };
 
-static int cpld_i2c_probe(struct i2c_client *client)
-{
-	int ret;
+SMB_CPLD_PROBE_FN("glath05a_64o", glath05a_64o_cpld_attrs);
 
-	ret = smb_cpld_fw_ver_read(client, NULL, "glath05a-64o");
-	if (ret < 0)
-		return ret;
-
-	ret = smb_cpld_create_fw_ver_attr(client);
-	if (ret < 0)
-		return ret;
-
-	return smb_cpld_init_with_attrs(&client->dev, glath05a_64o_attrs,
-				ARRAY_SIZE(glath05a_64o_attrs));
-}
-
-static const struct i2c_device_id cpld_dev_ids[] = {
+static const struct i2c_device_id glath05a_64o_cpld_dev_ids[] = {
 	{ "glath05a-64o_cpld", 0 },
 	{},
 };
-MODULE_DEVICE_TABLE(i2c, cpld_dev_ids);
+MODULE_DEVICE_TABLE(i2c, glath05a_64o_cpld_dev_ids);
 
-static struct i2c_driver cpld_i2c_driver = {
+static struct i2c_driver glath05a_64o_cpld_i2c_driver = {
 	.driver = {
 		.name = "glath05a-64o-cpld",
 	},
-	.probe = cpld_i2c_probe,
-	.id_table = cpld_dev_ids,
+	.probe = smb_cpld_i2c_probe,
+	.remove = smb_cpld_i2c_remove,
+	.id_table = glath05a_64o_cpld_dev_ids,
 };
-module_i2c_driver(cpld_i2c_driver);
+module_i2c_driver(glath05a_64o_cpld_i2c_driver);
 
 MODULE_AUTHOR("Arista Networks");
 MODULE_DESCRIPTION("Glath05a-64o CPLD I2C Driver");

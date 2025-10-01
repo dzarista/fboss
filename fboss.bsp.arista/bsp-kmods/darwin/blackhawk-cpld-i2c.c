@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // // Copyright (c) 2021 Facebook Inc.
 
-#include <linux/errno.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
+#include <linux/version.h>
 
 #include "regbit-sysfs.h"
 #include "smb-cpld-i2c.h"
 
 #define CPLD_REG_SYS_STS	0x8
 
-static const struct regbit_sysfs_config blackhawk_attrs[] = {
+static const struct regbit_sysfs_config blackhawk_cpld_attrs[] = {
 	/*
 	 * SYSTEM_STATUS @ address/offset 0x8.
 	 */
@@ -124,34 +124,21 @@ static const struct regbit_sysfs_config blackhawk_attrs[] = {
 	},
 };
 
-static int cpld_i2c_probe(struct i2c_client *client)
-{
-	int ret;
+SMB_CPLD_PROBE_FN("blackhawk", blackhawk_cpld_attrs);
 
-	ret = smb_cpld_fw_ver_read(client, NULL, "blackhawk");
-	if (ret < 0)
-		return ret;
-
-	ret = smb_cpld_create_fw_ver_attr(client);
-	if (ret < 0)
-		return ret;
-
-	return smb_cpld_init_with_attrs(&client->dev, blackhawk_attrs,
-				ARRAY_SIZE(blackhawk_attrs));
-}
-
-static const struct i2c_device_id cpld_dev_ids[] = {
+static const struct i2c_device_id blackhawk_cpld_dev_ids[] = {
 	{ "blackhawk_cpld", 0 },
 	{},
 };
-MODULE_DEVICE_TABLE(i2c, cpld_dev_ids);
+MODULE_DEVICE_TABLE(i2c, blackhawk_cpld_dev_ids);
 
 static struct i2c_driver blackhawk_cpld_driver = {
 	.driver = {
 		.name = "blackhawk-cpld",
 	},
-	.probe = cpld_i2c_probe,
-	.id_table = cpld_dev_ids,
+	.probe = smb_cpld_i2c_probe,
+	.remove = smb_cpld_i2c_remove,
+	.id_table = blackhawk_cpld_dev_ids,
 };
 module_i2c_driver(blackhawk_cpld_driver);
 

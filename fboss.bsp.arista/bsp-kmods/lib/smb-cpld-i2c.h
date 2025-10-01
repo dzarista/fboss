@@ -42,5 +42,23 @@ int smb_cpld_create_fw_ver_attr(struct i2c_client *client);
 int smb_cpld_init_with_attrs(struct device *dev,
 		const struct regbit_sysfs_config *driver_attrs,
 		int driver_attrs_count);
+void smb_cpld_i2c_remove(struct i2c_client *client);
+
+/* Macro for creating a probe function */
+#define SMB_CPLD_PROBE_FN(_name, _attrs)						\
+static int smb_cpld_i2c_probe(struct i2c_client *client)				\
+{											\
+	int ret;									\
+											\
+	ret = smb_cpld_fw_ver_read(client, NULL, _name);				\
+	if (ret < 0)									\
+		return ret;								\
+											\
+	ret = smb_cpld_create_fw_ver_attr(client);					\
+	if (ret < 0)									\
+		return ret;								\
+											\
+	return smb_cpld_init_with_attrs(&client->dev, _attrs, ARRAY_SIZE(_attrs));	\
+}
 
 #endif /* _SMB_CPLD_I2C_H_ */
