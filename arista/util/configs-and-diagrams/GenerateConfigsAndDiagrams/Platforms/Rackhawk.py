@@ -277,7 +277,7 @@ class RackhawkSwitch( PmUnitConfig ):
 
    def addCpuCardDpm( self ):
       # UCD90160 on the CPU card.
-      cpuDpm = Sensor( '0x4E', 'ucd90160', 'CPU_POS_UCD90160' )
+      cpuDpm = Sensor( '0x4E', 'darwin_aucd90160', 'CPU_POS_UCD90160' )
       cpuDpm.addSensorConfigs( [
             SensorConfig( "POS_1V7_VCCIN_VRRDY", "in1_input", SensorType.VOLTAGE,
                           prependPmUnit=False,
@@ -489,7 +489,7 @@ class RackhawkSwitch( PmUnitConfig ):
 
    def addSwitchcardDpm( self ):
       # Switchcard DPM.
-      switchcardDpm = Sensor( '0x11', 'ucd90320', 'SC_POS_UCD90320' )
+      switchcardDpm = Sensor( '0x11', 'darwin_aucd90320', 'SC_POS_UCD90320' )
       switchcardDpm.addSensorConfigs( [
             SensorConfig( "SC_POS_12V_TH3_A", "in1_input", SensorType.VOLTAGE,
                           prependPmUnit=False,
