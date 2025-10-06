@@ -137,7 +137,7 @@ int fan_wdt_stop(struct watchdog_device *wdd);
 int fan_wdt_ping(struct watchdog_device *wdd);
 void fan_cpld_remove(struct i2c_client *client);
 int fan_cpld_probe(struct i2c_client *client,
-		   const struct fan_cpld_driver_config *config);
+		   struct fan_cpld_driver_config *config);
 
 /* Macro for defining module parameters */
 #define FAN_CPLD_MODULE_PARAMS()						\
@@ -147,7 +147,7 @@ MODULE_PARM_DESC(safe_mode, "force fan speed to 100% during probe");		\
 										\
 static unsigned long poll_interval;						\
 module_param(poll_interval, ulong, S_IRUSR);					\
-MODULE_PARM_DESC(poll_interval, "interval between two polling in ms")
+MODULE_PARM_DESC(poll_interval, "interval between two polling in ms");
 
 /* Macro for defining WDT ops and info */
 #define FAN_CPLD_WATCHDOG_OPS_AND_INFO()					\
@@ -169,7 +169,7 @@ FAN_CPLD_MODULE_PARAMS()							\
 										\
 FAN_CPLD_WATCHDOG_OPS_AND_INFO()						\
 										\
-static const struct fan_cpld_driver_config _driver_prefix##_config = {		\
+static struct fan_cpld_driver_config _driver_prefix##_config = {		\
 	.fan_cpld_infos = _cpld_infos,						\
 	.num_cpld_types = ARRAY_SIZE(_cpld_infos),				\
 	.id_table = _id_table,							\
@@ -190,9 +190,9 @@ static struct i2c_driver _driver_prefix##_driver = {				\
 	.class = I2C_CLASS_HWMON,						\
 	.driver = { .name = _driver_name },					\
 	.id_table = _id_table,							\
-	 .probe = _driver_prefix##_probe,					\
+	.probe = _driver_prefix##_probe,					\
 	.remove = fan_cpld_remove,						\
-}										\
+};										\
 										\
 static int __init _driver_prefix##_init(void)					\
 {										\

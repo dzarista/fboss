@@ -864,7 +864,7 @@ void fan_cpld_remove(struct i2c_client *client)
 }
 
 int fan_cpld_probe(struct i2c_client *client,
-		   const struct fan_cpld_driver_config *config)
+		   struct fan_cpld_driver_config *config)
 {
 	const struct i2c_device_id *id;
 	struct device *dev = &client->dev;
