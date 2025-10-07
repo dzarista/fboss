@@ -26,6 +26,7 @@ mkdir -p %{_drv_destdir} %{_bspdir}
 cp -f *.ko %{_drv_destdir}
 cp -f kmods.json %{_bspdir}
 cp -f fbsp-remove.sh %{_bspdir}
+chmod 0755 %{_bspdir}/fbsp-remove.sh
 
 %files
 /lib/modules/*
