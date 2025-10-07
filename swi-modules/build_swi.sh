@@ -8,8 +8,12 @@ TARGET_DIR=$3
 
 if [ $KERNEL = "6.4" ]; then
     TARBALL="centos9_6.4.3-0_fbk747_rc2_1199_ga95cd85c72c4_live.tar"
+elif [ $KERNEL = "6.11" ]; then
+    TARBALL="centos9_6.11.1-0_fbk9_0_g2bb6f7f1c90e_live.tar"
+elif [ $KERNEL = "6.11_amd" ]; then
+    TARBALL="centos9_6.11.0_amd_live.tar"
 else
-    echo "Unspported kernel version"
+    echo "Unsupported kernel version"
     exit 1
 fi
 
