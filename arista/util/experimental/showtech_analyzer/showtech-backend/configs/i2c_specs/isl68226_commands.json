@@ -1,0 +1,1385 @@
+[
+  {
+    "code": "0x00",
+    "name": "PAGE",
+    "type": "R/W",
+    "bytes": "1",
+    "default_value": "00h",
+    "bitRanges": [
+      {
+        "bits": "7:0",
+        "name": "Set Communication Path",
+        "description": "00h Page 0 (Rail 1), \n01h Page 1 (Rail 1), \n02h Page 2 (Rail 2), \n80h Individual phase (set by the PHASE command), \nFFh Global (All Rails)"
+      }
+    ]
+  },
+  {
+    "code": "0x01",
+    "name": "OPERATION",
+    "type": "R/W",
+    "bytes": "1",
+    "default_value": "08h",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "Enable/Disable Output",
+        "description": "0 = Disable, 1 = Enable"
+      },
+      {
+        "bits": "6",
+        "name": "Disable Behavior",
+        "description": "0 = Immediate off (decay with PWM tri-state), 1 = Soft off (Use TOFF_DELAY and TOFF_FALL)"
+      },
+      {
+        "bits": "5:4",
+        "name": "Vout Source",
+        "description": "00 = VOUT_COMMAND, 01 = VOUT_MARGIN_LOW, 10 = VOUT_MARGIN_HIGH, 11 = Not used"
+      },
+      {
+        "bits": "3:2",
+        "name": "Margin Response",
+        "description": "01 = Ignore Vout OV, UV faults when margined, 10 = Act on Vout OV, UV faults when margined"
+      },
+      {
+        "bits": "1",
+        "name": "Not Supported",
+        "description": "Not supported"
+      },
+      {
+        "bits": "0",
+        "name": "Not Supported",
+        "description": "Not supported"
+      }
+    ]
+  },
+  {
+    "code": "0x02",
+    "name": "ON_OFF_CONFIG",
+    "type": "R/W",
+    "bytes": "1",
+    "default_value": "17h",
+    "bitRanges": [
+      {
+        "bits": "7:5",
+        "name": "Not Supported",
+        "description": "Not supported"
+      },
+      {
+        "bits": "4:2",
+        "name": "Sets the source of enable",
+        "description": "0XX = Output enables any time power is present regardless of pin or OPERATION command state, 101 = Output enables from the enable pin only, 110 = Output enables from the OPERATION command only, 111 = Output enables from the enable pin AND the OPERATION command"
+      },
+      {
+        "bits": "1",
+        "name": "Polarity of ENABLE pin",
+        "description": "0 = Active low, 1 = Active high"
+      },
+      {
+        "bits": "0",
+        "name": "ENABLE pin action when commanding the unit to turn off",
+        "description": "0 = Use the configured TOFF_DELAY and TOFF_FALL settings, 1 = Turn off the output immediately (decay with PWM tri-state)"
+      }
+    ]
+  },
+  {
+    "code": "0x04",
+    "name": "PHASE",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "00h"
+  },
+  {
+    "code": "0x05",
+    "name": "PAGE_PLUS_WRITE",
+    "type": "Block Write",
+    "bytes": "Variable",
+    "default_value": "N/A",
+    "ignore": true
+  },
+  {
+    "code": "0x06",
+    "name": "PAGE_PLUS_READ",
+    "type": "Block Write/Read/process call",
+    "bytes": "Variable",
+    "default_value": "N/A",
+    "ignore": true
+  },
+  {
+    "code": "0x10",
+    "name": "WRITE_PROTECT",
+    "type": "R/W",
+    "bytes": "1",
+    "default_value": "00h",
+    "bitRanges": [
+      {
+        "bits": "7:0",
+        "name": "Protection Level",
+        "description": "1000 0000 = Disable all writes except to WRITE_PROTECT command. 0100 0000 = Disable all writes except to WRITE_PROTECT, OPERATION, and PAGE. 0010 0000 = Disable all writes except to WRITE_PROTECT, OPERATION, PAGE, ON_OFF_CONFIG, and VOUT_COMMAND. 0000 0010 = Disable all writes except to WRITE_PROTECT, OPERATION, PAGE, ON_OFF_CONFIG, VOUT_COMMAND, and DMA. 0000 0000 = Enable all writes"
+      }
+    ]
+  },
+  {
+    "code": "0x19",
+    "name": "CAPABILITY",
+    "type": "Read",
+    "bytes": "1",
+    "default_value": "D0h",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "PEC Support",
+        "description": "1 = PEC supported, 0 = PEC not supported"
+      },
+      {
+        "bits": "6:5",
+        "name": "Maximum Bus Speed",
+        "description": "11 = Not supported, 10 = 1MHz, 01 = 400kHz, 00 = 100kHz"
+      },
+      {
+        "bits": "4",
+        "name": "SMBALERT Support",
+        "description": "1 = SMBALERT pin and response protocol is supported, 0 = SMBALERT pin and response protocol is not supported"
+      },
+      {
+        "bits": "3",
+        "name": "Numeric Format",
+        "description": "1 = Numeric data, IEEE half precision floating point format, 0 = Numeric data, Linear/Direct"
+      },
+      {
+        "bits": "2",
+        "name": "Not Supported",
+        "description": "Not supported"
+      },
+      {
+        "bits": "1:0",
+        "name": "Not Supported",
+        "description": "Not supported"
+      }
+    ]
+  },
+  {
+    "code": "0x1B",
+    "name": "SMBALERT_MASK",
+    "type": "Block R/W",
+    "bytes": "1",
+    "default_value": "00h"
+  },
+  {
+    "code": "0x20",
+    "name": "VOUT_MODE",
+    "type": "Read",
+    "bytes": "1",
+    "default_value": "40h",
+    "bitRanges": [
+      {
+        "bits": "7:5",
+        "name": "Mode",
+        "description": "Defines the output voltage format mode"
+      },
+      {
+        "bits": "4:0",
+        "name": "Exponent",
+        "description": "Exponent for the VOUT_COMMAND value"
+      }
+    ]
+  },
+  {
+    "code": "0x21",
+    "name": "VOUT_COMMAND",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "0384h"
+  },
+  {
+    "code": "0x22",
+    "name": "VOUT_TRIM",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "0000h"
+  },
+  {
+    "code": "0x23",
+    "name": "VOUT_CAL_OFFSET",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "0000h"
+  },
+  {
+    "code": "0x24",
+    "name": "VOUT_MAX",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "0BEAh"
+  },
+  {
+    "code": "0x25",
+    "name": "VOUT_MARGIN_HIGH",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "03B1"
+  },
+  {
+    "code": "0x26",
+    "name": "VOUT_MARGIN_LOW",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "0357"
+  },
+  {
+    "code": "0x27",
+    "name": "VOUT_TRANSITION_RATE",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "09C4h"
+  },
+  {
+    "code": "0x28",
+    "name": "VOUT_DROOP",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "0000h"
+  },
+  {
+    "code": "0x2B",
+    "name": "VOUT_MIN",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "0000h"
+  },
+  {
+    "code": "0x33",
+    "name": "FREQUENCY_SWITCH",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "0258h"
+  },
+  {
+    "code": "0x34",
+    "name": "POWER_MODE",
+    "type": "R/W",
+    "bytes": "1",
+    "default_value": "03h",
+    "bitRanges": [
+      {
+        "bits": "7:0",
+        "name": "Power Mode Setting",
+        "description": "04h = MFR defined, 03h = Maximum power, 00h = Maximum efficiency"
+      }
+    ]
+  },
+  {
+    "code": "0x35",
+    "name": "VIN_ON",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "02BCh"
+  },
+  {
+    "code": "0x36",
+    "name": "VIN_OFF",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "01F4h"
+  },
+  {
+    "code": "0x40",
+    "name": "VOUT_OV_FAULT_LIMIT",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "0C1Ch"
+  },
+  {
+    "code": "0x41",
+    "name": "VOUT_OV_FAULT_RESPONSE",
+    "type": "R/W",
+    "bytes": "1",
+    "default_value": "84h",
+    "bitRanges": [
+      {
+        "bits": "7:6",
+        "name": "Response Behavior During a fault",
+        "description": "00 = Continue without interruption, 10 = Disable and retry according to the setting in Bits [5:3]"
+      },
+      {
+        "bits": "5:3",
+        "name": "Retry Setting",
+        "description": "000 = No retry. The output remains disabled until the rail is restarted, 111 = Attempts to restart continuously, without limitation"
+      },
+      {
+        "bits": "2:0",
+        "name": "Delay Time before Retry",
+        "description": "000 = 0ms delay (not recommended), 001-110 = Delay 25ms per LSB, 111 = Delay 175ms"
+      }
+    ]
+  },
+  {
+    "code": "0x44",
+    "name": "VOUT_UV_FAULT_LIMIT",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "0000h"
+  },
+  {
+    "code": "0x45",
+    "name": "VOUT_UV_FAULT_RESPONSE",
+    "type": "R/W",
+    "bytes": "1",
+    "default_value": "84h",
+    "bitRanges": [
+      {
+        "bits": "7:6",
+        "name": "Response Behavior During a fault",
+        "description": "00 = Continue without interruption, 10 = Disable and retry according to the setting in Bits [5:3]"
+      },
+      {
+        "bits": "5:3",
+        "name": "Retry Setting",
+        "description": "000 = No retry. The output remains disabled until the rail is restarted, 111 = Attempts to restart continuously, without limitation"
+      },
+      {
+        "bits": "2:0",
+        "name": "Delay Time before Retry",
+        "description": "000 = 0ms delay (not recommended), 001-110 = Delay 25ms per LSB, 111 = Delay 175ms"
+      }
+    ]
+  },
+  {
+    "code": "0x46",
+    "name": "IOUT_OC_FAULT_LIMIT",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "12Ch"
+  },
+  {
+    "code": "0x47",
+    "name": "IOUT_OC_FAULT_RESPONSE",
+    "type": "R/W",
+    "bytes": "1",
+    "default_value": "C4h",
+    "bitRanges": [
+      {
+        "bits": "7:6",
+        "name": "Response Behavior During a fault",
+        "description": "00 = Continue without interruption, 10 = Disable and retry according to the setting in Bits [5:3]"
+      },
+      {
+        "bits": "5:3",
+        "name": "Retry Setting",
+        "description": "000 = No retry. The output remains disabled until the rail is restarted, 111 = Attempts to restart continuously, without limitation"
+      },
+      {
+        "bits": "2:0",
+        "name": "Delay Time before Retry",
+        "description": "000 = 0ms delay (not recommended), 001-110 = Delay 25ms per LSB, 111 = Delay 175ms"
+      }
+    ]
+  },
+  {
+    "code": "0x4F",
+    "name": "OT_FAULT_LIMIT",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "007Dh"
+  },
+  {
+    "code": "0x50",
+    "name": "OT_FAULT_RESPONSE",
+    "type": "R/W",
+    "bytes": "1",
+    "default_value": "84h",
+    "bitRanges": [
+      {
+        "bits": "7:6",
+        "name": "Response Behavior During a fault",
+        "description": "00 = Continue without interruption, 10 = Disable and retry according to the setting in Bits [5:3]"
+      },
+      {
+        "bits": "5:3",
+        "name": "Retry Setting",
+        "description": "000 = No retry. The output remains disabled until the rail is restarted, 111 = Attempts to restart continuously, without limitation"
+      },
+      {
+        "bits": "2:0",
+        "name": "Delay Time before Retry",
+        "description": "000 = 0ms delay (not recommended), 001-110 = Delay 25ms per LSB, 111 = Delay 175ms"
+      }
+    ]
+  },
+  {
+    "code": "0x51",
+    "name": "OT_WARN_LIMIT",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "006Eh"
+  },
+  {
+    "code": "0x53",
+    "name": "UT_FAULT_LIMIT",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "FFD8h"
+  },
+  {
+    "code": "0x54",
+    "name": "UT_FAULT_RESPONSE",
+    "type": "R/W",
+    "bytes": "1",
+    "default_value": "80h",
+    "bitRanges": [
+      {
+        "bits": "7:6",
+        "name": "Response Behavior During a fault",
+        "description": "00 = Continue without interruption, 10 = Disable and retry according to the setting in Bits [5:3]"
+      },
+      {
+        "bits": "5:3",
+        "name": "Retry Setting",
+        "description": "000 = No retry. The output remains disabled until the rail is restarted, 111 = Attempts to restart continuously, without limitation"
+      },
+      {
+        "bits": "2:0",
+        "name": "Delay Time before Retry",
+        "description": "000 = 0ms delay (not recommended), 001-110 = Delay 25ms per LSB, 111 = Delay 175ms"
+      }
+    ]
+  },
+  {
+    "code": "0x55",
+    "name": "VIN_OV_FAULT_LIMIT",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "0640h"
+  },
+  {
+    "code": "0x56",
+    "name": "VIN_OV_FAULT_RESPONSE",
+    "type": "R/W",
+    "bytes": "1",
+    "default_value": "84h",
+    "bitRanges": [
+      {
+        "bits": "7:6",
+        "name": "Response Behavior During a fault",
+        "description": "00 = Continue without interruption, 10 = Disable and retry according to the setting in Bits [5:3]"
+      },
+      {
+        "bits": "5:3",
+        "name": "Retry Setting",
+        "description": "000 = No retry. The output remains disabled until the rail is restarted, 111 = Attempts to restart continuously, without limitation"
+      },
+      {
+        "bits": "2:0",
+        "name": "Delay Time before Retry",
+        "description": "000 = 0ms delay (not recommended), 001-110 = Delay 25ms per LSB, 111 = Delay 175ms"
+      }
+    ]
+  },
+  {
+    "code": "0x57",
+    "name": "VIN_OV_WARN_LIMIT",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "0708h"
+  },
+  {
+    "code": "0x58",
+    "name": "VIN_UV_WARN_LIMIT",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "0000h"
+  },
+  {
+    "code": "0x59",
+    "name": "VIN_UV_FAULT_LIMIT",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "0000h"
+  },
+  {
+    "code": "0x5A",
+    "name": "VIN_UV_FAULT_RESPONSE",
+    "type": "R/W",
+    "bytes": "1",
+    "default_value": "84h",
+    "bitRanges": [
+      {
+        "bits": "7:6",
+        "name": "Response Behavior During a fault",
+        "description": "00 = Continue without interruption, 10 = Disable and retry according to the setting in Bits [5:3]"
+      },
+      {
+        "bits": "5:3",
+        "name": "Retry Setting",
+        "description": "000 = No retry. The output remains disabled until the rail is restarted, 111 = Attempts to restart continuously, without limitation"
+      },
+      {
+        "bits": "2:0",
+        "name": "Delay Time before Retry",
+        "description": "000 = 0ms delay (not recommended), 001-110 = Delay 25ms per LSB, 111 = Delay 175ms"
+      }
+    ]
+  },
+  {
+    "code": "0x5B",
+    "name": "IIN_OC_FAULT_LIMIT",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "1388h"
+  },
+  {
+    "code": "0x5C",
+    "name": "IIN_OC_FAULT_RESPONSE",
+    "type": "R/W",
+    "bytes": "1",
+    "default_value": "04h",
+    "bitRanges": [
+      {
+        "bits": "7:6",
+        "name": "Response Behavior During a fault",
+        "description": "00 = Continue without interruption, 10 = Disable and retry according to the setting in Bits [5:3]"
+      },
+      {
+        "bits": "5:3",
+        "name": "Retry Setting",
+        "description": "000 = No retry. The output remains disabled until the rail is restarted, 111 = Attempts to restart continuously, without limitation"
+      },
+      {
+        "bits": "2:0",
+        "name": "Delay Time before Retry",
+        "description": "000 = 0ms delay (not recommended), 001-110 = Delay 25ms per LSB, 111 = Delay 175ms"
+      }
+    ]
+  },
+  {
+    "code": "0x5D",
+    "name": "IIN_OC_WARN_LIMIT",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "3A98h"
+  },
+  {
+    "code": "0x60",
+    "name": "TON_DELAY",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "0000h"
+  },
+  {
+    "code": "0x61",
+    "name": "TON_RISE",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "01F4h"
+  },
+  {
+    "code": "0x64",
+    "name": "TOFF_DELAY",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "0000h"
+  },
+  {
+    "code": "0x65",
+    "name": "TOFF_FALL",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "01F4h"
+  },
+  {
+    "code": "0x78",
+    "name": "STATUS_BYTE",
+    "type": "Read",
+    "bytes": "1",
+    "default_value": "N/A",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "BUSY",
+        "description": "A fault was declared because the device was busy and unable to respond."
+      },
+      {
+        "bits": "6",
+        "name": "OFF",
+        "description": "This bit is asserted if the unit is not providing power to the output, regardless of the reason, including simply not being enabled."
+      },
+      {
+        "bits": "5",
+        "name": "VOUT_OV_FAULT",
+        "description": "An output overvoltage fault occurred."
+      },
+      {
+        "bits": "4",
+        "name": "IOUT_OC_FAULT",
+        "description": "An output overcurrent fault occurred."
+      },
+      {
+        "bits": "3",
+        "name": "VIN_UV_FAULT",
+        "description": "An input undervoltage fault occurred."
+      },
+      {
+        "bits": "2",
+        "name": "TEMPERATURE",
+        "description": "A temperature fault or warning occurred."
+      },
+      {
+        "bits": "1",
+        "name": "CML",
+        "description": "A communications, memory, or logic fault occurred."
+      },
+      {
+        "bits": "0",
+        "name": "None of the Above",
+        "description": "A fault other than those listed above occurred."
+      }
+    ]
+  },
+  {
+    "code": "0x79",
+    "name": "STATUS_WORD",
+    "type": "Read",
+    "bytes": "2",
+    "default_value": "N/A",
+    "bitRanges": [
+      {
+        "bits": "15",
+        "name": "VOUT",
+        "description": "An output voltage fault or warning occurred."
+      },
+      {
+        "bits": "14",
+        "name": "IOUT",
+        "description": "An output current fault occurred."
+      },
+      {
+        "bits": "13",
+        "name": "INPUT",
+        "description": "An input voltage fault or warning occurred."
+      },
+      {
+        "bits": "12",
+        "name": "MFR_SPECIFIC",
+        "description": "A manufacturer specific fault or warning occurred."
+      },
+      {
+        "bits": "11",
+        "name": "POWER_GOOD #",
+        "description": "The POWER_GOOD signal is negated."
+      },
+      {
+        "bits": "10:9",
+        "name": "Not Supported",
+        "description": "Not supported"
+      },
+      {
+        "bits": "8",
+        "name": "Unknown",
+        "description": "A fault other than those described in Bits [15:9] occurred."
+      },
+      {
+        "bits": "7",
+        "name": "Busy",
+        "description": "Device busy and unable to respond."
+      },
+      {
+        "bits": "6",
+        "name": "OFF",
+        "description": "This bit is asserted if the unit is not providing power to the output, regardless of the reason, including simply not being enabled."
+      },
+      {
+        "bits": "5",
+        "name": "VOUT_OV_FAULT",
+        "description": "An output overvoltage fault occurred."
+      },
+      {
+        "bits": "4",
+        "name": "IOUT_OC_FAULT",
+        "description": "An output overcurrent fault occurred."
+      },
+      {
+        "bits": "3",
+        "name": "VIN_UV_FAULT",
+        "description": "An input undervoltage fault occurred."
+      },
+      {
+        "bits": "2",
+        "name": "TEMPERATURE",
+        "description": "A temperature fault or warning occurred."
+      },
+      {
+        "bits": "1",
+        "name": "CML",
+        "description": "A communications, memory, or logic fault occurred."
+      },
+      {
+        "bits": "0",
+        "name": "None of the Above",
+        "description": "A status change other than those listed above occurred."
+      }
+    ]
+  },
+  {
+    "code": "0x7A",
+    "name": "STATUS_VOUT",
+    "type": "Read",
+    "bytes": "1",
+    "default_value": "N/A",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "VOUT_OV_FAULT",
+        "description": "Indicates an output overvoltage fault occurred."
+      },
+      {
+        "bits": "6:5",
+        "name": "Not Supported",
+        "description": "Not supported"
+      },
+      {
+        "bits": "4",
+        "name": "VOUT_UV_FAULT",
+        "description": "Indicates an output undervoltage fault occurred."
+      },
+      {
+        "bits": "3",
+        "name": "VOUT_MAX Warning",
+        "description": "Indicates an output voltage maximum warning occurred."
+      },
+      {
+        "bits": "2:0",
+        "name": "Not Supported",
+        "description": "Not supported"
+      }
+    ]
+  },
+  {
+    "code": "0x7B",
+    "name": "STATUS_IOUT",
+    "type": "Read",
+    "bytes": "1",
+    "default_value": "N/A",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "IOUT_OC_FAULT",
+        "description": "An output overcurrent fault occurred."
+      },
+      {
+        "bits": "6",
+        "name": "Not Supported",
+        "description": "Not supported"
+      },
+      {
+        "bits": "5",
+        "name": "Not Supported",
+        "description": "Not supported"
+      },
+      {
+        "bits": "4",
+        "name": "IOUT_UC_FAULT",
+        "description": "An output undercurrent fault occurred."
+      },
+      {
+        "bits": "3",
+        "name": "Current Share Fault",
+        "description": "A current share fault occurred."
+      },
+      {
+        "bits": "2:0",
+        "name": "Not Supported",
+        "description": "Not supported"
+      }
+    ]
+  },
+  {
+    "code": "0x7C",
+    "name": "STATUS_INPUT",
+    "type": "Read",
+    "bytes": "1",
+    "default_value": "N/A",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "VIN_OV_FAULT",
+        "description": "An input overvoltage fault occurred."
+      },
+      {
+        "bits": "6",
+        "name": "VIN_OV_WARN",
+        "description": "An input overvoltage warning occurred."
+      },
+      {
+        "bits": "5",
+        "name": "VIN_UV_WARN",
+        "description": "An input undervoltage warning occurred."
+      },
+      {
+        "bits": "4",
+        "name": "VIN_UV_FAULT",
+        "description": "An input undervoltage fault occurred."
+      },
+      {
+        "bits": "3",
+        "name": "VIN_ON/OFF",
+        "description": "Disabled due to insufficient input voltage. This could be VIN or VMON."
+      },
+      {
+        "bits": "2",
+        "name": "IIN_OC_FAULT",
+        "description": "An input overcurrent fault occurred."
+      },
+      {
+        "bits": "1",
+        "name": "IIN_OC_WARN",
+        "description": "An input overcurrent warning occurred."
+      },
+      {
+        "bits": "0",
+        "name": "Not Supported",
+        "description": "Not supported"
+      }
+    ]
+  },
+  {
+    "code": "0x7D",
+    "name": "STATUS_TEMPERATURE",
+    "type": "Read",
+    "bytes": "1",
+    "default_value": "N/A",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "OT_FAULT",
+        "description": "An over-temperature fault occurred."
+      },
+      {
+        "bits": "6",
+        "name": "OT_WARN",
+        "description": "An over-temperature warning occurred."
+      },
+      {
+        "bits": "5",
+        "name": "Not Supported",
+        "description": "Not supported"
+      },
+      {
+        "bits": "4",
+        "name": "UT_FAULT",
+        "description": "An under-temperature fault occurred."
+      },
+      {
+        "bits": "3:0",
+        "name": "Not Supported",
+        "description": "Not supported"
+      }
+    ]
+  },
+  {
+    "code": "0x7E",
+    "name": "STATUS_CML",
+    "type": "Read",
+    "bytes": "1",
+    "default_value": "N/A",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "IUCR",
+        "description": "Invalid or unsupported PMBus command was received. This bit sets during device discovery when using PowerNavigator."
+      },
+      {
+        "bits": "6",
+        "name": "IUDR",
+        "description": "The PMBus command was sent with invalid or unsupported data."
+      },
+      {
+        "bits": "5",
+        "name": "PECF",
+        "description": "A packet error check failure was detected in the PMBus command."
+      },
+      {
+        "bits": "4",
+        "name": "MFD",
+        "description": "Memory fault detected. This bit sets if the selected NVM config location is empty or invalid."
+      },
+      {
+        "bits": "3",
+        "name": "PFD",
+        "description": "Processor fault detected."
+      },
+      {
+        "bits": "2",
+        "name": "Not Supported",
+        "description": "Not supported"
+      },
+      {
+        "bits": "1",
+        "name": "OCF",
+        "description": "A communication fault other than the ones listed in this table occurred."
+      },
+      {
+        "bits": "0",
+        "name": "OMLF",
+        "description": "A memory or logical fault not listed previously was detected."
+      }
+    ]
+  },
+  {
+    "code": "0x80",
+    "name": "STATUS_MFR_SPECIFIC",
+    "type": "Read",
+    "bytes": "1",
+    "default_value": "N/A",
+    "bitRanges": [
+      {
+        "bits": "7",
+        "name": "ADCUNLOCK",
+        "description": "ADC clock unlock detected"
+      },
+      {
+        "bits": "6",
+        "name": "Not Supported",
+        "description": "Not supported"
+      },
+      {
+        "bits": "5",
+        "name": "CFP Fault",
+        "description": "A CFP fault occurred"
+      },
+      {
+        "bits": "4",
+        "name": "Internal Temperature Fault",
+        "description": "The controller internal temp exceeded 130 °C."
+      },
+      {
+        "bits": "3",
+        "name": "BBEVENT",
+        "description": "A Black Box event occurred."
+      },
+      {
+        "bits": "2",
+        "name": "LMSEvent",
+        "description": "A Last Man Standing event occurred."
+      },
+      {
+        "bits": "1",
+        "name": "SPSFault",
+        "description": "An SPS overcurrent and/or over-temperature event occurred."
+      },
+      {
+        "bits": "0",
+        "name": "Not Supported",
+        "description": "Not supported"
+      }
+    ]
+  },
+  {
+    "code": "0x88",
+    "name": "READ_VIN",
+    "type": "Read",
+    "bytes": "2",
+    "default_value": "N/A"
+  },
+  {
+    "code": "0x89",
+    "name": "READ_IIN",
+    "type": "Read",
+    "bytes": "2",
+    "default_value": "N/A"
+  },
+  {
+    "code": "0x8B",
+    "name": "READ_VOUT",
+    "type": "Read",
+    "bytes": "2",
+    "default_value": "N/A"
+  },
+  {
+    "code": "0x8C",
+    "name": "READ_IOUT",
+    "type": "Read",
+    "bytes": "2",
+    "default_value": "N/A"
+  },
+  {
+    "code": "0x8D",
+    "name": "READ_TEMPERATURE_1",
+    "type": "Read",
+    "bytes": "2",
+    "default_value": "N/A"
+  },
+  {
+    "code": "0x8E",
+    "name": "READ_TEMPERATURE_2",
+    "type": "Read",
+    "bytes": "2",
+    "default_value": "N/A"
+  },
+  {
+    "code": "0x8F",
+    "name": "READ_TEMPERATURE_3",
+    "type": "Read",
+    "bytes": "2",
+    "default_value": "N/A"
+  },
+  {
+    "code": "0x96",
+    "name": "READ_POUT",
+    "type": "Read",
+    "bytes": "2",
+    "default_value": "N/A"
+  },
+  {
+    "code": "0x97",
+    "name": "READ_PIN",
+    "type": "Read",
+    "bytes": "2",
+    "default_value": "N/A"
+  },
+  {
+    "code": "0x98",
+    "name": "PMBUS_REVISION",
+    "type": "Read",
+    "bytes": "1",
+    "default_value": "33h",
+    "bitRanges": [
+      {
+        "bits": "7:4",
+        "name": "Part 1 Revision",
+        "description": "0000 = 1.0, 0001 = 1.1, 0010 = 1.2, 0011 = 1.3"
+      },
+      {
+        "bits": "3:0",
+        "name": "Part 2 Revision",
+        "description": "0000 = 1.0, 0001 = 1.1, 0010 = 1.2, 0011 = 1.3"
+      }
+    ]
+  },
+  {
+    "code": "0x99",
+    "name": "MFR_ID",
+    "type": "Block R/W",
+    "bytes": "4",
+    "default_value": "00000000h",
+    "ignore": true
+  },
+  {
+    "code": "0x9A",
+    "name": "MFR_MODEL",
+    "type": "Block R/W",
+    "bytes": "4",
+    "default_value": "00000000h",
+    "ignore": true
+  },
+  {
+    "code": "0x9B",
+    "name": "MFR_REVISION",
+    "type": "Block R/W",
+    "bytes": "4",
+    "default_value": "00000000h",
+    "ignore": true
+  },
+  {
+    "code": "0x9D",
+    "name": "MFR_DATE",
+    "type": "Block R/W",
+    "bytes": "4",
+    "default_value": "00000000h"
+  },
+  {
+    "code": "0xAD",
+    "name": "IC_DEVICE_ID",
+    "type": "Block Read",
+    "bytes": "4",
+    "default_value": "49D25000h",
+    "bitRanges": [
+      {
+        "bits": "31:24",
+        "name": "MFR Code",
+        "description": "Manufacturer Code"
+      },
+      {
+        "bits": "23:16",
+        "name": "ID High Byte",
+        "description": "Device ID High Byte"
+      },
+      {
+        "bits": "15:8",
+        "name": "ID Low Byte",
+        "description": "Device ID Low Byte"
+      },
+      {
+        "bits": "7:0",
+        "name": "Reserved",
+        "description": "Reserved"
+      }
+    ],
+    "ignore": true
+  },
+  {
+    "code": "0xAE",
+    "name": "IC_DEVICE_REV",
+    "type": "Block Read",
+    "bytes": "4",
+    "default_value": "N/A",
+    "ignore": true
+  },
+  {
+    "code": "0xC5",
+    "name": "DMAFIX",
+    "type": "R/W",
+    "bytes": "4",
+    "default_value": "0000h",
+    "ignore": true
+  },
+  {
+    "code": "0xC6",
+    "name": "DMASEQ",
+    "type": "R/W",
+    "bytes": "4",
+    "default_value": "0000h",
+    "ignore": true
+  },
+  {
+    "code": "0xC7",
+    "name": "DMAADDR",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "0000h",
+    "bitRanges": [
+      {
+        "bits": "15:13",
+        "name": "REGION",
+        "description": "000 - RAM"
+      },
+      {
+        "bits": "12:0",
+        "name": "DMAADDR",
+        "description": "The 13-bit target address"
+      }
+    ]
+  },
+  {
+    "code": "0xCD",
+    "name": "PEAK_OC_LIMIT",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "0258h"
+  },
+  {
+    "code": "0xCE",
+    "name": "PEAK_UC_LIMIT",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "FDA8h"
+  },
+  {
+    "code": "0xD0",
+    "name": "VMON_ON",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "01C2h"
+  },
+  {
+    "code": "0xD1",
+    "name": "VMON_OFF",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "190h"
+  },
+  {
+    "code": "0xDD",
+    "name": "COMPPROP",
+    "type": "R/W",
+    "bytes": "4",
+    "default_value": "D90907C4h",
+    "ignore": true
+  },
+  {
+    "code": "0xDE",
+    "name": "COMPINTEG",
+    "type": "R/W",
+    "bytes": "4",
+    "default_value": "00A9h",
+    "ignore": true
+  },
+  {
+    "code": "0xDF",
+    "name": "COMPDIFF",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "0000h",
+    "bitRanges": [
+      {
+        "bits": "15:13",
+        "name": "Reserved",
+        "description": "Reserved"
+      },
+      {
+        "bits": "12",
+        "name": "FIR filter length 0 or 1",
+        "description": "FIR filter length 0 or 1"
+      },
+      {
+        "bits": "11:8",
+        "name": "Diff gain mantissa 1-phase override",
+        "description": "use normal P gain if value = 0 and shift = 0"
+      },
+      {
+        "bits": "7:6",
+        "name": "Diff gain exponent 1-phase override",
+        "description": "use normal P gain if value = 0 and shift = 0"
+      },
+      {
+        "bits": "5:2",
+        "name": "Differentiator gain mantissa",
+        "description": "(value/8)"
+      },
+      {
+        "bits": "1:0",
+        "name": "Differentiator gain exponent",
+        "description": "2^(shift+1 + P-shift) range 0:3"
+      }
+    ]
+  },
+  {
+    "code": "0xE0",
+    "name": "COMPCFB",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "0560h",
+    "bitRanges": [
+      {
+        "bits": "15:8",
+        "name": "High-pass filter coefficient for current feedback",
+        "description": "High-pass filter coefficient for current feedback"
+      },
+      {
+        "bits": "7:0",
+        "name": "Current feedback gain, low droop cases",
+        "description": "Current feedback gain, low droop cases"
+      }
+    ]
+  },
+  {
+    "code": "0xE3",
+    "name": "HS_BUS_CURRENT_SCALE",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "4000h"
+  },
+  {
+    "code": "0xE4",
+    "name": "PHASE_CURRENT",
+    "type": "Read",
+    "bytes": "2",
+    "default_value": "N/A"
+  },
+  {
+    "code": "0xE5",
+    "name": "PHASE_TEMPERATURE",
+    "type": "Read",
+    "bytes": "2",
+    "default_value": "N/A"
+  },
+  {
+    "code": "0xE9",
+    "name": "PEAK_OCUC_COUNT",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "0606h",
+    "bitRanges": [
+      {
+        "bits": "15:8",
+        "name": "Number of consecutive switch cycles exceeding peak UC limit before fault",
+        "description": "Number of consecutive switch cycles exceeding peak UC limit before fault"
+      },
+      {
+        "bits": "7:0",
+        "name": "Number of consecutive switch cycles exceeding peak OC limit before fault",
+        "description": "Number of consecutive switch cycles exceeding peak OC limit before fault"
+      }
+    ]
+  },
+  {
+    "code": "0xEA",
+    "name": "SLOW_IOUT_OC_LIMIT",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "C8h"
+  },
+  {
+    "code": "0xEB",
+    "name": "FAST_OC_FILT_COUNT",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "0696h",
+    "bitRanges": [
+      {
+        "bits": "15:12",
+        "name": "Not Used",
+        "description": "Not used"
+      },
+      {
+        "bits": "11:8",
+        "name": "Filter Setting",
+        "description": "Time constant = 166.7ns * 2^direct value. Range is 167ns to 5.46ms."
+      },
+      {
+        "bits": "7:0",
+        "name": "Delay Setting",
+        "description": "Delay 0.667µs * direct value before a fault is generated. Range is 0µs to 170µs."
+      }
+    ]
+  },
+  {
+    "code": "0xEC",
+    "name": "SLOW_OC_FILT_COUNT",
+    "type": "R/W",
+    "bytes": "2",
+    "default_value": "606h",
+    "bitRanges": [
+      {
+        "bits": "15:12",
+        "name": "Not Used",
+        "description": "Not used"
+      },
+      {
+        "bits": "11:8",
+        "name": "Filter Setting",
+        "description": "Time constant = 166.7ns * 2^direct value. Range is 167ns to 5.46ms."
+      },
+      {
+        "bits": "7:0",
+        "name": "Delay Setting",
+        "description": "Delay 170.7µs * direct value before a fault is generated. Range is 0µs to 43.5ms."
+      }
+    ]
+  },
+  {
+    "code": "0xF0",
+    "name": "LOOPCFG",
+    "type": "R/W",
+    "bytes": "4",
+    "default_value": "102031F6h",
+    "ignore": true
+  },
+  {
+    "code": "0xF2",
+    "name": "RESTORE_CFG",
+    "type": "R/W",
+    "bytes": "1",
+    "default_value": "00h",
+    "bitRanges": [
+      {
+        "bits": "7:4",
+        "name": "Reserved",
+        "description": "Reserved"
+      },
+      {
+        "bits": "3:0",
+        "name": "CONFIG",
+        "description": "Selected user configuration ID to restore, 0-15."
+      }
+    ]
+  }
+]

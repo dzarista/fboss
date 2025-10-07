@@ -158,10 +158,10 @@ class CmdShowInterface
         if (portInfo.vlans()->size() == 1) {
           const auto& vlan = portInfo.vlans()->at(0);
           ifModel.vlan() = vlan;
-          if (vlanToMtu.contains(vlan)) {
+          if (vlanToMtu.find(vlan) != vlanToMtu.end() ) {
             ifModel.mtu() = vlanToMtu[vlan];
           }
-          if (vlanToPrefixes.contains(vlan)) {
+          if (vlanToPrefixes.find(vlan) != vlanToPrefixes.end()) {
             ifModel.prefixes() = vlanToPrefixes[vlan];
           }
         } else if (portInfo.vlans()->size() == 0) {

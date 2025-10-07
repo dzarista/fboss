@@ -1,0 +1,40 @@
+# Sample time series data for testing
+# Temperature data - good metrics
+host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/1/1.temp,56,"Thu, 08 May 25 00:00:00 -0700",1746687600
+host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/1/1.temp,56,"Thu, 08 May 25 01:00:00 -0700",1746691200
+host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/1/1.temp,56,"Thu, 08 May 25 02:00:00 -0700",1746694800
+host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/2/1.temp,45,"Thu, 08 May 25 00:00:00 -0700",1746687600
+host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/2/1.temp,45.5,"Thu, 08 May 25 01:00:00 -0700",1746691200
+host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/100/1.temp,62,"Thu, 08 May 25 00:00:00 -0700",1746687600
+host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/128/1.temp,58.5,"Thu, 08 May 25 00:00:00 -0700",1746687600
+
+# Temperature data - bad metrics that should be ignored (these caused the bug)
+host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/1/1.temp.high.sum.60,0,"Thu, 08 May 25 00:00:00 -0700",1746687600
+host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/1/1.temp.low.sum.60,0,"Thu, 08 May 25 00:00:00 -0700",1746687600
+
+# Voltage data - good metrics
+host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/1/1.vcc.mv,3299.33,"Thu, 08 May 25 00:00:00 -0700",1746687600
+host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/1/1.vcc.mv,3299.2,"Thu, 08 May 25 01:00:00 -0700",1746691200
+host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/2/1.vcc.mv,3301.5,"Thu, 08 May 25 00:00:00 -0700",1746687600
+host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/100/1.vcc.mv,3298.8,"Thu, 08 May 25 00:00:00 -0700",1746687600
+
+# Fan data
+host123.n123.c123.abc1::sensor_service.sensor_read.FAN1_RPM.value,5600,"Thu, 08 May 25 00:00:00 -0700",1746687600
+host123.n123.c123.abc1::sensor_service.sensor_read.FAN1_RPM.value,5650,"Thu, 08 May 25 01:00:00 -0700",1746691200
+host123.n123.c123.abc1::sensor_service.sensor_read.FAN2_RPM.value,5700,"Thu, 08 May 25 00:00:00 -0700",1746687600
+host123.n123.c123.abc1::sensor_service.sensor_read.FAN12_RPM.value,5800,"Thu, 08 May 25 00:00:00 -0700",1746687600
+
+# Edge cases
+# Invalid temperature (too high - should be filtered out)
+host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/3/1.temp,200,"Thu, 08 May 25 00:00:00 -0700",1746687600
+# Valid voltage (1000mV is within 0-10000mV range)
+host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/3/1.vcc.mv,1000,"Thu, 08 May 25 00:00:00 -0700",1746687600
+# Invalid voltage (too high - should be filtered out)
+host123.n123.c123.abc1::qsfp_service.qsfp.interface.fab1/4/1.vcc.mv,15000,"Thu, 08 May 25 00:00:00 -0700",1746687600
+# Malformed line (should be skipped)
+invalid,line,format
+# Empty line (should be skipped)
+
+# Different hostname format (should still work)
+rdsw025.u001.c086.ash6::qsfp_service.qsfp.interface.eth1/10/1.temp,48,"Thu, 08 May 25 00:00:00 -0700",1746687600
+rdsw025.u001.c086.ash6::qsfp_service.qsfp.interface.eth1/10/1.vcc.mv,3302.1,"Thu, 08 May 25 00:00:00 -0700",1746687600

@@ -1,0 +1,12 @@
+[Unit]
+Description=FBOSS sw agent
+Wants=platform_manager.service
+After=platform_manager.service
+
+[Service]
+Type=notify
+ExecStart=/opt/fboss/bin/run_sw_agent.sh
+TimeoutSec=600
+
+[Install]
+WantedBy=multi-user.target
