@@ -23,6 +23,7 @@
 #include "fboss/lib/CommonUtils.h"
 
 namespace {
+using facebook::fboss::FabricEndpoint;
 using facebook::fboss::FbossHwCtrl;
 using facebook::fboss::MultiSwitchRunState;
 using facebook::fboss::QsfpService;
@@ -32,6 +33,9 @@ using facebook::fboss::fsdb::FsdbService;
 using facebook::fboss::fsdb::SubscriberIdToOperSubscriberInfos;
 using RunForHwAgentFn = std::function<void(
     apache::thrift::Client<facebook::fboss::FbossHwCtrl>& client)>;
+using facebook::fboss::ClientID;
+using facebook::fboss::IpPrefix;
+using facebook::fboss::UnicastRoute;
 using facebook::fboss::cfg::DsfNode;
 
 std::unique_ptr<apache::thrift::Client<TestCtrl>> getSwAgentThriftClient(
@@ -162,6 +166,54 @@ void removeNeighbor(
       facebook::network::toBinaryAddress(neighborIP), interfaceID);
 }
 
+void addRoute(
+    const std::string& switchName,
+    const folly::IPAddress& destPrefix,
+    const int16_t prefixLength,
+    const std::vector<folly::IPAddress>& nexthops) {
+  UnicastRoute route;
+  route.dest()->ip() = facebook::network::toBinaryAddress(destPrefix);
+  route.dest()->prefixLength() = prefixLength;
+  for (const auto& nexthop : nexthops) {
+    route.nextHopAddrs()->push_back(
+        facebook::network::toBinaryAddress(nexthop));
+  }
+
+  auto swAgentClient = getSwAgentThriftClient(switchName);
+  swAgentClient->sync_addUnicastRoutes(
+      static_cast<int16_t>(ClientID::STATIC_ROUTE), {std::move(route)});
+}
+
+std::map<int32_t, facebook::fboss::InterfaceDetail> getIntfIdToIntf(
+    const std::string& switchName) {
+  auto swAgentClient = getSwAgentThriftClient(switchName);
+  std::map<int32_t, facebook::fboss::InterfaceDetail> intfIdToIntf;
+  swAgentClient->sync_getAllInterfaces(intfIdToIntf);
+  return intfIdToIntf;
+}
+
+std::map<int64_t, facebook::fboss::SystemPortThrift>
+getSystemPortdIdToSystemPort(const std::string& switchName) {
+  auto swAgentClient = getSwAgentThriftClient(switchName);
+  std::map<int64_t, facebook::fboss::SystemPortThrift> systemPortIdToSystemPort;
+  swAgentClient->sync_getSystemPorts(systemPortIdToSystemPort);
+  return systemPortIdToSystemPort;
+}
+
+std::map<std::string, FabricEndpoint> getFabricPortToFabricEndpoint(
+    const std::string& switchName) {
+  std::map<std::string, FabricEndpoint> fabricPortToFabricEndpoint;
+  auto hwAgentQueryFn = [&fabricPortToFabricEndpoint](
+                            apache::thrift::Client<FbossHwCtrl>& client) {
+    std::map<std::string, FabricEndpoint> hwAgentEntries;
+    client.sync_getHwFabricConnectivity(hwAgentEntries);
+    fabricPortToFabricEndpoint.merge(hwAgentEntries);
+  };
+  runOnAllHwAgents(switchName, hwAgentQueryFn);
+
+  return fabricPortToFabricEndpoint;
+}
+
 void triggerGracefulAgentRestart(const std::string& switchName) {
   try {
     auto swAgentClient = getSwAgentThriftClient(switchName);
@@ -248,7 +300,9 @@ SubscriberIdToOperSubscriberInfos getSubscriberIdToOperSusbscriberInfos(
 namespace facebook::fboss::utility {
 
 MultiNodeUtil::MultiNodeUtil(
-    const std::shared_ptr<MultiSwitchDsfNodeMap>& dsfNodeMap) {
+    SwSwitch* sw,
+    const std::shared_ptr<MultiSwitchDsfNodeMap>& dsfNodeMap)
+    : sw_(sw) {
   populateDsfNodes(dsfNodeMap);
   populateAllRdsws();
   populateAllFdsws();
@@ -301,33 +355,24 @@ void MultiNodeUtil::populateAllFdsws() {
   }
 }
 
-std::map<std::string, FabricEndpoint> MultiNodeUtil::getFabricEndpoints(
+std::map<std::string, FabricEndpoint>
+MultiNodeUtil::getConnectedFabricPortToFabricEndpoint(
     const std::string& switchName) const {
-  std::map<std::string, FabricEndpoint> fabricEndpoints;
-  auto hwAgentQueryFn =
-      [&fabricEndpoints](
-          apache::thrift::Client<facebook::fboss::FbossHwCtrl>& client) {
-        std::map<std::string, FabricEndpoint> hwagentEntries;
-        client.sync_getHwFabricConnectivity(hwagentEntries);
-        fabricEndpoints.merge(hwagentEntries);
-      };
-  runOnAllHwAgents(switchName, hwAgentQueryFn);
+  std::map<std::string, FabricEndpoint> connectedFabricPortToFabricEndpoint;
+  auto fabricPortToFabricEndpoint = getFabricPortToFabricEndpoint(switchName);
 
-  return fabricEndpoints;
-}
+  std::copy_if(
+      fabricPortToFabricEndpoint.begin(),
+      fabricPortToFabricEndpoint.end(),
+      std::inserter(
+          connectedFabricPortToFabricEndpoint,
+          connectedFabricPortToFabricEndpoint.begin()),
+      [](const auto& pair) {
+        auto fabricEndpoint = pair.second;
+        return fabricEndpoint.isAttached().value();
+      });
 
-std::set<std::string> MultiNodeUtil::getConnectedFabricPorts(
-    const std::string& switchName) const {
-  auto fabricEndpoints = getFabricEndpoints(switchName);
-
-  std::set<std::string> connectedPorts;
-  for (const auto& [localPort, fabricEndpoint] : fabricEndpoints) {
-    if (fabricEndpoint.isAttached().value()) {
-      connectedPorts.insert(localPort);
-    }
-  }
-
-  return connectedPorts;
+  return connectedFabricPortToFabricEndpoint;
 }
 
 bool MultiNodeUtil::verifyFabricConnectedSwitchesHelper(
@@ -353,10 +398,9 @@ bool MultiNodeUtil::verifyFabricConnectedSwitchesHelper(
                << fabricEndpoint.expectedPortName().value_or("none");
   };
 
-  auto fabricEndpoints = getFabricEndpoints(switchToVerify);
-
   std::set<std::string> gotConnectedSwitches;
-  for (const auto& [portName, fabricEndpoint] : fabricEndpoints) {
+  for (const auto& [portName, fabricEndpoint] :
+       getFabricPortToFabricEndpoint(switchToVerify)) {
     if (fabricEndpoint.isAttached().value()) {
       logFabricEndpoint(fabricEndpoint);
 
@@ -593,7 +637,15 @@ bool MultiNodeUtil::verifyPortActiveStateForSwitch(
     SwitchType switchType,
     const std::string& switchName) const {
   // Every Connected Fabric Port must be Active
-  auto expectedActivePorts = getConnectedFabricPorts(switchName);
+  auto connectedFabricPortToFabricEndpoint =
+      getConnectedFabricPortToFabricEndpoint(switchName);
+  std::set<std::string> expectedActivePorts;
+  std::transform(
+      connectedFabricPortToFabricEndpoint.begin(),
+      connectedFabricPortToFabricEndpoint.end(),
+      std::inserter(expectedActivePorts, expectedActivePorts.begin()),
+      [](const auto& pair) { return pair.first; });
+
   auto gotActivePorts = getActiveFabricPorts(switchName);
 
   XLOG(DBG2) << "From " << switchTypeToString(switchType) << ":: " << switchName
@@ -656,45 +708,26 @@ bool MultiNodeUtil::verifyPorts() const {
 }
 
 std::map<std::string, std::vector<SystemPortThrift>>
-MultiNodeUtil::getPeerToSystemPorts(const std::string& rdsw) const {
-  auto logSystemPort =
-      [rdsw](const facebook::fboss::SystemPortThrift& systemPort) {
-        XLOG(DBG2)
-            << "From " << rdsw << " portId: " << systemPort.portId().value()
-            << " switchId: " << systemPort.switchId().value()
-            << " portName: " << systemPort.portName().value()
-            << " remoteSystemPortType: "
-            << apache::thrift::util::enumNameSafe(
-                   systemPort.remoteSystemPortType().value_or(-1))
-            << " remoteSystemPortLivenessStatus: "
-            << apache::thrift::util::enumNameSafe(
-                   systemPort.remoteSystemPortLivenessStatus().value_or(-1))
-            << " scope: "
-            << apache::thrift::util::enumNameSafe(systemPort.scope().value());
-      };
+MultiNodeUtil::getRdswToSystemPorts() const {
+  std::map<std::string, std::vector<SystemPortThrift>> rdswToSystemPorts;
 
-  auto swAgentClient = getSwAgentThriftClient(rdsw);
-  std::map<int64_t, facebook::fboss::SystemPortThrift> systemPortEntries;
-  swAgentClient->sync_getSystemPorts(systemPortEntries);
+  for (const auto& rdsw : allRdsws_) {
+    auto systemPortIdToSystemPort = getSystemPortdIdToSystemPort(rdsw);
 
-  std::map<std::string, std::vector<SystemPortThrift>> peerToSystemPorts;
-  for (const auto& [_, systemPort] : systemPortEntries) {
-    logSystemPort(systemPort);
-    CHECK(
-        switchIdToSwitchName_.find(SwitchID(systemPort.switchId().value())) !=
-        std::end(switchIdToSwitchName_));
-    auto switchName =
-        switchIdToSwitchName_.at(SwitchID(systemPort.switchId().value()));
-    peerToSystemPorts[switchName].push_back(systemPort);
+    std::transform(
+        systemPortIdToSystemPort.begin(),
+        systemPortIdToSystemPort.end(),
+        std::back_inserter(rdswToSystemPorts[rdsw]),
+        [](const auto& pair) { return pair.second; });
   }
 
-  return peerToSystemPorts;
+  return rdswToSystemPorts;
 }
 
 std::set<std::string> MultiNodeUtil::getGlobalSystemPortsOfType(
     const std::string& rdsw,
     const std::set<RemoteSystemPortType>& types) const {
-  auto matchesPortType =
+  auto matchesSystemPortType =
       [&types](const facebook::fboss::SystemPortThrift& systemPort) {
         if (systemPort.remoteSystemPortType().has_value()) {
           return types.find(systemPort.remoteSystemPortType().value()) !=
@@ -705,16 +738,12 @@ std::set<std::string> MultiNodeUtil::getGlobalSystemPortsOfType(
       };
 
   std::set<std::string> systemPortsOfType;
-  auto peerToSystemPorts = getPeerToSystemPorts(rdsw);
-  for (const auto& [_, systemPorts] : peerToSystemPorts) {
-    for (const auto& systemPort : systemPorts) {
-      if (*systemPort.scope() == cfg::Scope::GLOBAL &&
-          matchesPortType(systemPort)) {
-        systemPortsOfType.insert(systemPort.portName().value());
-      }
+  for (const auto& [_, systemPort] : getSystemPortdIdToSystemPort(rdsw)) {
+    if (*systemPort.scope() == cfg::Scope::GLOBAL &&
+        matchesSystemPortType(systemPort)) {
+      systemPortsOfType.insert(systemPort.portName().value());
     }
   }
-
   return systemPortsOfType;
 }
 
@@ -759,29 +788,19 @@ bool MultiNodeUtil::verifySystemPorts() const {
 }
 
 std::map<std::string, std::vector<InterfaceDetail>>
-MultiNodeUtil::getPeerToRifs(const std::string& rdsw) const {
-  auto logRif = [rdsw](const facebook::fboss::InterfaceDetail& rif) {
-    XLOG(DBG2)
-        << "From " << rdsw << " interfaceName: " << rif.interfaceName().value()
-        << " interfaceId: " << rif.interfaceId().value() << " remoteIntfType: "
-        << apache::thrift::util::enumNameSafe(rif.remoteIntfType().value_or(-1))
-        << " remoteIntfLivenessStatus: "
-        << folly::to<std::string>(rif.remoteIntfLivenessStatus().value_or(-1))
-        << " scope: "
-        << apache::thrift::util::enumNameSafe(rif.scope().value());
-  };
+MultiNodeUtil::getRdswToRifs() const {
+  std::map<std::string, std::vector<InterfaceDetail>> rdswToRifs;
+  for (const auto& rdsw : allRdsws_) {
+    auto intfIdToIntf = getIntfIdToIntf(rdsw);
 
-  auto swAgentClient = getSwAgentThriftClient(rdsw);
-  std::map<int32_t, facebook::fboss::InterfaceDetail> rifs;
-  swAgentClient->sync_getAllInterfaces(rifs);
-
-  std::map<std::string, std::vector<InterfaceDetail>> peerToRifs;
-  for (const auto& [_, rif] : rifs) {
-    logRif(rif);
-    peerToRifs[rdsw].push_back(rif);
+    std::transform(
+        intfIdToIntf.begin(),
+        intfIdToIntf.end(),
+        std::back_inserter(rdswToRifs[rdsw]),
+        [](const auto& pair) { return pair.second; });
   }
 
-  return peerToRifs;
+  return rdswToRifs;
 }
 
 std::set<int> MultiNodeUtil::getGlobalRifsOfType(
@@ -796,12 +815,9 @@ std::set<int> MultiNodeUtil::getGlobalRifsOfType(
   };
 
   std::set<int> rifsOfType;
-  auto peerToRifs = getPeerToRifs(rdsw);
-  for (const auto& [_, rifs] : peerToRifs) {
-    for (const auto& rif : rifs) {
-      if (*rif.scope() == cfg::Scope::GLOBAL && matchesRifType(rif)) {
-        rifsOfType.insert(rif.interfaceId().value());
-      }
+  for (const auto& [_, rif] : getIntfIdToIntf(rdsw)) {
+    if (*rif.scope() == cfg::Scope::GLOBAL && matchesRifType(rif)) {
+      rifsOfType.insert(rif.interfaceId().value());
     }
   }
   return rifsOfType;
@@ -1314,9 +1330,8 @@ bool MultiNodeUtil::verifyStaleSystemPorts(
   auto staleSystemPorts = [this, myHostname, restartedRdsws] {
     // Verify system ports for restarted RDSWs are STALE
     // Verify system ports for non-restarted RDSWs are LIVE
-    auto peerToSystemPorts = getPeerToSystemPorts(myHostname);
-    for (const auto& [peer, systemPorts] : peerToSystemPorts) {
-      bool isRestarted = restartedRdsws.find(peer) != restartedRdsws.end();
+    for (const auto& [rdsw, systemPorts] : getRdswToSystemPorts()) {
+      bool isRestarted = restartedRdsws.find(rdsw) != restartedRdsws.end();
 
       for (const auto& systemPort : systemPorts) {
         auto livenessStatus = systemPort.remoteSystemPortLivenessStatus();
@@ -1350,15 +1365,11 @@ bool MultiNodeUtil::verifyStaleSystemPorts(
 
 bool MultiNodeUtil::verifyStaleRifs(
     const std::set<std::string>& restartedRdsws) const {
-  auto myHostname = network::NetworkUtil::getLocalHost(
-      true /* stripFbDomain */, true /* stripTFbDomain */);
-
-  auto staleRifs = [this, myHostname, restartedRdsws] {
+  auto staleRifs = [this, restartedRdsws] {
     // Verify rifs for restarted RDSWs are STALE
     // Verify rifs for non-restarted RDSWs are LIVE
-    auto peerToRifs = getPeerToRifs(myHostname);
-    for (const auto& [peer, rifs] : peerToRifs) {
-      bool isRestarted = restartedRdsws.find(peer) != restartedRdsws.end();
+    for (const auto& [rdsw, rifs] : getRdswToRifs()) {
+      bool isRestarted = restartedRdsws.find(rdsw) != restartedRdsws.end();
 
       for (const auto& rif : rifs) {
         auto livenessStatus = rif.remoteIntfLivenessStatus();
@@ -1391,12 +1402,8 @@ bool MultiNodeUtil::verifyStaleRifs(
 }
 
 bool MultiNodeUtil::verifyLiveSystemPorts() const {
-  auto myHostname = network::NetworkUtil::getLocalHost(
-      true /* stripFbDomain */, true /* stripTFbDomain */);
-
-  auto liveSystemPorts = [this, myHostname] {
-    auto peerToSystemPorts = getPeerToSystemPorts(myHostname);
-    for (const auto& [peer, systemPorts] : peerToSystemPorts) {
+  auto liveSystemPorts = [this] {
+    for (const auto& [rdsw, systemPorts] : getRdswToSystemPorts()) {
       for (const auto& systemPort : systemPorts) {
         auto livenessStatus = systemPort.remoteSystemPortLivenessStatus();
         if (!livenessStatus.has_value()) {
@@ -1422,12 +1429,8 @@ bool MultiNodeUtil::verifyLiveSystemPorts() const {
 }
 
 bool MultiNodeUtil::verifyLiveRifs() const {
-  auto myHostname = network::NetworkUtil::getLocalHost(
-      true /* stripFbDomain */, true /* stripTFbDomain */);
-
-  auto liveRifs = [this, myHostname] {
-    auto peerToRifs = getPeerToRifs(myHostname);
-    for (const auto& [peer, rifs] : peerToRifs) {
+  auto liveRifs = [this] {
+    for (const auto& [_, rifs] : getRdswToRifs()) {
       for (const auto& rif : rifs) {
         auto livenessStatus = rif.remoteIntfLivenessStatus();
         if (!livenessStatus.has_value()) {
@@ -1702,12 +1705,8 @@ std::vector<MultiNodeUtil::NeighborInfo> MultiNodeUtil::computeNeighborsForRdsw(
   };
 
   auto getIntfIDToIp = [this, rdsw]() {
-    auto peerToRifs = getPeerToRifs(rdsw);
-    CHECK(peerToRifs.find(rdsw) != peerToRifs.end());
-    auto rifs = peerToRifs.at(rdsw);
-
     std::map<int32_t, folly::IPAddress> intfIDToIp;
-    for (const auto& rif : rifs) {
+    for (const auto& [_, rif] : getIntfIdToIntf(rdsw)) {
       for (const auto& ipPrefix : *rif.address()) {
         auto ip = folly::IPAddress::fromBinary(folly::ByteRange(
             reinterpret_cast<const unsigned char*>(
@@ -1725,15 +1724,20 @@ std::vector<MultiNodeUtil::NeighborInfo> MultiNodeUtil::computeNeighborsForRdsw(
     return intfIDToIp;
   };
 
-  auto computeNeighborIpAndMac = [](const std::string& ipAddress) {
+  auto computeNeighborIpAndMac = [this](const std::string& ipAddress) {
     auto constexpr kOffset = 0x10;
     auto ipv6Address = folly::IPAddressV6::tryFromString(ipAddress);
     std::array<uint8_t, 16> bytes = ipv6Address->toByteArray();
     bytes[15] += kOffset; // add some offset to derive neighbor IP
     auto neighborIp = folly::IPAddressV6::fromBinary(bytes);
 
-    auto macStr =
-        folly::to<std::string>(fmt::format("00:02:00:00:00:{:02x}", bytes[15]));
+    // Resolve Neighbor to Router MAC.
+    //
+    // Neighbor is resolved on a loopback port.
+    // Thus, packets out of this port get looped back. Since those packets
+    // carry router MAC as dstMac the packets get routed and help us create
+    // traffic loop.
+    auto macStr = utility::getMacForFirstInterfaceWithPorts(sw_->getState());
     auto neighborMac = folly::MacAddress(macStr);
 
     return std::make_pair(neighborIp, neighborMac);
@@ -1744,7 +1748,8 @@ std::vector<MultiNodeUtil::NeighborInfo> MultiNodeUtil::computeNeighborsForRdsw(
         auto intfIDToIp = getIntfIDToIp();
 
         for (auto& neighbor : neighbors) {
-          CHECK(intfIDToIp.find(neighbor.intfID) != intfIDToIp.end());
+          CHECK(intfIDToIp.find(neighbor.intfID) != intfIDToIp.end())
+              << "rdsw: " << rdsw << " neighbor.intfID: " << neighbor.intfID;
           auto ip = intfIDToIp.at(neighbor.intfID);
           auto [neighborIp, neighborMac] = computeNeighborIpAndMac(ip.str());
 
@@ -1966,6 +1971,54 @@ bool MultiNodeUtil::verifyNeighborAddRemove() const {
       break;
     }
   }
+
+  return true;
+}
+
+bool MultiNodeUtil::verifyTrafficSpray() const {
+  XLOG(DBG2) << __func__;
+
+  auto logAddRoute =
+      [](const auto& rdsw, const auto& prefix, const auto& neighbor) {
+        XLOG(DBG2) << "Adding route:: " << " prefix: " << prefix.str()
+                   << " nexthop: " << neighbor.str() << " to " << rdsw;
+      };
+
+  auto static kPrefix = folly::IPAddressV6("2001:0db8:85a3::");
+  auto static constexpr kPrefixLength = 64;
+  std::optional<std::string> prevRdsw{std::nullopt};
+  MultiNodeUtil::NeighborInfo firstRdswNeighbor{};
+
+  // Add a neighbor for every RDSW in the cluster
+  // Also, add routes for every RDSW to create a loop i.e.:
+  //    - RDSW A has route with nexthop as RDSW B's neighbor
+  //    - RDSW B has route with nexthop as RDSW C's neighbor
+  //    ...
+  //    - RDSW Z has route with nexthop as RDSW A's neighbor
+  //      so the packet loops around
+  for (const auto& rdsw : allRdsws_) {
+    auto neighbors = computeNeighborsForRdsw(rdsw, 1 /* number of neighbors */);
+    CHECK_EQ(neighbors.size(), 1);
+    auto neighbor = neighbors[0];
+
+    XLOG(DBG2) << "Adding neighbor: " << neighbor.str() << " to " << rdsw;
+    addNeighbor(
+        rdsw, neighbor.intfID, neighbor.ip, neighbor.mac, neighbor.portID);
+
+    if (!prevRdsw.has_value()) { // first RDSW
+      firstRdswNeighbor = neighbor;
+    } else {
+      logAddRoute(prevRdsw.value(), kPrefix, neighbor);
+      addRoute(prevRdsw.value(), kPrefix, kPrefixLength, {neighbor.ip});
+    }
+    prevRdsw = rdsw;
+  }
+
+  // Add route for first RDSW to complete the loop
+  CHECK(!allRdsws_.empty());
+  auto lastRdsw = std::prev(allRdsws_.end());
+  logAddRoute(*lastRdsw, kPrefix, firstRdswNeighbor);
+  addRoute(*lastRdsw, kPrefix, kPrefixLength, {firstRdswNeighbor.ip});
 
   return true;
 }

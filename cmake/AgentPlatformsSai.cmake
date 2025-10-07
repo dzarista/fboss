@@ -41,6 +41,7 @@ add_library(sai_platform
   fboss/agent/platforms/sai/SaiMinipack3NPlatform.cpp
   fboss/agent/platforms/sai/SaiBcmIcecube800bcPlatform.cpp
   fboss/agent/platforms/sai/SaiBcmIcetea800bcPlatform.cpp
+  fboss/agent/platforms/sai/SaiBcmTahansb800bcPlatform.cpp
   fboss/agent/platforms/sai/SaiBcmWedge800baPlatform.cpp
   fboss/agent/platforms/sai/SaiBcmWedge800baPlatformPort.cpp
   fboss/agent/platforms/sai/SaiGlath05a-64oPlatform.cpp
@@ -71,6 +72,8 @@ add_library(sai_platform
   fboss/agent/platforms/sai/SaiMinipack3NPlatformPort.cpp
   fboss/agent/platforms/sai/SaiBcmIcecube800bcPlatformPort.cpp
   fboss/agent/platforms/sai/SaiBcmIcetea800bcPlatformPort.cpp
+  fboss/agent/platforms/sai/SaiWedge800caPlatform.cpp
+  fboss/agent/platforms/sai/SaiWedge800caPlatformPort.cpp
   fboss/agent/platforms/sai/oss/SaiGlath05a-64oPlatform.cpp
   fboss/agent/platforms/sai/oss/SaiGlath05a-64oPlatformPort.cpp
 )
@@ -109,12 +112,14 @@ target_link_libraries(sai_platform
   montblanc_platform_mapping
   janga800bic_platform_mapping
   tahan800bc_platform_mapping
+  tahansb800bc_platform_mapping
   icecube800bc_platform_mapping
   icetea800bc_platform_mapping
   glath05a-64o_platform_mapping
   led_structs_types_cpp2
   led_mapping_cpp2
   wedge800ba_platform_mapping
+  wedge800ca_platform_mapping
 )
 
 set_target_properties(sai_platform PROPERTIES COMPILE_FLAGS

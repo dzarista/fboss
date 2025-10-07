@@ -99544,7 +99544,7 @@ constexpr auto kJsonEdswHyperPortPlatformMappingStr = R"(
               }
             }
           ],
-          "portType": 0,
+          "portType": 7,
           "attachedCoreId": 0,
           "attachedCorePortIndex": 8,
           "virtualDeviceId": 0,
@@ -99824,7 +99824,7 @@ constexpr auto kJsonEdswHyperPortPlatformMappingStr = R"(
               }
             }
           ],
-          "portType": 0,
+          "portType": 7,
           "attachedCoreId": 0,
           "attachedCorePortIndex": 9,
           "virtualDeviceId": 0,
@@ -100104,7 +100104,7 @@ constexpr auto kJsonEdswHyperPortPlatformMappingStr = R"(
               }
             }
           ],
-          "portType": 0,
+          "portType": 7,
           "attachedCoreId": 0,
           "attachedCorePortIndex": 10,
           "virtualDeviceId": 0,
@@ -100384,7 +100384,7 @@ constexpr auto kJsonEdswHyperPortPlatformMappingStr = R"(
               }
             }
           ],
-          "portType": 0,
+          "portType": 7,
           "attachedCoreId": 0,
           "attachedCorePortIndex": 11,
           "virtualDeviceId": 0,
@@ -100664,7 +100664,7 @@ constexpr auto kJsonEdswHyperPortPlatformMappingStr = R"(
               }
             }
           ],
-          "portType": 0,
+          "portType": 7,
           "attachedCoreId": 1,
           "attachedCorePortIndex": 8,
           "virtualDeviceId": 0,
@@ -100944,7 +100944,7 @@ constexpr auto kJsonEdswHyperPortPlatformMappingStr = R"(
               }
             }
           ],
-          "portType": 0,
+          "portType": 7,
           "attachedCoreId": 1,
           "attachedCorePortIndex": 9,
           "virtualDeviceId": 0,
@@ -101224,7 +101224,7 @@ constexpr auto kJsonEdswHyperPortPlatformMappingStr = R"(
               }
             }
           ],
-          "portType": 0,
+          "portType": 7,
           "attachedCoreId": 1,
           "attachedCorePortIndex": 10,
           "virtualDeviceId": 0,
@@ -101504,7 +101504,7 @@ constexpr auto kJsonEdswHyperPortPlatformMappingStr = R"(
               }
             }
           ],
-          "portType": 0,
+          "portType": 7,
           "attachedCoreId": 1,
           "attachedCorePortIndex": 11,
           "virtualDeviceId": 0,
@@ -101784,7 +101784,7 @@ constexpr auto kJsonEdswHyperPortPlatformMappingStr = R"(
               }
             }
           ],
-          "portType": 0,
+          "portType": 7,
           "attachedCoreId": 2,
           "attachedCorePortIndex": 8,
           "virtualDeviceId": 0,
@@ -102064,7 +102064,7 @@ constexpr auto kJsonEdswHyperPortPlatformMappingStr = R"(
               }
             }
           ],
-          "portType": 0,
+          "portType": 7,
           "attachedCoreId": 2,
           "attachedCorePortIndex": 9,
           "virtualDeviceId": 0,
@@ -102344,7 +102344,7 @@ constexpr auto kJsonEdswHyperPortPlatformMappingStr = R"(
               }
             }
           ],
-          "portType": 0,
+          "portType": 7,
           "attachedCoreId": 2,
           "attachedCorePortIndex": 10,
           "virtualDeviceId": 0,
@@ -102624,7 +102624,7 @@ constexpr auto kJsonEdswHyperPortPlatformMappingStr = R"(
               }
             }
           ],
-          "portType": 0,
+          "portType": 7,
           "attachedCoreId": 2,
           "attachedCorePortIndex": 11,
           "virtualDeviceId": 0,
@@ -102904,7 +102904,7 @@ constexpr auto kJsonEdswHyperPortPlatformMappingStr = R"(
               }
             }
           ],
-          "portType": 0,
+          "portType": 7,
           "attachedCoreId": 3,
           "attachedCorePortIndex": 8,
           "virtualDeviceId": 0,
@@ -103184,7 +103184,7 @@ constexpr auto kJsonEdswHyperPortPlatformMappingStr = R"(
               }
             }
           ],
-          "portType": 0,
+          "portType": 7,
           "attachedCoreId": 3,
           "attachedCorePortIndex": 9,
           "virtualDeviceId": 0,
@@ -103464,7 +103464,7 @@ constexpr auto kJsonEdswHyperPortPlatformMappingStr = R"(
               }
             }
           ],
-          "portType": 0,
+          "portType": 7,
           "attachedCoreId": 3,
           "attachedCorePortIndex": 10,
           "virtualDeviceId": 0,
@@ -103744,7 +103744,7 @@ constexpr auto kJsonEdswHyperPortPlatformMappingStr = R"(
               }
             }
           ],
-          "portType": 0,
+          "portType": 7,
           "attachedCoreId": 3,
           "attachedCorePortIndex": 11,
           "virtualDeviceId": 0,
