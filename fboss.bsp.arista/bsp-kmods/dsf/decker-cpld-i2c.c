@@ -21,12 +21,14 @@
 #include "regbit-sysfs.h"
 #include "smb-cpld-i2c.h"
 
+#define DRIVER_NAME "decker-cpld"
+
 #define CPLD_SCD0_CTRL_STA	0xA0
 #define CPLD_SCD1_CTRL_STA	0xA1
 #define CPLD_SCD2_CTRL_STA	0xA2
 #define CPLD_SCD3_CTRL_STA	0xA3
 
-static const struct regbit_sysfs_config decker_cpld_attrs[] = {
+static const struct regbit_sysfs_config cpld_attrs[] = {
 	/* MERU TODO: add ASIC/port status registers. */
 
 	/*
@@ -158,23 +160,13 @@ static const struct regbit_sysfs_config decker_cpld_attrs[] = {
 	},
 };
 
-SMB_CPLD_PROBE_FN("decker", decker_cpld_attrs);
-
-static const struct i2c_device_id decker_cpld_dev_ids[] = {
+static const struct i2c_device_id cpld_dev_ids[] = {
 	{ "decker_cpld", 0 },
 	{},
 };
-MODULE_DEVICE_TABLE(i2c, decker_cpld_dev_ids);
+MODULE_DEVICE_TABLE(i2c, cpld_dev_ids);
 
-static struct i2c_driver decker_cpld_i2c_driver = {
-	.driver = {
-		.name = "decker-cpld",
-	},
-	.probe = smb_cpld_i2c_probe,
-	.remove = smb_cpld_i2c_remove,
-	.id_table = decker_cpld_dev_ids,
-};
-module_i2c_driver(decker_cpld_i2c_driver);
+SMB_CPLD_DRIVER(DRIVER_NAME, decker, cpld_attrs, cpld_dev_ids)
 
 MODULE_AUTHOR("Arista Networks");
 MODULE_DESCRIPTION("Decker CPLD I2C Driver");

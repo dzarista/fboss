@@ -119,7 +119,8 @@ const struct regbit_sysfs_config smb_cpld_common_attrs[] = {
 
 const int smb_cpld_common_attrs_count = ARRAY_SIZE(smb_cpld_common_attrs);
 
-int smb_cpld_fw_ver_read(struct i2c_client *client, char *buf, const char *device_name)
+int smb_cpld_fw_ver_read(struct i2c_client *client, char *buf,
+			 const char *device_name)
 {
 	int ret;
 	u8 major_rev, minor_rev;
@@ -144,7 +145,7 @@ int smb_cpld_fw_ver_read(struct i2c_client *client, char *buf, const char *devic
 }
 
 ssize_t smb_cpld_fw_ver_show(struct device *dev, struct device_attribute *attr,
-			char *buf)
+			     char *buf)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	return smb_cpld_fw_ver_read(client, buf, NULL);
@@ -166,8 +167,8 @@ int smb_cpld_create_fw_ver_attr(struct i2c_client *client)
 }
 
 int smb_cpld_init_with_attrs(struct device *dev,
-			const struct regbit_sysfs_config *driver_attrs,
-			int driver_attrs_count)
+			     const struct regbit_sysfs_config *driver_attrs,
+			     int driver_attrs_count)
 {
 	struct regbit_sysfs_config *combined_attrs;
 	int total_count = smb_cpld_common_attrs_count + driver_attrs_count;

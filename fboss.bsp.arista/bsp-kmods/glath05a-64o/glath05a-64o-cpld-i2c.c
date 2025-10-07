@@ -21,7 +21,9 @@
 #include "regbit-sysfs.h"
 #include "smb-cpld-i2c.h"
 
-static const struct regbit_sysfs_config glath05a_64o_cpld_attrs[] = {
+#define DRIVER_NAME "glath05a-64o-cpld"
+
+static const struct regbit_sysfs_config cpld_attrs[] = {
 	/*
 	 * JTAG selectors @ address/offset 0xC.
 	 */
@@ -48,23 +50,13 @@ static const struct regbit_sysfs_config glath05a_64o_cpld_attrs[] = {
 	},
 };
 
-SMB_CPLD_PROBE_FN("glath05a_64o", glath05a_64o_cpld_attrs);
-
-static const struct i2c_device_id glath05a_64o_cpld_dev_ids[] = {
+static const struct i2c_device_id cpld_dev_ids[] = {
 	{ "glath05a-64o_cpld", 0 },
 	{},
 };
-MODULE_DEVICE_TABLE(i2c, glath05a_64o_cpld_dev_ids);
+MODULE_DEVICE_TABLE(i2c, cpld_dev_ids);
 
-static struct i2c_driver glath05a_64o_cpld_i2c_driver = {
-	.driver = {
-		.name = "glath05a-64o-cpld",
-	},
-	.probe = smb_cpld_i2c_probe,
-	.remove = smb_cpld_i2c_remove,
-	.id_table = glath05a_64o_cpld_dev_ids,
-};
-module_i2c_driver(glath05a_64o_cpld_i2c_driver);
+SMB_CPLD_DRIVER(DRIVER_NAME, glath05a_64o, cpld_attrs, cpld_dev_ids)
 
 MODULE_AUTHOR("Arista Networks");
 MODULE_DESCRIPTION("Glath05a-64o CPLD I2C Driver");

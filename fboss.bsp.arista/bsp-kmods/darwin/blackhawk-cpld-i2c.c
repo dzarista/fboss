@@ -8,9 +8,11 @@
 #include "regbit-sysfs.h"
 #include "smb-cpld-i2c.h"
 
-#define CPLD_REG_SYS_STS	0x8
+#define DRIVER_NAME "blackhawk-cpld"
 
-static const struct regbit_sysfs_config blackhawk_cpld_attrs[] = {
+#define CPLD_REG_SYS_STS    0x8
+
+static const struct regbit_sysfs_config cpld_attrs[] = {
 	/*
 	 * SYSTEM_STATUS @ address/offset 0x8.
 	 */
@@ -124,23 +126,13 @@ static const struct regbit_sysfs_config blackhawk_cpld_attrs[] = {
 	},
 };
 
-SMB_CPLD_PROBE_FN("blackhawk", blackhawk_cpld_attrs);
-
-static const struct i2c_device_id blackhawk_cpld_dev_ids[] = {
+static const struct i2c_device_id cpld_dev_ids[] = {
 	{ "blackhawk_cpld", 0 },
 	{},
 };
-MODULE_DEVICE_TABLE(i2c, blackhawk_cpld_dev_ids);
+MODULE_DEVICE_TABLE(i2c, cpld_dev_ids);
 
-static struct i2c_driver blackhawk_cpld_driver = {
-	.driver = {
-		.name = "blackhawk-cpld",
-	},
-	.probe = smb_cpld_i2c_probe,
-	.remove = smb_cpld_i2c_remove,
-	.id_table = blackhawk_cpld_dev_ids,
-};
-module_i2c_driver(blackhawk_cpld_driver);
+SMB_CPLD_DRIVER(DRIVER_NAME, blackhawk, cpld_attrs, cpld_dev_ids)
 
 MODULE_AUTHOR("Facebook, Inc.");
 MODULE_DESCRIPTION("Blackhawk CPLD I2C Driver");
