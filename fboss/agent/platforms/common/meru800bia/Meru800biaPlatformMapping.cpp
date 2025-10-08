@@ -86464,11 +86464,11 @@ constexpr auto kJsonEdswHyperPortPlatformMappingStr = R"(
           }
         }
     },
-    "2": {
+    "4": {
         "mapping": {
-          "id": 2,
+          "id": 4,
           "name": "rcy1/1/442",
-          "controllingPort": 2,
+          "controllingPort": 4,
           "pins": [
             {
               "a": {
@@ -86498,11 +86498,11 @@ constexpr auto kJsonEdswHyperPortPlatformMappingStr = R"(
           }
         }
     },
-    "3": {
+    "5": {
         "mapping": {
-          "id": 3,
+          "id": 5,
           "name": "rcy1/1/443",
-          "controllingPort": 3,
+          "controllingPort": 5,
           "pins": [
             {
               "a": {
@@ -86532,11 +86532,11 @@ constexpr auto kJsonEdswHyperPortPlatformMappingStr = R"(
           }
         }
     },
-    "4": {
+    "6": {
         "mapping": {
-          "id": 4,
+          "id": 6,
           "name": "rcy1/1/444",
-          "controllingPort": 4,
+          "controllingPort": 6,
           "pins": [
             {
               "a": {
@@ -86558,74 +86558,6 @@ constexpr auto kJsonEdswHyperPortPlatformMappingStr = R"(
                   {
                     "id": {
                       "chip": "NPU-J3_RCY-slot1/chip1/core444",
-                      "lane": 0
-                    }
-                  }
-                ]
-              }
-          }
-        }
-    },
-    "5": {
-        "mapping": {
-          "id": 5,
-          "name": "rcy1/1/445",
-          "controllingPort": 5,
-          "pins": [
-            {
-              "a": {
-                "chip": "NPU-J3_RCY-slot1/chip1/core445",
-                "lane": 0
-              }
-            }
-          ],
-          "portType": 3,
-          "attachedCoreId": 3,
-          "attachedCorePortIndex": 6,
-          "virtualDeviceId": 0,
-          "scope": 0
-        },
-        "supportedProfiles": {
-          "49": {
-              "pins": {
-                "iphy": [
-                  {
-                    "id": {
-                      "chip": "NPU-J3_RCY-slot1/chip1/core445",
-                      "lane": 0
-                    }
-                  }
-                ]
-              }
-          }
-        }
-    },
-    "6": {
-        "mapping": {
-          "id": 6,
-          "name": "evt1/1/506",
-          "controllingPort": 6,
-          "pins": [
-            {
-              "a": {
-                "chip": "NPU-J3_EVT-slot1/chip1/core506",
-                "lane": 0
-              }
-            }
-          ],
-          "portType": 5,
-          "attachedCoreId": 0,
-          "attachedCorePortIndex": 7,
-          "virtualDeviceId": 0,
-          "scope": 0
-        },
-        "supportedProfiles": {
-          "49": {
-              "pins": {
-                "iphy": [
-                  {
-                    "id": {
-                      "chip": "NPU-J3_EVT-slot1/chip1/core506",
                       "lane": 0
                     }
                   }
@@ -86877,8 +86809,76 @@ constexpr auto kJsonEdswHyperPortPlatformMappingStr = R"(
     "8": {
         "mapping": {
           "id": 8,
-          "name": "hyp1/1/1",
+          "name": "rcy1/1/445",
           "controllingPort": 8,
+          "pins": [
+            {
+              "a": {
+                "chip": "NPU-J3_RCY-slot1/chip1/core445",
+                "lane": 0
+              }
+            }
+          ],
+          "portType": 3,
+          "attachedCoreId": 3,
+          "attachedCorePortIndex": 6,
+          "virtualDeviceId": 0,
+          "scope": 0
+        },
+        "supportedProfiles": {
+          "49": {
+              "pins": {
+                "iphy": [
+                  {
+                    "id": {
+                      "chip": "NPU-J3_RCY-slot1/chip1/core445",
+                      "lane": 0
+                    }
+                  }
+                ]
+              }
+          }
+        }
+    },
+    "9": {
+        "mapping": {
+          "id": 9,
+          "name": "evt1/1/506",
+          "controllingPort": 9,
+          "pins": [
+            {
+              "a": {
+                "chip": "NPU-J3_EVT-slot1/chip1/core506",
+                "lane": 0
+              }
+            }
+          ],
+          "portType": 5,
+          "attachedCoreId": 0,
+          "attachedCorePortIndex": 7,
+          "virtualDeviceId": 0,
+          "scope": 0
+        },
+        "supportedProfiles": {
+          "49": {
+              "pins": {
+                "iphy": [
+                  {
+                    "id": {
+                      "chip": "NPU-J3_EVT-slot1/chip1/core506",
+                      "lane": 0
+                    }
+                  }
+                ]
+              }
+          }
+        }
+    },
+    "11": {
+        "mapping": {
+          "id": 11,
+          "name": "hyp1/1/1",
+          "controllingPort": 11,
           "pins": [
 
           ],
@@ -216312,4 +216312,25 @@ Meru800biaPlatformMapping::Meru800biaPlatformMapping(
                      ? kJsonDualStageRdsw3q2qPlatformMappingStr
                      : kJsonPlatformMappingStr)) {}
 
+std::map<uint32_t, std::pair<uint32_t, uint32_t>>
+Meru800biaPlatformMapping::getCpuPortsCoreAndPortIdx() const {
+  static const std::map<uint32_t, std::pair<uint32_t, uint32_t>>
+      kSingleStageCpuPortsCoreAndPortIdx = {
+          // {CPU System Port, {Core ID, Port ID/PP_DSP}}
+          {0, {0, 0}},
+          {1, {1, 0}},
+          {2, {2, 0}},
+          {3, {3, 0}},
+      };
+  static const std::map<uint32_t, std::pair<uint32_t, uint32_t>>
+      kDualStageCpuPortsCoreAndPortIdx = {
+          // {CPU System Port, {Core ID, Port ID/PP_DSP}}
+          {0, {1, 16}},
+          {1, {0, 18}},
+          {2, {2, 18}},
+          {3, {3, 18}},
+      };
+  return isDualStage3Q2QMode() ? kDualStageCpuPortsCoreAndPortIdx
+                               : kSingleStageCpuPortsCoreAndPortIdx;
+}
 } // namespace facebook::fboss
