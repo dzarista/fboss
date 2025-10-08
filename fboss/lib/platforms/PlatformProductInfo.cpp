@@ -202,6 +202,10 @@ void PlatformProductInfo::initMode() {
         modelName.find("Glath05a-64o") == 0 ||
         modelName.find("GLATH05A-64O") == 0) {
       type_ = PlatformType::PLATFORM_GLATH05A_64O;
+    } else if (
+        modelName.find("Glath06a-64o") == 0 ||
+        modelName.find("GLATH06A-64O") == 0) {
+      type_ = PlatformType::PLATFORM_GLATH06A_64O;
     } else {
       throw FbossError("invalid model name " + modelName);
     }
@@ -280,6 +284,8 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_WEDGE800CA;
     } else if (FLAGS_mode == "glath05a-64o") {
       type_ = PlatformType::PLATFORM_GLATH05A_64O;
+    } else if (FLAGS_mode == "glath06a-64o") {
+      type_ = PlatformType::PLATFORM_GLATH06A_64O;
     } else {
       throw std::runtime_error("invalid mode " + FLAGS_mode);
     }
