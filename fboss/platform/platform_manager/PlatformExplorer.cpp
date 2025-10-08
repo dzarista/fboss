@@ -460,12 +460,12 @@ void PlatformExplorer::exploreI2cDevices(
               *i2cDeviceConfig.numOutgoingChannels(),
               channelToBusNums.size()));
         }
-        for (const auto& [channelNum, busNum] : channelToBusNums) {
+        for (const auto& [channelNum, channelBusNum] : channelToBusNums) {
           dataStore_.updateI2cBusNum(
               slotPath,
               fmt::format(
                   "{}@{}", *i2cDeviceConfig.pmUnitScopedName(), channelNum),
-              busNum);
+              channelBusNum);
         }
       }
       if (*i2cDeviceConfig.isGpioChip()) {
@@ -611,6 +611,13 @@ void PlatformExplorer::explorePciDevices(
                   slotPath,
                   *fanPwmCtrlConfig.fpgaIpBlockConfig()->pmUnitScopedName()),
               fanCtrlSysfsPath);
+        });
+    createPciSubDevices(
+        slotPath,
+        pciExplorer_.createLedCtrlConfigs(pciDeviceConfig),
+        ExplorationErrorType::PCI_SUB_DEVICE_CREATE_LED_CTRL,
+        [&](const auto& ledCtrlConfig) {
+          pciExplorer_.createLedCtrl(pciDevice, ledCtrlConfig, instId++);
         });
     createPciSubDevices(
         slotPath,

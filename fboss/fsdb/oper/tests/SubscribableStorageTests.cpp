@@ -16,7 +16,6 @@
 #include <folly/coro/GtestHelpers.h>
 #include <folly/coro/Task.h>
 #include <folly/coro/Timeout.h>
-#include <thrift/lib/cpp2/folly_dynamic/folly_dynamic.h>
 #include "fboss/fsdb/oper/ExtendedPathBuilder.h"
 #include "fboss/fsdb/oper/tests/TestHelpers.h"
 #include "fboss/fsdb/tests/gen-cpp2-thriftpath/thriftpath_test.h" // @manual=//fboss/fsdb/tests:thriftpath_test_thrift-cpp2-thriftpath
@@ -422,12 +421,12 @@ TYPED_TEST(SubscribableStorageTests, SubscribePatchMulti) {
   EXPECT_EQ(patchGroups.size(), 2);
   for (auto& [key, patchGroup] : patchGroups) {
     EXPECT_EQ(patchGroup.size(), 1); // only one patch per raw path
-    auto& patch = patchGroup.front();
-    EXPECT_EQ(patch.basePath()[1], fmt::format("test{}", key));
-    auto rootPatch = patch.patch()->move_val();
+    auto& currentPatch = patchGroup.front();
+    EXPECT_EQ(currentPatch.basePath()[1], fmt::format("test{}", key));
+    auto currentRootPatch = currentPatch.patch()->move_val();
     deserialized = facebook::fboss::thrift_cow::
         deserializeBuf<apache::thrift::type_class::integral, int32_t>(
-            *patch.protocol(), std::move(rootPatch));
+            *currentPatch.protocol(), std::move(currentRootPatch));
     // above we set values such that it's sub key * 100 for easier testing
     EXPECT_EQ(deserialized, key * 100);
   }

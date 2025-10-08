@@ -276,6 +276,7 @@ struct MacEntryFields {
   2: switch_config.PortDescriptor portId;
   3: optional switch_config.AclLookupClass classID;
   4: MacEntryType type = MacEntryType.DYNAMIC_ENTRY;
+  5: optional bool configured;
 }
 
 struct NeighborResponseEntryFields {
@@ -563,6 +564,7 @@ struct SflowCollectorFields {
   2: SocketAddress address;
 }
 
+@thrift.DeprecatedUnvalidatedAnnotations{items = {"allow_skip_thrift_cow": "1"}}
 struct InterfaceFields {
   1: i32 interfaceId;
   2: i32 routerId;
@@ -652,6 +654,7 @@ struct AggregatePortFields {
   10: list<i32> interfaceIDs;
   // Used as the upper bound to bring up the aggregate port
   11: optional i16 minimumLinkCountToUp;
+  12: switch_config.AggregatePortType aggregatePortType = switch_config.AggregatePortType.LAG_PORT;
 }
 
 struct TeFlowEntryFields {

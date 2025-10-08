@@ -339,7 +339,7 @@ void assertNumRoutesWithNhopOverrides(
 std::set<RouteV6::Prefix> getPrefixesForGroups(
     const EcmpResourceManager& resourceMgr,
     const EcmpResourceManager::NextHopGroupIds& grpIds) {
-  auto grpId2Prefixes = resourceMgr.getGroupIdToPrefix();
+  auto grpId2Prefixes = resourceMgr.getGidToPrefixes();
   std::set<RouteV6::Prefix> prefixes;
   for (auto grpId : grpIds) {
     for (const auto& [_, pfx] : grpId2Prefixes.at(grpId)) {
@@ -453,8 +453,12 @@ void assertDeltasForOverflow(
         });
     EXPECT_LE(
         primaryEcmpTypeGroups2RefCnt.size(),
-        resourceManager.getMaxPrimaryEcmpGroups());
+        resourceManager.getMaxPrimaryEcmpGroups() +
+            FLAGS_ecmp_resource_manager_make_before_break_buffer);
   }
+  EXPECT_LE(
+      primaryEcmpTypeGroups2RefCnt.size(),
+      resourceManager.getMaxPrimaryEcmpGroups());
 }
 
 void assertRollbacks(
@@ -463,7 +467,7 @@ void assertRollbacks(
     const std::shared_ptr<SwitchState>& endState) {
   auto applyDelta = [&newEcmpResourceMgr](
                         const StateDelta& delta, bool failUpdate = false) {
-    auto deltas = newEcmpResourceMgr.consolidate(delta);
+    auto deltas = newEcmpResourceMgr.consolidate(delta, true /*rollingBack*/);
     facebook::fboss::assertDeltasForOverflow(newEcmpResourceMgr, deltas);
     assertResourceMgrCorrectness(newEcmpResourceMgr, deltas.back().newState());
     if (failUpdate) {
@@ -479,15 +483,19 @@ void assertRollbacks(
   emptyState = setupMinAlpmRouteState(emptyState);
 
   // Get to the startState - essentially the state post ::SetUp
+  XLOG(DBG2) << " Updating to start";
   applyDelta(StateDelta(emptyState, startState));
   // Get to the current test state, assert no overflow and mgr correctness
   // Now mark the latest update as failed and assert that resourceMgr reverts
   // to setup state
+  XLOG(DBG2) << " Updating to end state, failing update";
   applyDelta(StateDelta(startState, endState), true /*failUpdate*/);
   // Now once again goto current state, and then revert back to
   // startState. This time assert that deltas for this revert did not cause a
   // overflow
+  XLOG(DBG2) << " Updating to end state";
   auto deltas = applyDelta(StateDelta(startState, endState));
+  XLOG(DBG2) << " Rolling back to start state";
   applyDelta(StateDelta(deltas.back().newState(), startState));
 }
 } // namespace facebook::fboss

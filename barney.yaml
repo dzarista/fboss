@@ -19,17 +19,16 @@ images:
       env:
         FBOSS_BARNEY_BUILD: "True"
         FBOSS_ARTIFACTORY_TOKEN: ${secrets.fboss-artifactory-token}
-        CCACHE_SECONDARY_STORAGE: ${secrets.fboss_ccache_remote_storage_url:-redis://fboss-ccache-redis.infra.corp.arista.io:65530}
+        CCACHE_SECONDARY_STORAGE: ${secrets.ccache-url}
       mutables:
         - /var/FBOSS
       secrets:
         fboss-artifactory-token:
           global-name: "fboss-artifactory-reference-token"
+        ccache-url:
+          global-name: "barney-fboss-ccache-url"
 
   bus:
-    entry:
-      env:
-        CCACHE_SECONDARY_STORAGE: "${secrets.fboss_ccache_remote_storage_url:-redis://fboss-ccache-redis.infra.corp.arista.io:65530}|read-only=true"
     units:
       - image: code.arista.io/os/fboss-centos%fboss-centos-image-el9
       - image: code.arista.io/fboss/fboss-bcm-sai%sai-11.7.0-sdk-6.5.30-dnx-kernel-6.4
@@ -41,6 +40,17 @@ images:
       - image: .%kernel-6.4
       - image: .%kernel-6.11
       - image: .%kernel-6.11_amd
+      - entry:
+          env:
+            # bus environment points to a different instance of redis from the build-environment.
+            CCACHE_SECONDARY_STORAGE: "${secrets.fboss_ccache_remote_storage_url}"
+        build: |
+          mkdir -p /dest/etc/ccache.d/
+          echo "export CCACHE_SECONDARY_STORAGE=${CCACHE_SECONDARY_STORAGE}" > /dest/etc/ccache.d/ccache-setup.sh
+    finalizers:
+      - - sh
+        - -xc
+        - echo "source /etc/ccache.d/ccache-setup.sh" >> $DESTDIR/etc/bashrc
 
   package_platform:
     units:

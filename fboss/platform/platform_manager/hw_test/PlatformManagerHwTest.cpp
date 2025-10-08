@@ -205,11 +205,24 @@ TEST_F(PlatformManagerHwTest, XcvrLedFiles) {
         fmt::format("/sys/class/leds/port{}_led1:blue:status", xcvrNum));
     auto blueLed2 = fs::path(
         fmt::format("/sys/class/leds/port{}_led2:blue:status", xcvrNum));
+    auto yellowLed1 = fs::path(
+        fmt::format("/sys/class/leds/port{}_led1:yellow:status", xcvrNum));
+    auto yellowLed2 = fs::path(
+        fmt::format("/sys/class/leds/port{}_led2:yellow:status", xcvrNum));
     auto amberLed1 = fs::path(
         fmt::format("/sys/class/leds/port{}_led1:amber:status", xcvrNum));
     auto amberLed2 = fs::path(
         fmt::format("/sys/class/leds/port{}_led2:amber:status", xcvrNum));
-    for (auto& ledDir : {blueLed1, blueLed2, amberLed1, amberLed2}) {
+    std::vector<fs::path> ledDirsToCheck = {blueLed1, blueLed2};
+    if (fs::exists(yellowLed1)) {
+      ledDirsToCheck.push_back(yellowLed1);
+      ledDirsToCheck.push_back(yellowLed2);
+    } else {
+      ledDirsToCheck.push_back(amberLed1);
+      ledDirsToCheck.push_back(amberLed2);
+    }
+    // Now check for yellow OR amber LEDs for each port
+    for (auto& ledDir : ledDirsToCheck) {
       for (auto& ledFile : {"brightness", "max_brightness", "trigger"}) {
         auto ledFullPath = ledDir / fs::path(ledFile);
         EXPECT_TRUE(fs::exists(ledFullPath))
