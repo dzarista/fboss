@@ -17,7 +17,34 @@ jobs:
           fetch-depth: 0
           ssh-key: ${{ secrets.GIT_PRIVATE_KEY }}
 
+      - name: Get PR details
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr list --state merged --base main --json number,headRefName,title,mergeCommit,labels -L 100 > prs.json
+          # Find the single PR object that matches the merge commit SHA
+          PR_OBJECT=$(jq -c --arg sha "${{ github.sha }}" '.[] | select(.mergeCommit.oid == $sha)' prs.json)
+          if [ -z "$PR_OBJECT" ]; then
+            echo "No merged PR found for commit. Assuming sync is needed."
+            echo "PR_BRANCH=NULL" >> $GITHUB_ENV
+            echo "PR_TITLE=Unknown" >> $GITHUB_ENV
+            exit 0
+          fi
+          # Check if the PR has the 'no_bsp_upstream_sync' label
+          HAS_LABEL=$(echo "$PR_OBJECT" | jq '.labels | map(.name) | any(. == "no_bsp_upstream_sync")')
+          if [[ "$HAS_LABEL" == "true" ]]; then
+            echo "PR has 'no_bsp_upstream_sync' label. Skipping sync."
+            echo "SKIP_STEPS=true" >> $GITHUB_ENV
+          else
+            # If no skip label, get the branch and title for later steps
+            BRANCH_NAME=$(echo "$PR_OBJECT" | jq -r '.headRefName // "NULL"')
+            PR_TITLE=$(echo "$PR_OBJECT" | jq -r '.title')
+            echo "PR_BRANCH=$BRANCH_NAME" >> $GITHUB_ENV
+            echo "PR_TITLE=$PR_TITLE" >> $GITHUB_ENV
+          fi
+
       - name: Set SHAs
+        if: env.SKIP_STEPS != 'true'
         id: vars
         run: |
           # Define BASE_SHA and MERGED_SHA which can be used in the subsequent step
@@ -25,6 +52,7 @@ jobs:
           echo "MERGED_SHA=${{ github.sha }}" >> $GITHUB_OUTPUT
 
       - name: Clone repo to get pre-merge version
+        if: env.SKIP_STEPS != 'true'
         run: |
           mkdir -p ~/.ssh
           echo "${{ secrets.GIT_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
@@ -39,6 +67,7 @@ jobs:
           git checkout ${{ steps.vars.outputs.BASE_SHA }}
 
       - name: Diff subtree (e.g. src/component)
+        if: env.SKIP_STEPS != 'true'
         run: |
           # We are interested only in the changes to the fboss.bsp.arista subtree
           diff -urN premerge/fboss.bsp.arista original/fboss.bsp.arista > subtree.patch || true
@@ -54,21 +83,6 @@ jobs:
             exit 0
           fi
 
-      - name: Get PR source branch
-        if: env.SKIP_STEPS != 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh pr list --state merged --base main --json number,headRefName,title,mergeCommit -L 100 > prs.json
-          BRANCH_NAME=$(jq -r --arg sha "${{ github.sha }}" '.[] | select(.mergeCommit.oid == $sha) | .headRefName' prs.json)
-          PR_TITLE=$(jq -r --arg sha "${{ github.sha }}" '.[] | select(.mergeCommit.oid == $sha) | .title' prs.json)
-          # Default to NULL if no branch found
-          if [ -z "$BRANCH_NAME" ]; then
-            BRANCH_NAME="NULL"
-          fi
-          echo "PR_BRANCH=$BRANCH_NAME" >> $GITHUB_ENV
-          echo "PR_TITLE=$PR_TITLE" >> $GITHUB_ENV
-
       - name: Run Bash script
         if: env.SKIP_STEPS != 'true'
         env:
@@ -82,7 +96,14 @@ jobs:
       - name: Send status email
         if: env.SKIP_STEPS != 'true'
         run: |
-          mail_to=$(git log --format='%ae' ${{ github.event.before }}..${{ github.event.after }} | head -n 1)
+          mail_to_primary=$(git log --format='%ae' ${{ github.event.before }}..${{ github.event.after }} | head -n 1)
+          mail_to="$mail_to_primary" # Start with the primary recipient
+          # Get the author of the commit just before the most recent one in the range
+          mail_to_pr_author=$(git log --format='%ae' ${{ github.event.before }}..${{ github.event.after }} | head -n 2 | tail -n 1)
+          # If a secondary author is found and is different from the primary, add them
+          if [ -n "$mail_to_pr_author" ] && [ "$mail_to_pr_author" != "$mail_to_primary" ]; then
+            mail_to="$mail_to,$mail_to_pr_author"
+          fi
           mail_to="${mail_to},fbosstest-dev@arista.com"
           subject=$(cat status_email_subject.txt)
           body_text_file="status_email_content.txt"
