@@ -185,7 +185,7 @@ class ViperSMB( SMBUnit ):
                        compute="@/1000000.0" )
       ] )
 
-      smbIsl = Sensor( "0x54", "isl68226", "SMB_ISL68226_J3" )
+      smbIsl = Sensor( "0x54", "bp4a_isl68226", "SMB_ISL68226_J3" )
       smbIsl.addSensorConfigs( [
          SensorConfig( "VRM2_VIN", "in1_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
@@ -247,7 +247,7 @@ class ViperSMB( SMBUnit ):
                        compute="@/1000000.0" )
       ] )
 
-      smbIslOptics = Sensor( "0x55", "isl68226", "SMB_ISL68226_OPTICS" )
+      smbIslOptics = Sensor( "0x55", "bp4a_isl68226", "SMB_ISL68226_OPTICS" )
       smbIslOptics.addSensorConfigs( [
          SensorConfig( "VRM3_VIN", "in1_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
