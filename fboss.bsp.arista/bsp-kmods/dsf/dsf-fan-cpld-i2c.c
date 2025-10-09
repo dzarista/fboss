@@ -1,4 +1,4 @@
-/* Copyright (c) 2023 Arista Networks, Inc.
+/* Copyright (c) 2025 Arista Networks, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
