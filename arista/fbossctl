@@ -89,7 +89,8 @@ maybe_pull_docker_image() {
 }
 
 declare -A kernel_map=( ["6.4"]="FBOSS_KERNEL_SRC_6.4.3-0_fbk747_rc2_1199_ga95cd85c72c4.tar.gz"
-                        ["6.11"]="FBOSS_KERNEL_SRC_6.11.1-0_fbk9_0_g2bb6f7f1c90e.tar.gz" )
+                        ["6.11"]="FBOSS_KERNEL_SRC_6.11.1-0_fbk9_0_g2bb6f7f1c90e.tar.gz"
+                        ["6.11_amd"]="FBOSS_KERNEL_SRC_6.11.0_amd.tar.gz")
 kernel_pull() {
    kerneltar=${kernel_map["$1"]}
    if [ -z "${kerneltar}" ]; then

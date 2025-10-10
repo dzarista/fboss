@@ -392,7 +392,6 @@ std::unordered_map<InterfaceID, int> TunManager::buildProbedIfIdToTableIdMap()
 bool TunManager::requiresProbedDataCleanup(
     const std::unordered_map<InterfaceID, int>& stateMap,
     const std::unordered_map<InterfaceID, int>& probedMap) const {
-  // Most idiomatic: direct equality comparison
   bool mapsEqual = (stateMap == probedMap);
 
   if (!mapsEqual) {
@@ -485,7 +484,8 @@ int TunManager::getTableIdForVoq(InterfaceID ifID) const {
     }
   } else if (
       platform == PlatformType::PLATFORM_JANGA800BIC ||
-      FLAGS_dsf_single_stage_r192_f40_e32) {
+      FLAGS_dsf_single_stage_r192_f40_e32 ||
+      FLAGS_dsf_single_stage_r128_f40_e16_local_offset_0) {
     auto intf = sw_->getState()->getInterfaces()->getNode(ifID);
     auto constexpr kLocalIntfTableStart = 1;
     auto constexpr kGlobalIntfTableStart = 200;

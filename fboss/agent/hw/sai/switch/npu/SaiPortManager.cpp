@@ -55,6 +55,7 @@ sai_int32_t getPortTypeFromCfg(const cfg::PortType& cfgPortType) {
       return SAI_PORT_TYPE_EVENTOR;
 #endif
     case cfg::PortType::INTERFACE_PORT:
+    case cfg::PortType::HYPER_PORT_MEMBER:
       return SAI_PORT_TYPE_LOGICAL;
     case cfg::PortType::FABRIC_PORT:
       return SAI_PORT_TYPE_FABRIC;
@@ -640,7 +641,8 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
   }
   std::optional<SaiPortTraits::Attributes::LinkTrainingEnable>
       linkTrainingEnable;
-  if (platform_->getAsic()->isSupported(HwAsic::Feature::LINK_TRAINING)) {
+  if (platform_->getAsic()->isSupported(HwAsic::Feature::LINK_TRAINING) &&
+      (swPort->getPortType() != cfg::PortType::HYPER_PORT)) {
     linkTrainingEnable = false;
   }
 
@@ -657,9 +659,12 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
   auto systemPortId = getSystemPortId(platform_, swPort->getID());
 
   // Skip setting MTU for fabric ports if not supported
+  // TODO(daiweix): CS00012426928 to confirm whether MTU setting on hyper
+  // port member is supported or not.
   std::optional<SaiPortTraits::Attributes::Mtu> mtu{};
-  if (swPort->getPortType() != cfg::PortType::FABRIC_PORT ||
-      platform_->getAsic()->isSupported(HwAsic::Feature::FABRIC_PORT_MTU)) {
+  if ((swPort->getPortType() != cfg::PortType::HYPER_PORT_MEMBER) &&
+      (swPort->getPortType() != cfg::PortType::FABRIC_PORT ||
+       platform_->getAsic()->isSupported(HwAsic::Feature::FABRIC_PORT_MTU))) {
     mtu = swPort->getMaxFrameSize();
   }
   std::optional<SaiPortTraits::Attributes::PrbsPolynomial> prbsPolynomial =
@@ -747,6 +752,11 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
   }
 #endif
 
+  std::optional<SaiPortTraits::Attributes::StaticModuleId> staticModuleId{};
+#if defined(BRCM_SAI_SDK_DNX_GTE_13_0)
+  staticModuleId = swPort->getPortSwitchId();
+#endif
+
   if (basicAttributeOnly) {
     return SaiPortTraits::CreateAttributes{
 #if defined(BRCM_SAI_SDK_DNX)
@@ -824,7 +834,9 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
         fecErrorDetectEnable,
         std::nullopt, // AmIdles
         std::nullopt, // FabricSystemPort
-        std::nullopt, // StaticModuleId
+        staticModuleId,
+        std::nullopt, // IsHyperPortMember
+        std::nullopt, // HyperPortMemberList
     };
   }
   std::optional<SaiPortTraits::Attributes::PortVlanId> vlanIdAttr{vlanId};
@@ -913,7 +925,9 @@ SaiPortTraits::CreateAttributes SaiPortManager::attributesFromSwPort(
       fecErrorDetectEnable,
       amIdles, // AmIdles
       std::nullopt, // FabricSystemPort
-      std::nullopt, // StaticModuleId
+      staticModuleId,
+      std::nullopt, // IsHyperPortMember
+      std::nullopt, // HyperPortMemberList
   };
 }
 
@@ -925,7 +939,8 @@ void SaiPortManager::programSerdes(
       !platform_->getAsic()->isSupported(
           HwAsic::Feature::SAI_PORT_SERDES_PROGRAMMING) ||
       swPort->getPortType() == cfg::PortType::RECYCLE_PORT ||
-      swPort->getPortType() == cfg::PortType::EVENTOR_PORT) {
+      swPort->getPortType() == cfg::PortType::EVENTOR_PORT ||
+      swPort->getPortType() == cfg::PortType::HYPER_PORT) {
     return;
   }
 

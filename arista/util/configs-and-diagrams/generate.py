@@ -1,20 +1,32 @@
 #!/usrb/bin/env python3
+# Copyright (c) 2025 Arista Networks, Inc.  All rights reserved.
+# Arista Networks, Inc. Confidential and Proprietary.
 
 import argparse
+import os
+import importlib
+import inspect
 
-from GenerateConfigsAndDiagrams.Platforms.QuicksilverPFb import QuicksilverPFb
-from GenerateConfigsAndDiagrams.Platforms.Rackhawk import RackhawkORv3, Rackhawk
-from GenerateConfigsAndDiagrams.Platforms.Viper import Viper
-from GenerateConfigsAndDiagrams.Platforms.Whistler import Whistler
+from GenerateConfigsAndDiagrams.BaseConfigs import PlatformConfig
 
 # Avoid generating certain configs on certain platforms.
 # This is useful for platforms that share the configs.
 EXCLUDE_LIST = {
-   'pm-config': [],
-   'sensor-config': [],
-   'bsp-mapping': [ 'Rackhawk', 'RackhawkORv3' ],
-   'fan-config': [ 'Rackhawk', 'RackhawkORv3' ],
-   'led-config': [ 'Rackhawk', 'RackhawkORv3' ]
+   "pm-config": [
+   ],
+   "sensor-config": [
+   ],
+   "bsp-mapping": [
+      "RackhawkORv3"
+   ],
+   "fan-config": [
+      "Rackhawk",
+      "RackhawkORv3"
+   ],
+   "led-config": [
+      "Rackhawk",
+      "RackhawkORv3"
+   ]
 }
 
 
@@ -59,14 +71,24 @@ def genFanConfig( platform, aristaCodename, metaCodename, output ):
          file.write( getattr( platform, output[ 'fan-config' ] )() )
          file.write( '\n' )
 
+def get_platforms():
+   '''Returns all platforms from GenerateConfigsAndDiagrams/Platforms'''
+   platforms = {}
+   this_dir = os.path.dirname( __file__ )
+   platforms_dir = os.path.join( this_dir, 'GenerateConfigsAndDiagrams/Platforms' )
+   for filename in os.listdir( platforms_dir ):
+      if ( filename.endswith( '.py' ) and not filename.startswith( '__' ) 
+           and filename != 'sample.py' and filename != 'BaseConfigs.py' ):
+         module_name = f"GenerateConfigsAndDiagrams.Platforms.{filename[ :-3 ]}"
+         module = importlib.import_module( module_name )
+         for name, obj in inspect.getmembers( module ):
+            if ( inspect.isclass( obj ) and issubclass( obj, PlatformConfig )
+                 and obj is not PlatformConfig ):
+               platforms[ name ] = obj
+   return platforms
+
 def main():
-   platforms = {
-      'QuicksilverPFb': QuicksilverPFb,
-      'Rackhawk': Rackhawk,
-      'RackhawkORv3': RackhawkORv3,
-      'Viper': Viper,
-      'Whistler': Whistler
-   }
+   platforms = get_platforms()
 
    output = {
       'pm-config': 'pmConfigJson',
@@ -89,8 +111,8 @@ def main():
    parser.add_argument( '--output',
                         choices=[ 'pm-config', 'sensor-config', 'pm-diagram',
                                   'bsp-mapping', 'fan-config', 'led-config' ],
-
                         help='Config/diagram to generate' )
+
    args = parser.parse_args()
 
    if args.update_all_configs and not args.platform and not args.output:

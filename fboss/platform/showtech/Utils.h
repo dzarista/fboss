@@ -21,11 +21,13 @@ class Utils {
   void printPortDetails();
   void printSensorDetails();
   void printI2cDetails();
+  void printI2cDumpDetails();
   void printPsuDetails();
   void printGpioDetails();
   void printPemDetails();
   void printFanDetails();
   void printFanspinnerDetails();
+  void printPowerGoodDetails();
 
  private:
   const showtech_config::ShowtechConfig& config_;
@@ -33,6 +35,8 @@ class Utils {
   I2cHelper i2cHelper_{};
   void runFbossCliCmd(const std::string& cmd);
   void printSysfsAttribute(const std::string& label, const std::string& path);
+  std::optional<std::tuple<int, int>> getI2cInfoForDevice(const std::string&);
+  void printGpio(const showtech_config::Gpio& gpio);
   std::pair<int, std::string> safeExecCommand(const std::string& cmd) const;
 };
 

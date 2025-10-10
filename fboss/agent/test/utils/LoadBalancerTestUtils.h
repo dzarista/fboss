@@ -149,6 +149,11 @@ std::pair<uint64_t, uint64_t> getHighestAndLowestBytesIncrement(
     const std::map<PortIdT, PortStatsT>& beforePortIdToStats,
     const std::map<PortIdT, PortStatsT>& afterPortIdToStats);
 
+bool isDeviationWithinThreshold(
+    int64_t lowest,
+    int64_t highest,
+    int maxDeviationPct);
+
 template <typename PortIdT, typename PortStatsT>
 bool isLoadBalancedImpl(
     const std::map<PortIdT, PortStatsT>& portIdToStats,
@@ -230,7 +235,8 @@ void addFlowletAcl(
     bool isSai,
     const std::string& aclName = kFlowletAclName,
     const std::string& aclCounterName = kFlowletAclCounterName,
-    bool udfFlowlet = true);
+    bool udfFlowlet = true,
+    bool enableAlternateArsMembers = false);
 void addFlowletConfigs(
     cfg::SwitchConfig& cfg,
     const std::vector<PortID>& ports,

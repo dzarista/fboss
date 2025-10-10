@@ -24,12 +24,20 @@
 namespace facebook::fboss {
 namespace {
 
+std::ostream& operator<<(
+    std::ostream& os,
+    const std::optional<cfg::SwitchingMode>& mode) {
+  os << (mode.has_value() ? apache::thrift::util::enumNameSafe(*mode) : "None");
+  return os;
+}
+
 void updateRouteOverrides(
     const EcmpResourceManager::Prefix& ridAndPfx,
     std::shared_ptr<SwitchState>& newState,
     std::optional<cfg::SwitchingMode> backupSwitchingMode = std::nullopt,
     std::optional<EcmpResourceManager::GroupIds2ConsolidationInfoItr>
         mergeInfoItr = std::nullopt) {
+  // Cannot have both backup switching mode and merge info set.
   CHECK(!(backupSwitchingMode.has_value() && mergeInfoItr.has_value()));
   auto updateFib = [backupSwitchingMode, mergeInfoItr](
                        const auto& routePfx, auto fib) {
@@ -46,11 +54,8 @@ void updateRouteOverrides(
         curForwardInfo.getClassID(),
         backupSwitchingMode,
         overrideNhops);
-    XLOG(DBG2) << " Set : " << route->str() << " backup switching mode to : "
-               << (backupSwitchingMode.has_value()
-                       ? apache::thrift::util::enumNameSafe(
-                             *backupSwitchingMode)
-                       : "null")
+    XLOG(DBG2) << " Set : " << route->str()
+               << " backup switching mode to : " << backupSwitchingMode
                << " override next hops to : "
                << (overrideNhops.has_value()
                        ? folly::to<std::string>(*overrideNhops)
@@ -176,11 +181,33 @@ RouteNextHopSet computeCommonNextHops(
 }
 
 int computePenalty(int numGroupNhops, int numMergedNhops, int routeRefCount) {
-  CHECK_GT(numGroupNhops, 0);
-  CHECK_GE(numGroupNhops, numMergedNhops);
-  auto nhopsLost = numGroupNhops - numMergedNhops;
-  auto nhopsPctLoss = std::ceil((nhopsLost * 100.0) / numGroupNhops);
+  DCHECK_GT(numGroupNhops, 0);
+  double nhopsPctLoss{0.0};
+  if (numGroupNhops) {
+    CHECK_GE(numGroupNhops, numMergedNhops);
+    auto nhopsLost = numGroupNhops - numMergedNhops;
+    nhopsPctLoss = std::ceil((nhopsLost * 100.0) / numGroupNhops);
+  }
   return routeRefCount * nhopsPctLoss;
+}
+
+bool checkDeltasPublished(const std::vector<StateDelta>& deltas) {
+  bool published{true};
+  for (auto i = 0; i < deltas.size() && published; ++i) {
+    auto published = deltas[i].oldState()->isPublished() &&
+        deltas[i].newState()->isPublished();
+    XLOG(DBG4) << " Checking delta: " << i << " published: " << published;
+  }
+  return published;
+}
+
+std::optional<cfg::SwitchingMode> getBackupSwitchingMode(
+    const std::shared_ptr<SwitchState>& state) {
+  std::optional<cfg::SwitchingMode> backupMode;
+  if (state->getFlowletSwitchingConfig()) {
+    backupMode = state->getFlowletSwitchingConfig()->getBackupSwitchingMode();
+  }
+  return backupMode;
 }
 
 } // namespace
@@ -244,7 +271,6 @@ EcmpResourceManager::getPrimaryEcmpAndMemberCounts() const {
 
 std::vector<StateDelta> EcmpResourceManager::consolidate(
     const StateDelta& delta) {
-  CHECK(!preUpdateState_.has_value());
   std::optional<InputOutputState> inOutState;
   StopWatch timeIt("EcmpResourceManager::consolidate", false /*json*/);
   SCOPE_EXIT {
@@ -267,14 +293,14 @@ std::vector<StateDelta> EcmpResourceManager::consolidate(
     return makeRet(delta);
   }
 
-  preUpdateState_ =
-      PreUpdateState(nextHopGroup2Id_, getBackupEcmpSwitchingMode());
-
   handleSwitchSettingsDelta(delta);
   auto switchingModeChangeResult = handleFlowletSwitchConfigDelta(delta);
+  if (switchingModeChangeResult) {
+    switchingModeChangeResult->publishLastDelta();
+  }
   if (DeltaFunctions::isEmpty(delta.getFibsDelta())) {
     if (switchingModeChangeResult.has_value()) {
-      return std::move(switchingModeChangeResult->out);
+      return switchingModeChangeResult->moveDeltas();
     }
     return makeRet(delta);
   }
@@ -299,15 +325,23 @@ std::vector<StateDelta> EcmpResourceManager::consolidate(
 std::vector<StateDelta> EcmpResourceManager::consolidateImpl(
     const StateDelta& delta,
     InputOutputState* inOutState) {
-  processRouteUpdates(delta, inOutState);
-  reclaimEcmpGroups(inOutState);
-  CHECK(!inOutState->out.empty());
+  auto computeAndPublishLastDelta = [inOutState](const auto& computeFunc) {
+    computeFunc();
+    inOutState->publishLastDelta();
+  };
+  computeAndPublishLastDelta(
+      [&delta, inOutState, this]() { processRouteUpdates(delta, inOutState); });
+  computeAndPublishLastDelta(
+      [inOutState, this]() { reclaimSingleMemberMergeGroups(inOutState); });
+  computeAndPublishLastDelta(
+      [inOutState, this]() { reclaimEcmpGroups(inOutState); });
+  CHECK_NE(inOutState->numDeltas(), 0);
   if (!inOutState->updated) {
     /*
      * If inOutState was not updated, just return the original delta
      */
-    inOutState->out.clear();
-    inOutState->out.emplace_back(delta.oldState(), delta.newState());
+    std::ignore = inOutState->moveDeltas();
+    inOutState->appendDelta(delta);
   }
   if (auto switchStats = statsGetter_()) {
     switchStats->setPrimaryEcmpGroupsCount(inOutState->primaryEcmpGroupsCnt);
@@ -326,7 +360,7 @@ std::vector<StateDelta> EcmpResourceManager::consolidateImpl(
   }
   DCHECK(checkPrimaryGroupAndMemberCounts(*inOutState));
   DCHECK(checkNoUnitializedGroups());
-  return std::move(inOutState->out);
+  return inOutState->moveDeltas();
 }
 
 bool EcmpResourceManager::checkPrimaryGroupAndMemberCounts(
@@ -344,7 +378,7 @@ bool EcmpResourceManager::checkNoUnitializedGroups() const {
       nextHopGroupIdToInfo_.begin(),
       nextHopGroupIdToInfo_.end(),
       [](const auto& idAndInfo) {
-        return !idAndInfo.second.lock()->isUnitialized();
+        return !idAndInfo.second.lock()->isUninitialized();
       });
 }
 std::vector<std::shared_ptr<NextHopGroupInfo>>
@@ -448,7 +482,7 @@ void EcmpResourceManager::reclaimBackupGroups(
     const std::vector<std::shared_ptr<NextHopGroupInfo>>& toReclaimSorted,
     const NextHopGroupIds& groupIdsToReclaim,
     InputOutputState* inOutState) {
-  auto oldState = inOutState->out.back().newState();
+  auto oldState = inOutState->getCurrentStateDelta().newState();
   auto newState = oldState->clone();
   for (auto& [ridAndPfx, grpInfo] : prefixToGroupInfo_) {
     if (!groupIdsToReclaim.contains(grpInfo->getID())) {
@@ -481,7 +515,7 @@ void EcmpResourceManager::reclaimBackupGroups(
    * a single delta StateDelta(state0, state2), we would have
    * overflowed the ECMP limit when processing R0
    */
-  inOutState->out.emplace_back(oldState, newState);
+  inOutState->appendDelta(StateDelta(oldState, newState));
   // Increment primaryEcmpGroupsCnt, however no need to increment
   // ecmpMemberCnt since backup ecmp group members already counted
   // towards ecmpMemberCnt
@@ -492,9 +526,7 @@ void EcmpResourceManager::reclaimBackupGroups(
              << " ECMP member count: " << inOutState->ecmpMemberCnt;
 }
 
-std::unordered_map<
-    EcmpResourceManager::NextHopGroupId,
-    std::vector<EcmpResourceManager::Prefix>>
+EcmpResourceManager::NextHopGroupIdToPrefixes
 EcmpResourceManager::getGidToPrefixes() const {
   std::unordered_map<NextHopGroupId, std::vector<Prefix>> gid2Prefix;
   std::for_each(
@@ -505,6 +537,21 @@ EcmpResourceManager::getGidToPrefixes() const {
             pfxAndGroupInfo.first);
       });
   return gid2Prefix;
+}
+
+void EcmpResourceManager::updateMergeInfo(
+    const NextHopGroupIdToPrefixes& gid2Prefix,
+    const NextHopGroupIds& groups2Update,
+    std::optional<GroupIds2ConsolidationInfoItr> newMergeInfoItr,
+    std::shared_ptr<SwitchState>& newState) {
+  for (auto gid : groups2Update) {
+    for (const auto& pfx : gid2Prefix.find(gid)->second) {
+      updateRouteOverrides(pfx, newState, std::nullopt, newMergeInfoItr);
+    }
+    if (auto grpInfo = nextHopGroupIdToInfo_.ref(gid)) {
+      grpInfo->setMergedGroupInfoItr(newMergeInfoItr);
+    }
+  }
 }
 /*
  * Reclaim sub cases
@@ -547,24 +594,8 @@ void EcmpResourceManager::updateMergedGroups(
     CHECK_EQ(groupIdsToReclaimOrPrune.size(), 1);
   }
 
-  auto gid2Prefix = getGidToPrefixes();
-  auto updateMergeInfo =
-      [&gid2Prefix, this](
-          const NextHopGroupIds& groups2Update,
-          std::optional<GroupIds2ConsolidationInfoItr> newMergeInfoItr,
-          std::shared_ptr<SwitchState>& newState) {
-        for (auto gid : groups2Update) {
-          for (const auto& pfx : gid2Prefix[gid]) {
-            updateRouteOverrides(pfx, newState, std::nullopt, newMergeInfoItr);
-          }
-          if (auto grpInfo = nextHopGroupIdToInfo_.ref(gid)) {
-            CHECK(grpInfo->getMergedGroupInfoItr().has_value());
-            grpInfo->setMergedGroupInfoItr(newMergeInfoItr);
-          }
-        }
-      };
   for (const auto& curMergeSet : mergeSetsToUpdate) {
-    CHECK_GT(curMergeSet.size(), 1);
+    CHECK_GE(curMergeSet.size(), 1);
     XLOG(DBG2) << " Updating merged group: " << curMergeSet;
     /*
      * To allow for partial reclaims, we compute a newMergeSet.
@@ -574,8 +605,9 @@ void EcmpResourceManager::updateMergedGroups(
      */
     auto newMergeSet =
         nhopGroupIdsDifference(curMergeSet, groupIdsToReclaimOrPrune);
-    auto oldState = inOutState->out.back().newState();
+    auto oldState = inOutState->getCurrentStateDelta().newState();
     auto newState = oldState->clone();
+    auto gid2Prefix = getGidToPrefixes();
     if (op == MergeGroupUpdateOp::RECLAIM_GROUPS) {
       /*
        * If we are reclaiming (not deleting)
@@ -585,7 +617,7 @@ void EcmpResourceManager::updateMergedGroups(
        * - Clear override nhops for prefixes pointing to such groups
        */
       auto reclaimedGroups = nhopGroupIdsDifference(curMergeSet, newMergeSet);
-      updateMergeInfo(reclaimedGroups, std::nullopt, newState);
+      updateMergeInfo(gid2Prefix, reclaimedGroups, std::nullopt, newState);
       // Each of these unmerged groups will create 1 primary
       // ECMP group
       inOutState->primaryEcmpGroupsCnt += reclaimedGroups.size();
@@ -617,15 +649,19 @@ void EcmpResourceManager::updateMergedGroups(
      */
     std::optional<GroupIds2ConsolidationInfoItr> newMergeItr;
     if (newMergeSet.size() > 1) {
+      // If newMergeSet.size() > 1 we will create one new merged
+      // group and then delete the curMergeSet. Transiently we
+      // will create one extra ECMP group but at the end of update
+      // we will end up with exactly the same number of ECMP groups
       XLOG(DBG2) << " Replacing merge group: " << curMergeSet << std::endl
                  << " with: " << newMergeSet;
       std::tie(newMergeItr, std::ignore) = mergedGroups_.insert(
           {newMergeSet, computeConsolidationInfo(newMergeSet)});
       computeCandidateMergesForNewMergedGroup(newMergeSet);
-      // If newMergeSet.size() > 1 we will create one new merged
-      // group and then delete the curMergeSet. Transiently we
-      // will create one extra ECMP group but at the end of update
-      // we will end up with exactly the same number of ECMP groups
+      auto [mergeGroupInfo, _] =
+          getOrCreateGroupInfo((*newMergeItr)->second.mergedNhops, *inOutState);
+      mergeGroupInfo->setMergedGroupInfoItr(newMergeItr);
+      (*newMergeItr)->second.mergedGroupInfo = mergeGroupInfo;
     } else if (newMergeSet.size() == 1) {
       XLOG(DBG2) << " Reclaiming merge group: " << curMergeSet
                  << " since it has only one member group remaining: "
@@ -642,13 +678,13 @@ void EcmpResourceManager::updateMergedGroups(
     }
     // Now update the groups and prefixes corresponding to the
     // newMergeSet
-    updateMergeInfo(newMergeSet, newMergeItr, newState);
+    updateMergeInfo(gid2Prefix, newMergeSet, newMergeItr, newState);
 
     newState->publish();
     // We put each unmerge on a new delta, to ensure that all
     // constitutent groups get unmerged and we reclaim the merged
     // group at the end of this processing.
-    inOutState->out.emplace_back(oldState, newState);
+    inOutState->appendDelta(StateDelta(oldState, newState));
     // Reclaimed curMergeSet.size() groups and deleted all references
     // to the merged group.
     inOutState->updated = true;
@@ -659,6 +695,58 @@ void EcmpResourceManager::updateMergedGroups(
    */
   computeCandidateMergesForNewUnmergedGroups(
       unmergedGroups.begin(), unmergedGroups.end());
+}
+/*
+ * During rollback we can have single member merge groups at the end.
+ * Consider the following example (P = prefix, G = ECMP group), with
+ * a ECMP limit of 5
+ * State 1
+ * P1 -> G1, P2->G2, P3->G3, P4->G4, P5->G5
+ * Rolling back to
+ * State 0
+ * P0 -> G0, P1, P2 -> [G1,G2], P3->G3, P4->G4, P5->G5,
+ * Further consider that merged nhops of [G1, G2] are same as G2
+ * NOTE: The guarantee that we provide is that rollback will provide
+ * a safe sequence of deltas to not overflow the HW. Due to the sequence
+ * dependent nature of merge algo, you might endup with a different
+ * set of merge groups at the end.
+ * Here is how things pan out for this rollback.
+ * Step 0, P0->G0, triggers a ECMP merge. Say we choose merge of P1, P2 -> [G1,
+ * G2] Step 1, P1 update This has 2 steps P1 delete (data structure update only
+ * and P1 add). During P1 delete we unmerge G1, G2 and make P2->G2 P1 add then
+ * remerges these groups to make P1, P2 -> [G1, G2]. We are at ECMP group count
+ * of 5. Step 2, P2 update 2.i - P2 delete (data structure update only) This
+ * unmerged [G1, G2] and makes P1->G1. 2.ii P2 add with override nhops. This
+ * will cause a new groupId to be allocated say G6. This is seen as new group.
+ * Since we are already at ECMP limit this triggers a merge. Say we merge [P3,
+ * P4] ->[G3, G4]. Following this P2 will get added as P2->[G6]. Note this G6 is
+ * considered a merged group, and P2 is considered to have override nhops. Since
+ * P2 came in with override nhops, we always start with a merged group. Since we
+ * do not know whether there will be subsequent groups that will come and merge
+ * with this group. The final state would be P0 -> G0, P1->G1, P2 -> [G6], P3,
+ * P4->[G3,G4], P5->G5 This is within ECMP group limit of 5. But has a single
+ * member merged group. Reclaim it
+ *
+ */
+void EcmpResourceManager::reclaimSingleMemberMergeGroups(
+    InputOutputState* inOutState) {
+  if (!getEcmpCompressionThresholdPct()) {
+    return;
+  }
+  std::vector<std::shared_ptr<NextHopGroupInfo>> singleMemberMergedGroups;
+  NextHopGroupIds singleMemberGids;
+  std::for_each(
+      nextHopGroupIdToInfo_.begin(),
+      nextHopGroupIdToInfo_.end(),
+      [&singleMemberMergedGroups, &singleMemberGids](const auto& idAndGrpRef) {
+        auto groupInfo = idAndGrpRef.second.lock();
+        auto gmitr = groupInfo->getMergedGroupInfoItr();
+        if (gmitr && (*gmitr)->first.size() == 1) {
+          singleMemberMergedGroups.push_back(groupInfo);
+          singleMemberGids.insert(groupInfo->getID());
+        }
+      });
+  reclaimMergeGroups(singleMemberMergedGroups, singleMemberGids, inOutState);
 }
 
 void EcmpResourceManager::reclaimMergeGroups(
@@ -774,7 +862,7 @@ EcmpResourceManager::NextHopGroupIds EcmpResourceManager::getUnMergedGids()
       [&gids](const auto& gidAndGroup) {
         auto grpInfo = gidAndGroup.second.lock();
         CHECK(grpInfo);
-        if (!(grpInfo->isUnitialized() || grpInfo->getMergedGroupInfoItr())) {
+        if (!(grpInfo->isUninitialized() || grpInfo->getMergedGroupInfoItr())) {
           gids.insert(gidAndGroup.first);
         }
       });
@@ -784,11 +872,9 @@ EcmpResourceManager::NextHopGroupIds EcmpResourceManager::getUnMergedGids()
 EcmpResourceManager::InputOutputState::InputOutputState(
     uint32_t _primaryEcmpGroupsCnt,
     uint32_t _ecmpMemberCnt,
-    const StateDelta& _in,
-    const PreUpdateState& _groupIdCache)
+    const StateDelta& _in)
     : primaryEcmpGroupsCnt(_primaryEcmpGroupsCnt),
-      ecmpMemberCnt(_ecmpMemberCnt),
-      groupIdCache(_groupIdCache) {
+      ecmpMemberCnt(_ecmpMemberCnt) {
   /*
    * Note that for first StateDelta we push in.oldState() for both
    * old and new state in the first StateDelta, since we will process
@@ -837,18 +923,49 @@ EcmpResourceManager::InputOutputState::InputOutputState(
     newStateWithOldFibs->resetForwardingInformationBases(std::move(mfib));
   }
   newStateWithOldFibs->publish();
-  out.emplace_back(_in.oldState(), newStateWithOldFibs);
+  appendDelta(StateDelta(_in.oldState(), newStateWithOldFibs));
+}
+
+void EcmpResourceManager::InputOutputState::publishLastDelta() {
+  if (out_.size()) {
+    DCHECK(out_.back().oldState()->isPublished());
+    out_.back().newState()->publish();
+  }
+  DCHECK(checkDeltasPublished(out_));
+}
+
+void EcmpResourceManager::InputOutputState::appendDelta(
+    const StateDelta& delta) {
+  /*
+   * Now that we are starting a new delta. Ensure that the
+   * previous delta is published
+   */
+  publishLastDelta();
+  out_.emplace_back(delta.oldState(), delta.newState());
+}
+
+void EcmpResourceManager::InputOutputState::replaceLastDelta(
+    const StateDelta& delta) {
+  CHECK(!out_.empty());
+  DCHECK_EQ(out_.back().oldState(), delta.oldState());
+  DCHECK(out_.back().oldState()->isPublished());
+  out_.pop_back();
+  out_.emplace_back(delta.oldState(), delta.newState());
 }
 
 template <typename AddrT>
 void EcmpResourceManager::InputOutputState::addOrUpdateRoute(
     RouterID rid,
     const std::shared_ptr<Route<AddrT>>& newRoute,
-    bool ecmpDemandExceeded,
     bool addNewDelta) {
   auto curStateDelta = getCurrentStateDelta();
+  DCHECK(curStateDelta.oldState()->isPublished());
+  if (addNewDelta) {
+    // We are starting a new delta, publish the
+    // last one.
+    publishLastDelta();
+  }
   auto oldState = curStateDelta.newState();
-  CHECK(oldState->isPublished());
   auto newState = oldState->clone();
   auto fib = newState->getFibs()->getNode(rid)->getFib<AddrT>()->modify(
       rid, &newState);
@@ -873,17 +990,13 @@ void EcmpResourceManager::InputOutputState::addOrUpdateRoute(
     fib->addNode(newRoute);
   }
   if (!addNewDelta) {
-    // Still working on the current, replaced the current delta.
-    // To do this, we need to do 2 things
-    // - use the current delta's old state as a base for
-    // new delta
-    // - Replace the current (last in the list) delta with
-    // StateDelta(out.back().oldState(), newState);
-    oldState = out.back().oldState();
-    out.pop_back();
+    // Still working on the current, replace the current delta.
+    oldState = getCurrentStateDelta().oldState();
+    replaceLastDelta(StateDelta(oldState, newState));
+  } else {
+    // add new delta
+    appendDelta(StateDelta(oldState, newState));
   }
-  newState->publish();
-  out.emplace_back(oldState, newState);
 }
 
 template <typename AddrT>
@@ -891,22 +1004,15 @@ void EcmpResourceManager::InputOutputState::deleteRoute(
     RouterID rid,
     const std::shared_ptr<Route<AddrT>>& delRoute) {
   auto curStateDelta = getCurrentStateDelta();
+  DCHECK(curStateDelta.oldState()->isPublished());
   auto oldState = curStateDelta.newState();
-  CHECK(oldState->isPublished());
   auto newState = oldState->clone();
   auto fib = newState->getFibs()->getNode(rid)->getFib<AddrT>()->modify(
       rid, &newState);
   fib->removeNode(delRoute);
-  // replace current delta
-  // To do this, we need to do 2 things
-  // - use the current delta's old state as a base for
-  // new delta
-  // - Replace the current (last in the list) delta with
-  // StateDelta(out.back().oldState(), newState);
-  oldState = out.back().oldState();
-  out.pop_back();
-  newState->publish();
-  out.emplace_back(oldState, newState);
+  oldState = getCurrentStateDelta().oldState();
+  // Still working on the current, replace the current delta.
+  replaceLastDelta(StateDelta(oldState, newState));
 }
 
 std::pair<std::shared_ptr<NextHopGroupInfo>, bool>
@@ -928,8 +1034,15 @@ EcmpResourceManager::getOrCreateGroupInfo(
 void EcmpResourceManager::mergeGroupAndMigratePrefixes(
     InputOutputState* inOutState) {
   auto mergeSet = getOptimalMergeGroupSet();
-  CHECK(!mergeSet.empty())
+  mergeGroupAndMigratePrefixes(mergeSet, inOutState);
+}
+
+void EcmpResourceManager::mergeGroupAndMigratePrefixes(
+    const NextHopGroupIds& mergeSetIn,
+    InputOutputState* inOutState) {
+  CHECK(!mergeSetIn.empty())
       << "Ecmp overflow, but no candidates available for merge";
+  auto mergeSet = mergeSetIn;
   auto citr = candidateMergeGroups_.find(mergeSet);
   CHECK(citr != candidateMergeGroups_.end());
   auto [newMergeGrpInfo, mergeGrpNhopsInserted] =
@@ -940,9 +1053,7 @@ void EcmpResourceManager::mergeGroupAndMigratePrefixes(
     // New merge group nothing to do
     XLOG(DBG2) << " Merge set : " << mergeSet
                << " nhops, did not match any existing nhops";
-  } else if (
-      newMergeGrpInfo->getState() ==
-      NextHopGroupInfo::NextHopGroupState::UNMERGED_NHOPS_ONLY) {
+  } else if (!newMergeGrpInfo->hasMergedNhops()) {
     // mergeSet nhops matches a existing unmerged group. Add that
     // to the mergeSet. But check for case where merge set already
     // contained the existing group ID. For e.g. a new merge set
@@ -1100,7 +1211,7 @@ EcmpResourceManager::updateForwardingInfoAndInsertDelta(
   auto newRoute = route->clone();
   newRoute->setResolved(std::move(newForwardInfo));
   newRoute->publish();
-  inOutState->addOrUpdateRoute(rid, newRoute, ecmpDemandExceeded, addNewDelta);
+  inOutState->addOrUpdateRoute(rid, newRoute, addNewDelta);
   inOutState->updated = true;
   return grpInfo;
 }
@@ -1113,7 +1224,7 @@ EcmpResourceManager::updateForwardingInfoAndInsertDelta(
     std::shared_ptr<NextHopGroupInfo>& pfxGrpInfo,
     InputOutputState* inOutState,
     bool addNewDelta) {
-  auto newState = inOutState->out.back().newState();
+  auto newState = inOutState->getCurrentStateDelta().newState();
   auto fib = newState->getFibs()->getNode(rid)->getFib<AddrT>();
   std::shared_ptr<Route<AddrT>> existingRoute;
   if constexpr (std::is_same_v<AddrT, folly::IPAddressV6>) {
@@ -1137,9 +1248,8 @@ EcmpResourceManager::updateForwardingInfoAndInsertDelta(
 
 std::vector<StateDelta> EcmpResourceManager::reconstructFromSwitchState(
     const std::shared_ptr<SwitchState>& curState) {
-  if (!preUpdateState_.has_value()) {
-    preUpdateState_ = PreUpdateState();
-  }
+  StopWatch timeIt(
+      "EcmpResourceManager::reconstructFromSwitchState", false /*json*/);
   // Clear state which needs to be restored from given state
   nextHopGroup2Id_.clear();
   mergedGroups_.clear();
@@ -1170,7 +1280,7 @@ std::vector<StateDelta> EcmpResourceManager::reconstructFromSwitchState(
    * except that we will now be able to reclaim some of the backup nhop groups.
    * */
   StateDelta delta(std::make_shared<SwitchState>(), curState);
-  InputOutputState inOutState(0, 0, delta, *preUpdateState_);
+  InputOutputState inOutState(0, 0, delta);
   auto deltas = consolidateImpl(delta, &inOutState);
   if (!getEcmpCompressionThresholdPct()) {
     // For getBackupEcmpSwitchingMode() reclaim is completed on
@@ -1201,6 +1311,230 @@ bool EcmpResourceManager::routeFwdEqual(
 }
 
 template <typename AddrT>
+std::pair<std::shared_ptr<NextHopGroupInfo>, bool>
+EcmpResourceManager::routeAddedNoCompressionThreshold(
+    RouterID rid,
+    const std::shared_ptr<Route<AddrT>>& newRoute,
+    bool ecmpLimitReached,
+    InputOutputState* inOutState) {
+  CHECK(!getEcmpCompressionThresholdPct());
+  auto nhopSet = newRoute->getForwardInfo().normalizedNextHops();
+  auto [grpInfo, grpInserted] = getOrCreateGroupInfo(nhopSet, *inOutState);
+  if (grpInserted) {
+    CHECK(grpInfo->isUninitialized());
+    XLOG(DBG2) << " Route: " << newRoute->str()
+               << " points to new group: " << *grpInfo;
+    // Ecmp limit reached and we did not find a existing group,
+    // nor did this group group have switching mode set to backup ECMP.
+    if (ecmpLimitReached &&
+        !newRoute->getForwardInfo().hasOverrideSwitchingMode()) {
+      XLOG(DBG2) << " Exceeded ECMP limit for route: " << newRoute->str();
+      grpInfo = updateForwardingInfoAndInsertDelta(
+          rid, newRoute, grpInfo, ecmpLimitReached, inOutState);
+    } else {
+      XLOG(DBG2) << "Did not exceed EMCP limit for route: " << newRoute->str();
+      grpInfo->setIsBackupEcmpGroupType(newRoute->getForwardInfo()
+                                            .getOverrideEcmpSwitchingMode()
+                                            .has_value());
+      inOutState->addOrUpdateRoute(rid, newRoute);
+    }
+    inOutState->primaryEcmpGroupsCnt += grpInfo->hasOverrides() ? 0 : 1;
+    inOutState->ecmpMemberCnt += grpInfo->numNhops();
+  } else {
+    XLOG(DBG2) << " Route: " << newRoute->str()
+               << " points to existing group: " << *grpInfo;
+    if (grpInfo->hasOverrides() !=
+        newRoute->getForwardInfo().hasOverrideSwitchingModeOrNhops()) {
+      auto existingGrpInfo = updateForwardingInfoAndInsertDelta(
+          rid, newRoute, grpInfo, false /*ecmpLimitReached*/, inOutState);
+      CHECK_EQ(existingGrpInfo, grpInfo);
+    } else {
+      // Everything matches just add the route to current delta
+      inOutState->addOrUpdateRoute(rid, newRoute);
+    }
+  }
+  return {grpInfo, grpInserted};
+}
+
+/*
+ * routeAddedNoOverrideNhops algo is as follows
+ * Algo here is
+ * - Lookup the group for route's normalized nhops
+ *    - If this is a new group, we have 3 subcases
+ *      i) We are ECMP limit,
+ *      - Trigger a merge of some existing groups to make space.
+ *      - Add the route with this group's nhops
+ *     ii) We are not at ECMP limit
+ *      - Add the route with it current nhops.
+ *   - If we match a existing group. There are 2 subcases
+ *    i) Group has override nhops
+ *     We must prefer the group's override
+ *     settings. We look at this group's merge itr, for the merge set
+ *     membership. If this group ID is not part of that merge
+ *     group, add it. Note this is a data structure update only.
+ *     We don't need to update any of the other prefixes in
+ *     switch state, since none of their nhops were affected.
+ *     Now add the route into current delta with group's nhops.
+ *   ii) Group does not have override nhops and was already present.
+ *   Just update the delta with the current route.
+ */
+template <typename AddrT>
+std::pair<std::shared_ptr<NextHopGroupInfo>, bool>
+EcmpResourceManager::routeAddedNoOverrideNhops(
+    RouterID rid,
+    const std::shared_ptr<Route<AddrT>>& newRoute,
+    bool ecmpLimitReached,
+    InputOutputState* inOutState) {
+  // Should only be called when using EcmpResourceManager for
+  // ECMP compression
+  CHECK(getEcmpCompressionThresholdPct());
+  DCHECK(!newRoute->getForwardInfo().getOverrideNextHops().has_value());
+  auto nhopSet = newRoute->getForwardInfo().normalizedNextHops();
+  auto [grpInfo, grpInserted] = getOrCreateGroupInfo(nhopSet, *inOutState);
+  if (grpInserted) {
+    CHECK(grpInfo->isUninitialized());
+    XLOG(DBG2) << " Route: " << newRoute->str()
+               << " points to new group: " << *grpInfo;
+    // Ecmp limit reached and we did not find a existing group,
+    if (ecmpLimitReached) {
+      XLOG(DBG2) << " Exceeded ECMP limit for route: " << newRoute->str();
+      // This will trigger a merge of 2 or more groups, followed by
+      // updating adding the new route to set of deltas in inOutState.
+      grpInfo = updateForwardingInfoAndInsertDelta(
+          rid, newRoute, grpInfo, ecmpLimitReached, inOutState);
+    } else {
+      XLOG(DBG4) << "Did not exceed EMCP limit for route: " << newRoute->str();
+      // New group did not exceed limits. Just add the route as is. Note
+      // that since this is a new group, we don't have to worry about
+      // any override nhops being set (for that group must have existed
+      // in our data structures before, and would have had to have its
+      // override nhops set).
+      inOutState->addOrUpdateRoute(rid, newRoute);
+    }
+    // If grp was made part of a merge group, we would have accounted
+    // for it there.
+    inOutState->primaryEcmpGroupsCnt += grpInfo->hasOverrides() ? 0 : 1;
+    inOutState->ecmpMemberCnt += grpInfo->numNhops();
+  } else {
+    XLOG(DBG2) << " Route: " << newRoute->str()
+               << " points to existing group: " << *grpInfo;
+    if (grpInfo->hasOverrideNextHops()) {
+      // We know that route did not have override nhops. If group has
+      // override next hops we need to reconcile these.
+      auto mitr = grpInfo->getMergedGroupInfoItr();
+      CHECK(mitr);
+      // Not rolling back. Prefer group's override info
+      if (!(*mitr)->first.contains(grpInfo->getID())) {
+        // This group's nhops point to a merged group, but
+        // the group itself is not part of the merged group,
+        // then state could only be MERGED_NHOPS_ONLY
+        DCHECK(grpInfo->hasMergedNhopsOnly());
+        // If group is not part of the merge set pointed to by
+        // the merge iterator, make it a part of it and update
+        // prefixes accordingly.
+        auto newMergeSet = (*mitr)->first;
+        newMergeSet.insert(grpInfo->getID());
+        mitr = appendToOrCreateMergeGroup(
+            newMergeSet, (*mitr)->second.mergedNhops, mitr, *inOutState);
+        grpInfo->setMergedGroupInfoItr(mitr);
+      }
+      auto existingGrpInfo = updateForwardingInfoAndInsertDelta(
+          rid, newRoute, grpInfo, false /*ecmpLimitReached*/, inOutState);
+      CHECK_EQ(existingGrpInfo, grpInfo);
+    } else {
+      // No override nhops in group, and group already existed. Just add the
+      // route.
+      inOutState->addOrUpdateRoute(rid, newRoute);
+    }
+  }
+  return {grpInfo, grpInserted};
+}
+/*
+ * routeAddedWithOverrideNhops can happen in 2 cases
+ * i.  Reconstructing the switch state.
+ * ii. Rollback
+ * Algo here is
+ * - Lookup the group for override (normalized nhops).
+ *    - If this is a new group and we are ECMP limit, trigger a merge
+ *    of some existing groups to make space.
+ *  Next we need to create or update a merge group containing the
+ *  GID for non-override nhops
+ * - Create a merge set consisting of gid for non override nhops for
+ *   this prefix. If the override group also points to a non override
+ *   group (i.e. matches nhops of a non override group, e.g. consider
+ *   P1->G1, P2->G2, and a merge group of [G1, G2] which matches nhops
+ *   of G2), include the override group's id in new merge set as well.
+ * - Get the override group's merge Itr.
+ *    - If this itr matches newMergeSet. Nothing to do
+ *    - Else if the newMergeSet.size() > 1
+ *    Call mergeGroupAndMigratePrefixes, this creates a new merge groups
+ *    updates both internal data structures and the prefix override nhops.
+ *    - Else, we just have a single member merge group, corresponding to
+ *    the current prefix. Create it, later update to current route will
+ *    set the correct override nhops.
+ */
+template <typename AddrT>
+std::pair<std::shared_ptr<NextHopGroupInfo>, bool>
+EcmpResourceManager::routeAddedWithOverrideNhops(
+    RouterID rid,
+    const std::shared_ptr<Route<AddrT>>& newRoute,
+    bool ecmpLimitReached,
+    InputOutputState* inOutState) {
+  CHECK(getEcmpCompressionThresholdPct());
+  XLOG(DBG2) << " Processing route with override nhops: " << newRoute->str();
+  auto nonOverrideNhops =
+      newRoute->getForwardInfo().nonOverrideNormalizedNextHops();
+  auto overrideNhops = newRoute->getForwardInfo().normalizedNextHops();
+  auto [overrideGrpInfo, overrideGrpInserted] =
+      getOrCreateGroupInfo(overrideNhops, *inOutState);
+  auto [grpInfo, grpInserted] =
+      getOrCreateGroupInfo(nonOverrideNhops, *inOutState);
+  grpInserted =
+      grpInserted || (grpInfo == overrideGrpInfo && overrideGrpInserted);
+  XLOG(DBG2) << " Override group : " << overrideGrpInfo->getID()
+             << " created : " << overrideGrpInserted
+             << ". Non override grp: " << grpInfo->getID()
+             << " created: " << grpInserted;
+  if (overrideGrpInserted) {
+    if (ecmpLimitReached) {
+      CHECK(overrideGrpInfo->isUninitialized());
+      XLOG(DBG2) << " Exceeded ECMP limit for route: " << newRoute->str();
+      mergeGroupAndMigratePrefixes(inOutState);
+    } else {
+      XLOG(DBG2) << "Did not exceed EMCP limit for route: " << newRoute->str();
+    }
+  }
+  NextHopGroupIds newMergeGroupIds{grpInfo->getID()};
+  if (overrideGrpInfo->hasUnmergedNhops() || overrideGrpInfo == grpInfo) {
+    newMergeGroupIds.insert(overrideGrpInfo->getID());
+  }
+  auto overrideMitr = overrideGrpInfo->getMergedGroupInfoItr();
+  if (overrideMitr && (*overrideMitr)->first == newMergeGroupIds) {
+    XLOG(DBG2) << " Existing override group matches: : " << newMergeGroupIds;
+  } else if (newMergeGroupIds.size() > 1) {
+    addCandidateMerge(newMergeGroupIds);
+    mergeGroupAndMigratePrefixes(newMergeGroupIds, inOutState);
+  } else {
+    auto mergeGrpItr = appendToOrCreateMergeGroup(
+        newMergeGroupIds,
+        overrideNhops,
+        overrideGrpInfo->getMergedGroupInfoItr(),
+        *inOutState);
+    CHECK(overrideGrpInfo->getMergedGroupInfoItr());
+    CHECK(*overrideGrpInfo->getMergedGroupInfoItr() == mergeGrpItr);
+  }
+  grpInfo->setMergedGroupInfoItr(overrideGrpInfo->getMergedGroupInfoItr());
+  grpInfo = updateForwardingInfoAndInsertDelta(
+      rid, newRoute, grpInfo, false, inOutState);
+  inOutState->primaryEcmpGroupsCnt += overrideGrpInserted ? 1 : 0;
+  inOutState->ecmpMemberCnt += overrideGrpInserted
+      ? (*overrideGrpInfo->getMergedGroupInfoItr())->second.mergedNhops.size()
+      : 0;
+  CHECK(overrideGrpInfo->getMergedGroupInfoItr());
+  return {grpInfo, grpInserted};
+}
+
+template <typename AddrT>
 void EcmpResourceManager::routeAddedOrUpdated(
     RouterID rid,
     const std::shared_ptr<Route<AddrT>>& oldRoute,
@@ -1220,106 +1554,26 @@ void EcmpResourceManager::routeAddedOrUpdated(
      * since the new route came in via state update, there are
      * going to be no override (merged) nhops for it
      */
-    if (oldRoute->getForwardInfo().nonOverrideNormalizedNextHops() !=
-        newRoute->getForwardInfo().nonOverrideNormalizedNextHops()) {
-      /*
-       * Update internal data structures only if nhops changes.
-       * There are other route changes (e.g. classID, counterID)
-       * which are no-op to us. If we delete the route here
-       * we may endup deleting and recreating nhop group, which
-       * is unnecessary.
-       */
-      routeDeleted(rid, oldRoute, true /*isUpdate*/, inOutState);
-    }
+    /*
+     * Update internal data structures only if nhops changes.
+     * There are other route changes (e.g. classID, counterID)
+     * which are no-op to us. If we delete the route here
+     * we may endup deleting and recreating nhop group, which
+     * is unnecessary.
+     */
+    routeDeleted(rid, oldRoute, true /*isUpdate*/, inOutState);
   }
-  auto nhopSet = newRoute->getForwardInfo().nonOverrideNormalizedNextHops();
-  auto [grpInfo, grpInserted] = getOrCreateGroupInfo(nhopSet, *inOutState);
-  if (grpInserted) {
-    const auto& overrideNhops =
-        newRoute->getForwardInfo().getOverrideNextHops();
-    auto mergeGrpItr = getMergeGroupItr(overrideNhops);
-    bool existingMergeGrpFound = overrideNhops && mergeGrpItr;
-    // Ecmp limit reached and we did not find a existing merged group,
-    // nor did this group group have switching mode set to backup ECMP.
-    if (ecmpLimitReached && !existingMergeGrpFound &&
-        !newRoute->getForwardInfo().hasOverrideSwitchingMode()) {
-      /*
-       * If ECMP limit is reached and route does not point to a backup
-       * ecmp type nhop group, then update route forwarding info
-       */
-      XLOG(DBG2) << " Ecmp group demand exceeded available resources on: "
-                 << (oldRoute ? "add" : "update")
-                 << " route: " << newRoute->str();
-      grpInfo = updateForwardingInfoAndInsertDelta(
-          rid, newRoute, grpInfo, ecmpLimitReached, inOutState);
-      // If new group does not have override mode or nhops, increment non
-      // backup ecmp group count
-      inOutState->primaryEcmpGroupsCnt += grpInfo->hasOverrides() ? 0 : 1;
-      // If the group does not have override nhops, account for its
-      // nhops here. If it has override nhops, accounting would be
-      // done while creating merged group
-      inOutState->ecmpMemberCnt +=
-          grpInfo->hasOverrideNextHops() ? 0 : grpInfo->numNhops();
-      XLOG(DBG2) << " Route  " << (oldRoute ? "update " : "add ")
-                 << newRoute->str()
-                 << " points to new group: " << grpInfo->getID()
-                 << " primray ecmp group count "
-                 << (grpInfo->hasOverrides() ? "unchanged: "
-                                             : "incremented to: ")
-                 << inOutState->primaryEcmpGroupsCnt << " ecmp nhops count "
-                 << (grpInfo->hasOverrideNextHops() ? " unchanged: "
-                                                    : "incremented to: ")
-                 << inOutState->ecmpMemberCnt;
-    } else {
-      bool newMergeGrpCreated{false};
-      if (overrideNhops) {
-        // If merge itr is not null, we will just update the existing merge
-        // group. Else we will create a new one
-        newMergeGrpCreated = !mergeGrpItr.has_value();
-        mergeGrpItr = fixAndGetMergeGroupItr(
-            {grpInfo->getID()}, *overrideNhops, mergeGrpItr);
-      }
-      grpInfo->setIsBackupEcmpGroupType(newRoute->getForwardInfo()
-                                            .getOverrideEcmpSwitchingMode()
-                                            .has_value());
-      grpInfo->setMergedGroupInfoItr(mergeGrpItr);
-      inOutState->addOrUpdateRoute(
-          rid, newRoute, false /* ecmpDemandExceeded*/);
-      if (!grpInfo->hasOverrides()) {
-        // New group w/o overrides inserted
-        ++inOutState->primaryEcmpGroupsCnt;
-        inOutState->ecmpMemberCnt += grpInfo->numNhops();
-      } else if (newMergeGrpCreated) {
-        CHECK(mergeGrpItr);
-        ++inOutState->primaryEcmpGroupsCnt;
-        inOutState->ecmpMemberCnt += (*mergeGrpItr)->second.mergedNhops.size();
-      } else if (grpInfo->isBackupEcmpGroupType()) {
-        CHECK(newRoute->getForwardInfo()
-                  .getOverrideEcmpSwitchingMode()
-                  .has_value());
-        inOutState->ecmpMemberCnt += grpInfo->numNhops();
-      }
-      XLOG(DBG2) << " Route: " << (oldRoute ? "update " : "add ")
-                 << newRoute->str()
-                 << " points to new group: " << grpInfo->getID()
-                 << " primray ecmp group count: "
-                 << inOutState->primaryEcmpGroupsCnt
-                 << " ecmp member count: " << inOutState->ecmpMemberCnt;
-    }
+  std::shared_ptr<NextHopGroupInfo> grpInfo;
+  bool grpInserted{false};
+  if (!getEcmpCompressionThresholdPct()) {
+    std::tie(grpInfo, grpInserted) = routeAddedNoCompressionThreshold(
+        rid, newRoute, ecmpLimitReached, inOutState);
+  } else if (!newRoute->getForwardInfo().hasOverrideNextHops()) {
+    std::tie(grpInfo, grpInserted) =
+        routeAddedNoOverrideNhops(rid, newRoute, ecmpLimitReached, inOutState);
   } else {
-    // Route points to a existing group
-    if (grpInfo->hasOverrides() !=
-        newRoute->getForwardInfo().hasOverrideSwitchingModeOrNhops()) {
-      auto existingGrpInfo = updateForwardingInfoAndInsertDelta(
-          rid, newRoute, grpInfo, false /*ecmpLimitReached*/, inOutState);
-      CHECK_EQ(existingGrpInfo, grpInfo);
-    } else {
-      inOutState->addOrUpdateRoute(rid, newRoute, false /*ecmpDemandExceeded*/);
-    }
-    XLOG(DBG4) << " Route  " << (oldRoute ? "update " : "add ")
-               << " points to existing group: " << grpInfo->getID()
-               << " primary ecmp group count unchanged: "
-               << inOutState->primaryEcmpGroupsCnt;
+    std::tie(grpInfo, grpInserted) = routeAddedWithOverrideNhops(
+        rid, newRoute, ecmpLimitReached, inOutState);
   }
   CHECK(grpInfo);
   auto [pitr, pfxInserted] = prefixToGroupInfo_.insert(
@@ -1340,30 +1594,35 @@ void EcmpResourceManager::routeAddedOrUpdated(
        */
       updateConsolidationPenalty(*pitr->second);
     }
-    if (grpInserted) {
-      if (auto nmitr = pitr->second->getMergedGroupInfoItr()) {
-        /*
-         * New merged group added, compute candidate merges
-         * for it
-         */
-        computeCandidateMergesForNewMergedGroup((*nmitr)->first);
-      } else {
-        /*
-         * New unmerged group added, compute candidate merges
-         * for it
-         */
-        computeCandidateMergesForNewUnmergedGroups({grpInfo->getID()});
-      }
+    if (grpInserted && !pitr->second->getMergedGroupInfoItr()) {
+      /*
+       * New unmerged group added, compute candidate merges
+       * for it
+       */
+      computeCandidateMergesForNewUnmergedGroups({grpInfo->getID()});
     }
   }
 }
 
 std::optional<EcmpResourceManager::GroupIds2ConsolidationInfoItr>
 EcmpResourceManager::getMergeGroupItr(const RouteNextHopSet& mergedNhops) {
-  for (auto mitr = mergedGroups_.begin(); mitr != mergedGroups_.end(); ++mitr) {
-    if (mitr->second.mergedNhops == mergedNhops) {
-      return mitr;
-    }
+  auto nitr = nextHopGroup2Id_.find(mergedNhops);
+  if (nitr == nextHopGroup2Id_.end()) {
+    return std::nullopt;
+  }
+  auto grpInfo = nextHopGroupIdToInfo_.ref(nitr->second);
+  auto grpState = grpInfo->getState();
+  if (grpState == NextHopGroupInfo::NextHopGroupState::MERGED_NHOPS_ONLY ||
+      grpState ==
+          NextHopGroupInfo::NextHopGroupState::UNMERGED_AND_MERGED_NHOPS) {
+    // The above 2 states represent the case where nhops pointed to by
+    // group's merge info itr match the indexed nhops (in nextHopGroup2Id_).
+    // If so we can return the mergeInfo itr.
+    // Its not sufficient to blindly return the mergeGroupInfoItr for group
+    // corresponding to these nhops. Since the merge iterator maybe pointing
+    // to a different set of merged nhops
+    DCHECK(grpInfo->mergedAndUnmergedNhopsMatch());
+    return grpInfo->getMergedGroupInfoItr();
   }
   return std::nullopt;
 }
@@ -1388,31 +1647,39 @@ EcmpResourceManager::getMergeGroupItr(const RouteNextHopSet& mergedNhops) {
  * 2. Update merge group iterator in G1 to point to new position in
  * mergeGroups_ map.
  *
- * FIXME:
- * We compare against existing merge group nhops when selecting a merge
- * group. However we don't do so when deciding to choose a new merge group.
- * So its possible, that reconstruction ends up with a more optimal (lower)
- * set of merge groups than in the forward pass. Will fix this.
  */
 EcmpResourceManager::GroupIds2ConsolidationInfoItr
-EcmpResourceManager::fixAndGetMergeGroupItr(
-    const NextHopGroupIds& newMemberGroupIds,
+EcmpResourceManager::appendToOrCreateMergeGroup(
+    NextHopGroupIds newMemberGroupIds,
     const RouteNextHopSet& mergedNhops,
-    std::optional<GroupIds2ConsolidationInfoItr> existingMitr) {
+    std::optional<GroupIds2ConsolidationInfoItr> existingMitr,
+    const InputOutputState& inOutState) {
   GroupIds2ConsolidationInfoItr mitr;
   if (!existingMitr) {
     XLOG(DBG2) << " Group ID : " << newMemberGroupIds
-               << " merged nhops not found, creating new merged group entry";
+               << " merged nhops not found, creating new merged group entry : "
+               << newMemberGroupIds;
+    DCHECK(!mergedGroups_.contains(newMemberGroupIds));
+    pruneFromCandidateMerges(newMemberGroupIds);
     ConsolidationInfo info{mergedNhops, {}};
     std::tie(mitr, std::ignore) =
         mergedGroups_.insert({newMemberGroupIds, std::move(info)});
   } else {
     mitr = *existingMitr;
-    NextHopGroupIds newMergeSet = mitr->first;
+    std::for_each(
+        mitr->first.begin(),
+        mitr->first.end(),
+        [&newMemberGroupIds](auto existingGid) {
+          newMemberGroupIds.erase(existingGid);
+        });
+    if (newMemberGroupIds.empty()) {
+      return mitr;
+    }
     XLOG(DBG2) << " Group ID : " << newMemberGroupIds
                << " found existing merged nhops, merging with: " << mitr->first;
     auto info = std::move(mitr->second);
     pruneFromCandidateMerges(mitr->first);
+    NextHopGroupIds newMergeSet = mitr->first;
     mergedGroups_.erase(mitr);
     newMergeSet.insert(newMemberGroupIds.begin(), newMemberGroupIds.end());
     bool inserted{false};
@@ -1422,6 +1689,11 @@ EcmpResourceManager::fixAndGetMergeGroupItr(
     // Fix up iterators
     fixMergeItreators(newMergeSet, mitr, newMemberGroupIds);
   }
+  auto [mergeGroupInfo, _] =
+      getOrCreateGroupInfo(mitr->second.mergedNhops, inOutState);
+  mergeGroupInfo->setMergedGroupInfoItr(mitr);
+  mitr->second.mergedGroupInfo = mergeGroupInfo;
+
   std::for_each(
       newMemberGroupIds.begin(),
       newMemberGroupIds.end(),
@@ -1434,8 +1706,11 @@ EcmpResourceManager::fixAndGetMergeGroupItr(
             grpInfo->getRouteUsageCount());
         auto [_, insertedPenalty] =
             mitr->second.groupId2Penalty.insert({newMemberGroupId, penalty});
-        CHECK(insertedPenalty);
+        CHECK(insertedPenalty)
+            << " Group ID: " << newMemberGroupId
+            << " already has a computed penalty in: " << mitr->first;
       });
+  computeCandidateMergesForNewMergedGroup(mitr->first);
   return mitr;
 }
 
@@ -1485,7 +1760,7 @@ void EcmpResourceManager::routeUpdated(
     // Just update deltas, no need to account for update route as a ECMP group
     // This and previous delete still create a single delta since ecmp demand
     // is never exceeded in these 2 steps
-    inOutState->addOrUpdateRoute(rid, newRoute, false /*ecmpDemandExceeded*/);
+    inOutState->addOrUpdateRoute(rid, newRoute);
   } else {
     // Neither of the routes point to > 1 nhops. Nothing to do
     CHECK_LE(oldNHops.size(), 1);
@@ -1493,7 +1768,7 @@ void EcmpResourceManager::routeUpdated(
     XLOG(DBG2) << " Route:" << newRoute->str()
                << " transitioned from single nhop to a different single nhop";
     // Just update deltas, no need to account for this as a ECMP group
-    inOutState->addOrUpdateRoute(rid, newRoute, false /*ecmpDemandExceeded*/);
+    inOutState->addOrUpdateRoute(rid, newRoute);
   }
 }
 
@@ -1510,7 +1785,7 @@ void EcmpResourceManager::routeAdded(
         rid, std::shared_ptr<Route<AddrT>>(), newRoute, inOutState);
   } else {
     // Just update deltas, no need to account for this as a ECMP group
-    inOutState->addOrUpdateRoute(rid, newRoute, false /*ecmpDemandExceeded*/);
+    inOutState->addOrUpdateRoute(rid, newRoute);
   }
 }
 template <typename AddrT>
@@ -1690,8 +1965,7 @@ void EcmpResourceManager::processRouteUpdates(
           // Nexthops and override group type did not change,
           // but the route changed. Just queue it in the delta,
           // no need to reevaluate ECMP resources
-          inOutState->addOrUpdateRoute(
-              rid, newRoute, false /*ecmpDemandExceeded*/);
+          inOutState->addOrUpdateRoute(rid, newRoute);
         }
       },
       [this, inOutState](RouterID rid, const auto& newRoute) {
@@ -1725,9 +1999,7 @@ EcmpResourceManager::findCachedOrNewIdForNhops(
         allocatedIds.insert(id);
       }
     };
-    CHECK(preUpdateState_.has_value());
     fillAllocatedIds(nextHopGroup2Id_);
-    fillAllocatedIds(preUpdateState_->nextHopGroup2Id);
     for (auto start = kMinNextHopGroupId;
          start < std::numeric_limits<NextHopGroupId>::max();
          ++start) {
@@ -1737,10 +2009,7 @@ EcmpResourceManager::findCachedOrNewIdForNhops(
     }
     throw FbossError("Unable to find id to allocate for new next hop group");
   };
-  auto nitr = inOutState.groupIdCache.nextHopGroup2Id.find(nhops);
-  return nitr != inOutState.groupIdCache.nextHopGroup2Id.end()
-      ? nitr->second
-      : findNextAvailableId();
+  return findNextAvailableId();
 }
 
 size_t EcmpResourceManager::getRouteUsageCount(NextHopGroupId nhopGrpId) const {
@@ -1761,29 +2030,27 @@ size_t EcmpResourceManager::getCost(NextHopGroupId nhopGrpId) const {
 
 void EcmpResourceManager::updateDone() {
   XLOG(DBG2) << " Update done";
-  preUpdateState_.reset();
 }
 
 void EcmpResourceManager::updateFailed(
-    const std::shared_ptr<SwitchState>& curState) {
-  if (!preUpdateState_.has_value()) {
-    return;
-  }
+    const std::shared_ptr<SwitchState>& knownGoodState) {
   XLOG(DBG2) << " Update failed";
-  CHECK(preUpdateState_.has_value());
-  if (getBackupEcmpSwitchingMode() != preUpdateState_->backupEcmpGroupType) {
+  if (getBackupEcmpSwitchingMode() != getBackupSwitchingMode(knownGoodState)) {
     // Throw if we get a failed update involving backup switching mode
     // change. We can make this smarter by
     // - Reverting getBackupEcmpSwitchingMode() setting
-    // - Asserting that all prefixes in curState with overrideEcmpMode set
+    // - Asserting that all prefixes in knownGoodState with overrideEcmpMode set
     // match the old backupEcmpGroupType
     // However this adds more code for a use case we don't need to support.
     // BackupEcmpType can only change via a config update state delta. And
     // if that fails, we anyways fail the application
-    throw FbossError("Update failed with backup switching mode transition");
+    std::stringstream ss;
+    ss << "Update failed with backup switching mode transition, from: "
+       << getBackupEcmpSwitchingMode()
+       << " to: " << getBackupSwitchingMode(knownGoodState);
+    throw FbossError(ss.str());
   }
-  reconstructFromSwitchState(curState);
-  preUpdateState_.reset();
+  reconstructFromSwitchState(knownGoodState);
 }
 
 std::optional<EcmpResourceManager::InputOutputState>
@@ -1791,17 +2058,18 @@ EcmpResourceManager::handleFlowletSwitchConfigDelta(const StateDelta& delta) {
   auto oldBackupEcmpMode = getBackupEcmpSwitchingMode();
   config_.handleFlowletSwitchConfigDelta(delta);
   if (!oldBackupEcmpMode.has_value()) {
-    // No backup ecmp type value for old group.
-    // Nothing to do.
+    // No backup ecmp type value for old group. Thus
+    // we can't have any prefixes with override ECMP
+    // mode set. Nothing to do.
     return std::nullopt;
   }
   InputOutputState inOutState(
       0 /*primaryEcmpGroupsCnt*/, 0 /*ecmpMemberCnt*/, delta);
-  CHECK_EQ(inOutState.out.size(), 1);
+  CHECK_EQ(inOutState.numDeltas(), 1);
   // Make changes on to current new state (which is essentially,
   // newState with old state's fibs). The first delta we will queue
   // will be the oldState's FIBs route's updated to new backup group.
-  auto newState = inOutState.out.back().newState();
+  auto newState = inOutState.getCurrentStateDelta().newState();
   bool changed = false;
   for (const auto& [ridAndPfx, grpInfo] : prefixToGroupInfo_) {
     if (!grpInfo->isBackupEcmpGroupType()) {
@@ -1858,10 +2126,23 @@ void EcmpResourceManager::handleSwitchSettingsDelta(const StateDelta& delta) {
   }
 }
 
+RouteNextHopSet EcmpResourceManager::getCommonNextHops(
+    const NextHopGroupIds& grpIds) const {
+  std::vector<const RouteNextHopSet*> unmergedNhopSets;
+  std::for_each(
+      grpIds.begin(), grpIds.end(), [&unmergedNhopSets, this](auto grpId) {
+        auto nhopsInfo = nextHopGroupIdToInfo_.ref(grpId);
+        CHECK(nhopsInfo);
+        unmergedNhopSets.emplace_back(&nhopsInfo->getNhops());
+      });
+
+  return computeCommonNextHops(unmergedNhopSets);
+}
+
 EcmpResourceManager::ConsolidationInfo
 EcmpResourceManager::computeConsolidationInfo(
     const NextHopGroupIds& grpIds) const {
-  CHECK_GE(grpIds.size(), 2);
+  CHECK_GE(grpIds.size(), 1);
   auto firstGrpInfo = nextHopGroupIdToInfo_.ref(*grpIds.begin());
   CHECK(firstGrpInfo);
 
@@ -1939,9 +2220,10 @@ void EcmpResourceManager::computeCandidateMergesForNewMergedGroup(
     const NextHopGroupIds& newMergeSet) {
   for (auto grpToMergeWith : getUnMergedGids()) {
     NextHopGroupIds candidateMerge{newMergeSet};
-    candidateMerge.insert(grpToMergeWith);
-    DCHECK(!mergedGroups_.contains(candidateMerge));
-    addCandidateMerge(candidateMerge);
+    auto [_, inserted] = candidateMerge.insert(grpToMergeWith);
+    if (inserted && !candidateMergeGroups_.contains(candidateMerge)) {
+      addCandidateMerge(candidateMerge);
+    }
   }
 }
 
@@ -1950,22 +2232,9 @@ void EcmpResourceManager::addCandidateMerge(
   auto consolidationInfo = computeConsolidationInfo(candidateMerge);
   auto [_, inserted] = candidateMergeGroups_.insert(
       {candidateMerge, std::move(consolidationInfo)});
-  CHECK(inserted);
-  XLOG(DBG3) << " Added candidate merge group: " << candidateMerge;
-}
-
-std::map<
-    EcmpResourceManager::NextHopGroupId,
-    std::set<EcmpResourceManager::Prefix>>
-EcmpResourceManager::getGroupIdToPrefix() const {
-  std::map<NextHopGroupId, std::set<Prefix>> toRet;
-  std::for_each(
-      prefixToGroupInfo_.begin(),
-      prefixToGroupInfo_.end(),
-      [&toRet](const auto& prefixAndGrpInfo) {
-        toRet[prefixAndGrpInfo.second->getID()].insert(prefixAndGrpInfo.first);
-      });
-  return toRet;
+  if (inserted) {
+    XLOG(DBG3) << " Added candidate merge group: " << candidateMerge;
+  }
 }
 
 NextHopGroupInfo::NextHopGroupInfo(
@@ -2000,6 +2269,16 @@ std::ostream& operator<<(
       os << "UNMERGED_AND_MERGED_NHOPS";
       break;
   }
+  return os;
+}
+
+std::ostream& operator<<(std::ostream& os, const NextHopGroupInfo& grpInfo) {
+  os << "Group ID: " << grpInfo.getID() << " state: " << grpInfo.getState()
+     << " override switching mode set: " << grpInfo.isBackupEcmpGroupType()
+     << " override nhops points to merge grp: "
+     << (grpInfo.getMergedGroupInfoItr()
+             ? toStr((*grpInfo.getMergedGroupInfoItr())->first)
+             : "none");
   return os;
 }
 
@@ -2118,10 +2397,7 @@ std::unique_ptr<EcmpResourceManager> makeEcmpResourceManager(
     auto maxEcmps =
         std::floor(*maxEcmpGroups * static_cast<double>(percentage) / 100.0);
     XLOG(DBG2) << " Creating ecmp resource manager with max ECMP groups: "
-               << maxEcmps << " and backup group type: "
-               << (switchingMode.has_value()
-                       ? apache::thrift::util::enumNameSafe(*switchingMode)
-                       : "None");
+               << maxEcmps << " and backup group type: " << switchingMode;
 
     ecmpResourceManager = switchingMode
         ? std::make_unique<EcmpResourceManager>(

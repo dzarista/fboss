@@ -25,6 +25,7 @@ const std::unordered_map<std::string, std::function<void(Utils&)>>
     DETAIL_FUNCTIONS = {
         {"host", [](Utils& util) { util.printHostDetails(); }},
         {"fboss", [](Utils& util) { util.printFbossDetails(); }},
+        {"powergood", [](Utils& util) { util.printPowerGoodDetails(); }},
         {"weutil", [](Utils& util) { util.printWeutilDetails(); }},
         {"fwutil", [](Utils& util) { util.printFwutilDetails(); }},
         {"lspci", [](Utils& util) { util.printLspciDetails(); }},
@@ -36,6 +37,7 @@ const std::unordered_map<std::string, std::function<void(Utils&)>>
         {"fanspinner", [](Utils& util) { util.printFanspinnerDetails(); }},
         {"gpio", [](Utils& util) { util.printGpioDetails(); }},
         {"i2c", [](Utils& util) { util.printI2cDetails(); }},
+        {"i2cdump", [](Utils& util) { util.printI2cDumpDetails(); }},
 };
 
 std::unordered_set<std::string> getValidDetailNames() {

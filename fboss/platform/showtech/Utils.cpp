@@ -6,7 +6,9 @@
 #include <chrono>
 #include <filesystem>
 #include <iostream>
+#include <optional>
 #include <thread>
+#include <tuple>
 
 #include <fmt/core.h>
 #include <re2/re2.h>
@@ -91,7 +93,7 @@ void Utils::printSensorDetails() {
 }
 
 void Utils::printI2cDetails() {
-  std::cout << "##### I2C Information #####" << std::endl;
+  std::cout << "##### I2C Scan Information #####" << std::endl;
   auto [ret, output] = safeExecCommand("i2cdetect -l");
   std::cout << output << std::endl;
 
@@ -109,46 +111,46 @@ void Utils::printI2cDetails() {
   }
 }
 
+void Utils::printI2cDumpDetails() {
+  std::cout << "##### I2C Dump Information #####" << std::endl;
+  if (config_.i2cDumpDevices()->empty()) {
+    std::cout << "No device to i2cdump found from configs\n" << std::endl;
+    return;
+  }
+
+  for (const auto& path : *config_.i2cDumpDevices()) {
+    std::cout << fmt::format("#### i2cdump for {} ####", path) << std::endl;
+    auto i2cInfo = getI2cInfoForDevice(path);
+    if (i2cInfo) {
+      auto [bus, devAddr] = *i2cInfo;
+      auto cmd = fmt::format("timeout 15 i2cdump -f -y {} {} b", bus, devAddr);
+
+      std::cout << fmt::format("Running `{}`", cmd) << std::endl;
+      auto [ret, output] = platformUtils_.execCommand(cmd);
+      std::cout << output << std::endl;
+      if (ret == 124) {
+        std::cout << "Error: command timed out after 15 seconds" << std::endl;
+      }
+    }
+  }
+}
+
 void Utils::printPsuDetails() {
   std::cout << "##### PSU Information #####" << std::endl;
 
   for (const auto& psu : *config_.psus()) {
     std::cout << fmt::format("#### PSU Details {} ####", psu) << std::endl;
 
-    std::string psuPmbusI2cPath{};
-    try {
-      // Resolve the symlink to get the actual i2c device path
-      psuPmbusI2cPath = std::filesystem::read_symlink(psu).string();
-      std::cout << fmt::format("Resolved path: {}", psuPmbusI2cPath)
-                << std::endl;
-    } catch (const std::filesystem::filesystem_error& ex) {
-      std::cout << "Error: failed to resolve symlink " << psu << ": "
-                << ex.what() << std::endl;
-      continue;
-    }
-
-    int busNum;
-    int deviceAddr;
-    RE2 i2cPattern(R"(/sys/bus/i2c/devices/(\d+)-([0-9a-fA-F]+)/)");
-
-    if (!RE2::PartialMatch(
-            psuPmbusI2cPath, i2cPattern, &busNum, RE2::Hex(&deviceAddr))) {
-      std::cout << "Error: Could not extract i2c bus and address from path: "
-                << psuPmbusI2cPath << std::endl;
-      continue;
-    }
-
-    std::cout << fmt::format(
-                     "Extracted i2c bus: {}, device address: 0x{:04x}",
-                     busNum,
-                     deviceAddr)
-              << std::endl;
-
-    try {
-      PsuHelper(busNum, deviceAddr).dumpRegisters();
-    } catch (const std::exception& e) {
-      std::cout << fmt::format("Error: failed to dump registers: {}", e.what())
-                << std::endl;
+    auto i2cInfo = getI2cInfoForDevice(psu);
+    if (i2cInfo) {
+      auto [busNum, deviceAddr] = *i2cInfo;
+      try {
+        PsuHelper(busNum, deviceAddr).dumpRegisters();
+      } catch (const std::exception& e) {
+        std::cout << fmt::format(
+                         "Error: failed to dump registers: {}", e.what())
+                  << std::endl;
+      }
     }
     std::cout << std::endl;
   }
@@ -156,30 +158,12 @@ void Utils::printPsuDetails() {
 
 void Utils::printGpioDetails() {
   std::cout << "##### GPIO Information #####" << std::endl;
-
   if (config_.gpios()->empty()) {
     std::cout << "No GPIO chip found from configs\n" << std::endl;
     return;
   }
-
   for (const auto& gpio : *config_.gpios()) {
-    std::cout << fmt::format("#### GPIO Chip Details {} ####", *gpio.path())
-              << std::endl;
-    struct gpiod_chip* chip = gpiod_chip_open(gpio.path()->c_str());
-    for (const auto& line : *gpio.lines()) {
-      std::cout << fmt::format(
-          "line {:>3}:   {:<15} -> ", *line.lineIndex(), *line.name());
-      try {
-        std::cout << GpiodLine(chip, *line.lineIndex(), *line.name()).getValue()
-                  << std::endl;
-      } catch (const std::exception& e) {
-        std::cout << fmt::format(
-                         "Error: failed to read gpio line: {}", e.what())
-                  << std::endl;
-      }
-    }
-    gpiod_chip_close(chip);
-    std::cout << std::endl;
+    printGpio(gpio);
   }
 }
 
@@ -264,6 +248,23 @@ void Utils::printFanspinnerDetails() {
   std::cout << std::endl;
 }
 
+void Utils::printPowerGoodDetails() {
+  std::cout << "##### Power Good Information #####" << std::endl;
+
+  if (config_.scPowerGood() && config_.scPowerGood()->sysfsAttribute()) {
+    std::cout << "Reading scPowerGood from sysfs" << std::endl;
+    auto pgSysfs = *config_.scPowerGood()->sysfsAttribute();
+    printSysfsAttribute(*pgSysfs.name(), *pgSysfs.path());
+  } else if (config_.scPowerGood() && config_.scPowerGood()->gpioAttribute()) {
+    std::cout << "Reading scPowerGood from gpio" << std::endl;
+    auto pgGpio = *config_.scPowerGood()->gpioAttribute();
+    printGpio(pgGpio);
+  } else {
+    std::cout << "No powergood info found from config\n";
+  }
+  std::cout << std::endl;
+}
+
 void Utils::runFbossCliCmd(const std::string& cmd) {
   if (!std::filesystem::exists("/etc/ramdisk")) {
     auto fullCmd = fmt::format("fboss2 show {}", cmd);
@@ -294,6 +295,57 @@ void Utils::printSysfsAttribute(
                      "Error: failed to read sysfs path {}: {}", path, e.what())
               << std::endl;
   }
+}
+
+std::optional<std::tuple<int, int>> Utils::getI2cInfoForDevice(
+    const std::string& path) {
+  std::string i2cPath{};
+  try {
+    i2cPath = std::filesystem::read_symlink(path).string();
+  } catch (const std::filesystem::filesystem_error& ex) {
+    std::cout << fmt::format(
+                     "Error: failed to resolve device symlink {}:{}",
+                     path,
+                     ex.what())
+              << std::endl;
+    return std::nullopt;
+  }
+
+  int busNum;
+  int deviceAddr;
+  RE2 i2cPattern(R"(/sys/bus/i2c/devices/(\d+)-([0-9a-fA-F]+))");
+
+  if (!RE2::PartialMatch(i2cPath, i2cPattern, &busNum, RE2::Hex(&deviceAddr))) {
+    std::cout << "Error: Could not extract i2c bus and address from path: "
+              << i2cPath << std::endl;
+    return std::nullopt;
+  }
+
+  std::cout << fmt::format(
+                   "Extracted i2c bus: {}, device address: 0x{:04x}",
+                   busNum,
+                   deviceAddr)
+            << std::endl;
+  return std::make_tuple(busNum, deviceAddr);
+}
+
+void Utils::printGpio(const Gpio& gpio) {
+  std::cout << fmt::format("#### GPIO Chip Details {} ####", *gpio.path())
+            << std::endl;
+  struct gpiod_chip* chip = gpiod_chip_open(gpio.path()->c_str());
+  for (const auto& line : *gpio.lines()) {
+    std::cout << fmt::format(
+        "line {:>3}:   {:<15} -> ", *line.lineIndex(), *line.name());
+    try {
+      std::cout << GpiodLine(chip, *line.lineIndex(), *line.name()).getValue()
+                << std::endl;
+    } catch (const std::exception& e) {
+      std::cout << fmt::format("Error: failed to read gpio line: {}", e.what())
+                << std::endl;
+    }
+  }
+  gpiod_chip_close(chip);
+  std::cout << std::endl;
 }
 
 } // namespace facebook::fboss::platform
