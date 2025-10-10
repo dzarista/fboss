@@ -25,6 +25,50 @@
 
 static const struct regbit_sysfs_config cpld_attrs[] = {
 	/*
+	 * SCD_FPGA_STA @ address/offset 0xA.
+	 */
+	{
+		.name = "scd_config_done",
+		.mode = REGBIT_FMODE_RO,
+		.reg_addr = CPLD_REG_SCD_FPGA_STA,
+		.bit_offset = 0,
+		.num_bits = 1,
+		.flags = RBS_FLAG_SHOW_NOTES,
+		.help_str = "0: SCD FPGA configuration not done yet\n"
+			    "1: SCD FPGA configuration done",
+	},
+	{
+		.name = "scd_config",
+		.mode = REGBIT_FMODE_RW,
+		.reg_addr = CPLD_REG_SCD_FPGA_STA,
+		.bit_offset = 3,
+		.num_bits = 1,
+		.flags = RBS_FLAG_SHOW_NOTES,
+		.help_str = "0: normal operation. Default\n"
+			    "1: initiate SCD FPGA re-configuration",
+	},
+	{
+		.name = "scd_hold",
+		.mode = REGBIT_FMODE_RW,
+		.reg_addr = CPLD_REG_SCD_FPGA_STA,
+		.bit_offset = 4,
+		.num_bits = 1,
+		.flags = RBS_FLAG_SHOW_NOTES,
+		.help_str = "0: normal operation. Default\n"
+			    "1: hold SCD output for SCD hitless update",
+	},
+	{
+		.name = "scd_reset",
+		.mode = REGBIT_FMODE_RW,
+		.reg_addr = CPLD_REG_SCD_FPGA_STA,
+		.bit_offset = 5,
+		.num_bits = 1,
+		.flags = RBS_FLAG_SHOW_NOTES,
+		.help_str = "0: normal operation. Default\n"
+			    "1: reset SCD",
+	},
+
+	/*
 	 * JTAG selectors @ address/offset 0xC.
 	 */
 	{
