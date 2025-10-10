@@ -14,8 +14,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <linux/i2c.h>
 #include <linux/module.h>
+#include <linux/i2c.h>
 #include <linux/version.h>
 
 #include "regbit-sysfs.h"
@@ -24,35 +24,35 @@
 #define DRIVER_NAME "glath05a-64o-cpld"
 
 static const struct regbit_sysfs_config cpld_attrs[] = {
-    /*
-     * JTAG selectors @ address/offset 0xC.
-     */
-    {
-        .name = "jtag_mux_sel",
-        .mode = REGBIT_FMODE_RW,
-        .reg_addr = CPLD_REG_JTAG_SEL,
-        .bit_offset = 0,
-        .num_bits = 4,
-        .flags = RBS_FLAG_SHOW_NOTES,
-        .help_str = "0: No connection (default)\n"
-                    "1: SCD\n"
-                    "2: FAN",
-    },
-    {
-        .name = "cpld_jtag_sel",
-        .mode = REGBIT_FMODE_RO,
-        .reg_addr = CPLD_REG_JTAG_SEL,
-        .bit_offset = 7,
-        .num_bits = 1,
-        .flags = RBS_FLAG_SHOW_NOTES,
-        .help_str = "0: CPU -> external JTAG selected\n"
-                    "1: CPU -> CPLD JTAG selected, bits[6:0] are ignored",
-    },
+	/*
+	 * JTAG selectors @ address/offset 0xC.
+	 */
+	{
+		.name = "jtag_mux_sel",
+		.mode = REGBIT_FMODE_RW,
+		.reg_addr = CPLD_REG_JTAG_SEL,
+		.bit_offset = 0,
+		.num_bits = 4,
+		.flags = RBS_FLAG_SHOW_NOTES,
+		.help_str = "0: No connection (default)\n"
+			    "1: SCD\n"
+			    "2: FAN",
+	},
+	{
+		.name = "cpld_jtag_sel",
+		.mode = REGBIT_FMODE_RO,
+		.reg_addr = CPLD_REG_JTAG_SEL,
+		.bit_offset = 7,
+		.num_bits = 1,
+		.flags = RBS_FLAG_SHOW_NOTES,
+		.help_str = "0: CPU -> external JTAG selected\n"
+			    "1: CPU -> CPLD JTAG selected, bits[6:0] are ignored",
+	},
 };
 
 static const struct i2c_device_id cpld_dev_ids[] = {
-    {"glath05a-64o_cpld", 0},
-    {},
+	{ "glath05a-64o_cpld", 0 },
+	{},
 };
 MODULE_DEVICE_TABLE(i2c, cpld_dev_ids);
 
