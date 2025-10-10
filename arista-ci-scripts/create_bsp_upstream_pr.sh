@@ -6,8 +6,9 @@ set -x
 
 repo_name=git@github.com:facebookexternal/fboss.bsp.arista.git
 upstream_pr_branch_name="bsp_upstream_pr_${PR_BRANCH}"
-pr_title="push subtree changes to fboss.bsp.arista"
-pr_description="Upstream pull request with the changes to Git subtree from the branch ${PR_BRANCH}."
+pr_title="[DRAFT] [PLEASE UPDATE] push subtree changes to fboss.bsp.arista"
+pr_description="**[PLEASE UPDATE THIS DESCRIPTION]**
+Upstream pull request with the changes to Git subtree from the branch ${PR_BRANCH}."
 # File attached in the status email
 output_file=upstream_pr_status.txt
 # Status email text
