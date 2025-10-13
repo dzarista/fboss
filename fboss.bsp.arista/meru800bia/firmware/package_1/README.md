@@ -50,7 +50,7 @@ directory.
 | 4.13    | Increases MDIO drive strength for improved stability.              |
 | 4.16    | Treats non persistant (<1us) as a correctable error.               |
 
-## SMB FPA
+## SMB FPGA
 
 | Version | Changelog                                                          |
 |---------|--------------------------------------------------------------------|

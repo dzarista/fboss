@@ -43,7 +43,7 @@ N/A
 | 4.2     | Fixes 32-byte SMBus block read needed for UCD90320 driver support. |
 | 4.13    | Increases MDIO drive strength for improved stability.              |
 
-## SMB FPA
+## SMB FPGA
 
 | Version | Changelog                                                          |
 |---------|--------------------------------------------------------------------|
