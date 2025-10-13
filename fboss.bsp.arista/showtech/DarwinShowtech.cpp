@@ -65,18 +65,22 @@ void DarwinShowtech::printFanspinnerInfo() {
   fanspinner->printSysfsAttr("rm_idprom_wp", "RACKMON_IDPROM_WP");
   fanspinner->printSysfsAttr("led_green", "LED_GREEN");
   fanspinner->printSysfsAttr("led_red", "LED_RED");
+  std::cout << std::endl;
+}
 
+void DarwinShowtech::printGpioShowtechInfo() {
+  printMainHeader("GPIO DEBUG INFO");
   printSubHeader("PCA9539 GPIO INFO");
   if (pca9539->gpioPath == "") {
     std::cout << "PCA9539 GPIO Expander NOT DETECTED" << std::endl;
   } else {
-    const std::map<int, std::string> gpioNames = {
+    const std::map<int, std::string> gpioLines = {
         {0, "RJ1_BKP_RED"},      {1, "RJ2_BKP_RED"}, {2, "RJ3_BKP_RED"},
         {3, "GPIO_FTDI_RST"},    {4, "RJ1_PWR_OK"},  {5, "RJ2_PWR_OK"},
         {6, "RJ3_PWR_OK"},       {9, "BMC_MOD_ID0"}, {10, "BMC_MOD_ID1"},
         {11, "BMC_MOD_ID2"},     {12, "BMC_ALIVE"},  {13, "BMC_PGOOD_CONN"},
         {14, "IOEXP_BMC_RESET"}, {15, "BMC_PRSNT_L"}};
-    pca9539->printGpioDump(gpioNames);
+    pca9539->printGpioDump(gpioLines);
   }
   std::cout << std::endl;
 }
@@ -173,6 +177,7 @@ void DarwinShowtech::printPlatformInfo() {
   printAllFpgaVersions();
   printPemInfo();
   printFanspinnerInfo();
+  printGpioShowtechInfo();
   printFanInfo();
   if (product == "darwin48v") {
     printPsuShowtechInfo();
