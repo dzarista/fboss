@@ -1,0 +1,14 @@
+disable LIBUSB1 support to minimize the binary size
+
+diff -Naru ../original/flashrom-v1.2.1/Makefile flashrom-v1.2.1/Makefile
+--- ../original/flashrom-v1.2.1/Makefile	2022-10-05 18:03:11.000000000 -0700
++++ flashrom-v1.2.1/Makefile	2023-11-09 20:25:30.685435015 -0800
+@@ -703,6 +703,8 @@
+ # Disable wiki printing by default. It is only useful if you have wiki access.
+ CONFIG_PRINT_WIKI ?= no
+ 
++# Disable libusb support
++CONFIG_ENABLE_LIBUSB1_PROGRAMMERS=no
+ # Disable all features if CONFIG_NOTHING=yes is given unless CONFIG_EVERYTHING was also set
+ ifeq ($(CONFIG_NOTHING), yes)
+   ifeq ($(CONFIG_EVERYTHING), yes)

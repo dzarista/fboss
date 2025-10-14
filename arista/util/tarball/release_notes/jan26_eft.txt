@@ -1,0 +1,19 @@
+- FBOSS BSP:
+  - platform-showtech updated to include "fboss2 show interface" commands
+  - Platform configs:
+    - platform_manager.json updated to support loading all device drivers
+    - BSP mapping updated to account for port LED path changes due to PlatformManager
+    - fw_util.json updated to load new SMB FPGA(s) firmware after SPI programming
+      without needing system powercycle
+    - fw_util.json updated to detect SPI flash chip and pass chip to flashrom command,
+      removing need for flashrom patch 0004-remove-duplicate-N25Q256__3E.patch
+    - fw_util.json updated to check PCIE enumeration for SMB FPGAs in postUpgradeCmd
+    - fw_util.json updated to gate firmware upgrades on P2 hardware
+  - Kernel drivers:
+    - scd-* drivers refactored to support device creation via PlatformManager service
+    - scd-* drivers updated to provide consistent presence bit format (0/1 vs 0x0/0x1)
+    - decker-cpld driver updated to expose SCD SPI flash programming register bits
+- OpenBMC (changes upstreamed to openbmc.arista)
+    - bios_util.sh/fpga_util.sh updated to gate firmware upgrades on P2 hardware
+- Programmables:
+  - No new firmware in this drop.
