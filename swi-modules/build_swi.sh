@@ -8,8 +8,12 @@ TARGET_DIR=$3
 
 if [ $KERNEL = "6.4" ]; then
     TARBALL="centos9_6.4.3-0_fbk747_rc2_1199_ga95cd85c72c4_live.tar"
+elif [ $KERNEL = "6.11" ]; then
+    TARBALL="centos9_6.11.1-0_fbk9_0_g2bb6f7f1c90e_live.tar"
+elif [ $KERNEL = "6.11_amd" ]; then
+    TARBALL="centos9_6.11.0_amd_live.tar"
 else
-    echo "Unspported kernel version"
+    echo "Unsupported kernel version"
     exit 1
 fi
 
@@ -31,12 +35,14 @@ rm -rf boot
 rm -rf "$TARBALL"
 
 FBOSS_PTEST_DATA_DIR="/usr/share/ptest-data/Fboss"
-FBOSS_RPM_DIR="$FBOSS_PTEST_DATA_DIR/RPMS/$ARCH/$KERNEL"
+FBOSS_CORE_RPM_DIR="$FBOSS_PTEST_DATA_DIR/RPMS/core/$ARCH/$KERNEL"
+FBOSS_PLATFORM_RPM_DIR="$FBOSS_PTEST_DATA_DIR/RPMS/platform"
 FBOSS_SWI_MODULES_DIR="$FBOSS_PTEST_DATA_DIR/swi-modules"
 
 cp -a "${FBOSS_SWI_MODULES_DIR}/." $TARGET_DIR
 rm -rf "build_swi.sh"
-cp -a "${FBOSS_RPM_DIR}/." $TARGET_DIR
+cp -a "${FBOSS_CORE_RPM_DIR}/." $TARGET_DIR
+cp -a "${FBOSS_PLATFORM_RPM_DIR}/." $TARGET_DIR
 
 zip FBOSS.swi *
 

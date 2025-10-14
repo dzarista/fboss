@@ -24,6 +24,28 @@ core_rpm_keywords="core showtech bsp_kmods"
 
 system_product=$(dmidecode -s system-product-name)
 
+try_install_rpm() {
+    rpm_file="$1"
+    max_attempts="$2"
+    delay=2
+
+    # RPM install can fail if there's lock contention, so retry
+    for (( attempt=1; attempt<=$max_attempts; attempt++ )); do
+        echo "Attempt #$attempt of $max_attempts..."
+        rpm -ivh "$rpm_file"
+        if [ $? -eq 0 ]; then
+            echo "Installation succeeded on attempt #$attempt"
+			return 0
+        else
+            echo "Installation failed"
+            if [ $attempt -lt $max_attempts ]; then
+                echo "Retrying in $delay seconds..."
+                sleep $delay
+            fi
+        fi
+    done
+}
+
 install_rpm_by_keyword() {
     keyword="$1"
 
@@ -32,7 +54,7 @@ install_rpm_by_keyword() {
         case "$filename" in
             *"$keyword"*)
                 echo "Installing $filename..."
-                rpm -ivh "$rpm_file"
+                try_install_rpm "$rpm_file" 3
                 ;;
         esac
     done
@@ -63,6 +85,10 @@ case "$system_product" in
         ;;
     "Darwin48V")
         install_rpm_by_keyword "darwin48v-"
+        ;;
+    "Redstart-RMB")
+        # ThrasherBench and Banff systems currently have "Redstart-RMB" programmed.
+        install_rpm_by_keyword "glath06a-64o-"
         ;;
     *)
         echo "Unknown product: $system_product. No additional RPMs installed."
