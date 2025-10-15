@@ -122,7 +122,9 @@ static s32 fan_cpld_read_fan_id(struct fan_cpld_data *fan_cpld, u8 fan_id)
 	s32 err;
 	u8 tmp;
 
-	err = fan_cpld_read_byte(fan_cpld, FAN_ID_REG(fan->index), &tmp);
+	err = fan_cpld_read_byte(fan_cpld,
+				 fan_cpld->info->regs->id_reg_base + fan->index,
+				 &tmp);
 	if (err)
 		return err;
 
@@ -144,30 +146,37 @@ static int fan_cpld_update(struct fan_cpld_data *fan_cpld)
 
 	dev_dbg(dev, "polling cpld information\n");
 
-	err = fan_cpld_read_byte(fan_cpld, FAN_INT_REG, &interrupt);
+	err = fan_cpld_read_byte(fan_cpld, fan_cpld->info->regs->int_reg,
+				 &interrupt);
 	if (err)
 		goto fail;
 
 	if (interrupt & FAN_INT_ID) {
-		err = fan_cpld_read_byte(fan_cpld, FAN_ID_CHNG_REG, &id_chng);
+		err = fan_cpld_read_byte(fan_cpld, fan_cpld->info->regs->id_change_reg,
+					 &id_chng);
 		if (err)
 			goto fail;
 	}
 
 	if (interrupt & FAN_INT_OK) {
-		err = fan_cpld_read_byte(fan_cpld, FAN_OK_CHNG_REG, &ok_chng);
+		err = fan_cpld_read_byte(fan_cpld, fan_cpld->info->regs->ok_change_reg,
+					 &ok_chng);
 		if (err)
 			goto fail;
-		err = fan_cpld_read_byte(fan_cpld, FAN_OK_REG, &fan_cpld->ok);
+		err = fan_cpld_read_byte(fan_cpld, fan_cpld->info->regs->ok_reg,
+					 &fan_cpld->ok);
 		if (err)
 			goto fail;
 	}
 
 	if (interrupt & FAN_INT_PRES) {
-		err = fan_cpld_read_byte(fan_cpld, FAN_PRESENT_CHNG_REG, &pres_chng);
+		err = fan_cpld_read_byte(fan_cpld,
+					 fan_cpld->info->regs->present_change_reg,
+					 &pres_chng);
 		if (err)
 			goto fail;
-		err = fan_cpld_read_byte(fan_cpld, FAN_OK_REG, &fan_cpld->present);
+		err = fan_cpld_read_byte(fan_cpld, fan_cpld->info->regs->present_reg,
+					 &fan_cpld->present);
 		if (err)
 			goto fail;
 	}
@@ -223,9 +232,10 @@ static int fan_cpld_update(struct fan_cpld_data *fan_cpld)
 			 fans_connected, fan_cpld->info->fan_count);
 	}
 
-	fan_cpld_write_byte(fan_cpld, FAN_ID_CHNG_REG, id_chng);
-	fan_cpld_write_byte(fan_cpld, FAN_OK_CHNG_REG, ok_chng);
-	fan_cpld_write_byte(fan_cpld, FAN_PRESENT_CHNG_REG, pres_chng);
+	fan_cpld_write_byte(fan_cpld, fan_cpld->info->regs->id_change_reg, id_chng);
+	fan_cpld_write_byte(fan_cpld, fan_cpld->info->regs->ok_change_reg, ok_chng);
+	fan_cpld_write_byte(fan_cpld, fan_cpld->info->regs->present_change_reg,
+			    pres_chng);
 fail:
 	return err;
 }
@@ -251,7 +261,8 @@ static int fan_cpld_read_present(struct fan_cpld_data *fan_cpld)
 	int err;
 	int i;
 
-	err = fan_cpld_read_byte(fan_cpld, FAN_PRESENT_REG, &fan_cpld->present);
+	err = fan_cpld_read_byte(fan_cpld, fan_cpld->info->regs->present_reg,
+				 &fan_cpld->present);
 	if (err)
 		return err;
 
@@ -269,7 +280,8 @@ static int fan_cpld_read_fault(struct fan_cpld_data *fan_cpld)
 	int err;
 	int i;
 
-	err = fan_cpld_read_byte(fan_cpld, FAN_OK_REG, &fan_cpld->ok);
+	err = fan_cpld_read_byte(fan_cpld, fan_cpld->info->regs->ok_reg,
+				 &fan_cpld->ok);
 	if (err)
 		return err;
 
@@ -358,7 +370,7 @@ static s32 fan_cpld_read_fan_pwm(struct fan_cpld_data *fan_cpld, u8 fan_id)
 }
 
 static enum led_brightness fan_cpld_read_fan_led(struct fan_cpld_data *data,
-			   struct fan_cpld_fan_led_data *led)
+						 struct fan_cpld_fan_led_data *led)
 {
 	int is_on;
 	if (!strcmp(led->color, "blue")) {
@@ -391,8 +403,10 @@ static s32 fan_cpld_write_fan_led(struct fan_cpld_data *fan_cpld,
 		}
 	}
 
-	err1 = fan_cpld_write_byte(fan_cpld, FAN_BLUE_LED_REG, fan_cpld->blue_led);
-	err2 = fan_cpld_write_byte(fan_cpld, FAN_AMBER_LED_REG, fan_cpld->amber_led);
+	err1 = fan_cpld_write_byte(fan_cpld, fan_cpld->info->regs->blue_led_reg,
+				   fan_cpld->blue_led);
+	err2 = fan_cpld_write_byte(fan_cpld, fan_cpld->info->regs->amber_led_reg,
+				   fan_cpld->amber_led);
 	return err1|err2;
 }
 
@@ -758,7 +772,7 @@ static ssize_t wdt_boost_pwm_store(struct device *dev,
 }
 
 DEVICE_ATTR(wdt_boost_pwm, S_IRUGO | S_IWGRP | S_IWUSR, wdt_boost_pwm_show,
-		wdt_boost_pwm_store);
+	    wdt_boost_pwm_store);
 
 static struct attribute *fan_cpld_attrs[] = {
 	&dev_attr_fw_ver.attr,
@@ -811,11 +825,13 @@ static int fan_cpld_init(struct fan_cpld_data *fan_cpld, bool safe_mode)
 		 fan_cpld->info->label,
 		 fan_cpld->major, fan_cpld->minor);
 
-	err = fan_cpld_read_byte(fan_cpld, FAN_PRESENT_REG, &fan_cpld->present);
+	err = fan_cpld_read_byte(fan_cpld, fan_cpld->info->regs->present_reg,
+				 &fan_cpld->present);
 	if (err)
 		return err;
 
-	err = fan_cpld_read_byte(fan_cpld, FAN_OK_REG, &fan_cpld->ok);
+	err = fan_cpld_read_byte(fan_cpld, fan_cpld->info->regs->ok_reg,
+				 &fan_cpld->ok);
 	if (err)
 		return err;
 
@@ -847,9 +863,12 @@ static int fan_cpld_init(struct fan_cpld_data *fan_cpld, bool safe_mode)
 			return err;
 	}
 
-	fan_cpld_write_byte(fan_cpld, FAN_OK_CHNG_REG, 0xff);
-	fan_cpld_write_byte(fan_cpld, FAN_ID_CHNG_REG, 0xff);
-	fan_cpld_write_byte(fan_cpld, FAN_ID_CHNG_REG, 0xff);
+	fan_cpld_write_byte(fan_cpld, fan_cpld->info->regs->ok_change_reg,
+			    fan_cpld->info->regs->change_reg_clear_val);
+	fan_cpld_write_byte(fan_cpld, fan_cpld->info->regs->id_change_reg,
+			    fan_cpld->info->regs->change_reg_clear_val);
+	fan_cpld_write_byte(fan_cpld, fan_cpld->info->regs->present_change_reg,
+			    fan_cpld->info->regs->change_reg_clear_val);
 
 	INIT_DELAYED_WORK(&fan_cpld->dwork, fan_cpld_work_fn);
 	fan_cpld_work_start(fan_cpld);
@@ -884,7 +903,7 @@ int fan_cpld_probe(struct i2c_client *client,
 	}
 
 	if (!i2c_check_functionality(client->adapter,
-					 I2C_FUNC_SMBUS_BYTE_DATA)) {
+				     I2C_FUNC_SMBUS_BYTE_DATA)) {
 		dev_err(dev, "adapter doesn't support byte transactions\n");
 		return -ENODEV;
 	}

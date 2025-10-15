@@ -30,9 +30,36 @@ enum cpld_type {
 	PALI2_CPLD = 3,
 };
 
+static const struct fan_cpld_reg_info oasis_reg_info = {
+	.id_reg_base = 0x61,
+	.present_reg = 0x70,
+	.ok_reg = 0x71,
+	.blue_led_reg = 0x73,
+	.amber_led_reg = 0x74,
+	.int_reg = 0x77,
+	.id_change_reg = 0x78,
+	.present_change_reg = 0x80,
+	.ok_change_reg = 0x82,
+	.change_reg_clear_val = 0xff, // Write 1s to clear
+};
+
+static const struct fan_cpld_reg_info pali2_reg_info = {
+	.id_reg_base = 0x61,
+	.present_reg = 0x70,
+	.ok_reg = 0x71,
+	.blue_led_reg = 0x73,
+	.amber_led_reg = 0x74,
+	.int_reg = 0x77,
+	.id_change_reg = 0x78,
+	.present_change_reg = 0x80,
+	.ok_change_reg = 0x82,
+	.change_reg_clear_val = 0x00, // Write 0s to clear
+};
+
 static const struct fan_cpld_info cpld_infos[] = {
 	[OASIS_CPLD0] = {
 		.label = "DSF",
+		.regs = &oasis_reg_info,
 		.fan_count = 4,
 		.rotors = 2,
 		.pulses = 2,
@@ -43,6 +70,7 @@ static const struct fan_cpld_info cpld_infos[] = {
 	},
 	[OASIS_CPLD1] = {
 		.label = "DSF",
+		.regs = &oasis_reg_info,
 		.fan_count = 4,
 		.rotors = 2,
 		.pulses = 2,
@@ -53,6 +81,7 @@ static const struct fan_cpld_info cpld_infos[] = {
 	},
 	[OASIS_CPLD2] = {
 		.label = "DSF",
+		.regs = &oasis_reg_info,
 		.fan_count = 4,
 		.rotors = 2,
 		.pulses = 2,
@@ -63,6 +92,7 @@ static const struct fan_cpld_info cpld_infos[] = {
 	},
 	[PALI2_CPLD] = {
 		.label = "DSF",
+		.regs = &pali2_reg_info,
 		.fan_count = 4,
 		.rotors = 2,
 		.pulses = 2,
