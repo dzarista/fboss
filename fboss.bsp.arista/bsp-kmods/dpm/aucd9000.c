@@ -27,6 +27,7 @@
 #include "aucd9000-reload-cause.h"
 #include "aucd9000-darwin-reload-cause.h"
 #include "aucd9000-meru800bfa-reload-cause.h"
+#include "aucd9000-glath06a-64o-reload-cause.h"
 
 enum chips { ucd9000, ucd90120, ucd90124, ucd90160, ucd90320, ucd9090,
 	     ucd90910 };
@@ -383,6 +384,7 @@ static const struct i2c_device_id aucd9000_id[] = {
 	{"darwin_aucd90160", ucd90160},
 	{"darwin_aucd90320", ucd90320},
 	{"meru_aucd90320", ucd90320},
+	{"glath06a_aucd90320", ucd90320},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, aucd9000_id);
@@ -426,6 +428,10 @@ static const struct of_device_id __maybe_unused aucd9000_of_match[] = {
 	},
 	{
 		.compatible = "ti,meru_aucd90320",
+		.data = (void *)ucd90320
+	},
+	{
+		.compatible = "ti,glath06a_aucd90320",
 		.data = (void *)ucd90320
 	},
 	{ },
@@ -679,6 +685,11 @@ static void ucd9000_fault_log_get_config(const struct i2c_device_id *mid,
 		fault_log->encoded_gpi_count = ARRAY_SIZE(meru800bfa_aucd90320_encoded_gpis);
 		fault_log->encoded_rails = meru800bfa_aucd90320_encoded_rails;
 		fault_log->encoded_rail_count = ARRAY_SIZE(meru800bfa_aucd90320_encoded_rails);
+	} else if (!strcmp(mid->name, "glath06a_aucd90320")) {
+		fault_log->encoded_gpis = glath06a_aucd90320_encoded_gpis;
+		fault_log->encoded_gpi_count = ARRAY_SIZE(glath06a_aucd90320_encoded_gpis);
+		fault_log->encoded_rails = glath06a_aucd90320_encoded_rails;
+		fault_log->encoded_rail_count = ARRAY_SIZE(glath06a_aucd90320_encoded_rails);
 	} else {
 		fault_log->encoded_gpis = ucd9000_encoded_gpis;
 		fault_log->encoded_gpi_count = ARRAY_SIZE(ucd9000_encoded_gpis);
