@@ -51,6 +51,14 @@ if [ -d /sys/firmware/efi ]; then
     KERNEL_PARAMS="$KERNEL_PARAMS acpi_rsdp=$acpi_rsdp amd_iommu_dump=1 reboot=p"
 fi
 
+# We typically boot FBOSS via localboot, in which case on Rackhawk we make sure
+# that the TH3 is out of reset prior too kexec. Do that here so that TH3 is out
+# of reset when loading the SWI.
+PREKEXEC_FILE=/tmp/localboot_prekexec_script
+if [ -f "$PREKEXEC_FILE" ]; then
+    . "$PREKEXEC_FILE"
+fi
+
 echo "Loading new kernel..."
 kexec -l "$NEW_KERNEL" --initrd="$NEW_INITRAMFS" --append="$KERNEL_PARAMS"
 
