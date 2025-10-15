@@ -52,7 +52,7 @@ if [ -d /sys/firmware/efi ]; then
 fi
 
 # We typically boot FBOSS via localboot, in which case on Rackhawk we make sure
-# that the TH3 is out of reset prior too kexec. Do that here so that TH3 is out
+# that the TH3 is out of reset prior to kexec. Do that here so that TH3 is out
 # of reset when loading the SWI.
 PREKEXEC_FILE=/tmp/localboot_prekexec_script
 if [ -f "$PREKEXEC_FILE" ]; then
