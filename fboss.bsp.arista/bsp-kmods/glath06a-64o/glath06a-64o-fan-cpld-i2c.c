@@ -49,8 +49,8 @@ static const struct fan_cpld_info cpld_infos[] = {
 		.pulses = 2,
 		.hz = 100000,
 		.fan_global_offset = 0,
-		.default_pwm = 179, // 70% duty cycle
-		.max_pwm = 255,
+		.default_pwm = 107, // 70% duty cycle
+		.max_pwm = 153,
 	},
 };
 
