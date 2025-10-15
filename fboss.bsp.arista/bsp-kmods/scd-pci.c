@@ -50,6 +50,8 @@
 #define BLACKCOMB_SCD3_PCI_SUBDEVICE_ID	0x0007
 #define FAIRYWREN_SCD_PCI_SUBDEVICE_ID	0x0008
 #define QUICKSILVER_SCD_PCI_SUBDEVICE_ID	0x0009
+#define BANFF_SCD0_PCI_SUBDEVICE_ID	0x0010
+#define BANFF_SCD1_PCI_SUBDEVICE_ID	0x0011
 #define SCD_BAR_REGS			0
 #define SCD_BAR_1			1
 #define SCD_MAGIC			0xdeadbeef
@@ -674,6 +676,60 @@ static void read_revision_reg(struct scd_dev_priv *priv)
 	REGBIT_FILE(quicksilver, psu1_input_ok, 0x5000, 10, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
 	REGBIT_FILE(quicksilver, psu2_input_ok, 0x5000, 11, 1, FMODE_RO, regbit_sysfs_show, NULL)
 
+#define BANFF0_REGBIT_FPGA_FILES								\
+	REGBIT_FILE(banff, th6c_sys_reset_set, 0x4000, 0, 1, FMODE_RW,				\
+		    regbit_sysfs_show, regbit_sysfs_store)					\
+	REGBIT_FILE(banff, th6c_pcie_reset_set, 0x4000, 1, 1, FMODE_RW,				\
+		    regbit_sysfs_show, regbit_sysfs_store)					\
+	REGBIT_FILE(banff, th6c_phytile0_reset_set, 0x4000, 2, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)					\
+	REGBIT_FILE(banff, th6c_phytile1_reset_set, 0x4000, 3, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)					\
+	REGBIT_FILE(banff, th6c_phytile2_reset_set, 0x4000, 4, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)					\
+	REGBIT_FILE(banff, th6c_phytile3_reset_set, 0x4000, 5, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)					\
+	REGBIT_FILE(banff, th6c_phytile4_reset_set, 0x4000, 6, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)					\
+	REGBIT_FILE(banff, th6c_phytile5_reset_set, 0x4000, 7, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)					\
+	REGBIT_FILE(banff, th6c_phytile6_reset_set, 0x4000, 8, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)					\
+	REGBIT_FILE(banff, th6c_phytile7_reset_set, 0x4000, 9, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)					\
+	REGBIT_FILE(banff, th6c_sys_reset_clear, 0x4010, 0, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)					\
+	REGBIT_FILE(banff, th6c_pcie_reset_clear, 0x4010, 1, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)					\
+	REGBIT_FILE(banff, th6c_phytile0_reset_clear, 0x4010, 2, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)					\
+	REGBIT_FILE(banff, th6c_phytile1_reset_clear, 0x4010, 3, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)					\
+	REGBIT_FILE(banff, th6c_phytile2_reset_clear, 0x4010, 4, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)					\
+	REGBIT_FILE(banff, th6c_phytile3_reset_clear, 0x4010, 5, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)					\
+	REGBIT_FILE(banff, th6c_phytile4_reset_clear, 0x4010, 6, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)					\
+	REGBIT_FILE(banff, th6c_phytile5_reset_clear, 0x4010, 7, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)					\
+	REGBIT_FILE(banff, th6c_phytile6_reset_clear, 0x4010, 8, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)					\
+	REGBIT_FILE(banff, th6c_phytile7_reset_clear, 0x4010, 9, 1, FMODE_RW,			\
+		    regbit_sysfs_show, regbit_sysfs_store)					\
+	REGBIT_FILE(banff, psu1_present, 0x5000, 0, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(banff, psu2_present, 0x5000, 1, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(banff, psu3_present, 0x5000, 2, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(banff, psu4_present, 0x5000, 3, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(banff, psu1_input_ok, 0x5000, 4, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(banff, psu2_input_ok, 0x5000, 5, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(banff, psu3_input_ok, 0x5000, 6, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(banff, psu4_input_ok, 0x5000, 7, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(banff, psu1_output_ok, 0x5000, 8, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(banff, psu2_output_ok, 0x5000, 9, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(banff, psu3_output_ok, 0x5000, 10, 1, FMODE_RO, regbit_sysfs_show, NULL)	\
+	REGBIT_FILE(banff, psu4_output_ok, 0x5000, 11, 1, FMODE_RO, regbit_sysfs_show, NULL)
+
 /* ROOK_SCD_REVISION_REGBIT_FPGA_FILES is not a part of any regbit_sysfs_tables
    since they use fpga_major_rev_show() and fpga_minor_rev_show()
    instead of regbit_sysfs_show(). */
@@ -760,6 +816,22 @@ struct regbit_sysfs_entry quicksilver_scd_regbit_sysfs[] = {
 		.name = NULL,
 	},
 };
+
+struct regbit_sysfs_entry banff_scd0_regbit_sysfs[] = {
+	BANFF0_REGBIT_FPGA_FILES
+
+	/* Always the last entry */
+	{
+		.name = NULL,
+	},
+};
+
+struct regbit_sysfs_entry banff_scd1_regbit_sysfs[] = {
+	/* Always the last entry */
+	{
+		.name = NULL,
+	},
+};
 #undef REGBIT_FILE
 
 #define REGBIT_FILE(_prefix, _name, _reg, _bitops, _bitlen, _mode, _show, _store)	\
@@ -770,6 +842,7 @@ FAIRYWREN_REGBIT_FPGA_FILES
 VIPER_REGBIT_FPGA_FILES
 BLACKCOMB0_REGBIT_FPGA_FILES
 QUICKSILVER_REGBIT_FPGA_FILES
+BANFF0_REGBIT_FPGA_FILES
 ROOK_SCD_REVISION_REGBIT_FPGA_FILES
 DARWIN_SCD_REVISION_REGBIT_FPGA_FILES
 #undef REGBIT_FILE
@@ -841,6 +914,23 @@ static struct attribute *quicksilver_scd_attrs[] = {
 
 static struct attribute_group quicksilver_scd_attr_group = {
 	.attrs = quicksilver_scd_attrs,
+};
+
+static struct attribute *banff_scd0_attrs[] = {
+	BANFF0_REGBIT_FPGA_FILES
+	NULL,
+};
+
+static struct attribute_group banff_scd0_attr_group = {
+	.attrs = banff_scd0_attrs,
+};
+
+static struct attribute *banff_scd1_attrs[] = {
+	NULL,
+};
+
+static struct attribute_group banff_scd1_attr_group = {
+	.attrs = banff_scd1_attrs,
 };
 
 static struct attribute *rook_scd_revision_attrs[] = {
@@ -1041,6 +1131,14 @@ static int scd_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		sysfs_attr_group = &quicksilver_scd_attr_group;
 		regbit_sysfs_table = quicksilver_scd_regbit_sysfs;
 		break;
+	case BANFF_SCD0_PCI_SUBDEVICE_ID:
+		sysfs_attr_group = &banff_scd0_attr_group;
+		regbit_sysfs_table = banff_scd0_regbit_sysfs;
+		break;
+	case BANFF_SCD1_PCI_SUBDEVICE_ID:
+		sysfs_attr_group = &banff_scd1_attr_group;
+		regbit_sysfs_table = banff_scd1_regbit_sysfs;
+		break;
 	default:
 		sysfs_attr_group = &scd_attr_group;
 		regbit_sysfs_table = scd_regbit_sysfs;
@@ -1168,6 +1266,10 @@ static struct pci_device_id scd_pci_table[] = {
 			 SCD_PCI_VENDOR_ID, BLACKCOMB_SCD3_PCI_SUBDEVICE_ID) },
 	{ PCI_DEVICE_SUB(SCD_PCI_VENDOR_ID, SCD_PCI_DEVICE_ID,
 			 SCD_PCI_VENDOR_ID, QUICKSILVER_SCD_PCI_SUBDEVICE_ID) },
+	{ PCI_DEVICE_SUB(SCD_PCI_VENDOR_ID, SCD_PCI_DEVICE_ID,
+			 SCD_PCI_VENDOR_ID, BANFF_SCD0_PCI_SUBDEVICE_ID) },
+	{ PCI_DEVICE_SUB(SCD_PCI_VENDOR_ID, SCD_PCI_DEVICE_ID,
+			 SCD_PCI_VENDOR_ID, BANFF_SCD1_PCI_SUBDEVICE_ID) },
 	{
 		0,
 	},
