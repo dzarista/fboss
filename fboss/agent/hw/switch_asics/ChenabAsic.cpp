@@ -41,7 +41,7 @@ bool ChenabAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::PTP_TC_PCS:
     case HwAsic::Feature::ROUTE_PROGRAMMING:
     case HwAsic::Feature::FEC:
-    case HwAsic::Feature::FABRIC_PORT_MTU:
+
     case HwAsic::Feature::FABRIC_PORTS:
     case HwAsic::Feature::SAI_PORT_SPEED_CHANGE:
     case HwAsic::Feature::ROUTE_COUNTERS:
@@ -89,7 +89,6 @@ bool ChenabAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::CPU_PORT_EGRESS_BUFFER_POOL:
     case HwAsic::Feature::BLACKHOLE_ROUTE_DROP_COUNTER:
     case HwAsic::Feature::ANY_ACL_DROP_COUNTER:
-    case HwAsic::Feature::BRIDGE_PORT_8021Q:
       return true;
     case HwAsic::Feature::PORT_SERDES_ZERO_PREEMPHASIS:
     case HwAsic::Feature::DEDICATED_CPU_BUFFER_POOL:
@@ -204,6 +203,8 @@ bool ChenabAsic::isSupportedNonFabric(Feature feature) const {
     case HwAsic::Feature::SFLOWv4:
     case HwAsic::Feature::SFLOWv6:
     case HwAsic::Feature::SFLOW_SAMPLING:
+    case HwAsic::Feature::BRIDGE_PORT_8021Q: // no fdb entries required, using
+                                             // only pure l3 rifs
     case HwAsic::Feature::SAMPLE_RATE_CONFIG_PER_MIRROR:
     case HwAsic::Feature::SFLOW_SAMPLES_PACKING:
     case HwAsic::Feature::VENDOR_SWITCH_NOTIFICATION:

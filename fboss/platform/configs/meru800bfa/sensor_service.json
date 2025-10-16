@@ -1213,5 +1213,15 @@
         }
       ]
     }
+  ],
+  "powerConsumptionConfigs": [
+    {
+      "name": "PSU1",
+      "powerSensorName": "PSU1_PIN"
+    },
+    {
+      "name": "PSU2",
+      "powerSensorName": "PSU2_PIN"
+    }
   ]
 }

@@ -298,6 +298,16 @@ class QsfpServiceHandler
 
   void gracefulExit();
 
+  PhyManager* getPhyManager() const;
+
+  void setOverrideAgentPortStatusForTesting(
+      bool up,
+      bool enabled,
+      bool clearOnly = false);
+
+  std::optional<PortID> getPortIdByPortName(
+      const std::string& portNameStr) const;
+
 #if FOLLY_HAS_COROUTINES
   folly::coro::Task<bool> co_sakInstallRx(
       std::unique_ptr<mka::MKASak> sak,

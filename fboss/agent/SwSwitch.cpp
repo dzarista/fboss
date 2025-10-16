@@ -1519,10 +1519,22 @@ void SwSwitch::init(const HwWriteBehavior& hwWriteBehavior, SwitchFlags flags) {
   postInit();
 }
 
-void SwSwitch::initialConfigApplied(const steady_clock::time_point& startTime) {
-  setSwitchRunState(SwitchRunState::CONFIGURED);
-  createAndProbeTunManager();
-  initializeTunManager(/*useBlocking=*/false);
+void SwSwitch::initialConfigApplied(
+    const std::chrono::steady_clock::time_point& startTime) {
+  if (FLAGS_cleanup_probed_kernel_data) {
+    // New behavior: perform blocking initial sync (that may cleanup) before
+    // transitioning to CONFIGURED state
+    createAndProbeTunManager();
+    initializeTunManager(/*useBlocking=*/true);
+    setSwitchRunState(SwitchRunState::CONFIGURED);
+  } else {
+    // Legacy behavior: Transition to configured state before Tunnel manager
+    // initialization.
+    setSwitchRunState(SwitchRunState::CONFIGURED);
+    createAndProbeTunManager();
+    initializeTunManager(/*useBlocking=*/false);
+  }
+
   if (lldpManager_) {
     lldpManager_->start();
   }
@@ -2909,11 +2921,16 @@ void SwSwitch::initializeTunManager(bool useBlocking) {
     // well. TunManager does not track this and tries to delete the
     // secondaries as well leading to errors, t4746261 is tracking this.
 
-    // Legacy behavior: start observing first, then async sync (original
-    // order)
-    tunMgr_->startObservingUpdates();
-    // Perform initial sync of interfaces
-    tunMgr_->forceInitialSync();
+    if (useBlocking) {
+      // New behavior: blocking sync first, then start observing
+      tunMgr_->forceInitialSyncBlocking();
+      tunMgr_->startObservingUpdates();
+    } else {
+      // Legacy behavior: start observing first, then async sync
+      tunMgr_->startObservingUpdates();
+      // Perform initial sync of interfaces
+      tunMgr_->forceInitialSync();
+    }
   }
 }
 
@@ -4310,7 +4327,7 @@ void SwSwitch::sendNeighborSolicitationForConfiguredInterfaces(
   }
 }
 
-bool SwSwitch::hasConfiguredDesiredPeers(const InterfaceID& intfId) {
+bool SwSwitch::hasQualifiedConfiguredDesiredPeer(const InterfaceID& intfId) {
   auto switchState = getState();
   auto* intf = switchState->getInterfaces()->getNode(intfId).get();
   if (intf->getDesiredPeerAddressIPv6().has_value()) {
@@ -4322,6 +4339,21 @@ bool SwSwitch::hasConfiguredDesiredPeers(const InterfaceID& intfId) {
     if (!cidrNetwork.first.isV6()) {
       XLOG(ERR) << "Desired peer address is not a valid IPv6 address: "
                 << *desiredPeerAddressString;
+      return false;
+    }
+    // Check if interface has any operational ports
+    auto portIds = getPortsForInterface(intfId, switchState);
+    bool hasOperationalPort = false;
+    for (auto portId : portIds) {
+      auto port = switchState->getPorts()->getNodeIf(portId);
+      if (port && port->isUp()) {
+        hasOperationalPort = true;
+        break;
+      }
+    }
+    if (!hasOperationalPort) {
+      XLOG(DBG4) << "Interface " << intfId
+                 << " has no operational ports, skipping desired peer check";
       return false;
     }
     return true;

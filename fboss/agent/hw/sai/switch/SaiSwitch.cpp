@@ -2728,7 +2728,7 @@ void SaiSwitch::linkStateChangedCallbackBottomHalf(
         // once link comes back up LACP engine in SwSwitch will bundle it
         // again
         managerTable_->lagManager().disableMember(swAggPort.value(), swPortId);
-        if (!managerTable_->lagManager().isMinimumLinkMet(swAggPort.value())) {
+        if (!managerTable_->lagManager().isLagUp(swAggPort.value())) {
           // remove fdb entries on LAG, this would remove neighbors, next hops
           // will point to drop and next hop group will shrink.
           managerTable_->fdbManager().handleLinkDown(
@@ -4192,6 +4192,21 @@ void SaiSwitch::switchRunStateChangedImplLocked(
 
         auto& switchApi = SaiApiTable::getInstance()->switchApi();
         switchApi.setAttribute(saiSwitchId_, sdkRegDumpLogPath);
+      }
+
+      /*
+       * Cold boot system init results in a lot of events like interrupts.
+       * These needs to be cleared once system is up and running as it will
+       * help ensure that tech support dumps done at a later point in time
+       * will yield good data and we dont need to worry about events being
+       * left over from cold boot system init. Ideally, we need to clear the
+       * cold boot system init events once system is stable. However, it is
+       * hard to define the criteria for system stability, hence the decision
+       * to perform this init post cold boot and config complete.
+       */
+      if (bootType_ == BootType::COLD_BOOT &&
+          platform_->getAsic()->isSupported(HwAsic::Feature::TECH_SUPPORT)) {
+        initTechSupport();
       }
 
       if (getFeaturesDesired() & FeaturesDesired::LINKSCAN_DESIRED) {
