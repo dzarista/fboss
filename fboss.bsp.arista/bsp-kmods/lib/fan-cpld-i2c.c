@@ -863,6 +863,9 @@ static int fan_cpld_init(struct fan_cpld_data *fan_cpld, bool safe_mode)
 			return err;
 	}
 
+	/* Drivers must set change_reg_clear_val based on if they expect the change
+	 * registers to be cleared by writing 1s (0xff) or 0s (0x00).
+	 */
 	fan_cpld_write_byte(fan_cpld, fan_cpld->info->regs->ok_change_reg,
 			    fan_cpld->info->regs->change_reg_clear_val);
 	fan_cpld_write_byte(fan_cpld, fan_cpld->info->regs->id_change_reg,
