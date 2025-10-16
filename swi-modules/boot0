@@ -53,7 +53,8 @@ fi
 
 # We typically boot FBOSS via localboot, in which case on Rackhawk we make sure
 # that the TH3 is out of reset prior to kexec. Do that here so that TH3 is out
-# of reset when loading the SWI.
+# of reset when loading the SWI. This script is created by the following
+# Aboot source file: /src/Aboot7/CB411/Rook/boardinit
 PREKEXEC_FILE=/tmp/localboot_prekexec_script
 if [ -f "$PREKEXEC_FILE" ]; then
     . "$PREKEXEC_FILE"
