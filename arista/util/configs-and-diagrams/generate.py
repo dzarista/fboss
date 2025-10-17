@@ -13,7 +13,6 @@ from GenerateConfigsAndDiagrams.BaseConfigs import PlatformConfig
 # This is useful for platforms that share the configs.
 EXCLUDE_LIST = {
    "pm-config": [
-      "Banff"
    ],
    "sensor-config": [
       "Banff"
