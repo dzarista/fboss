@@ -51,7 +51,9 @@ class WhistlerSMB( SMBUnit ):
          idPromConfigBusName="INCOMING@0",
          idPromConfigAddress="0x52",
          idPromConfigKernelDeviceName="24c512",
-         idPromConfigOffset=15360
+         idPromConfigOffset=15360,
+         createIdpromSymlink=True,
+         platformInIdpromSymlink=True,
       )
 
       smbCpld = SMBCpld( "0x23", "decker_cpld", "SMB_CPLD", incomingBusIndex=0 )

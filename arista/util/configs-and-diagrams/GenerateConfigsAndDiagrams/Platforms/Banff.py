@@ -39,7 +39,7 @@ class ThrasherSCM( SCMUnit ):
       # same as Fairywren.
       self.scmFpga = PciDeviceConfig( "SCM_FPGA", "0x3475", "0x0001",
                                       "0x3475", "0x0008",
-                                      symlinkDeviceName="SCM_CPLD")
+                                      symlinkDeviceName="SCM_FPGA")
       self.scmFpga.addInfoRomConfigs( "0x100" )
       self.addPciDeviceConfigs( [ self.scmFpga ] )
 
@@ -104,15 +104,28 @@ class BanffSMB( SMBUnit ):
 
       smbMax = Sensor( "0x4D", "max6581", "SMB_MAX6581", incomingBusIndex=0 )
 
+      sundanceMax = Sensor( "0x4D", "max6581", "PWR_MAX6581",
+                            incomingBusIndex=1 )
+      th6CoreVrm = Sensor( "0x70", "pmbus", "TH6_CORE_VRM", incomingBusIndex=2 )
+      th6PhyCoreVrm1 = Sensor( "0x58", "pmbus", "TH6_PHYTILE_CORE_VRM1",
+                               incomingBusIndex=2 )
+      th6PhyCoreVrm2 = Sensor( "0x5A", "pmbus", "TH6_PHYTILE_CORE_VRM2",
+                               incomingBusIndex=2 )
+      th6PhyCoreVrm3 = Sensor( "0x5C", "pmbus", "TH6_PHYTILE_CORE_VRM3",
+                               incomingBusIndex=2 )
+      th6PhyCoreVrm4 = Sensor( "0x5E", "pmbus", "TH6_PHYTILE_CORE_VRM4",
+                               incomingBusIndex=2 )
+      th6TrvddVrm1 = Sensor( "0x40", "pmbus", "TH6_TRVDD_VRM1", incomingBusIndex=2 )
+
+      smbUcd = Sensor( "0x11", "glath06a_aucd90320", "SMB_UCD90320",
+                       incomingBusIndex=2 )
+
       smbFanCpld = FANCpld( "0x60", "glath06a64o_fancpld", "FAN_CPLD",
                             incomingBusIndex=3 )
       # BUG1262914: Banff fans are capable of 15400 RPM, however, the Banff
       # CPLD limits them to ~10000 RPM. Apply this cap in SW, so the fans
       # can still be driven to "100%"
       smbFanCpld.addFANRpms( 8, upperCriticalVal=10000.0, lowerCriticalVal=2000.0 )
-
-      smbUcd = Sensor( "0x11", "glath06a_aucd90320", "SMB_UCD90320",
-                       incomingBusIndex=2 )
 
       # TODO: try pmbus driver on VRMs
 

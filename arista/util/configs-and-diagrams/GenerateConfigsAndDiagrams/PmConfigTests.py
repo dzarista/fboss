@@ -171,6 +171,131 @@ class SlotTypeConfigTest( unittest.TestCase ):
             idPromConfigOffset=13500
          )
 
+   def testRootPmUnitWithoutCreatedIdPromSymlink( self ):
+      platform = PlatformConfig( "test_platform", rootPmUnitName="SCM" )
+
+      # Root PMUnit with no symlink
+      scmPmUnit = PmUnitConfig( pmUnitName="SCM" )
+      scmPmUnit.setSlotTypeConfig(
+         numOutgoingI2cBuses=4,
+         idPromConfigBusName="Internal Adapter",
+         idPromConfigAddress="0x50",
+         idPromConfigKernelDeviceName="24c512",
+         idPromConfigOffset=12000,
+         createIdpromSymlink=False,
+         platformInIdpromSymlink=False,
+      )
+
+      platform.addPmUnitConfigs( [ scmPmUnit ] )
+      scmPmUnit.populateSymlinkToDevicePaths()
+
+      pmConfig = json.loads( platform.pmConfigJson() )
+      symlinkDict = pmConfig[ "symbolicLinkToDevicePath" ]
+      self.assertEqual( len( symlinkDict), 0 )
+      self.assertTrue( "/run/devmap/eeproms/SCM_EEPROM" not in symlinkDict )
+
+   def testWithCreatedIdPromSymlinks( self ):
+      platform = PlatformConfig( "test_platform", rootPmUnitName="SCM" )
+
+      # Root PMUnit with symlink
+      scmPmUnit = PmUnitConfig( pmUnitName="SCM" )
+      scmPmUnit.setSlotTypeConfig(
+         numOutgoingI2cBuses=4,
+         idPromConfigBusName="Internal Adapter",
+         idPromConfigAddress="0x50",
+         idPromConfigKernelDeviceName="24c512",
+         idPromConfigOffset=12000,
+         createIdpromSymlink=True,
+         platformInIdpromSymlink=False,
+      )
+      scmPmUnit.addOutgoingSlotConfigs( [
+         SlotConfig( slotName="SMB_SLOT@0" ),
+         SlotConfig( slotName="PSU_SLOT@0" ),
+         SlotConfig( slotName="PSU_SLOT@1" ),
+         SlotConfig( slotName="RACKMON_SLOT@0" ),
+         SlotConfig( slotName="PEM_SLOT@0" ),
+      ])
+
+      # Non-root PMUnit with platform name in symlink
+      smbPmUnit = PmUnitConfig( pmUnitName="SMB" )
+      smbPmUnit.setSlotTypeConfig(
+         numOutgoingI2cBuses=4,
+         idPromConfigBusName="INCOMING@0",
+         idPromConfigAddress="0x52",
+         idPromConfigKernelDeviceName="24c512",
+         idPromConfigOffset=12000,
+         createIdpromSymlink=True,
+         platformInIdpromSymlink=True,
+      )
+
+      # Multiple non-root PMUnits without platform name in symlink but expect
+      # slot number in symlink
+      psuPmUnit = PmUnitConfig( pmUnitName="PSU" )
+      psuPmUnit.setSlotTypeConfig(
+         numOutgoingI2cBuses=1,
+         idPromConfigBusName="INCOMING@0",
+         idPromConfigAddress="0x52",
+         idPromConfigKernelDeviceName="24c512",
+         idPromConfigOffset=0,
+         createIdpromSymlink=True,
+         platformInIdpromSymlink=False,
+      )
+
+      # PMUnit without symlink
+      rackmonSlot = PmUnitConfig( pmUnitName="RACKMON" )
+      rackmonSlot.setSlotTypeConfig(
+         numOutgoingI2cBuses=1,
+         idPromConfigBusName="INCOMING@0",
+         idPromConfigAddress="0x52",
+         idPromConfigKernelDeviceName="24c512",
+         idPromConfigOffset=0,
+         createIdpromSymlink=False,
+         platformInIdpromSymlink=False,
+      )
+ 
+       # PMUnit with symlink but no platform in symlink
+      pemSlot = PmUnitConfig( pmUnitName="PEM" )
+      pemSlot.setSlotTypeConfig(
+         numOutgoingI2cBuses=1,
+         idPromConfigBusName="INCOMING@0",
+         idPromConfigAddress="0x52",
+         idPromConfigKernelDeviceName="24c512",
+         idPromConfigOffset=0,
+         createIdpromSymlink=True,
+         platformInIdpromSymlink=False,
+      )
+
+      platform.addPmUnitConfigs( [
+         scmPmUnit, smbPmUnit, psuPmUnit, rackmonSlot, pemSlot
+      ] )
+      for pmConfig in platform.pmUnitConfigs:
+         pmConfig.populateSymlinkToDevicePaths()
+
+      pmConfig = json.loads( platform.pmConfigJson() )
+      symlinkDict = pmConfig[ "symbolicLinkToDevicePath" ]
+      self.assertTrue( "/run/devmap/eeproms/SCM_EEPROM" in symlinkDict )
+      self.assertEqual(
+         symlinkDict[ "/run/devmap/eeproms/SCM_EEPROM" ], "/[IDPROM]"
+      )
+      self.assertTrue( "/run/devmap/eeproms/TEST_PLATFORM_SMB_EEPROM" in symlinkDict )
+      self.assertEqual(
+         symlinkDict[ "/run/devmap/eeproms/TEST_PLATFORM_SMB_EEPROM" ],
+         "/SMB_SLOT@0/[IDPROM]"
+      )
+      self.assertTrue( "/run/devmap/eeproms/PSU1_EEPROM" in symlinkDict )
+      self.assertEqual(
+         symlinkDict[ "/run/devmap/eeproms/PSU1_EEPROM" ], "/PSU_SLOT@0/[IDPROM]"
+      )
+      self.assertTrue( "/run/devmap/eeproms/PSU2_EEPROM" in symlinkDict )
+      self.assertEqual(
+         symlinkDict[ "/run/devmap/eeproms/PSU2_EEPROM" ], "/PSU_SLOT@1/[IDPROM]"
+      )
+      self.assertTrue( "/run/devmap/eeproms/RACKMON_EEPROM" not in symlinkDict )
+      self.assertTrue( "/run/devmap/eeproms/PEM_EEPROM" in symlinkDict )
+      self.assertEqual(
+         symlinkDict[ "/run/devmap/eeproms/PEM_EEPROM" ], "/PEM_SLOT@0/[IDPROM]"
+      )
+
 
 class PmUnitConfigTest( unittest.TestCase ):
    def testEmptyPmUnitConfig( self ):
@@ -413,10 +538,9 @@ class I2cDeviceConfigTest( unittest.TestCase ):
       1 for SMB sensor
       4 symlinks for 2 FAN Cplds
       1 for SMB Cpld
-      1 for SMB Idprom (generated automatically)
       2 for PSU buses
       '''
-      self.assertEqual( len( symlinkDict ), 22 )
+      self.assertEqual( len( symlinkDict ), 21 )
       self.assertTrue( "/run/devmap/gpiochips/SCM_PCA" in symlinkDict )
       self.assertEqual(
          symlinkDict[ "/run/devmap/gpiochips/SCM_PCA" ], "/[SCM_PCA]"

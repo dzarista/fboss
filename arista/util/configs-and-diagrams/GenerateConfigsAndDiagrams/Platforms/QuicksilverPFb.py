@@ -56,7 +56,9 @@ class QuicksilverPFbSMB( SMBUnit ):
          idPromConfigBusName="INCOMING@0",
          idPromConfigAddress="0x50",
          idPromConfigKernelDeviceName="24c512",
-         idPromConfigOffset=15360
+         idPromConfigOffset=15360,
+         createIdpromSymlink=True,
+         platformInIdpromSymlink=True,
       )
 
 
