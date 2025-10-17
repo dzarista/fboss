@@ -1,0 +1,11 @@
+name: Create Bugsby Bug
+
+on:
+  workflow_dispatch:
+
+jobs:
+  call-api:
+    runs-on: github-runner-pchxz-wlmjj
+    steps:
+      - name : Test message
+        run : echo "Hello"
