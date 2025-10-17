@@ -13,19 +13,24 @@ from GenerateConfigsAndDiagrams.BaseConfigs import PlatformConfig
 # This is useful for platforms that share the configs.
 EXCLUDE_LIST = {
    "pm-config": [
+      "Banff"
    ],
    "sensor-config": [
+      "Banff"
    ],
    "bsp-mapping": [
-      "RackhawkORv3"
+      "RackhawkORv3",
+      "Banff"
    ],
    "fan-config": [
       "Rackhawk",
-      "RackhawkORv3"
+      "RackhawkORv3",
+      "Banff"
    ],
    "led-config": [
       "Rackhawk",
-      "RackhawkORv3"
+      "RackhawkORv3",
+      "Banff"
    ]
 }
 

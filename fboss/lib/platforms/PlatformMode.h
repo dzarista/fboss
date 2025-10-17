@@ -110,6 +110,8 @@ inline std::string toString(PlatformType mode) {
       return "WEDGE800CA";
     case PlatformType::PLATFORM_GLATH05A_64O:
       return "GLATH05A-64O";
+    case PlatformType::PLATFORM_GLATH06A_64O:
+      return "GLATH06A-64O";
     case PlatformType::PLATFORM_UNKNOWN:
       return "UNKNOWN";
   }

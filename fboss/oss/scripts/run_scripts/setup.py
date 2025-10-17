@@ -60,6 +60,7 @@ class SetupFboss:
     J3C = "j3c"
     R3 = "r3"
     TH5 = "th5"
+    TH6 = "th6"
     ### ARISTA END ###
 
     def __init__(self):
@@ -124,6 +125,13 @@ class SetupFboss:
             )
             self.src_bde_full_path = os.path.join(
                 *[os.environ["FBOSS_DATA"], SetupFboss.TH5, SetupFboss.BDE_CONF]
+            )
+        elif [x for x in output if "Broadcom" in x and "78914" in x]:
+            self.src_fruid_full_path = os.path.join(
+                *[os.environ["FBOSS_DATA"], SetupFboss.TH6, SetupFboss.FRUID_CONF]
+            )
+            self.src_bde_full_path = os.path.join(
+                *[os.environ["FBOSS_DATA"], SetupFboss.TH6, SetupFboss.BDE_CONF]
             )
     ### ARISTA END ###
 

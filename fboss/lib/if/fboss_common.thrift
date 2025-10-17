@@ -51,6 +51,7 @@ enum PlatformType {
   PLATFORM_TAHANSB800BC = 43,
   PLATFORM_WEDGE800CA = 44,
   PLATFORM_GLATH05A_64O = 45,
+  PLATFORM_GLATH06A_64O = 46,
 
   # Placeholder for unknown platform type
   PLATFORM_UNKNOWN = 1000,
