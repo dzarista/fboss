@@ -7,23 +7,23 @@ This tool generates FBOSS ship reports and updates [FBOSS Ship Report](https://d
 This tool is made to run on home-bus. To use this tool, create a new fboss container 
 
 To simply update [FBOSS Ship Report](http://go/fboss-shipreport) spreadsheet with default settings:
-1. Copy `generate_reports_container.sh` into your CONTAINER at:
+1. Copy `generate_reports_container.sh` into your home directory at:
       ```
-      /user/suite-report-tracker/generate_fboss_suite_reports.sh
+      /home/<user>/fboss-tools/suite-report-tracker/generate_reports_container.sh
       ```
    ensure the script has executable permission `chmod +x <script>`
 
 2. Run `UpdateFbossReportSpreadsheet.py` to generate suite reports and update tracker spreadsheet
       ```
-      python3 UpdateFbossReportSpreadsheet.py CONTAINER_NAME CONTAINER_HOSTNAME
+      python3 UpdateFbossReportSpreadsheet.py CONTAINER_NAME
       ```
       Optional: this can be run as a cron job in homebus
 
 ### Adding a new platform
 1. Add the commands to generate suite report for new TestSuite in `generate_reports_container.sh`
-2. Copy the updated `generate_reports_container.sh` to your container
-3. Add the new TestSuite name to `suite` list in `UpdateFbossReportSpreadsheet.py`
-4. Run `UpdateFbossReportSpreadsheet.py` as above to verify
+2. Copy the updated `generate_reports_container.sh` to your home directory (step 1 above)
+3. Add the new TestSuite name to `SUITES` list in `UpdateFbossReportSpreadsheet.py`
+4. Run `UpdateFbossReportSpreadsheet.py` as above to verify (step 2 above)
 5. The cronjob for this tool is currently managed by @huyc
 
 ### To use your own spreadsheet:

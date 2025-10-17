@@ -6,12 +6,17 @@ import subprocess
 import SpreadsheetLibV5
 import pytz
 from datetime import datetime, timedelta
+from pathlib import Path
 from SuiteReport import SuiteReport
 
-limits = ['7d', '14d', '21d', '28d']
-suites = [
+REPORTS_DIR = f"{Path.home()}/tmp/fboss-suite-reports"
+FBOSS_SUITE_REPORT_SSID = "1rxbJpzKbnVXoMFdHTLBD-GX1pi-NZGJA5LROdPwJ054"
+PROJECT = "fboss_schedule_autotest"
+LIMITS = ['7d', '14d', '21d', '28d']
+SUITES = [
    ["FbossOssViperShip"],
    ["FbossOssViperBShip"],
+   ["FbossOssViperCShip"],
    ["FbossOssWhistlerShip"],
    ["FbossRackhawkShip"],
    ["FbossRackhawkShip", "rkdo"],
@@ -48,20 +53,48 @@ def get_latest_build_info(project):
 
 # Generate ship report json and csv with
 #   generate_fboss_suite_reports.sh
-def generate_suite_reports(container, host, project):
-   print(f"--- Generating suite reports on {host} ---")
-   script_path = "./generate_fboss_suite_reports.sh"
+def generate_suite_reports(container):
+   print(f"--- Generating suite reports in {container} ---")
    try:
-      command = [script_path, container, host, project]
+      script = f"{Path.home()}/fboss-tools/suite-report-tracker/generate_reports_container.sh"
+      command = ["a4c", "shell", container, script]
       subprocess.run(command, check=True)
       print("Sucessfully generated suite reports")
-   except subprocess.CalledProcessError as e:
-      print(f"Error: error while generating suite reports: {e}", file=sys.stderr)
-      sys.exit(1)
-   except FileNotFoundError:
-      print(f"Error: Script not found at {script_path}", file=sys.stderr)
+   except Exception as e:
+      print(f"Error: failed to generate fboss suite reports: {e}", file=sys.stderr)
       sys.exit(1)
 
+def parse_suite_reports():
+   suite_reports_all = []
+
+   for i, limit in enumerate(LIMITS):
+      suite_reports = []
+      for j, suite in enumerate(SUITES):
+         base_suite_name = suite[0]
+         suite_name = "_".join(suite)
+         json_file = f"{REPORTS_DIR}/{limit}/{suite_name}_report.json"
+         test_run_csv_file = f"{REPORTS_DIR}/{limit}/{suite_name}_test_runs.csv"
+
+         with open(json_file) as json_data:
+            data = json.load(json_data)
+            suite_rp = SuiteReport.from_json(data[f"FbossTest/{base_suite_name}"])
+            suite_rp.set_custom_name(suite_name)
+            # we only get detailed test runs for 7d
+            if limit == '7d':
+               suite_rp.add_tests_from_csv(test_run_csv_file)
+
+            # calculate non-overlapping pass% for every 7 days chunk
+            if i > 0:
+               new_passed = suite_rp.passed - suite_reports_all[i - 1][j].passed
+               new_failed = suite_rp.failed - suite_reports_all[i - 1][j].failed
+               # there were new test runs in past 7 days
+               if (new_passed + new_failed) != 0:
+                  suite_rp.update_passed_failed(new_passed, new_failed)
+
+            suite_reports.append(suite_rp)
+      suite_reports_all.append(suite_reports)
+
+   return suite_reports_all
 
 # Update the "fboss ship reports (7d)" worksheet
 # Sheet Column Format:
@@ -178,7 +211,6 @@ class LineWrapRawTextHelpFormatter(argparse.RawDescriptionHelpFormatter):
       return _textwrap.wrap(text, 55)
 
 
-fboss_suite_rp_ssid = "1rxbJpzKbnVXoMFdHTLBD-GX1pi-NZGJA5LROdPwJ054"
 parser = argparse.ArgumentParser(
    description="Update FBOSS Ship Report Spreedsheet at go/fboss-shipreport \n\n"
    "By default suite report and test runs are limited to pass 7 days\n\n"
@@ -194,14 +226,13 @@ parser = argparse.ArgumentParser(
    formatter_class=LineWrapRawTextHelpFormatter,
 )
 parser.add_argument("CONTAINER", action="store", help="container name")
-parser.add_argument("HOST", action="store", help="full container hostname")
 parser.add_argument(
    "-s", "--spreadsheet",
    action="store",
    required=False,
    help="Key to Google spreadsheet"
    " in https://docs.google.com/spreadsheets/d/<key>/edit",
-   default=fboss_suite_rp_ssid,
+   default=FBOSS_SUITE_REPORT_SSID,
 )
 parser.add_argument(
    "-w", "--worksheets",
@@ -213,51 +244,18 @@ parser.add_argument(
             "FBOSS Ship Test Runs (7d)",
             "FBOSS Ship Pass Rate History"],
 )
-parser.add_argument(
-   "-p", "--project",
-   action="store",
-   required=False,
-   help="Project name. Default: fboss_schedule_autotest",
-   default="fboss_schedule_autotest",
-)
 
 if __name__ == '__main__':
    args = parser.parse_args()
 
    # --- Generate suite reports ---
-   generate_suite_reports(args.CONTAINER, args.HOST, args.project)
+   generate_suite_reports(args.CONTAINER)
 
    # --- Parse suite report json and csv files ---
-   suite_report_dir = "fboss-suite-reports"
-   suite_reports_all = []
-
-   for i, limit in enumerate(limits):
-      suite_reports = []
-      for j, suite in enumerate(suites):
-         base_suite_name = suite[0]
-         suite_name = "_".join(suite)
-         json_file = f"{suite_report_dir}/{limit}/{suite_name}_report.json"
-         test_run_csv_file = f"{suite_report_dir}/{limit}/{suite_name}_test_runs.csv"
-
-         with open(json_file) as json_data:
-            data = json.load(json_data)
-            suite_rp = SuiteReport.from_json(data[f"FbossTest/{base_suite_name}"])
-            suite_rp.set_custom_name(suite_name)
-            # we only get detailed test runs for 7d
-            if limit == '7d':
-               suite_rp.add_tests_from_csv(test_run_csv_file)
-
-            # calculate non-overlapping pass% for every 7 days chunk
-            if i > 0:
-               new_passed = suite_rp.passed - suite_reports_all[i - 1][j].passed
-               new_failed = suite_rp.failed - suite_reports_all[i - 1][j].failed
-               suite_rp.update_passed_failed(new_passed, new_failed)
-
-            suite_reports.append(suite_rp)
-      suite_reports_all.append(suite_reports)
+   suite_reports = parse_suite_reports()
 
    # --- Get latest build info ---
-   build_info = get_latest_build_info(args.project)
+   build_info = get_latest_build_info(PROJECT)
 
    print("--- Updating Spreadsheet ---")
    service = SpreadsheetLibV5.Service()
@@ -269,9 +267,9 @@ if __name__ == '__main__':
    pass_rate_hist_sheet = spd.sheet(args.worksheets[2])
    assert pass_rate_hist_sheet, f"no sheet with name {args.worksheets[2]}"
 
-   update_7d_suite_report_sheet(ship_rp_sheet, suite_reports_all[0], build_info)
-   update_7d_test_run_sheet(test_run_sheet, suite_reports_all[0])
-   update_pass_rate_history_sheet(pass_rate_hist_sheet, suite_reports_all)
+   update_7d_suite_report_sheet(ship_rp_sheet, suite_reports[0], build_info)
+   update_7d_test_run_sheet(test_run_sheet, suite_reports[0])
+   update_pass_rate_history_sheet(pass_rate_hist_sheet, suite_reports)
 
    print(
       "Successfully updated spreadsheet at "
