@@ -18,6 +18,7 @@ from .BaseConfigs import (
    I2cAdapterConfig,
    I2cDeviceConfig,
    I2cIdProm,
+   I2cMux,
    LedConfig,
    OrderedDict,
    PciDeviceConfig,
@@ -1084,6 +1085,49 @@ class LedConfigTest( unittest.TestCase ):
       ] )
       with self.assertRaises( AssertionError ):
          self.platform.pmConfigJson()
+
+
+class I2cMuxTest( unittest.TestCase ):
+   def testI2cMux( self ):
+      # I2C mux with 4 channels
+      i2cMuxName = "SCM_MUX"
+      i2cMux = I2cMux( "0x75", "pca9548", i2cMuxName, incomingBusIndex=1,
+                       numOutgoingChannels=4 )
+
+      # Add the I2C mux to the SCM FPGA SMBus
+      self.platform = PlatformConfig( "test_platform" )
+      scmUnit = PmUnitConfig( "SCM" )
+      self.platform.addPmUnitConfigs( [ scmUnit ] )
+      scmUnit.addI2cDeviceConfigs( [ i2cMux ] )
+      scmUnit.addPciDeviceConfigs( [
+         *enumeratePciDeviceConfigs( 1, "SCM_FPGA", "0x3475", "0x0001", "0x3475",
+                                     "0x0008" )
+      ] )
+      scmUnit.pciDeviceConfigs[ 0 ].addI2cAdapterConfigs(
+         1, "SCM_I2C_MASTER{}", "0x8000"
+      )
+      scmUnit.pciDeviceConfigs[ 0 ].i2cAdapterConfigs[ 0 ].buses[ 0 ].addI2cDevices(
+         [ i2cMux ]
+      )
+
+      # Set I2C mux buses as the outgoing buses for the SMB slots
+      scmUnit.addOutgoingSlotConfigs( [
+            SlotConfig( slotName="SMB_SLOT@0",
+                        outgoingI2cBuses=[ i2cMux.buses[ 0 ] ] ),
+            SlotConfig( slotName="SMB_SLOT@1",
+                        outgoingI2cBuses=[ i2cMux.buses[ 1 ] ] ),
+            SlotConfig( slotName="SMB_SLOT@2",
+                        outgoingI2cBuses=[ i2cMux.buses[ 2 ] ] ),
+            SlotConfig( slotName="SMB_SLOT@3",
+                        outgoingI2cBuses=[ i2cMux.buses[ 3 ] ] ),
+      ] )
+
+      # Verify that bus naming is correct in resulting config
+      pmUnitDict = json.loads( self.platform.pmConfigJson() )[ "pmUnitConfigs" ]
+      slotConfigs = pmUnitDict[ "SCM" ][ "outgoingSlotConfigs" ]
+      for slotNum, slotConfig in enumerate( slotConfigs.values() ):
+         self.assertEqual( slotConfig[ "outgoingI2cBusNames" ][ 0 ],
+                           f"{ i2cMuxName }@{ slotNum }" )
 
 
 if __name__ == '__main__':

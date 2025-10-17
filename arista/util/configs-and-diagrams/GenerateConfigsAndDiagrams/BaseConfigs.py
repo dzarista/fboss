@@ -864,6 +864,18 @@ class I2cDeviceConfig:
       self.node = Node( f"{{ { self.address } | { self.pmUnitScopedName } }}",
                         shape="Mrecord" ).getNode()
 
+class I2cMux( I2cDeviceConfig ):
+   def __init__( self, *args, **kwargs ):
+      super().__init__( *args, **kwargs )
+      # Currently i2c muxes have no symlinks
+      self.symlinkPath = ""
+      self.buses = [
+         I2cBus(
+            busName=f"{ self.pmUnitScopedName }@{ i }",
+            parentConfig=self,
+            devicesOnBus=[]
+         ) for i in range( self.numOutgoingChannels )
+      ]
 
 class GpioChip( I2cDeviceConfig ):
    def __init__( self, *args, **kwargs ):
