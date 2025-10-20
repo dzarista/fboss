@@ -383,58 +383,58 @@ static ssize_t pwm_store(struct device *dev, struct device_attribute *attr,
 	return count;
 }
 
-#define SLG4F4527_FAN_ATTR(_name, _idx)                                        	\
-	static ssize_t _name##_show(struct device *dev,                        	\
-				    struct device_attribute *attr, char *buf)  	\
-	{                                                                      	\
-		struct aslg4f4527_data *data = sample_rpm(dev);                	\
+#define SLG4F4527_FAN_ATTR(_name, _idx)						\
+	static ssize_t _name##_show(struct device *dev,				\
+				    struct device_attribute *attr, char *buf)	\
+	{									\
+		struct aslg4f4527_data *data = sample_rpm(dev);			\
 										\
-		if (IS_ERR(data)) {                                            	\
-			return PTR_ERR(data);                                  	\
-		}                                                              	\
+		if (IS_ERR(data)) {						\
+			return PTR_ERR(data);					\
+		}								\
 										\
-		return sprintf(buf, "%d\n", data->_name);                      	\
-	}                                                                      	\
+		return sprintf(buf, "%d\n", data->_name);			\
+	}									\
 										\
 	static SENSOR_DEVICE_ATTR(_name, S_IRUGO, _name##_show, NULL, _idx);
 
-#define SLG4F4527_GPO_ATTR(_name, _reg)                                        	\
-	static ssize_t _name##_show(struct device *dev,                        	\
-				    struct device_attribute *attr, char *buf)  	\
-	{                                                                      	\
-		struct aslg4f4527_data *data = dev_get_drvdata(dev);           	\
-		u8 val;                                                        	\
-										\
-		mutex_lock(&data->update_lock);                                	\
-		read_virtual_input(data->client, _reg, &val);                  	\
-		mutex_unlock(&data->update_lock);                              	\
-										\
-		return sprintf(buf, "%hhu\n", val);                            	\
-	}                                                                      	\
-										\
-	static ssize_t _name##_store(struct device *dev,                       	\
-				     struct device_attribute *attr,            	\
-				     const char *buf, size_t count)            	\
+#define SLG4F4527_GPO_ATTR(_name, _reg)						\
+	static ssize_t _name##_show(struct device *dev,				\
+				    struct device_attribute *attr, char *buf)	\
 	{									\
-		struct aslg4f4527_data *data = dev_get_drvdata(dev);           	\
-		u8 val;                                                        	\
-		s32 err;                                                       	\
+		struct aslg4f4527_data *data = dev_get_drvdata(dev);		\
+		u8 val;								\
 										\
-		if (sscanf(buf, "%hhu", &val) != 1) {                          	\
-			return -EINVAL;                                        	\
-		}                                                              	\
+		mutex_lock(&data->update_lock);					\
+		read_virtual_input(data->client, _reg, &val);			\
+		mutex_unlock(&data->update_lock);				\
 										\
-		mutex_lock(&data->update_lock);                                	\
-		err = write_virtual_input(data->client, _reg, val);            	\
-		mutex_unlock(&data->update_lock);                              	\
+		return sprintf(buf, "%hhu\n", val);				\
+	}									\
 										\
-		if (err < 0) {                                                 	\
-			return err;                                            	\
-		}                                                              	\
+	static ssize_t _name##_store(struct device *dev,			\
+				     struct device_attribute *attr,		\
+				     const char *buf, size_t count)		\
+	{									\
+		struct aslg4f4527_data *data = dev_get_drvdata(dev);		\
+		u8 val;								\
+		s32 err;							\
 										\
-		return count;                                                 	\
-	}                                                                      	\
-	static DEVICE_ATTR(_name, S_IRUGO | S_IWGRP | S_IWUSR, _name##_show,   	\
+		if (sscanf(buf, "%hhu", &val) != 1) {				\
+			return -EINVAL;						\
+		}								\
+										\
+		mutex_lock(&data->update_lock);					\
+		err = write_virtual_input(data->client, _reg, val);		\
+		mutex_unlock(&data->update_lock);				\
+										\
+		if (err < 0) {							\
+			return err;						\
+		}								\
+										\
+		return count;							\
+	}									\
+	static DEVICE_ATTR(_name, S_IRUGO | S_IWGRP | S_IWUSR, _name##_show,	\
 			   _name##_store);
 
 DEVICE_ATTR(pwm, S_IRUGO | S_IWGRP | S_IWUSR, pwm_show, pwm_store);

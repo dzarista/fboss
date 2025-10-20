@@ -29,14 +29,14 @@
 #include "aucd9000-meru800bfa-reload-cause.h"
 
 enum chips { ucd9000, ucd90120, ucd90124, ucd90160, ucd90320, ucd9090,
-	     ucd90910 };
+		 ucd90910 };
 
 #define UCD9000_MONITOR_CONFIG		0xd5
 #define UCD9000_NUM_PAGES		0xd6
-#define UCD9000_RTC_SET		0xd7
+#define UCD9000_RTC_SET			0xd7
 #define UCD9000_FAN_CONFIG_INDEX	0xe7
 #define UCD9000_FAN_CONFIG		0xe8
-#define UCD9000_LOGGED_FAULTS	0xea
+#define UCD9000_LOGGED_FAULTS		0xea
 #define UCD9000_LOGGED_FAULT_DETAIL_INDEX	0xeb
 #define UCD9000_LOGGED_FAULT_DETAIL		0xec
 #define UCD9000_MFR_STATUS		0xf3
@@ -85,7 +85,7 @@ enum chips { ucd9000, ucd90120, ucd90124, ucd90160, ucd90320, ucd9090,
 #define UCD90160_LOGGED_FAULTS_BYTE_COUNT	18
 #define UCD90910_LOGGED_FAULTS_BYTE_COUNT	14
 
-#define UCD9000_FAULT_DETAIL_BYTE_COUNT	10
+#define UCD9000_FAULT_DETAIL_BYTE_COUNT		10
 #define UCD90320_FAULT_DETAIL_BYTE_COUNT	12
 enum {
 	FAULT_DETAIL_BYTE_MSEC0,
@@ -285,7 +285,7 @@ static int ucd90320_read_byte_data(struct i2c_client *client, int page, int reg)
 }
 
 static int ucd90320_write_word_data(struct i2c_client *client, int page,
-				    int reg, u16 word)
+					int reg, u16 word)
 {
 	const struct pmbus_driver_info *info = pmbus_get_driver_info(client);
 	struct ucd9000_data *data = to_ucd9000_data(info);
@@ -434,7 +434,7 @@ MODULE_DEVICE_TABLE(of, aucd9000_of_match);
 
 #ifdef CONFIG_GPIOLIB
 static int ucd9000_gpio_read_config(struct i2c_client *client,
-				    unsigned int offset)
+					unsigned int offset)
 {
 	int ret;
 
@@ -459,7 +459,7 @@ static int ucd9000_gpio_get(struct gpio_chip *gc, unsigned int offset)
 }
 
 static void ucd9000_gpio_set(struct gpio_chip *gc, unsigned int offset,
-			     int value)
+				 int value)
 {
 	struct i2c_client *client = gpiochip_get_data(gc);
 	int ret;
@@ -502,7 +502,7 @@ static void ucd9000_gpio_set(struct gpio_chip *gc, unsigned int offset,
 }
 
 static int ucd9000_gpio_get_direction(struct gpio_chip *gc,
-				      unsigned int offset)
+					  unsigned int offset)
 {
 	struct i2c_client *client = gpiochip_get_data(gc);
 	int ret;
@@ -515,8 +515,8 @@ static int ucd9000_gpio_get_direction(struct gpio_chip *gc,
 }
 
 static int ucd9000_gpio_set_direction(struct gpio_chip *gc,
-				      unsigned int offset, bool direction_out,
-				      int requested_out)
+					  unsigned int offset, bool direction_out,
+					  int requested_out)
 {
 	struct i2c_client *client = gpiochip_get_data(gc);
 	int ret, config, out_val;
@@ -574,8 +574,8 @@ static int ucd9000_gpio_direction_output(struct gpio_chip *gc,
 }
 
 static void ucd9000_probe_gpio(struct i2c_client *client,
-			       const struct i2c_device_id *mid,
-			       struct ucd9000_data *data)
+				   const struct i2c_device_id *mid,
+				   struct ucd9000_data *data)
 {
 	int rc;
 
@@ -619,8 +619,8 @@ static void ucd9000_probe_gpio(struct i2c_client *client,
 }
 #else
 static void ucd9000_probe_gpio(struct i2c_client *client,
-			       const struct i2c_device_id *mid,
-			       struct ucd9000_data *data)
+				   const struct i2c_device_id *mid,
+				   struct ucd9000_data *data)
 {
 }
 #endif /* CONFIG_GPIOLIB */
@@ -630,7 +630,7 @@ static void ucd9000_fault_log_get_config(const struct i2c_device_id *mid,
 {
 	int i;
 
-	switch(mid->driver_data) {
+	switch (mid->driver_data) {
 	case ucd90120:
 	case ucd90124:
 		fault_log->base_time = 0;
@@ -788,7 +788,7 @@ static void ucd9000_fault_log_parse_fault_detail(u8 *detail_buffer,
 	detail->value = (detail_buffer[FAULT_DETAIL_BYTE_VAL1] << 8) |
 		(detail_buffer[FAULT_DETAIL_BYTE_VAL0]);
 
-	switch(detail_buffer_len) {
+	switch (detail_buffer_len) {
 	case UCD90320_FAULT_DETAIL_BYTE_COUNT:
 		detail->page = (page_and_msecs >> 27);
 		msecs = page_and_msecs & 0x7ffffff;
@@ -819,9 +819,9 @@ static void ucd9000_fault_log_parse_fault_detail(u8 *detail_buffer,
 static void ucd9000_fault_log_create_timestamp_str(const struct rtc_time *tm,
 				s32 time_msecs, char *timestamp_str, size_t timestamp_str_len)
 {
-    snprintf(timestamp_str, timestamp_str_len, "%02d-%02d-%04d %02d:%02d:%02d.%03d",
-        tm->tm_mon + 1, tm->tm_mday, tm->tm_year + 1900, tm->tm_hour,
-        tm->tm_min, tm->tm_sec, time_msecs);
+	snprintf(timestamp_str, timestamp_str_len, "%02d-%02d-%04d %02d:%02d:%02d.%03d",
+		tm->tm_mon + 1, tm->tm_mday, tm->tm_year + 1900, tm->tm_hour,
+		tm->tm_min, tm->tm_sec, time_msecs);
 }
 
 static int ucd9000_read_vout_mode_exponent(struct i2c_client *client,
@@ -906,14 +906,14 @@ static bool ucd9000_get_encoded_reload_cause(
 	if (encoded_reload_cause_count < 0)
 		return false;
 
-    for (i = 0; i < encoded_reload_cause_count; i++) {
-        if (encoded_reload_causes[i].id == fault_id) {
-            *found_encoded_reload_cause = &encoded_reload_causes[i];
-            return true;
-        }
-    }
+	for (i = 0; i < encoded_reload_cause_count; i++) {
+		if (encoded_reload_causes[i].id == fault_id) {
+			*found_encoded_reload_cause = &encoded_reload_causes[i];
+			return true;
+		}
+	}
 
-    return false;
+	return false;
 }
 
 static void ucd9000_fault_log_create_description_str(struct i2c_client *client,
@@ -1039,8 +1039,7 @@ static int ucd9000_fault_log_read_detailed_faults(struct i2c_client *client,
 			dev_dbg(&client->dev,
 				"Unexpected fault detail byte count for index %d: %d\n",
 				i, ret);
-		}
-		else {
+		} else {
 			ret = ucd9000_fault_log_add_fault(client, mid,
 					fault_log, detail_buffer);
 			if (ret < 0)
@@ -1194,8 +1193,8 @@ DEFINE_DEBUGFS_ATTRIBUTE(ucd9000_debugfs_mfr_status_bit,
 			 ucd9000_debugfs_show_mfr_status_bit, NULL, "%1lld\n");
 
 static ssize_t ucd9000_debugfs_read_mfr_status(struct file *file,
-					       char __user *buf, size_t count,
-					       loff_t *ppos)
+						   char __user *buf, size_t count,
+						   loff_t *ppos)
 {
 	struct i2c_client *client = file->private_data;
 	u8 buffer[I2C_SMBUS_BLOCK_MAX];
@@ -1244,12 +1243,12 @@ static int ucd9000_init_debugfs(struct i2c_client *client,
 	 * chips.
 	 */
 	if (mid->driver_data == ucd9090 || mid->driver_data == ucd90160 ||
-	    mid->driver_data == ucd90320 || mid->driver_data == ucd90910) {
+		mid->driver_data == ucd90320 || mid->driver_data == ucd90910) {
 		gpi_count = mid->driver_data == ucd90320 ? UCD90320_GPI_COUNT
 							 : UCD9000_GPI_COUNT;
 		entries = devm_kcalloc(&client->dev,
-				       gpi_count, sizeof(*entries),
-				       GFP_KERNEL);
+					   gpi_count, sizeof(*entries),
+					   GFP_KERNEL);
 		if (!entries)
 			return -ENOMEM;
 
@@ -1259,14 +1258,14 @@ static int ucd9000_init_debugfs(struct i2c_client *client,
 			scnprintf(name, UCD9000_DEBUGFS_NAME_LEN,
 				  "gpi%d_alarm", i + 1);
 			debugfs_create_file(name, 0444, data->debugfs,
-					    &entries[i],
-					    &ucd9000_debugfs_mfr_status_bit);
+						&entries[i],
+						&ucd9000_debugfs_mfr_status_bit);
 		}
 	}
 
 	scnprintf(name, UCD9000_DEBUGFS_NAME_LEN, "mfr_status");
 	debugfs_create_file(name, 0444, data->debugfs, client,
-			    &ucd9000_debugfs_show_mfr_status_fops);
+				&ucd9000_debugfs_show_mfr_status_fops);
 
 	return 0;
 }
@@ -1289,8 +1288,8 @@ static int ucd9000_probe(struct i2c_client *client)
 	int i, ret;
 
 	if (!i2c_check_functionality(client->adapter,
-				     I2C_FUNC_SMBUS_BYTE_DATA |
-				     I2C_FUNC_SMBUS_BLOCK_DATA))
+					 I2C_FUNC_SMBUS_BYTE_DATA |
+					 I2C_FUNC_SMBUS_BLOCK_DATA))
 		return -ENODEV;
 
 	ret = i2c_smbus_read_block_data(client, UCD9000_DEVICE_ID,
@@ -1330,7 +1329,7 @@ static int ucd9000_probe(struct i2c_client *client)
 			   client->name, mid->name);
 
 	data = devm_kzalloc(&client->dev, sizeof(struct ucd9000_data),
-			    GFP_KERNEL);
+				GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 	info = &data->info;

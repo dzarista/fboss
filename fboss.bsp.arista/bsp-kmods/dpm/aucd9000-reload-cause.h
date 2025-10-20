@@ -26,9 +26,9 @@ struct encoded_reload_cause {
 };
 
 #define DEFINE_RELOAD_CAUSE(fault_id, fault_desc)	\
-{													\
-	.id = fault_id,									\
-	.description = fault_desc						\
+{							\
+	.id = fault_id,					\
+	.description = fault_desc			\
 }
 
 #endif /* __AUCD9000_RELOAD_CAUSE_H__ */

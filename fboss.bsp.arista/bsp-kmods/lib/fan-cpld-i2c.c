@@ -29,8 +29,8 @@
 
 #include "fan-cpld-i2c.h"
 
-static struct workqueue_struct *fan_cpld_workqueue = NULL;
-static int workqueue_users = 0;
+static struct workqueue_struct *fan_cpld_workqueue;
+static int workqueue_users;
 static DEFINE_MUTEX(workqueue_lock);
 
 int fan_cpld_workqueue_init(const char *name)
@@ -327,11 +327,11 @@ static s32 fan_cpld_read_fan_tach(struct fan_cpld_data *fan_cpld, u8 fan_id)
 			if (!fan->present)
 				return -ENODEV;
 
-			dev_warn( dev_from_fan_cpld(fan_cpld),
-				  "Invalid tach information read from fan %d, "
-				  "this is likely a hardware issue (stuck fan "
-				  "or broken register)\n",
-				  fan->index + 1);
+			dev_warn(dev_from_fan_cpld(fan_cpld),
+				 "Invalid tach information read from fan %d, "
+				 "this is likely a hardware issue (stuck fan "
+				 "or broken register)\n",
+				 fan->index + 1);
 
 			return -EIO;
 		}
@@ -358,7 +358,8 @@ static s32 fan_cpld_read_fan_pwm(struct fan_cpld_data *fan_cpld, u8 fan_id)
 }
 
 static enum led_brightness fan_cpld_read_fan_led(struct fan_cpld_data *data,
-			   struct fan_cpld_fan_led_data *led) {
+			   struct fan_cpld_fan_led_data *led)
+{
 	int is_on;
 	if (!strcmp(led->color, "blue")) {
 		is_on = ((data->blue_led >> led->fan_index) & 1);
@@ -372,7 +373,8 @@ static enum led_brightness fan_cpld_read_fan_led(struct fan_cpld_data *data,
 
 static s32 fan_cpld_write_fan_led(struct fan_cpld_data *fan_cpld,
 				  struct fan_cpld_fan_led_data *led,
-				  enum led_brightness val) {
+				  enum led_brightness val)
+{
 	int err1, err2 = 0;
 
 	if (val == LED_OFF) {
@@ -395,7 +397,8 @@ static s32 fan_cpld_write_fan_led(struct fan_cpld_data *fan_cpld,
 }
 
 static void brightness_set(struct led_classdev *led_cdev,
-			   enum led_brightness val) {
+			   enum led_brightness val)
+{
 	struct fan_cpld_fan_led_data *led =
 		container_of(led_cdev, struct fan_cpld_fan_led_data, cdev);
 	struct fan_cpld_data *data = dev_get_drvdata(led_cdev->dev->parent);
@@ -403,7 +406,8 @@ static void brightness_set(struct led_classdev *led_cdev,
 	fan_cpld_write_fan_led(data, led, val);
 }
 
-static enum led_brightness brightness_get(struct led_classdev *led_cdev) {
+static enum led_brightness brightness_get(struct led_classdev *led_cdev)
+{
 	struct fan_cpld_fan_led_data *led =
 		container_of(led_cdev, struct fan_cpld_fan_led_data, cdev);
 	struct fan_cpld_data *data = dev_get_drvdata(led_cdev->dev->parent);
@@ -411,7 +415,8 @@ static enum led_brightness brightness_get(struct led_classdev *led_cdev) {
 }
 
 static int led_init(struct fan_cpld_fan_led_data leds[], struct i2c_client *client,
-		    struct fan_cpld_fan_data *fan) {
+		    struct fan_cpld_fan_data *fan)
+{
 	int err;
 	const char *colors[] = {"blue", "amber"};
 	for (int i = 0; i < FAN_LED_COUNT; i++) {

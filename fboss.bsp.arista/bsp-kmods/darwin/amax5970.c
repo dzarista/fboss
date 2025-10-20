@@ -186,27 +186,27 @@ static int __amax5970_write(struct i2c_client *client, u8 reg_upper,
 /* sysfs attributes for hwmon */
 
 /*-----------------------------------------------------------------------*/
-#define AMAX5970_READ_FUNC(_type)                                              	\
-	static int amax5970_read_##_type(struct i2c_client *client, u32 attr, 	\
-					 int channel, long *val)              	\
-	{                                                                     	\
-		int ret = 0;                                                  	\
-		u8 reg_upper = 0;                                             	\
-		u8 reg_lower = 0;                                             	\
-		bool write_chip = false;                                      	\
+#define AMAX5970_READ_FUNC(_type)						\
+	static int amax5970_read_##_type(struct i2c_client *client, u32 attr,	\
+					 int channel, long *val)		\
+	{									\
+		int ret = 0;							\
+		u8 reg_upper = 0;						\
+		u8 reg_lower = 0;						\
+		bool write_chip = false;					\
 										\
-		ret = __get_registers(hwmon_##_type, attr, channel,            	\
-				      write_chip, &reg_upper, &reg_lower);    	\
-		if (ret < 0) {                                                	\
-			return ret;                                           	\
-		}                                                              	\
+		ret = __get_registers(hwmon_##_type, attr, channel,		\
+				      write_chip, &reg_upper, &reg_lower);	\
+		if (ret < 0) {							\
+			return ret;						\
+		}								\
 										\
-		ret = __amax5970_read(client, reg_upper, reg_lower);           	\
-		if (ret < 0) {                                                 	\
-			return ret;                                            	\
-		}                                                 		\
-		*val = ret;                                                   	\
-		return 0;                                                     	\
+		ret = __amax5970_read(client, reg_upper, reg_lower);		\
+		if (ret < 0) {							\
+			return ret;						\
+		}								\
+		*val = ret;							\
+		return 0;							\
 	}
 
 AMAX5970_READ_FUNC(in);
