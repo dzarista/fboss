@@ -32,7 +32,8 @@ class ThrasherSCM( SCMUnit ):
          idPromConfigBusName="Synopsys DesignWare I2C adapter",
          idPromConfigAddress="0x50",
          idPromConfigKernelDeviceName="24c512",
-         idPromConfigOffset=15360
+         idPromConfigOffset=15360,
+         createIdpromSymlink=True,
       )
 
       # Note that the PCIe device ID for the Thrasher SCM FPGA is currently the
@@ -85,10 +86,9 @@ class ThrasherSCM( SCMUnit ):
       ] )
 
 class BanffSMB( SMBUnit ):
-   prefixSymlink = 'GLATH06A-64O'
-
    def __init__( self ):
-      super().__init__( self.prefixSymlink )
+      super().__init__()
+
       self.fanServiceSensorConfigs = {}
 
       self.setSlotTypeConfig(
@@ -96,29 +96,65 @@ class BanffSMB( SMBUnit ):
          idPromConfigBusName="INCOMING@0",
          idPromConfigAddress="0x50",
          idPromConfigKernelDeviceName="24c512",
-         idPromConfigOffset=15360
+         idPromConfigOffset=15360,
+         createIdpromSymlink=True,
       )
 
       smbCpld = SMBCpld( "0x23", "glath06a-64o_cpld", "SMB_CPLD",
                          incomingBusIndex=0 )
 
-      smbMax = Sensor( "0x4D", "max6581", "SMB_MAX6581", incomingBusIndex=0 )
+      smbTempSensor = Sensor( "0x4D", "max6581", "SMB_MAX6581",
+                              incomingBusIndex=0 )
 
-      sundanceMax = Sensor( "0x4D", "max6581", "PWR_MAX6581",
+      pwrTempSensor = Sensor( "0x4D", "max6581", "SMB_PWR_MAX6581",
+                              incomingBusIndex=1 )
+
+      th6CoreVrm = Sensor( "0x70", "xdpe1a2g5b", "SMB_XDPE_TH6_POS0V75_CORE",
+                           incomingBusIndex=1 )
+      th6PhyCoreVrm1 = Sensor( "0x58", "xdpe1a2g5b",
+                               "SMB_XDPE_TH6_POS0V75_PHYCORE_01",
+                               incomingBusIndex=1 )
+      th6PhyCoreVrm2 = Sensor( "0x5A", "xdpe1a2g5b",
+                               "SMB_XDPE_TH6_POS0V75_PHYCORE_23",
+                               incomingBusIndex=1 )
+      th6PhyCoreVrm3 = Sensor( "0x5C", "xdpe1a2g5b",
+                               "SMB_XDPE_TH6_POS0V75_PHYCORE_45",
+                               incomingBusIndex=1 )
+      th6PhyCoreVrm4 = Sensor( "0x5E", "xdpe1a2g5b",
+                               "SMB_XDPE_TH6_POS0V75_PHYCORE_67",
+                               incomingBusIndex=1 )
+      th6TrvddVrm1 = Sensor( "0x60", "xdpe1a2g5b",
+                             "SMB_XDPE_TH6_POS0V72_TRVDD_01",
+                             incomingBusIndex=1 )
+      th6TrvddVrm2 = Sensor( "0x62", "xdpe1a2g5b",
+                             "SMB_XDPE_TH6_POS0V72_TRVDD_23",
+                             incomingBusIndex=1 )
+      th6TrvddVrm3 = Sensor( "0x64", "xdpe1a2g5b",
+                             "SMB_XDPE_TH6_POS0V72_TRVDD_45",
+                             incomingBusIndex=1 )
+      th6TrvddVrm4 = Sensor( "0x66", "xdpe1a2g5b",
+                             "SMB_XDPE_TH6_POS0V72_TRVDD_67",
+                             incomingBusIndex=1 )
+      th6TrvddVrm5 = Sensor( "0x68", "xdpe1a2g5b",
+                             "SMB_XDPE_TH6_POS0V75_TRVDD_01",
+                             incomingBusIndex=1 )
+      th6TrvddVrm6 = Sensor( "0x6A", "xdpe1a2g5b",
+                             "SMB_XDPE_TH6_POS0V9_TRVDD_01",
+                             incomingBusIndex=1 )
+      th6RvddVrm1 = Sensor( "0x48", "tda38740a", "SMB_TDA_TH6_POS1V5_RVDD_0",
                             incomingBusIndex=1 )
-      th6CoreVrm = Sensor( "0x70", "pmbus", "TH6_CORE_VRM", incomingBusIndex=2 )
-      th6PhyCoreVrm1 = Sensor( "0x58", "pmbus", "TH6_PHYTILE_CORE_VRM1",
-                               incomingBusIndex=2 )
-      th6PhyCoreVrm2 = Sensor( "0x5A", "pmbus", "TH6_PHYTILE_CORE_VRM2",
-                               incomingBusIndex=2 )
-      th6PhyCoreVrm3 = Sensor( "0x5C", "pmbus", "TH6_PHYTILE_CORE_VRM3",
-                               incomingBusIndex=2 )
-      th6PhyCoreVrm4 = Sensor( "0x5E", "pmbus", "TH6_PHYTILE_CORE_VRM4",
-                               incomingBusIndex=2 )
-      th6TrvddVrm1 = Sensor( "0x40", "pmbus", "TH6_TRVDD_VRM1", incomingBusIndex=2 )
+      th6RvddVrm2 = Sensor( "0x48", "tda38740a", "SMB_TDA_TH6_POS1V5_RVDD_1",
+                            incomingBusIndex=1 )
+      opticsLeftVrm = Sensor( "0x72", "tda38740a", "SMB_TDA_POS3V3_OPTICS_LEFT",
+                              incomingBusIndex=1 )
+      opticsLeftVrm = Sensor( "0x74", "tda38740a", "SMB_TDA_POS3V3_OPTICS_RIGHT",
+                              incomingBusIndex=1 )
 
       smbUcd = Sensor( "0x11", "glath06a_aucd90320", "SMB_UCD90320",
                        incomingBusIndex=2 )
+
+      smbMux = I2cMux( "0x75", "pca9548", "SMB_MUX", incomingBusIndex=2,
+                       numOutgoingChannels=8 )
 
       smbFanCpld = FANCpld( "0x60", "glath06a64o_fancpld", "FAN_CPLD",
                             incomingBusIndex=3 )
@@ -127,24 +163,34 @@ class BanffSMB( SMBUnit ):
       # can still be driven to "100%"
       smbFanCpld.addFANRpms( 8, upperCriticalVal=10000.0, lowerCriticalVal=2000.0 )
 
-      # TODO: try pmbus driver on VRMs
-
-      smbMux = I2cMux( "0x75", "pca9548", "SMB_MUX", incomingBusIndex=2,
-                       numOutgoingChannels=8 )
-
       self.addI2cDeviceConfigs( [
          smbCpld,
-         smbFanCpld,
-         smbMax,
+         smbTempSensor,
+         pwrTempSensor,
+         th6CoreVrm,
+         th6PhyCoreVrm1,
+         th6PhyCoreVrm2,
+         th6PhyCoreVrm3,
+         th6PhyCoreVrm4,
+         th6TrvddVrm1,
+         th6TrvddVrm2,
+         th6TrvddVrm3,
+         th6TrvddVrm4,
+         th6TrvddVrm5,
+         th6TrvddVrm6,
+         th6RvddVrm1,
+         th6RvddVrm2,
+         opticsLeftVrm,
          smbUcd,
          smbMux,
+         smbFanCpld,
       ] )
 
       self.addPciDeviceConfigs( [
          PciDeviceConfig( "SMB_FPGA0", "0x3475", "0x0001", "0x3475", "0x0010",
-                         symlinkDeviceName="GLATH06A-64O_SMB_FPGA0" ),
+                         symlinkDeviceName="SMB_FPGA0" ),
          PciDeviceConfig( "SMB_FPGA1", "0x3475", "0x0001", "0x3475", "0x0011",
-                         symlinkDeviceName="GLATH06A-64O_SMB_FPGA1" ),
+                         symlinkDeviceName="SMB_FPGA1" ),
       ] )
 
       smbFpga0 = self.pciDeviceConfigs[ 0 ]
@@ -247,7 +293,11 @@ class Banff( PlatformConfig ):
             "requiredKmodsToLoad": [ "spidev",
                                      "i2c_i801",
                                      "scd",
-                                     "ledtrig_timer" ]
+                                     "ledtrig_timer",
+                                     "aucd9000",
+                                     "glath06a-64o-fan-cpld",
+                                     "glath06a-64o-cpld",
+                                     "tda38740" ]
          }
       )
 

@@ -114,7 +114,7 @@ class PlatformConfig:
       self.setChassisEepromDevicePath = True
       self.kmodsSettings = {
          "bspKmodsRpmName": "arista_bsp_kmods",
-         "bspKmodsRpmVersion": "0.7.15-1",
+         "bspKmodsRpmVersion": "0.7.16-1",
          "requiredKmodsToLoad": [],
       }
       self.PlatformFanServiceConfig = None
@@ -920,11 +920,14 @@ class FairywrenSensor( I2cDeviceConfig ):
 
 class SMBCpld( I2cDeviceConfig ):
    def __init__( self, *args, **kwargs ):
+      self.platformInSymlink = kwargs.pop( 'platformInSymlink', False )
       super().__init__( *args, **kwargs )
-      self.symlinkPath = "/run/devmap/cplds/{}_SMB_CPLD"
+      self.symlinkPath = "/run/devmap/cplds/{}SMB_CPLD"
 
    def generateSymlinkDevicePath( self ):
-      platform = self.parentConfig.parentConfig.platformName
+      platform = ""
+      if self.platformInSymlink:
+         platform = f"{self.parentConfig.parentConfig.platformName}_"
       return {
          self.symlinkPath.format( platform.upper() ):
             constructDevicePaths( self )[ 0 ]

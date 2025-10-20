@@ -56,7 +56,8 @@ class WhistlerSMB( SMBUnit ):
          platformInIdpromSymlink=True,
       )
 
-      smbCpld = SMBCpld( "0x23", "decker_cpld", "SMB_CPLD", incomingBusIndex=0 )
+      smbCpld = SMBCpld( "0x23", "decker_cpld", "SMB_CPLD", incomingBusIndex=0,
+                         platformInSymlink=True )
 
       smbMax = Sensor( "0x4D", "max6581", "SMB_MAX6581", incomingBusIndex=0,
                        initRegSettings=InitRegSettings( [

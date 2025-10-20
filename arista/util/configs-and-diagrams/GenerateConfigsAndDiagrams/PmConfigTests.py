@@ -498,7 +498,10 @@ class I2cDeviceConfigTest( unittest.TestCase ):
          Sensor( "0x4D", "max6581", "SMB_MAX6581", incomingBusIndex=0 ),
          FANCpld( "0x60", "pali2_cpld", "FAN_CPLD", incomingBusIndex=2 ),
          FANCpld( "0x61", "oasis_cpld0", "FAN0_CPLD", incomingBusIndex=3 ),
-         SMBCpld( "0x23", "decker_cpld", "SMB_CPLD", incomingBusIndex=0 )
+         # Covering both symlink cases for SMBCplds
+         SMBCpld( "0x23", "decker_cpld", "SMB_CPLD", incomingBusIndex=0 ),
+         SMBCpld( "0x24", "decker_cpld", "SMB_CPLD", incomingBusIndex=0,
+                  platformInSymlink=True )
       ] )
       self.platform.pmUnitConfigs[ 2 ].addI2cDeviceConfigs( [
          PSUBus( "0x58", "pmbus", "PSU_PMBUS", incomingBusIndex=0 )
@@ -537,10 +540,10 @@ class I2cDeviceConfigTest( unittest.TestCase ):
       4 for SCM i2c devices
       1 for SMB sensor
       4 symlinks for 2 FAN Cplds
-      1 for SMB Cpld
+      2 for SMB Cplds
       2 for PSU buses
       '''
-      self.assertEqual( len( symlinkDict ), 21 )
+      self.assertEqual( len( symlinkDict ), 22 )
       self.assertTrue( "/run/devmap/gpiochips/SCM_PCA" in symlinkDict )
       self.assertEqual(
          symlinkDict[ "/run/devmap/gpiochips/SCM_PCA" ], "/[SCM_PCA]"
@@ -580,6 +583,11 @@ class I2cDeviceConfigTest( unittest.TestCase ):
       self.assertTrue( "/run/devmap/cplds/TEST_PLATFORM_SMB_CPLD" in symlinkDict )
       self.assertEqual(
          symlinkDict[ "/run/devmap/cplds/TEST_PLATFORM_SMB_CPLD" ],
+         "/SMB_SLOT@7/[SMB_CPLD]"
+      )
+      self.assertTrue( "/run/devmap/cplds/SMB_CPLD" in symlinkDict )
+      self.assertEqual(
+         symlinkDict[ "/run/devmap/cplds/SMB_CPLD" ],
          "/SMB_SLOT@7/[SMB_CPLD]"
       )
       self.assertTrue( "/run/devmap/sensors/PSU14_PMBUS" in symlinkDict )
