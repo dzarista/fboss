@@ -296,8 +296,7 @@ class Banff( PlatformConfig ):
                                      "ledtrig_timer",
                                      "aucd9000",
                                      "glath06a-64o-fan-cpld",
-                                     "glath06a-64o-cpld",
-                                     "tda38740" ]
+                                     "glath06a-64o-cpld" ]
          }
       )
 
