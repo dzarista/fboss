@@ -48,7 +48,7 @@ KERNEL_PARAMS="root=live:LABEL=eos_flash rd.live.ram=1 rd.live.dir=/boot rd.live
 if [ -d /sys/firmware/efi ]; then
     echo "EFI detected, passing ACPI info to kexec'd kernel"
     acpi_rsdp="$(grep -m1 ^ACPI /sys/firmware/efi/systab | cut -f2- -d=)"
-    KERNEL_PARAMS="$KERNEL_PARAMS acpi_rsdp=$acpi_rsdp amd_iommu_dump=1 reboot=p"
+    KERNEL_PARAMS="$KERNEL_PARAMS acpi_rsdp=$acpi_rsdp amd_iommu_dump=1"
 fi
 
 # We typically boot FBOSS via localboot, in which case on Rackhawk we make sure
