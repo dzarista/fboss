@@ -111,44 +111,44 @@ class BanffSMB( SMBUnit ):
 
       th6CoreVrm = Sensor( "0x70", "xdpe1a2g5b", "SMB_XDPE_TH6_POS0V75_CORE",
                            incomingBusIndex=1 )
-      th6PhyCoreVrm1 = Sensor( "0x58", "xdpe1a2g5b",
+      th6PhyCoreVrm1 = Sensor( "0x58", "xdpe1b284b",
                                "SMB_XDPE_TH6_POS0V75_PHYCORE_01",
                                incomingBusIndex=1 )
-      th6PhyCoreVrm2 = Sensor( "0x5A", "xdpe1a2g5b",
+      th6PhyCoreVrm2 = Sensor( "0x5A", "xdpe1b284b",
                                "SMB_XDPE_TH6_POS0V75_PHYCORE_23",
                                incomingBusIndex=1 )
-      th6PhyCoreVrm3 = Sensor( "0x5C", "xdpe1a2g5b",
+      th6PhyCoreVrm3 = Sensor( "0x5C", "xdpe1b284b",
                                "SMB_XDPE_TH6_POS0V75_PHYCORE_45",
                                incomingBusIndex=1 )
-      th6PhyCoreVrm4 = Sensor( "0x5E", "xdpe1a2g5b",
+      th6PhyCoreVrm4 = Sensor( "0x5E", "xdpe1b284b",
                                "SMB_XDPE_TH6_POS0V75_PHYCORE_67",
                                incomingBusIndex=1 )
-      th6TrvddVrm1 = Sensor( "0x60", "xdpe1a2g5b",
+      th6TrvddVrm1 = Sensor( "0x60", "xdpe1b284b",
                              "SMB_XDPE_TH6_POS0V72_TRVDD_01",
                              incomingBusIndex=1 )
-      th6TrvddVrm2 = Sensor( "0x62", "xdpe1a2g5b",
+      th6TrvddVrm2 = Sensor( "0x62", "xdpe1b284b",
                              "SMB_XDPE_TH6_POS0V72_TRVDD_23",
                              incomingBusIndex=1 )
-      th6TrvddVrm3 = Sensor( "0x64", "xdpe1a2g5b",
+      th6TrvddVrm3 = Sensor( "0x64", "xdpe1b284b",
                              "SMB_XDPE_TH6_POS0V72_TRVDD_45",
                              incomingBusIndex=1 )
-      th6TrvddVrm4 = Sensor( "0x66", "xdpe1a2g5b",
+      th6TrvddVrm4 = Sensor( "0x66", "xdpe1b284b",
                              "SMB_XDPE_TH6_POS0V72_TRVDD_67",
                              incomingBusIndex=1 )
-      th6TrvddVrm5 = Sensor( "0x68", "xdpe1a2g5b",
+      th6TrvddVrm5 = Sensor( "0x68", "xdpe1b284b",
                              "SMB_XDPE_TH6_POS0V75_TRVDD_01",
                              incomingBusIndex=1 )
-      th6TrvddVrm6 = Sensor( "0x6A", "xdpe1a2g5b",
+      th6TrvddVrm6 = Sensor( "0x6A", "xdpe1b284b",
                              "SMB_XDPE_TH6_POS0V9_TRVDD_01",
                              incomingBusIndex=1 )
       th6RvddVrm1 = Sensor( "0x48", "tda38740a", "SMB_TDA_TH6_POS1V5_RVDD_0",
                             incomingBusIndex=1 )
       th6RvddVrm2 = Sensor( "0x48", "tda38740a", "SMB_TDA_TH6_POS1V5_RVDD_1",
                             incomingBusIndex=1 )
-      opticsLeftVrm = Sensor( "0x72", "tda38740a", "SMB_TDA_POS3V3_OPTICS_LEFT",
+      opticsLeftVrm = Sensor( "0x72", "xdpe1a2g5b", "SMB_TDA_POS3V3_OPTICS_LEFT",
                               incomingBusIndex=1 )
-      opticsLeftVrm = Sensor( "0x74", "tda38740a", "SMB_TDA_POS3V3_OPTICS_RIGHT",
-                              incomingBusIndex=1 )
+      opticsRightVrm = Sensor( "0x74", "xdpe1a2g5b", "SMB_TDA_POS3V3_OPTICS_RIGHT",
+                               incomingBusIndex=1 )
 
       smbUcd = Sensor( "0x11", "glath06a_aucd90320", "SMB_UCD90320",
                        incomingBusIndex=2 )
@@ -181,6 +181,7 @@ class BanffSMB( SMBUnit ):
          th6RvddVrm1,
          th6RvddVrm2,
          opticsLeftVrm,
+         opticsRightVrm,
          smbUcd,
          smbMux,
          smbFanCpld,
