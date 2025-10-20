@@ -80,11 +80,20 @@ case "$system_product" in
     "MERU800BIA")
         install_rpm_by_keyword "meru800bia-"
         ;;
+    "MERU800BIAB")
+        install_rpm_by_keyword "meru800biab-"
+        ;;
+    "MERU800BIAC")
+        install_rpm_by_keyword "meru800biac-"
+        ;;
     "Darwin")
         install_rpm_by_keyword "darwin-"
         ;;
     "Darwin48V")
         install_rpm_by_keyword "darwin48v-"
+        ;;
+    "GLATH05A-64O")
+        install_rpm_by_keyword "glath05a-64o-"
         ;;
     "Redstart-RMB")
         # ThrasherBench and Banff systems currently have "Redstart-RMB" programmed.
