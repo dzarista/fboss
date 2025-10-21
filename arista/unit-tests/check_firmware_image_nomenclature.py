@@ -101,6 +101,7 @@ def processSubdirectoriesFromList( parentDirectory, subdirectoryNames ):
 if __name__ == "__main__":
    scriptDir = pathlib.Path( __file__ ).resolve().parent
    subtreeRoot = os.path.join( scriptDir, "..", "..", "fboss.bsp.arista" )
-   platformList = [ "meru800bia", "meru800bfa", "glath05a-64o", "darwin", "elbert" ]
+   platformList = [ "meru800bia", "meru800bfa", "glath05a-64o", "darwin", "elbert",
+                    "yamp" ]
 
    processSubdirectoriesFromList( subtreeRoot, platformList )
