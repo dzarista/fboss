@@ -20,7 +20,7 @@ echo "Overlay Files: "
 ls "/tmp/SWI"
 echo "------"
 
-core_rpm_keywords="core showtech bsp_kmods"
+core_rpm_keywords="core util bsp_kmods"
 
 system_product=$(dmidecode -s system-product-name)
 
