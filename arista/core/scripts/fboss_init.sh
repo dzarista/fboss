@@ -36,6 +36,11 @@ if [ -f "./bin/platform_init.sh" ]; then
    ./bin/platform_init.sh
 fi
 
+# Copy SDK kmods
+if [ /opt/fboss/bin/.sdkkmoddir ]; then
+   cp -r /opt/fboss/lib/$(cat /opt/fboss/bin/.sdkkmoddir)/* /opt/fboss/lib/
+fi
+
 # Now run the core setup scripts.
 source ./bin/setup_fboss_env
 if [ ! -f /tmp/.fboss_skip_setup ]; then
