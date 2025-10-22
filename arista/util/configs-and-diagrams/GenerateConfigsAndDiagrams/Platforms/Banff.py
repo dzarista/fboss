@@ -294,10 +294,7 @@ class Banff( PlatformConfig ):
             "requiredKmodsToLoad": [ "spidev",
                                      "i2c_i801",
                                      "scd",
-                                     "ledtrig_timer",
-                                     "aucd9000",
-                                     "glath06a-64o-fan-cpld",
-                                     "glath06a-64o-cpld" ]
+                                     "ledtrig_timer" ]
          }
       )
 
