@@ -33,7 +33,7 @@ fboss:
 
 bsp_kmods:
 	@echo "==== Building bsp-kmods ===="
-	$(MAKE) -C $(kdir) M=$(PWD)/fboss.bsp.arista/bsp-kmods modules
+	$(MAKE) -C $(kdir) M=$(CURDIR)/fboss.bsp.arista/bsp-kmods modules
 
 showtech:
 	@echo "==== Building showtech ===="
@@ -45,7 +45,7 @@ psu-upgrade:
 
 thrift-lib/%.thrift: %.thrift
 	@echo "==== Generating python thrift libraries for $< ===="
-	@$(scratch-dir)/installed/fbthrift/bin/thrift1 -r --gen py -o $(scratch-dir) -I $(PWD) \
+	@$(scratch-dir)/installed/fbthrift/bin/thrift1 -r --gen py -o $(scratch-dir) -I $(CURDIR) \
 	-I $(scratch-dir)/repos/github.com-facebook-fbthrift.git $<
 
 thrift-libs: $(thrift-targets)
@@ -58,7 +58,7 @@ swtest:
 	@arista/core/scripts/run_sw_tests.sh
 
 clean:
-	$(MAKE) -C $(kdir) M=$(PWD)/fboss.bsp.arista/bsp-kmods clean
+	$(MAKE) -C $(kdir) M=$(CURDIR)/fboss.bsp.arista/bsp-kmods clean
 	$(MAKE) -C fboss.bsp.arista/showtech clean
 	$(MAKE) -C arista/psu-upgrade clean
 	build/fbcode_builder/getdeps.py clean --scratch-path $(scratch-dir)

@@ -188,7 +188,12 @@ do_build() {
    while [[ $# -gt 0 ]]; do
       case $1 in
          --rebuild-all)
-            rebuild_all=1
+            rebuild_sdk=1
+            rebuild_fboss=1
+            shift
+            ;;
+         --rebuild-fboss)
+            rebuild_fboss=1
             shift
             ;;
          --sai)
@@ -209,7 +214,7 @@ do_build() {
       esac
    done
    set -ex
-   if ! [[ -z $rebuild_all ]]; then
+   if ! [[ -z $rebuild_sdk ]]; then
       # Clean build and export SDK
       run_cmd_container ./fboss-bcm-sdk/build.py clean -a $arch -v $sdkVersion
       run_cmd_container ./fboss-bcm-sdk/build.py build -a $arch -v $sdkVersion \
@@ -224,9 +229,9 @@ do_build() {
       run_cmd_container ./fboss-bcm-sai/build.py export -a $arch -v $saiVersion \
                         -e $FBOSS_CONTAINER_BASE/built-sai-sdk
    fi
-   run_cmd_container bash ./fboss.git/build.sh ${fboss_args[@]} --sai $sai_arch_ver \
-                     --kernel-dir "$KERNEL_PATH" --scratch-dir "$FBOSS_SCRATCH_DIR" \
-                     --sai-sdk-dir "$SAI_SDK_DIR" ${rebuild_all+--rebuild-fboss}
+   run_cmd_container make -C fboss.git sai=$sai_arch_ver kdir="$KERNEL_PATH" \
+                     scratch-dir="$FBOSS_SCRATCH_DIR" ${rebuild_fboss+rebuild-all} \
+                     fboss-flags="--sai-sdk-dir $SAI_SDK_DIR ${fboss_args[@]}"
    # Restore files that have potentially been clobbered by the FBOSS build process.
    sudo git -C "$FBOSS_REPO_DIR" restore "build/*"
 }
