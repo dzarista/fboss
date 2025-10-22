@@ -143,7 +143,7 @@ class BanffSMB( SMBUnit ):
                              incomingBusIndex=1 )
       th6RvddVrm1 = Sensor( "0x48", "tda38740a", "SMB_TDA_TH6_POS1V5_RVDD_0",
                             incomingBusIndex=1 )
-      th6RvddVrm2 = Sensor( "0x48", "tda38740a", "SMB_TDA_TH6_POS1V5_RVDD_1",
+      th6RvddVrm2 = Sensor( "0x49", "tda38740a", "SMB_TDA_TH6_POS1V5_RVDD_1",
                             incomingBusIndex=1 )
       opticsLeftVrm = Sensor( "0x72", "xdpe1a2g5b", "SMB_TDA_POS3V3_OPTICS_LEFT",
                               incomingBusIndex=1 )
@@ -196,7 +196,8 @@ class BanffSMB( SMBUnit ):
 
       smbFpga0 = self.pciDeviceConfigs[ 0 ]
       smbFpga0.addInfoRomConfigs( "0x100" )
-      smbFpga0.addI2cAdapterConfigs( 9, "SMB_FPGA{}_I2C_MASTER{}", "0x8000" )
+      smbFpga0.addI2cAdapterConfigs( 9, "SMB_FPGA{}_I2C_MASTER{}", "0x8000",
+                                     numChannelsPerAdapter=4 )
       smbFpga0.addSpiMasterConfigs( [
          SpiMasterConfig( "SMB_SPI0_MASTER0", "spi_master", -1,
                            "0x7900",
@@ -212,12 +213,13 @@ class BanffSMB( SMBUnit ):
                                   portNumberSkipStep=4, ledsPerXcvr=2,
                                   smbusAccelStart=0,
                                   smbusName="SMB_FPGA0_I2C_MASTER",
-                                  xcvrBaseOffset="0xA000", accelBusRange=( 0, 7 ),
+                                  xcvrBaseOffset="0xA010", accelBusRange=( 0, 3 ),
                                   lanesCount=8 )
 
       smbFpga1 = self.pciDeviceConfigs[ 1 ]
       smbFpga1.addInfoRomConfigs( "0x100" )
-      smbFpga1.addI2cAdapterConfigs( 8, "SMB_FPGA{}_I2C_MASTER{}", "0x8000" )
+      smbFpga1.addI2cAdapterConfigs( 8, "SMB_FPGA{}_I2C_MASTER{}", "0x8000",
+                                     numChannelsPerAdapter=4 )
       smbFpga1.addSpiMasterConfigs( [
          SpiMasterConfig( "SMB_SPI1_MASTER0", "spi_master", -1,
                            "0x7900",
@@ -242,7 +244,7 @@ class BanffSMB( SMBUnit ):
                                   portNumberSkipStep=4, ledsPerXcvr=2,
                                   smbusAccelStart=0,
                                   smbusName="SMB_FPGA1_I2C_MASTER",
-                                  xcvrBaseOffset="0xA000", accelBusRange=( 0, 7 ),
+                                  xcvrBaseOffset="0xA010", accelBusRange=( 0, 3 ),
                                   lanesCount=8 )
 
       self.addOutgoingSlotConfigs( [
@@ -270,7 +272,7 @@ class BanffSMB( SMBUnit ):
             presenceDevicePath="/SMB_SLOT@0/[SMB_FPGA0]",
             outgoingI2cBuses=[ smbMux.buses[ 3 ] ]
          ),
-         *enumerateFANSlotConfigs( 8, "/SMB_SLOT@0/[FAN_CPLD]" ),
+         *enumerateFANSlotConfigs( 8, "/SMB_SLOT@0/[FAN_CPLD]", fansPerCpld=8 ),
       ] )
 
 

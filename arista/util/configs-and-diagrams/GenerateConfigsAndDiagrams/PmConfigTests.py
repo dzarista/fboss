@@ -894,6 +894,39 @@ class I2cAdapterConfigTest( unittest.TestCase ):
          "/run/devmap/i2c-busses/TEST_PLATFORM_SMB_FPGA13_SMBUS12_CH7" in symlinkDict
       )
 
+   def testI2cBusesFewerChannels( self ):
+      self.platform.pmUnitConfigs[ 1 ].pciDeviceConfigs[ 0 ].addI2cAdapterConfigs(
+         numAdapters=12,
+         adapterBaseName="SMB_FPGA{}_I2C_MASTER{}",
+         baseCsrOffset="0x4000",
+         # Test case where we use non-default number of channels
+         numChannelsPerAdapter=4
+      )
+      self.platform.pmUnitConfigs[ 1 ].populateSymlinkToDevicePaths()
+      symlinkDict = json.loads( self.platform.pmConfigJson() )[ "symbolicLinkToDevicePath" ]
+      self.assertEqual( len( symlinkDict.keys() ), 12 * 4 + 1 )
+      self.assertTrue( "/run/devmap/fpgas/TEST_PLATFORM_SMB_FPGA13" in symlinkDict )
+      self.assertEqual(
+         symlinkDict[ "/run/devmap/fpgas/TEST_PLATFORM_SMB_FPGA13" ],
+         "/SMB_SLOT@21/[SMB_FPGA13]"
+      )
+
+      for channel in range( 4 ):
+         self.assertTrue(
+            f"/run/devmap/i2c-busses/TEST_PLATFORM_SMB_FPGA13_SMBUS11_CH{channel}"
+            in symlinkDict
+         )
+         self.assertEqual(
+            symlinkDict[f"/run/devmap/i2c-busses/TEST_PLATFORM_SMB_FPGA13_SMBUS11_CH{channel}"],
+            f"/SMB_SLOT@21/[SMB_FPGA13_I2C_MASTER11@{channel}]"
+         )
+
+      for channel in range( 4, 8 ):
+         self.assertFalse(
+            f"/run/devmap/i2c-busses/TEST_PLATFORM_SMB_FPGA13_SMBUS11_CH{channel}"
+            in symlinkDict
+         )
+
    def testAdapterConfigWithBusSymlinkPrefix( self ):
       '''Test that when a busSymlinkPrefix is provided to an I2cAdapterConfig that
       the resulting symlink paths are as epected.

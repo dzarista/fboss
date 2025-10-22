@@ -1097,7 +1097,8 @@ class PciDeviceConfig:
    def addParentConfigPointer( self, parentConfig ):
       self.parentConfig = parentConfig
 
-   def addI2cAdapterConfigs( self, numAdapters, adapterBaseName, baseCsrOffset ):
+   def addI2cAdapterConfigs( self, numAdapters, adapterBaseName, baseCsrOffset,
+                             numChannelsPerAdapter=8 ):
       configs = []
       numFormatSpecifiers = adapterBaseName.count( '{}' )
       for i in range( numAdapters ):
@@ -1108,7 +1109,8 @@ class PciDeviceConfig:
             adapterName = adapterBaseName.format( i )
          csrOffset = hex( int( baseCsrOffset, 16 ) + i * 0x80 )
          configs.append(
-            I2cAdapterConfig( self, adapterName, "i2c_master", -1, csrOffset, 8 )
+            I2cAdapterConfig( self, adapterName, "i2c_master", -1, csrOffset,
+                              numChannelsPerAdapter )
          )
       self.i2cAdapterConfigs.extend( configs )
 
