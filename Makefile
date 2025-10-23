@@ -23,7 +23,7 @@ thrift-targets := $(patsubst %.thrift,thrift-lib/%.thrift,$(thrifts))
 .PHONY: fboss extract_platform_mappings bsp_kmods showtech rebuild-all clean
 
 # Default target
-all: fboss bsp_kmods showtech psu-upgrade platform_mappings
+all: fboss bsp_kmods showtech psu-upgrade platform_mappings thrift-libs
 rebuild-all: clean all
 barney_core: fboss thrift-libs
 barney_platform: platform_mappings showtech psu-upgrade
