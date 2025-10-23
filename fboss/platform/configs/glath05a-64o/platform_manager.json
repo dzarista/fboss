@@ -166,25 +166,25 @@
         {
           "busName": "SMB_I2C_MASTER1@1",
           "address": "0x46",
-          "kernelDeviceName": "isl68226",
+          "kernelDeviceName": "bp4a_isl68226",
           "pmUnitScopedName": "SMB_ISL68226_TH5_0V9_ANALOG"
         },
         {
           "busName": "SMB_I2C_MASTER1@2",
           "address": "0x47",
-          "kernelDeviceName": "isl68226",
+          "kernelDeviceName": "bp4a_isl68226",
           "pmUnitScopedName": "SMB_ISL68226_TH5_0V75_ANALOG"
         },
         {
           "busName": "SMB_I2C_MASTER1@3",
           "address": "0x4d",
-          "kernelDeviceName": "isl68226",
+          "kernelDeviceName": "bp4a_isl68226",
           "pmUnitScopedName": "SMB_ISL68226_OPTICS_A"
         },
         {
           "busName": "SMB_I2C_MASTER1@4",
           "address": "0x4c",
-          "kernelDeviceName": "isl68226",
+          "kernelDeviceName": "bp4a_isl68226",
           "pmUnitScopedName": "SMB_ISL68226_OPTICS_B"
         }
       ],

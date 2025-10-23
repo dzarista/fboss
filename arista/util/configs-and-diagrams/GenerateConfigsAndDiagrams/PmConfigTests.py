@@ -296,14 +296,14 @@ class I2cDeviceConfigTest( unittest.TestCase ):
 
    def testIncompleteConfig( self ):
       self.platform.pmUnitConfigs[ 0 ].addI2cDeviceConfigs( [
-         I2cDeviceConfig( "0x5A", "isl68226", None, incomingBusIndex=1 )
+         I2cDeviceConfig( "0x5A", "bp4a_isl68226", None, incomingBusIndex=1 )
       ] )
       with self.assertRaises( AssertionError ):
          self.platform.pmConfigJson()
 
    def testNoExtraFields( self ):
       self.platform.pmUnitConfigs[ 0 ].addI2cDeviceConfigs( [
-         I2cDeviceConfig( "0x5B", "isl68226", "SMB_ISL68226_OSFP_TR",
+         I2cDeviceConfig( "0x5B", "bp4a_isl68226", "SMB_ISL68226_OSFP_TR",
                          incomingBusIndex=1 )
       ] )
       pmUnitDict = json.loads( self.platform.pmConfigJson() )[ "pmUnitConfigs" ]

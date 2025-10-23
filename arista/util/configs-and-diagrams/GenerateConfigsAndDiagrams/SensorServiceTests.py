@@ -30,7 +30,7 @@ class SensorServiceTest( unittest.TestCase ):
          FairywrenSensor( "0x40", "pmbus", "SCM_MPS_PMBUS" )
       ] )
       self.platform.pmUnitConfigs[ 1 ].addI2cDeviceConfigs( [
-         Sensor( "0x54", "isl68226", "SMB_ISL68226_J3" )
+         Sensor( "0x54", "bp4a_isl68226", "SMB_ISL68226_J3" )
       ] )
 
    def findSensor( self, sensors, name ):

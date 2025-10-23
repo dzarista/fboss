@@ -135,7 +135,7 @@ class QuicksilverPFbSMB( SMBUnit ):
                        ) )
       ] )
 
-      smbIsl0V9 = Sensor( "0x46", "isl68226", "SMB_ISL68226_TH5_0V9_ANALOG" )
+      smbIsl0V9 = Sensor( "0x46", "bp4a_isl68226", "SMB_ISL68226_TH5_0V9_ANALOG" )
       smbIsl0V9.addSensorConfigs( [
          SensorConfig( "ISL_TH5_0V9_TEMP1", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
@@ -161,7 +161,7 @@ class QuicksilverPFbSMB( SMBUnit ):
                        ) )
       ] )
 
-      smbIsl0V75 = Sensor( "0x47", "isl68226", "SMB_ISL68226_TH5_0V75_ANALOG" )
+      smbIsl0V75 = Sensor( "0x47", "bp4a_isl68226", "SMB_ISL68226_TH5_0V75_ANALOG" )
       smbIsl0V75.addSensorConfigs( [
          SensorConfig( "ISL_TH5_0V75_TEMP1", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
@@ -187,7 +187,7 @@ class QuicksilverPFbSMB( SMBUnit ):
                        ) )
       ] )
 
-      smbIslOpticsA = Sensor( "0x4D", "isl68226", "SMB_ISL68226_OPTICS_A" )
+      smbIslOpticsA = Sensor( "0x4D", "bp4a_isl68226", "SMB_ISL68226_OPTICS_A" )
       smbIslOpticsA.addSensorConfigs( [
          SensorConfig( "ISL_OPTICS_A_TEMP", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
@@ -205,7 +205,7 @@ class QuicksilverPFbSMB( SMBUnit ):
                        ) )
       ] )
 
-      smbIslOpticsB = Sensor( "0x4C", "isl68226", "SMB_ISL68226_OPTICS_B" )
+      smbIslOpticsB = Sensor( "0x4C", "bp4a_isl68226", "SMB_ISL68226_OPTICS_B" )
       smbIslOpticsB.addSensorConfigs( [
          SensorConfig( "ISL_OPTICS_B_TEMP", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
