@@ -23,7 +23,7 @@ from GenerateConfigsAndDiagrams.BaseConfigs import (
    SpiMasterConfig,
    Flash
 )
-
+from ..L1Configs import L1Configs
 
 class QuicksilverPFbSCM( SCMFairywren ):
    def __init__( self ):
@@ -302,9 +302,10 @@ class QuicksilverPFb( PlatformConfig ):
    def __init__( self ):
       super().__init__( self.codename )
 
+      quicksilverSMB = QuicksilverPFbSMB()
       self.addPmUnitConfigs( [
          QuicksilverPFbSCM(),
-         QuicksilverPFbSMB(),
+         quicksilverSMB,
          PSUUnit( initRegSettings=InitRegSettings( [ ( 16, -128 ) ] ) ),
          FANUnit()
       ] )
@@ -361,3 +362,26 @@ class QuicksilverPFb( PlatformConfig ):
          slope=3
       )
       self.PlatformFanServiceConfig = fanServiceConfig
+
+      # Define l1 configs
+      self.l1 = L1Configs( self.codename, arch="xgs", asic="th5", num_asics=1,
+                           xcvrs=quicksilverSMB.pciDeviceConfigs[0].xcvrCtrlConfigs,
+                           profile_exclude = [
+                              'PROFILE_100G_4_NRZ_RS528_COPPER',
+                              'PROFILE_200G_4_PAM4_RS544X2N_COPPER',
+                              'PROFILE_400G_8_PAM4_RS544X2N_OPTICAL',
+                              'PROFILE_100G_4_NRZ_CL91_COPPER',
+                              'PROFILE_100G_4_NRZ_CL91_OPTICAL',
+                              'PROFILE_20G_2_NRZ_NOFEC_OPTICAL',
+                              'PROFILE_25G_1_NRZ_NOFEC_OPTICAL',
+                              'PROFILE_50G_2_NRZ_NOFEC_OPTICAL',
+                              'PROFILE_100G_4_NRZ_NOFEC_COPPER',
+                              'PROFILE_400G_8_PAM4_RS544X2N_COPPER',
+                              'PROFILE_53POINT125G_1_PAM4_RS545_COPPER',
+                              'PROFILE_53POINT125G_1_PAM4_RS545_OPTICAL',
+                              'PROFILE_100G_2_PAM4_RS544X2N_OPTICAL',
+                              'PROFILE_50G_1_PAM4_RS544_COPPER',
+                              'PROFILE_50G_1_PAM4_RS544_OPTICAL',
+                              'PROFILE_100G_2_PAM4_RS544X2N_COPPER',
+                              'PROFILE_50G_2_NRZ_RS528_OPTICAL'
+                           ] )

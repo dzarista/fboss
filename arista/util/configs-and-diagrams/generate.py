@@ -115,7 +115,9 @@ def main():
                         help='Platform name' )
    parser.add_argument( '--output',
                         choices=[ 'pm-config', 'sensor-config', 'pm-diagram',
-                                  'bsp-mapping', 'fan-config', 'led-config' ],
+                                  'bsp-mapping', 'fan-config', 'led-config',
+                                  'vendor-mappings' ],
+
                         help='Config/diagram to generate' )
 
    args = parser.parse_args()
@@ -133,9 +135,13 @@ def main():
          genFanConfig( platform, aristaCodename, metaCodename, output )
    elif args.platform and args.output and not args.update_all_configs:
       platform = platforms[ args.platform ]()
-      result = getattr( platform, output[ args.output ] )()
-      if args.output in [ 'pm-config', 'sensor-config', 'bsp-mapping', 'fan-config',
-                          'led-config' ]:
+      if args.output == 'vendor-mappings':
+          assert hasattr( platform, 'l1' ), f"L1Configs not defined on {args.platform}"
+          l1_configs = platform.l1
+          result = l1_configs.gen_vendor_mapping()
+      elif args.output in [ 'pm-config', 'sensor-config', 'bsp-mapping',
+                            'fan-config', 'led-config']:
+         result = getattr( platform, output[ args.output ] )()
          print( result )
    else:
       parser.error( parser.description )
