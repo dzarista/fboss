@@ -1,0 +1,94 @@
+{
+  "fwConfigs": {
+   "smb_cpld": {
+      "preUpgrade": [
+        {
+          "commandType": "jtag",
+          "jtagArgs": {
+            "path": "/run/devmap/fpgas/SCM_FPGA/switch_jtag_enable",
+            "value": 1
+          }
+        },
+        {
+          "commandType": "jtag",
+          "jtagArgs": {
+            "path": "/run/devmap/cplds/SMB_CPLD/jtag_mux_sel",
+            "value": 0
+          }
+        }
+      ],
+      "upgrade": [
+        {
+          "commandType": "jam",
+          "jamArgs": {
+            "jamExtraArgs": [
+              "-aprogram",
+              "-fglath06a_64o_smb_cpld",
+              "-v"
+            ]
+          }
+        }
+      ],
+      "version": {
+        "versionType": "sysfs",
+        "path": "/run/devmap/cplds/SMB_CPLD/fw_ver"
+      },
+      "priority": 3
+    },
+    "smb_fpga0": {
+      "upgrade": [
+        {
+          "commandType": "flashrom",
+          "flashromArgs": {
+            "spi_layout": "0:3FFFFF image",
+            "programmer_type": "linux_spi:dev=",
+            "programmer": "/run/devmap/flashes/SMB_SPI0_MASTER0_DEVICE1",
+            "flashromExtraArgs": [
+              "-i",
+              "image"
+            ],
+            "chip": [
+              "GD25LQ256D"
+            ]
+          }
+        }
+      ],
+      "version": {
+        "versionType": "sysfs",
+        "path": "/run/devmap/inforoms/SMB_FPGA0_INFO_ROM/fw_ver"
+      },
+      "priority": 2
+    },
+    "smb_fpga1": {
+      "upgrade": [
+        {
+          "commandType": "flashrom",
+          "flashromArgs": {
+            "spi_layout": "0:3FFFFF image",
+            "programmer_type": "linux_spi:dev=",
+            "programmer": "/run/devmap/flashes/SMB_SPI1_MASTER0_DEVICE1",
+            "flashromExtraArgs": [
+              "-i",
+              "image"
+            ],
+            "chip": [
+              "GD25LQ256D"
+            ]
+          }
+        }
+      ],
+      "version": {
+        "versionType": "sysfs",
+        "path": "/run/devmap/inforoms/SMB_FPGA1_INFO_ROM/fw_ver"
+      },
+      "priority": 2
+    },
+     "fan_cpld": {
+      "version": {
+        "versionType": "sysfs",
+        "path": "/run/devmap/cplds/FAN_CPLD/hwmon/hwmon*/fw_ver"
+      },
+      "priority": 1
+    }
+  }
+}
