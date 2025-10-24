@@ -1,0 +1,61 @@
+### SMB SERIAL NUMBER ###
+Product Name: TestSwitch
+Serial Number: TST12345678
+
+### System Log ###
+2023-12-01 10:30:45 INFO: System startup initiated
+2023-12-01 10:30:46 ERROR: Database connection failed
+2023-12-01 10:30:47 INFO: Attempting retry...
+2023-12-01 10:30:48 ERROR: Retry failed
+2023-12-01 10:30:49 CRITICAL: System entering safe mode
+
+### Stack Trace Section ###
+Process started successfully
+Traceback (most recent call last):
+  File "/usr/bin/main.py", line 42, in <module>
+    result = process_data()
+  File "/usr/lib/processor.py", line 15, in process_data
+    raise ValueError("Invalid configuration")
+ValueError: Invalid configuration
+System recovered after error
+
+### Multi-line Error Block ###
+ERROR: Port initialization failed
+Details: Hardware not responding
+Additional info: Check cable connections
+FAILED: Port eth1/1 unavailable
+
+ERROR: Temperature sensor malfunction
+Details: Sensor reading out of range
+Additional info: Replace sensor module
+FAILED: Monitoring disabled
+
+### Network Configuration ###
+Interface eth1/1: UP
+Interface eth1/2: DOWN - Link failure detected
+Interface eth1/3: UP
+Interface eth1/4: DOWN - No carrier signal
+
+### Performance Metrics ###
+CPU Usage: 85% (WARNING: High usage)
+Memory Usage: 92% (CRITICAL: Memory exhausted)
+Disk Usage: 45% (OK)
+Network Throughput: 1.2 Gbps (OK)
+
+### Unicode and Special Characters ###
+Temperature: 85°C (Overheating detected)
+Status: ✓ OK, ✗ Failed, ⚠ Warning
+Français: Erreur détectée
+Русский: Ошибка системы
+中文: 系统错误
+
+### Complex Patterns ###
+[2023-12-01 10:30:45] ERROR: Connection timeout after 30s
+[2023-12-01 10:30:46] WARN: Retrying connection (attempt 1/3)
+[2023-12-01 10:30:47] ERROR: Connection timeout after 30s
+[2023-12-01 10:30:48] WARN: Retrying connection (attempt 2/3)
+[2023-12-01 10:30:49] ERROR: Connection timeout after 30s
+[2023-12-01 10:30:50] CRITICAL: Max retries exceeded, giving up
+
+### End of Log ###
+System shutdown completed

@@ -1,0 +1,94 @@
+# Node modules
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Logs
+*.log
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# Build outputs
+build/
+dist/
+
+# Temporary files
+tmp/
+temp/
+
+# Documentation and README files
+README.md
+docs/
+*.md
+
+# Test files
+tests/
+test/
+*.test.js
+*.spec.js
+
+# Development data
+data/
+showtech-backend/data/
+out.json
+
+# Docker files (don't copy into container)
+Dockerfile*
+docker-compose*.yml
+
+# Cache directories
+.cache
+.parcel-cache
+.eslintcache
+.pytest_cache/

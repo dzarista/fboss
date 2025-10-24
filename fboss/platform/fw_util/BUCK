@@ -14,9 +14,6 @@ cpp_binary(
         "//folly/logging:init",
         "//folly/logging:logging",
     ],
-    external_deps = [
-        "CLI11",
-    ],
 )
 
 cpp_library(

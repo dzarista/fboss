@@ -99,7 +99,8 @@ bool waitForAnyPorAndQueutOutBytesIncrement(
         }
       }
     }
-    XLOG(DBG3) << "No port stats increased yet";
+    // Arista HACK to workaround compiler errors.
+    // XLOG(DBG3) << "No port stats increased yet";
     return false;
   };
   return waitPortStatsCondition(
@@ -126,7 +127,8 @@ bool waitForAnyVoQOutBytesIncrement(
         return true;
       }
     }
-    XLOG(DBG3) << "No port stats increased yet";
+    // Arista HACK to workaround compiler errors.
+    // XLOG(DBG3) << "No port stats increased yet";
     return false;
   };
   return waitSysPortStatsCondition(

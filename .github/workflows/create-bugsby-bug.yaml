@@ -1,0 +1,30 @@
+name: Create Bugsby Bug on PR Merge
+
+on:
+  pull_request:
+    types: [closed]
+    paths:
+      - 'fboss/**'
+
+  workflow_dispatch:
+
+jobs:
+  call-api:
+    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
+
+    runs-on: self-hosted
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Make script executable
+        run: chmod +x arista-ci-scripts/bugsby_post.sh
+
+      - name: Post bug
+        run: arista-ci-scripts/bugsby_post.sh
+        env:
+          SRV_FBOSS_USERNAME: ${{ secrets.SRV_FBOSS_ARISTA_ACCOUNT_USERNAME }}
+          SRV_FBOSS_PASSWORD: ${{ secrets.SRV_FBOSS_ARISTA_ACCOUNT_PWD }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_AUTHOR_LOGIN: ${{ github.event.pull_request.user.login }}

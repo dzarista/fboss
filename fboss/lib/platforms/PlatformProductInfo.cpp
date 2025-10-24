@@ -196,6 +196,16 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_ICETEA800BC;
     } else if (modelName.find("WEDGE800C_ACT") == 0) {
       type_ = PlatformType::PLATFORM_WEDGE800C_ACT;
+    } else if (modelName.find("TAHANSB") == 0) {
+      type_ = PlatformType::PLATFORM_TAHANSB800BC;
+    } else if (
+        modelName.find("Glath05a-64o") == 0 ||
+        modelName.find("GLATH05A-64O") == 0) {
+      type_ = PlatformType::PLATFORM_GLATH05A_64O;
+    } else if (
+        modelName.find("Glath06a-64o") == 0 ||
+        modelName.find("GLATH06A-64O") == 0) {
+      type_ = PlatformType::PLATFORM_GLATH06A_64O;
     } else {
       throw FbossError("invalid model name " + modelName);
     }
@@ -224,6 +234,8 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_ELBERT;
     } else if (FLAGS_mode == "darwin") {
       type_ = PlatformType::PLATFORM_DARWIN;
+    } else if (FLAGS_mode == "darwin48v") {
+      type_ = PlatformType::PLATFORM_DARWIN48V;
     } else if (FLAGS_mode == "meru400biu") {
       type_ = PlatformType::PLATFORM_MERU400BIU;
     } else if (FLAGS_mode == "meru800bia") {
@@ -270,6 +282,10 @@ void PlatformProductInfo::initMode() {
       type_ = PlatformType::PLATFORM_TAHANSB800BC;
     } else if (FLAGS_mode == "wedge800ca") {
       type_ = PlatformType::PLATFORM_WEDGE800C_ACT;
+    } else if (FLAGS_mode == "glath05a-64o") {
+      type_ = PlatformType::PLATFORM_GLATH05A_64O;
+    } else if (FLAGS_mode == "glath06a-64o") {
+      type_ = PlatformType::PLATFORM_GLATH06A_64O;
     } else {
       throw std::runtime_error("invalid mode " + FLAGS_mode);
     }

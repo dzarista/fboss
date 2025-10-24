@@ -26,6 +26,7 @@ target_link_libraries(qsfp_platforms_wedge
   wedge40_platform_mapping
   wedge400c_platform_mapping
   meru400bfu_platform_mapping
+  meru400bia_platform_mapping
   meru400biu_platform_mapping
   meru400bia_platform_mapping
   meru800bia_platform_mapping
@@ -38,6 +39,8 @@ target_link_libraries(qsfp_platforms_wedge
   icecube800bc_platform_mapping
   icetea800bc_platform_mapping
   tahansb800bc_platform_mapping
+  darwin_platform_mapping
+  glath05a-64o_platform_mapping
   platform_base
   qsfp_config
   wedge400_i2c

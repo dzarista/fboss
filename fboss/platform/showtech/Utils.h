@@ -44,6 +44,7 @@ class Utils {
   std::pair<int, std::string> execCommandWithLimit(
       const std::string& cmd,
       int maxLines = 5000) const;
+  std::pair<int, std::string> safeExecCommand(const std::string& cmd) const;
 };
 
 } // namespace facebook::fboss::platform

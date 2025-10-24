@@ -1,0 +1,39 @@
+{
+  "products": {
+    "quicksilver": {
+      "name": "Quicksilver (64 Port, 4 Fans)",
+      "ports": 64,
+      "fans": 4,
+      "description": "Quicksilver switch with 64 ports and 4 fans",
+      "layoutData": "1,5,9,13,17,21,25,29,33,37,41,45,49,53,57,61\n2,6,10,14,18,22,26,30,34,38,42,46,50,54,58,62\n3,7,11,15,19,23,27,31,35,39,43,47,51,55,59,63\n4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64"
+    },
+    "moranda": {
+      "name": "Moranda (32 Port, 4 Fans)",
+      "ports": 32,
+      "fans": 4,
+      "description": "Moranda switch with 32 ports and 4 fans",
+      "layoutData": "1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31\n2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32"
+    },
+    "whistler": {
+      "name": "Whistler (128 Port, 12 Fans)",
+      "ports": 128,
+      "fans": 12,
+      "description": "Whistler switch with 128 ports and 12 fans",
+      "layoutData":"1,2,3,4,5,6,7,8\n9,10,11,12,13,14,15,16\n17,18,19,20,21,22,23,24\n25,26,27,28,29,30,31,32\n33,34,35,36,37,38,39,40\n41,42,43,44,45,46,47,48\n49,50,51,52,53,54,55,56\n57,58,59,60,61,62,63,64\n65,66,67,68,69,70,71,72\n73,74,75,76,77,78,79,80\n81,82,83,84,85,86,87,88\n89,90,91,92,93,94,95,96\n97,98,99,100,101,102,103,104\n105,106,107,108,109,110,111,112\n113,114,115,116,117,118,119,120\n121,122,123,124,125,126,127,128"
+    },
+    "gappy_layout": {
+      "name": "Gappy Layout Example",
+      "ports": 12,
+      "fans": 2,
+      "description": "Example layout with gaps for testing",
+      "layoutData": "1,2,,4\n,6,7,\n9,,11,12"
+    }
+  },
+  "metadata": {
+    "version": "1.0",
+    "lastUpdated": "2025-01-07",
+    "description": "Product definitions for thermal monitoring tools",
+    "maxRPM": 11200,
+    "defaultProduct": "whistler"
+  }
+}

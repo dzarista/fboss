@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Switch Thermal Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .control-item { /* Class for individual control groups */
+            display: flex;
+            flex-direction: column; /* Stack label and input vertically */
+            margin-right: 1rem; /* Spacing between control items */
+            margin-bottom: 0.5rem; /* Spacing for wrapping */
+        }
+        .control-item label {
+            margin-bottom: 0.25rem;
+            font-weight: 500;
+            font-size: 0.875rem; /* Slightly smaller label */
+        }
+        .control-item input[type="number"],
+        .control-item select,
+        .control-item input[type="file"] {
+            padding: 0.5rem;
+            border-radius: 0.375rem;
+            border: 1px solid #D1D5DB; /* gray-300 */
+            min-width: 150px; /* Ensure inputs have some base width */
+        }
+        .control-item input[type="file"] {
+            padding: 0.3rem; /* Adjust file input padding */
+        }
+        .play-button-container { /* Container for the play button for alignment */
+            display: flex;
+            align-items: flex-end; /* Align button to bottom with other inputs */
+            margin-bottom: 0.5rem;
+        }
+        .play-button-container button {
+            padding: 0.6rem 1.2rem;
+            border-radius: 0.375rem;
+            font-weight: 600;
+            transition: background-color 0.2s;
+            height: calc(2.25rem + 2px); /* Match height of inputs (padding + border) */
+        }
+
+        .grid-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-width: 30px;
+            height: 30px;
+            border: 1px solid #9CA3AF; /* gray-400 */
+            border-radius: 0.25rem;
+            font-size: 0.5rem;
+            text-align: center;
+            padding: 1px;
+            box-sizing: border-box;
+            overflow: hidden; /* Hide overflow if content is too large */
+        }
+        .grid-cell .temp-value {
+            font-size: 0.6rem;
+            font-weight: bold;
+            margin-top: 0px;
+        }
+        .grid-cell-empty {
+            background-color: #F9FAFB;
+            border: 1px solid #E5E7EB;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 30px;
+            height: 30px;
+            padding: 1px;
+            box-sizing: border-box;
+            border-radius: 0.25rem;
+            font-size: 0.5rem;
+            color: #9CA3AF;
+        }
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #333;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        .toast.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-800 p-4 md:p-8">
+    <div class="container mx-auto max-w-7xl">
+        <header class="mb-6 text-center">
+            <h1 class="text-3xl font-bold text-gray-700">Switch Thermal Visualizer (gemini experiment)</h1>
+        </header>
+
+        <div class="bg-white p-4 rounded-lg shadow-lg mb-6">
+            <h2 class="text-xl font-semibold mb-3 text-gray-700 sr-only">Controls</h2>
+            <div class="flex flex-wrap items-end">
+                <div class="control-item">
+                    <label for="product-select">Product Layout:</label>
+                    <select id="product-select" class="bg-white">
+                        <option value="quicksilver">Quicksilver (64 Port)</option>
+                        <option value="moranda">Moranda (32 Port)</option>
+                        <option value="whistler">Whistler (128 Port)</option>
+                        <option value="gappy_layout">Gappy Layout Example</option>
+                    </select>
+                </div>
+
+                <div class="control-item">
+                    <label for="csv-file-input">Upload Thermal CSV:</label>
+                    <input type="file" id="csv-file-input" accept=".csv">
+                </div>
+
+                <div class="control-item">
+                    <label for="percentile-input">Percentile (1-99):</label>
+                    <input type="number" id="percentile-input" value="80" min="1" max="99">
+                </div>
+
+                <div class="control-item">
+                    <label for="speed-input">Speed (rows/s):</label>
+                    <input type="number" id="speed-input" value="50" min="0.1" step="0.1">
+                </div>
+
+                <div class="control-item">
+                    <label for="start-row-input">Start Row:</label>
+                    <input type="number" id="start-row-input" value="0" min="0">
+                </div>
+
+                <div class="play-button-container control-item">
+                    <button id="play-pause-button" class="w-full bg-blue-500 hover:bg-blue-600 text-white" disabled>
+                        Play
+                    </button>
+                </div>
+            </div>
+             <p id="status-message" class="text-sm text-gray-500 mt-2 text-left"></p>
+        </div>
+
+        <div class="bg-white p-6 rounded-lg shadow-lg">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div class="md:col-span-1">
+                    <h3 class="text-lg font-semibold text-gray-700">Current Timestamp:</h3>
+                    <p id="timestamp-display" class="text-gray-600">-</p>
+                </div>
+                <div class="md:col-span-2">
+                    <h3 class="text-lg font-semibold text-gray-700">Fan Data:</h3>
+                    <p id="fan-data-display" class="text-gray-600 text-sm">-</p>
+                </div>
+            </div>
+
+            <h3 class="text-lg font-semibold text-gray-700 mb-3">Port Temperatures:</h3>
+            <div id="grid-container" class="overflow-x-auto pb-4">
+                <p class="text-gray-500">Select a product and upload data to see visualization.</p>
+            </div>
+        </div>
+    </div>
+    <div id="toast-notification" class="toast"></div>
+
+    <script>
+        // --- Predefined Layouts ---
+        // The layoutData strings should be the exact content of your CSV layout files.
+        const PREDEFINED_LAYOUTS = {
+            quicksilver: {
+                name: "Quicksilver (64 Port)",
+                layoutData: `1,5,9,13,17,21,25,29,33,37,41,45,49,53,57,61\n2,6,10,14,18,22,26,30,34,38,42,46,50,54,58,62\n3,7,11,15,19,23,27,31,35,39,43,47,51,55,59,63\n4,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64`
+            },
+            moranda: {
+                name: "Moranda (32 Port)",
+                layoutData: `1,3,5,7,9,11,13,15,17,19,21,23,25,27,29,31\n2,4,6,8,10,12,14,16,18,20,22,24,26,28,30,32`
+            },
+            whistler: {
+                name: "Whistler (128 Port)",
+                layoutData: `1,2,3,4,5,6,7,8\n9,10,11,12,13,14,15,16\n17,18,19,20,21,22,23,24\n25,26,27,28,29,30,31,32\n33,34,35,36,37,38,39,40\n41,42,43,44,45,46,47,48\n49,50,51,52,53,54,55,56\n57,58,59,60,61,62,63,64\n65,66,67,68,69,70,71,72\n73,74,75,76,77,78,79,80\n81,82,83,84,85,86,87,88\n89,90,91,92,93,94,95,96\n97,98,99,100,101,102,103,104\n105,106,107,108,109,110,111,112\n113,114,115,116,117,118,119,120\n121,122,123,124,125,126,127,128`
+            },
+            gappy_layout: {
+                name: "Gappy Layout Example",
+                layoutData: `1,2,,4\n,6,7,\n9,,11,12`
+            }
+        };
+
+        // --- Global State Variables ---
+        let currentProductLayout = null;
+        let maxPortInLayout = 0;
+        let thermalData = [];
+        let animationIntervalId = null;
+        let currentRowIndex = 0;
+        let isPlaying = false;
+        let actualPercentileValue = NaN;
+
+        // --- DOM Elements ---
+        const productSelect = document.getElementById('product-select');
+        const csvFileInput = document.getElementById('csv-file-input');
+        const percentileInput = document.getElementById('percentile-input');
+        const speedInput = document.getElementById('speed-input');
+        const startRowInput = document.getElementById('start-row-input');
+        const playPauseButton = document.getElementById('play-pause-button');
+        const timestampDisplay = document.getElementById('timestamp-display');
+        const fanDataDisplay = document.getElementById('fan-data-display');
+        const gridContainer = document.getElementById('grid-container');
+        const statusMessage = document.getElementById('status-message');
+        const toastNotification = document.getElementById('toast-notification');
+
+        // --- Utility Functions ---
+        function showToast(message, duration = 3000) {
+            toastNotification.textContent = message;
+            toastNotification.classList.add('show');
+            setTimeout(() => {
+                toastNotification.classList.remove('show');
+            }, duration);
+        }
+
+        function simpleCSVParser(csvText) {
+            const lines = csvText.trim().split(/\r?\n/);
+            if (lines.length === 0) return [];
+            const headers = lines[0].split(',').map(h => h.trim());
+            const data = [];
+            for (let i = 1; i < lines.length; i++) {
+                if (lines[i].trim() === "") continue;
+                const values = lines[i].split(',').map(v => v.trim());
+                if (values.length === headers.length) {
+                    const rowObject = {};
+                    headers.forEach((header, index) => {
+                        rowObject[header] = values[index];
+                    });
+                    data.push(rowObject);
+                } else {
+                    console.warn(`Skipping malformed CSV line ${i+1}: expected ${headers.length} values, got ${values.length}`);
+                }
+            }
+            return data;
+        }
+
+        function parseLayoutCSV(csvText) {
+            return csvText.trim().split(/\r?\n/).map(line =>
+                line.trim().split(',').map(item => parseInt(item.trim(), 10))
+            );
+        }
+
+        function calculatePercentileFromArray(arr, p) {
+            if (!arr || arr.length === 0) return NaN;
+            const cleanArr = arr.filter(val => !isNaN(parseFloat(val))).map(val => parseFloat(val));
+            if (cleanArr.length === 0) return NaN;
+
+            const sorted = cleanArr.sort((a, b) => a - b);
+            const N = sorted.length;
+            const index = (p / 100) * (N -1);
+
+            if (Number.isInteger(index)) {
+                return sorted[index];
+            } else {
+                const k = Math.floor(index);
+                const f = index - k;
+                if (k + 1 < N) {
+                    return sorted[k] + f * (sorted[k+1] - sorted[k]);
+                } else {
+                    return sorted[k];
+                }
+            }
+        }
+
+        function getColor(value, pValue) {
+            if (isNaN(value) || value === null || value === undefined) return 'bg-gray-300 text-gray-700';
+            if (value < pValue) return 'bg-green-500 text-white';
+            if (value < pValue * 1.1) return 'bg-yellow-400 text-gray-800';
+            return 'bg-red-500 text-white';
+        }
+
+        // --- Core Logic Functions ---
+        function loadProductLayout(productKey) {
+            const product = PREDEFINED_LAYOUTS[productKey];
+            if (!product) {
+                showToast(`Error: Product layout for "${productKey}" not found.`);
+                return;
+            }
+            try {
+                currentProductLayout = parseLayoutCSV(product.layoutData);
+                maxPortInLayout = Math.max(0, ...currentProductLayout.flat().filter(n => !isNaN(n)));
+                renderGridStructure();
+                updatePlayButtonState();
+                showToast(`${product.name} layout loaded. Max actual port: ${maxPortInLayout}.`);
+            } catch (error) {
+                showToast(`Error parsing layout for ${product.name}: ${error.message}`);
+                console.error("Error parsing layout:", error);
+                currentProductLayout = null;
+                maxPortInLayout = 0;
+                gridContainer.innerHTML = '<p class="text-red-500">Error loading layout. Please check console.</p>';
+            }
+        }
+
+        function renderGridStructure() {
+            if (!currentProductLayout || currentProductLayout.length === 0) {
+                gridContainer.innerHTML = '<p class="text-gray-500">Load a product layout to see the grid.</p>';
+                return;
+            }
+            gridContainer.innerHTML = '';
+            gridContainer.style.display = 'grid';
+            const numCols = currentProductLayout[0] ? currentProductLayout[0].length : 1;
+            gridContainer.style.gridTemplateColumns = `repeat(${numCols}, minmax(30px, 1fr))`;
+            gridContainer.style.gap = '3px';
+
+            currentProductLayout.forEach(row => {
+                row.forEach(portId => {
+                    if (isNaN(portId)) {
+                        const cell = document.createElement('div');
+                        cell.className = 'grid-cell-empty';
+                        gridContainer.appendChild(cell);
+                    } else {
+                        const cell = document.createElement('div');
+                        cell.className = 'grid-cell bg-gray-200';
+                        cell.dataset.portId = portId;
+
+                        const portIdSpan = document.createElement('span');
+                        portIdSpan.className = 'port-id';
+                        portIdSpan.textContent = `P:${portId}`;
+
+                        const tempValueSpan = document.createElement('span');
+                        tempValueSpan.className = 'temp-value';
+                        tempValueSpan.textContent = '-°C';
+
+                        cell.appendChild(portIdSpan);
+                        cell.appendChild(tempValueSpan);
+                        gridContainer.appendChild(cell);
+                    }
+                });
+            });
+        }
+
+        function handleFileUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            statusMessage.textContent = 'Loading CSV...';
+            playPauseButton.disabled = true;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    thermalData = simpleCSVParser(e.target.result);
+                    if (thermalData.length === 0) {
+                        showToast('Uploaded CSV is empty or invalid.');
+                        statusMessage.textContent = 'CSV empty/invalid.';
+                        thermalData = [];
+                    } else {
+                        const headers = Object.keys(thermalData[0]);
+                        if (!headers.includes('datetime') || !headers.some(h => h.startsWith('DomTemperatureSensor'))) {
+                            showToast('CSV must contain "datetime" and "DomTemperatureSensorX" columns.');
+                            statusMessage.textContent = 'CSV missing required columns.';
+                            thermalData = [];
+                        } else {
+                           showToast(`CSV loaded successfully with ${thermalData.length} data rows.`);
+                           statusMessage.textContent = `${thermalData.length} rows loaded.`;
+                           startRowInput.max = thermalData.length > 0 ? thermalData.length - 1 : 0;
+                        }
+                    }
+                } catch (error) {
+                    showToast(`Error parsing CSV: ${error.message}`);
+                    statusMessage.textContent = 'Error parsing CSV.';
+                    console.error("CSV parsing error:", error);
+                    thermalData = [];
+                } finally {
+                    updatePlayButtonState();
+                }
+            };
+            reader.onerror = () => {
+                showToast('Error reading file.');
+                statusMessage.textContent = 'Error reading file.';
+                thermalData = [];
+                updatePlayButtonState();
+            };
+            reader.readAsText(file);
+        }
+
+        function updatePlayButtonState() {
+            if (thermalData && thermalData.length > 0 && currentProductLayout) {
+                playPauseButton.disabled = false;
+                if (isPlaying) {
+                    playPauseButton.textContent = 'Pause';
+                    playPauseButton.classList.remove('bg-blue-500', 'hover:bg-blue-600');
+                    playPauseButton.classList.add('bg-yellow-500', 'hover:bg-yellow-600');
+                } else {
+                    playPauseButton.textContent = 'Play';
+                     playPauseButton.classList.remove('bg-yellow-500', 'hover:bg-yellow-600');
+                    playPauseButton.classList.add('bg-blue-500', 'hover:bg-blue-600');
+                }
+            } else {
+                playPauseButton.disabled = true;
+                playPauseButton.textContent = 'Play';
+                playPauseButton.classList.remove('bg-yellow-500', 'hover:bg-yellow-600', 'bg-blue-500', 'hover:bg-blue-600');
+                playPauseButton.classList.add('bg-blue-500');
+                 if (!currentProductLayout) statusMessage.textContent = "Select product layout.";
+                 else if (!thermalData || thermalData.length === 0) statusMessage.textContent = "Upload thermal CSV data.";
+            }
+        }
+
+        function calculateOverallPercentile() {
+            if (!thermalData || thermalData.length === 0 || maxPortInLayout === 0) {
+                actualPercentileValue = NaN;
+                return;
+            }
+            const allSensorValues = [];
+            thermalData.forEach(row => {
+                for (let i = 1; i <= maxPortInLayout; i++) {
+                    const sensorName = `DomTemperatureSensor${i}`;
+                    if (row.hasOwnProperty(sensorName)) {
+                        const val = parseFloat(row[sensorName]);
+                        if (!isNaN(val)) {
+                            allSensorValues.push(val);
+                        }
+                    }
+                }
+            });
+
+            if (allSensorValues.length === 0) {
+                actualPercentileValue = NaN;
+                showToast("No valid temperature data found in CSV for percentile calculation.");
+                return;
+            }
+            const p = parseFloat(percentileInput.value);
+            actualPercentileValue = calculatePercentileFromArray(allSensorValues, p);
+            if (isNaN(actualPercentileValue)) {
+                showToast(`Could not calculate ${p}th percentile. Check data.`);
+            } else {
+                 showToast(`${p}th percentile temperature: ${actualPercentileValue.toFixed(1)}°C`, 4000);
+            }
+        }
+
+        function animateStep() {
+            if (currentRowIndex >= thermalData.length) {
+                stopAnimation();
+                showToast('Animation finished.');
+                statusMessage.textContent = 'Animation finished.';
+                return;
+            }
+
+            const dataRow = thermalData[currentRowIndex];
+            if (!dataRow) {
+                stopAnimation();
+                showToast('Error: Missing data for current row.');
+                return;
+            }
+
+            timestampDisplay.textContent = dataRow['datetime'] || 'N/A';
+            const fanColumns = Object.keys(dataRow).filter(col => col.toLowerCase().startsWith("fan"));
+            const fanValues = fanColumns.map(col => `${col}: ${dataRow[col]}`).join(' | ');
+            fanDataDisplay.textContent = fanValues || 'N/A';
+
+            currentProductLayout.flat().forEach(portId => {
+                if (isNaN(portId)) return;
+
+                const cell = gridContainer.querySelector(`.grid-cell[data-port-id="${portId}"]`);
+                if (cell) {
+                    const sensorName = `DomTemperatureSensor${portId}`;
+                    const rawValue = dataRow[sensorName];
+                    const temperature = parseFloat(rawValue);
+
+                    cell.className = 'grid-cell';
+                    const colorClass = getColor(temperature, actualPercentileValue);
+                    cell.classList.add(...colorClass.split(' '));
+
+                    const tempValueSpan = cell.querySelector('.temp-value');
+                    if (tempValueSpan) {
+                         tempValueSpan.textContent = isNaN(temperature) ? 'N/A' : `${temperature.toFixed(1)}°C`;
+                    }
+                }
+            });
+            statusMessage.textContent = `Playing row ${currentRowIndex + 1} of ${thermalData.length}`;
+            currentRowIndex++;
+        }
+
+        function playAnimation() {
+            if (isPlaying) return;
+            if (!thermalData || thermalData.length === 0 || !currentProductLayout) {
+                showToast('Please load product layout and CSV data first.');
+                return;
+            }
+
+            const speed = parseFloat(speedInput.value);
+            const startRow = parseInt(startRowInput.value, 10);
+
+            if (isNaN(speed) || speed <= 0) {
+                showToast('Invalid animation speed.');
+                return;
+            }
+            if (isNaN(startRow) || startRow < 0 || startRow >= thermalData.length) {
+                 showToast(`Start row must be between 0 and ${thermalData.length - 1}.`);
+                return;
+            }
+
+            calculateOverallPercentile();
+            if (isNaN(actualPercentileValue)) {
+                showToast("Percentile calculation failed. Cannot play effectively. Cells might be gray.", 5000);
+            }
+
+            currentRowIndex = startRow;
+            isPlaying = true;
+            updatePlayButtonState();
+            statusMessage.textContent = 'Playing...';
+
+            if (animationIntervalId) clearInterval(animationIntervalId);
+
+            animateStep();
+            if (thermalData.length > 1 && currentRowIndex < thermalData.length) {
+                animationIntervalId = setInterval(animateStep, 1000 / speed);
+            } else if (thermalData.length <=1) {
+                stopAnimation();
+                if (thermalData.length > 0) statusMessage.textContent = 'Played single row.';
+            }
+        }
+
+        function pauseAnimation() {
+            if (!isPlaying) return;
+            clearInterval(animationIntervalId);
+            animationIntervalId = null;
+            isPlaying = false;
+            updatePlayButtonState();
+            statusMessage.textContent = `Paused at row ${currentRowIndex}.`;
+        }
+
+        function stopAnimation() {
+            clearInterval(animationIntervalId);
+            animationIntervalId = null;
+            isPlaying = false;
+            updatePlayButtonState();
+        }
+
+        // --- Event Listeners ---
+        productSelect.addEventListener('change', (e) => {
+            stopAnimation();
+            loadProductLayout(e.target.value);
+            timestampDisplay.textContent = '-';
+            fanDataDisplay.textContent = '-';
+        });
+
+        csvFileInput.addEventListener('change', (e) => {
+            stopAnimation();
+            handleFileUpload(e);
+            timestampDisplay.textContent = '-';
+            fanDataDisplay.textContent = '-';
+        });
+
+        percentileInput.addEventListener('change', () => {
+            if (thermalData.length > 0) {
+                const oldPercentile = actualPercentileValue;
+                calculateOverallPercentile();
+                if (isPlaying) {
+                    if(!isNaN(actualPercentileValue) && oldPercentile !== actualPercentileValue) {
+                        showToast(`Percentile updated to ${actualPercentileValue.toFixed(1)}°C. Colors will update.`, 3000);
+                        if (isPlaying && currentRowIndex > 0) {
+                           const tempCurrentRow = currentRowIndex -1;
+                           const dataRow = thermalData[tempCurrentRow];
+                            if (dataRow) {
+                                currentProductLayout.flat().forEach(portId => {
+                                    if (isNaN(portId)) return;
+                                    const cell = gridContainer.querySelector(`.grid-cell[data-port-id="${portId}"]`);
+                                    if (cell) {
+                                        const sensorName = `DomTemperatureSensor${portId}`;
+                                        const rawValue = dataRow[sensorName];
+                                        const temperature = parseFloat(rawValue);
+                                        cell.className = 'grid-cell';
+                                        const colorClass = getColor(temperature, actualPercentileValue);
+                                        cell.classList.add(...colorClass.split(' '));
+                                    }
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        });
+
+        playPauseButton.addEventListener('click', () => {
+            if (isPlaying) {
+                pauseAnimation();
+            } else {
+                playAnimation();
+            }
+        });
+
+        // --- Initial Setup ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadProductLayout(productSelect.value);
+            updatePlayButtonState();
+        });
+
+    </script>
+</body>
+</html>
+

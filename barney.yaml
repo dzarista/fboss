@@ -1,0 +1,201 @@
+images:
+  # Kernel source images
+  kernel-6.4:
+    units:
+    - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
+      build: arista/fbossctl kernel_pull 6.4 $DESTDIR/kernel-6.4
+
+  kernel-6.11:
+    units:
+    - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
+      build: arista/fbossctl kernel_pull 6.11 $DESTDIR/kernel-6.11
+
+  kernel-6.11_amd:
+    units:
+    - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
+      build: arista/fbossctl kernel_pull 6.11_amd $DESTDIR/kernel-6.11_amd
+
+  # Internal build environment for prod barney builds
+  internal/build-env:
+    entry:
+      env:
+        FBOSS_BARNEY_BUILD: "True"
+        FBOSS_ARTIFACTORY_TOKEN: ${secrets.fboss-artifactory-token}
+        CCACHE_SECONDARY_STORAGE: ${secrets.ccache-url}
+      mutables:
+        - /var/FBOSS
+      secrets:
+        fboss-artifactory-token:
+          global-name: "fboss-artifactory-reference-token"
+        ccache-url:
+          global-name: "barney-fboss-ccache-url"
+
+  # Fboss BUS image for development
+  bus:
+    units:
+      - image: code.arista.io/os/fboss-centos%fboss-centos-image-el9
+      - image: code.arista.io/fboss/fboss-bcm-sai%sai-11.7.0-sdk-6.5.30-dnx
+      - image: code.arista.io/fboss/fboss-bcm-sdk%sdk-6.5.30-dnx-kernel-6.4
+      - image: code.arista.io/fboss/fboss-bcm-sai%sai-10.2.0-sdk-6.5.29-xgs
+      - image: code.arista.io/fboss/fboss-bcm-sdk%sdk-6.5.29-xgs-kernel-6.4
+      - image: code.arista.io/fboss/fboss-bcm-sai%sai-14.0-sdk-6.5.34-xgs
+      - image: code.arista.io/fboss/fboss-bcm-sdk%sdk-6.5.34-xgs-kernel-6.11
+      - image: code.arista.io/fboss/fboss-bcm-sdk%sdk-6.5.34-xgs-kernel-6.11_amd
+      - image: code.arista.io/fboss/fboss-bcm-sai%sai-11.7.0-sdk-6.5.30-xgs
+      - image: code.arista.io/fboss/fboss-bcm-sdk%sdk-6.5.30-xgs-kernel-6.4
+      - image: .%kernel-6.4
+      - image: .%kernel-6.11
+      - image: .%kernel-6.11_amd
+      - entry:
+          env:
+            # bus environment points to a different instance of redis from the build-environment.
+            CCACHE_SECONDARY_STORAGE: "${secrets.fboss_ccache_remote_storage_url}"
+        build: |
+          mkdir -p /dest/etc/ccache.d/
+          echo "export CCACHE_SECONDARY_STORAGE=${CCACHE_SECONDARY_STORAGE}" > /dest/etc/ccache.d/ccache-setup.sh
+    finalizers:
+      - - sh
+        - -xc
+        - echo "source /etc/ccache.d/ccache-setup.sh" >> $DESTDIR/etc/bashrc
+
+  # Package sai-sdk-kernel independent artifacts
+  platform:
+    units:
+    - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
+      build: |
+        make pmapping-dest=$DESTDIR/fboss-out barney_platform
+        ./package.sh --export-dir $DESTDIR/fboss-out --compress platform/*
+        cp -rf swi-modules $DESTDIR/fboss-out
+
+  # Package kernel modules separated based on kernel versions
+  build-floor/bsp_modules:
+    units:
+      - image: code.arista.io/os/fboss-centos%fboss-centos-image-el9
+      - image: code.arista.io/fboss/fboss-bcm-sdk%sdk-6.5.29-xgs-kernel-6.4
+      - image: code.arista.io/fboss/fboss-bcm-sdk%sdk-6.5.30-dnx-kernel-6.4
+      - image: code.arista.io/fboss/fboss-bcm-sdk%sdk-6.5.30-xgs-kernel-6.4
+      - image: code.arista.io/fboss/fboss-bcm-sdk%sdk-6.5.34-xgs-kernel-6.11
+      - image: code.arista.io/fboss/fboss-bcm-sdk%sdk-6.5.34-xgs-kernel-6.11_amd
+      - image: .%kernel-6.4
+      - image: .%kernel-6.11
+      - image: .%kernel-6.11_amd
+
+  bsp_modules_6.4:
+    units:
+    - floor: .%build-floor/bsp_modules
+      build: |
+        make kdir=/kernel-6.4 bsp_kmods
+        ./package.sh --export-dir $DESTDIR core/arista_bsp_kmods.spec
+
+  bsp_modules_6.11:
+    units:
+    - floor: .%build-floor/bsp_modules
+      build: |
+        make kdir=/kernel-6.11 bsp_kmods
+        ./package.sh --export-dir $DESTDIR core/arista_bsp_kmods.spec
+
+  bsp_modules_6.11_amd:
+    units:
+    - floor: .%build-floor/bsp_modules
+      build: |
+        make kdir=/kernel-6.11_amd bsp_kmods
+        ./package.sh --export-dir $DESTDIR core/arista_bsp_kmods.spec
+
+  # Build floors for core Fboss builds
+  build-floor/dnx_11.7:
+    units:
+      - image: code.arista.io/os/fboss-centos%fboss-centos-image-el9
+      - image: code.arista.io/fboss/fboss-bcm-sai%sai-11.7.0-sdk-6.5.30-dnx
+      - image: code.arista.io/fboss/fboss-bcm-sdk%sdk-6.5.30-dnx-kernel-6.4
+      - image: .%internal/build-env
+
+  build-floor/xgs_10.2:
+    units:
+      - image: code.arista.io/os/fboss-centos%fboss-centos-image-el9
+      - image: code.arista.io/fboss/fboss-bcm-sai%sai-10.2.0-sdk-6.5.29-xgs
+      - image: code.arista.io/fboss/fboss-bcm-sdk%sdk-6.5.29-xgs-kernel-6.4
+      - image: .%internal/build-env
+
+  build-floor/xgs_11.7:
+    units:
+      - image: code.arista.io/os/fboss-centos%fboss-centos-image-el9
+      - image: code.arista.io/fboss/fboss-bcm-sai%sai-11.7.0-sdk-6.5.30-xgs
+      - image: code.arista.io/fboss/fboss-bcm-sdk%sdk-6.5.30-xgs-kernel-6.4
+      - image: .%internal/build-env
+
+  build-floor/xgs_14.0:
+    units:
+      - image: code.arista.io/os/fboss-centos%fboss-centos-image-el9
+      - image: code.arista.io/fboss/fboss-bcm-sai%sai-14.0-sdk-6.5.34-xgs
+      - image: code.arista.io/fboss/fboss-bcm-sdk%sdk-6.5.34-xgs-kernel-6.11
+      - image: .%internal/build-env
+
+  # Build and package core Fboss RPMs
+  core_dnx_11.7:
+    units:
+      - floor: .%build-floor/dnx_11.7
+        build: |
+          make sai=dnx-11.7 barney_core
+          ./package.sh --export-dir $DESTDIR --compress core/arista-fboss-core.spec
+
+  core_xgs_10.2:
+    units:
+      - floor: .%build-floor/xgs_10.2
+        build: |
+          make sai=xgs-10.2 barney_core
+          ./package.sh --export-dir $DESTDIR --compress core/arista-fboss-core.spec
+
+  core_xgs_11.7:
+    units:
+      - floor: .%build-floor/xgs_11.7
+        build: |
+          make sai=xgs-11.7 barney_core
+          ./package.sh --export-dir $DESTDIR --compress core/arista-fboss-core.spec
+
+  core_xgs_14.0:
+    units:
+      - floor: .%build-floor/xgs_14.0
+        build: |
+          make sai=xgs-14.0 barney_core
+          ./package.sh --export-dir $DESTDIR --compress core/arista-fboss-core.spec
+
+  # Run swtests on each core Fboss build
+  test/core_dnx_11.7:
+    units:
+      - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
+        mappings:
+          /src/out: .%core_dnx_11.7
+        build: |
+          core_rpm=/src/out/RPMS/arista-fboss-core-1-1.el9.x86_64.rpm
+          rpm2cpio $core_rpm | cpio -D /tmp -idmv
+          LD_LIBRARY_PATH=/tmp/opt/fboss/lib ./arista/core/scripts/run_sw_tests.sh /tmp/opt/fboss/bin
+
+  test/core_xgs_10.2:
+    units:
+      - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
+        mappings:
+          /src/out: .%core_xgs_10.2
+        build: |
+          core_rpm=/src/out/RPMS/arista-fboss-core-1-1.el9.x86_64.rpm
+          rpm2cpio $core_rpm | cpio -D /tmp -idmv
+          LD_LIBRARY_PATH=/tmp/opt/fboss/lib ./arista/core/scripts/run_sw_tests.sh /tmp/opt/fboss/bin
+
+  test/core_xgs_11.7:
+    units:
+      - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
+        mappings:
+          /src/out: .%core_xgs_11.7
+        build: |
+          core_rpm=/src/out/RPMS/arista-fboss-core-1-1.el9.x86_64.rpm
+          rpm2cpio $core_rpm | cpio -D /tmp -idmv
+          LD_LIBRARY_PATH=/tmp/opt/fboss/lib ./arista/core/scripts/run_sw_tests.sh /tmp/opt/fboss/bin
+
+  test/core_xgs_14.0:
+    units:
+      - floor: code.arista.io/os/fboss-centos%fboss-centos-image-el9
+        mappings:
+          /src/out: .%core_xgs_10.2
+        build: |
+          core_rpm=/src/out/RPMS/arista-fboss-core-1-1.el9.x86_64.rpm
+          rpm2cpio $core_rpm | cpio -D /tmp -idmv
+          LD_LIBRARY_PATH=/tmp/opt/fboss/lib ./arista/core/scripts/run_sw_tests.sh /tmp/opt/fboss/bin

@@ -1,0 +1,121 @@
+#!/bin/sh
+
+echo "INITIALIZING FBOSS"
+
+mkdir -p "/tmp/SWI"
+swiDir="/run/initramfs/overlayfs"
+swiUrl=$( grep -v '^#' $swiDir/boot-config | grep 'SWI=' | awk -F '=' '{print $2}' )
+swiRelPath=$(echo $swiUrl | sed -E "s,^(.*):/+([^/]*)+,\2,")
+if [ -z "$swiRelPath" ]; then
+   echo "Failed to parse SWI path from boot-config. Assuming FBOSS.swi"
+   swiRelPath="FBOSS.swi"
+fi
+swiPath="$swiDir/$swiRelPath"
+
+unzip -oq "$swiPath" -d /tmp/SWI
+
+swi_dir="/tmp/SWI"
+
+echo "Overlay Files: "
+ls "/tmp/SWI"
+echo "------"
+
+core_rpm_keywords="core util bsp_kmods"
+
+system_product=$(dmidecode -s system-product-name)
+
+try_install_rpm() {
+    rpm_file="$1"
+    max_attempts="$2"
+    delay=2
+
+    # RPM install can fail if there's lock contention, so retry
+    for (( attempt=1; attempt<=$max_attempts; attempt++ )); do
+        echo "Attempt #$attempt of $max_attempts..."
+        rpm -ivh "$rpm_file"
+        if [ $? -eq 0 ]; then
+            echo "Installation succeeded on attempt #$attempt"
+			return 0
+        else
+            echo "Installation failed"
+            if [ $attempt -lt $max_attempts ]; then
+                echo "Retrying in $delay seconds..."
+                sleep $delay
+            fi
+        fi
+    done
+}
+
+install_rpm_by_keyword() {
+    keyword="$1"
+
+    find "$swi_dir" -name "*.rpm" | while read rpm_file; do
+        filename=$(basename "$rpm_file")
+        case "$filename" in
+            *"$keyword"*)
+                echo "Installing $filename..."
+                try_install_rpm "$rpm_file" 3
+                ;;
+        esac
+    done
+}
+
+for keyword in $core_rpm_keywords; do
+    install_rpm_by_keyword "$keyword"
+done
+
+services="platform_manager \
+   sensor_service \
+   fan_service \
+   data_corral_service \
+   qsfp_service \
+   fboss_sw_agent \
+   fboss_hw_agent@0"
+
+case "$system_product" in
+    "MERU800BFA")
+        install_rpm_by_keyword "meru800bfa-"
+        services="$services fboss_hw_agent@1"
+        ;;
+    "MERU800BIA")
+        install_rpm_by_keyword "meru800bia-"
+        ;;
+    "MERU800BIAB")
+        install_rpm_by_keyword "meru800biab-"
+        ;;
+    "MERU800BIAC")
+        install_rpm_by_keyword "meru800biac-"
+        ;;
+    "Darwin")
+        install_rpm_by_keyword "darwin-"
+        ;;
+    "Darwin48V")
+        install_rpm_by_keyword "darwin48v-"
+        ;;
+    "GLATH05A-64O")
+        install_rpm_by_keyword "glath05a-64o-"
+        ;;
+    "Redstart-RMB")
+        # ThrasherBench and Banff systems currently have "Redstart-RMB" programmed.
+        install_rpm_by_keyword "glath06a-64o-"
+        ;;
+    *)
+        echo "Unknown product: $system_product. No additional RPMs installed."
+        exit 1
+        ;;
+esac
+
+/opt/fboss/bin/fboss_init.sh
+if [ $? -ne 0 ]; then
+    echo "Failed to run fboss_init.sh"
+    exit 1
+fi
+
+echo -n "Starting FBOSS services..."
+for service in $services; do
+   systemctl enable $service
+   systemctl start $service
+done
+echo "Done"
+
+exit 0
