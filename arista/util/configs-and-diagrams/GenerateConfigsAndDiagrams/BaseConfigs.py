@@ -114,7 +114,7 @@ class PlatformConfig:
       self.setChassisEepromDevicePath = True
       self.kmodsSettings = {
          "bspKmodsRpmName": "arista_bsp_kmods",
-         "bspKmodsRpmVersion": "0.7.15-1",
+         "bspKmodsRpmVersion": "0.7.16-1",
          "requiredKmodsToLoad": [],
       }
       self.PlatformFanServiceConfig = None
@@ -1111,11 +1111,12 @@ class PciDeviceConfig:
       self.ledCtrlConfigs.extend( newConfigs )
 
    def asJson( self ):
-
       assert self.pmUnitScopedName and self.vendorId and self.deviceId \
          and self.subSystemVendorId and self.subSystemDeviceId, (
             "missing details in PciDeviceConfigs"
          )
+
+      ledCtrlBlockConfigs = self.getLedCtrlBlockConfigsList()
 
       return {
          "pmUnitScopedName": self.pmUnitScopedName,
@@ -1125,6 +1126,8 @@ class PciDeviceConfig:
          "subSystemDeviceId": self.subSystemDeviceId,
          "i2cAdapterConfigs": self.getI2cAdapterConfigsList(),
          "spiMasterConfigs": self.getSpiMasterConfigsList(),
+         **({ "ledCtrlBlockConfigs": ledCtrlBlockConfigs }
+            if ledCtrlBlockConfigs else {}),
          "ledCtrlConfigs": self.getLedCtrlConfigsList(),
          "xcvrCtrlConfigs": self.getXcvrConfigsList(),
          "infoRomConfigs": self.getInfoRomConfigsList(),
@@ -1139,16 +1142,89 @@ class PciDeviceConfig:
    def getSpiMasterConfigsList( self ):
       return [ config.asJson() for config in self.spiMasterConfigs ]
 
+
+   def _groupXcvrConfigsByPortType( self ):
+      ledBlocks = {}
+
+      for config in self.xcvrCtrlConfigs:
+         portType = config.portType.upper()
+         ledBlocks.setdefault( portType, {
+            'configs': [],
+            'deviceName': config.ledDeviceName,
+            'baseOffset': config.led1Offset,
+            'ledsPerXcvr': config.ledsPerXcvr,
+            'portLedOffsetStep': config.portLedOffsetStep,
+            'xcvrOffsetStep': config.xcvrOffsetStep
+         } )
+         ledBlocks[ portType ][ 'configs' ].append( config )
+
+      # Add sequential analysis for each port type
+      for portType, blockData in ledBlocks.items():
+         portNumbers = [ config.portNumber for config in blockData[ 'configs' ] ]
+         if portNumbers:
+            minPort = min( portNumbers )
+            maxPort = max( portNumbers )
+            numPorts = len( set( portNumbers ) )
+            blockData[ 'minPort' ] = minPort
+            blockData[ 'maxPort' ] = maxPort
+            blockData[ 'numPorts' ] = numPorts
+            blockData[ 'isSequential' ] = maxPort <= minPort + numPorts - 1
+         else:
+            blockData[ 'isSequential' ] = False
+
+      return ledBlocks
+
    def getLedCtrlConfigsList( self ):
       configList = []
-      for config in self.xcvrCtrlConfigs:
-         portLeds = [ *config.parseXcvrLeds() ]
-         for led in portLeds:
-            configList.append( led )
+      ledBlocks = self._groupXcvrConfigsByPortType()
 
+      for portType, blockData in ledBlocks.items():
+         if not blockData[ 'isSequential' ]:
+            # non-sequential ports are handled by individual ledCtrlConfigs
+            for config in blockData[ 'configs' ]:
+               portLeds = [ *config.parseXcvrLeds() ]
+               for led in portLeds:
+                  configList.append( led )
+
+      # Add status LED configurations
       statusLedsNumbers = {}
       for config in self.ledCtrlConfigs:
          configList.append( config.parseStatusLeds( statusLedsNumbers ) )
+      return configList
+
+   def getLedCtrlBlockConfigsList( self ):
+      configList = []
+      ledBlocks = self._groupXcvrConfigsByPortType()
+
+      for portType, blockData in ledBlocks.items():
+         if not blockData[ 'isSequential' ]:
+            # Skip non-sequential ports - they'll be handled by individual configs
+            continue
+
+         minPort = blockData[ 'minPort' ]
+         numPorts = blockData[ 'numPorts' ]
+         ledsPerPort = blockData[ 'ledsPerXcvr' ]
+         baseOffset = blockData[ 'baseOffset' ]
+         ledStep = blockData[ 'portLedOffsetStep' ]
+
+         if numPorts > 1:
+            portStep = ledsPerPort * ledStep
+         else:
+            portStep = ledStep
+
+         regEquation = ( f"{baseOffset} + ({{portNum}}"
+                         f" - {{startPort}})*{hex( portStep )}"
+                         f" + ({{ledNum}} - 1)*{hex( ledStep )}" )
+         blockConfig = {
+            "pmUnitScopedNamePrefix": portType,
+            "deviceName": blockData[ 'deviceName' ],
+            "csrOffsetCalc": regEquation,
+            "numPorts": numPorts,
+            "ledPerPort": ledsPerPort,
+            "startPort": minPort
+         }
+
+         configList.append( blockConfig )
 
       return configList
 
@@ -1330,7 +1406,8 @@ class Flash( SpiDeviceConfig ):
 class XcvrConfig:
    def __init__( self, portNumber, portType, xcvrCtrlOffset, ledDeviceName,
                  led1Offset, led2Offset, led3Offset, led4Offset, i2cPath,
-                 lanesCount, defaultLedColor ):
+                 lanesCount, defaultLedColor, ledsPerXcvr, portLedOffsetStep,
+                 xcvrOffsetStep ):
       self.portNumber = portNumber
       self.portType = portType
       self.xcvrCtrlOffset = xcvrCtrlOffset
@@ -1347,6 +1424,9 @@ class XcvrConfig:
       self.ioSymlink = f"/run/devmap/xcvrs/xcvr_io_{self.portNumber}"
       self.ctrlSymlink = f"/run/devmap/xcvrs/xcvr_ctrl_{self.portNumber}"
       self.defaultLedColor = defaultLedColor
+      self.ledsPerXcvr = ledsPerXcvr
+      self.portLedOffsetStep = portLedOffsetStep
+      self.xcvrOffsetStep = xcvrOffsetStep
 
    def addParentConfigPointer( self, parentConfig ):
       self.parentConfig = parentConfig
@@ -1531,7 +1611,10 @@ def enumerateXcvrConfigs( numConfigs, basePortNumber, smbusName, smbusAccelStart
             led4Offset=ledOffsets[ 3 ] if ledsPerXcvr > 3 else None,
             i2cPath=i2cPath,
             lanesCount=lanesCount,
-            defaultLedColor=defaultLedColor
+            defaultLedColor=defaultLedColor,
+            ledsPerXcvr=ledsPerXcvr,
+            portLedOffsetStep=portLedOffsetStep,
+            xcvrOffsetStep=xcvrOffsetStep
          )
       )
       if portNumberSkipStep > 1:

@@ -281,7 +281,7 @@ class EmbeddedSensorConfigTest( unittest.TestCase ):
 
       self.assertTrue( "/run/devmap/sensors/CPU_CORE_TEMP2" in symlinkDict )
       self.assertEqual(
-         symlinkDict[ "/run/devmap/sensors/CPU_CORE_TEMP2"],
+         symlinkDict[ "/run/devmap/sensors/CPU_CORE_TEMP2" ],
          "/[CPU_CORE_TEMP2]"
       )
 
@@ -751,7 +751,7 @@ class I2cAdapterConfigTest( unittest.TestCase ):
          "/run/devmap/i2c-busses/TEST_PLATFORM_SMB_FPGA13_SMBUS11_CH7" in symlinkDict
       )
       self.assertEqual(
-         symlinkDict["/run/devmap/i2c-busses/TEST_PLATFORM_SMB_FPGA13_SMBUS11_CH7"],
+         symlinkDict[ "/run/devmap/i2c-busses/TEST_PLATFORM_SMB_FPGA13_SMBUS11_CH7" ],
          "/SMB_SLOT@21/[SMB_FPGA13_I2C_MASTER11@7]"
       )
       self.assertFalse(
@@ -920,6 +920,8 @@ class XcvrConfigTest( unittest.TestCase ):
       testUnitConfig = pmUnitDict[ "SMB" ]
       testXcvrConfig = testUnitConfig[ "pciDeviceConfigs" ][ 0 ][ "xcvrCtrlConfigs" ]
       testLedConfig = testUnitConfig[ "pciDeviceConfigs" ][ 0 ][ "ledCtrlConfigs" ]
+      testLedBlockConfig = ( testUnitConfig[ "pciDeviceConfigs" ]
+                           [ 0 ].get( "ledCtrlBlockConfigs", [] ) )
       self.assertEqual( len( testXcvrConfig ), 32 )
       self.assertEqual(
          testXcvrConfig[ 0 ][ "fpgaIpBlockConfig" ][ "pmUnitScopedName" ],
@@ -931,22 +933,25 @@ class XcvrConfigTest( unittest.TestCase ):
             hex( 0x00 + i * 0x10 )
          )
          self.assertEqual( testXcvrConfig[ i ][ "portNumber" ], i+1 )
-      self.assertEqual( len( testLedConfig ), 64 )
-      self.assertEqual(
-         testLedConfig[ 0 ][ "fpgaIpBlockConfig" ][ "pmUnitScopedName" ],
-         "TEST_PORT1_LED1"
-      )
-      for i in range( 64 ):
-         self.assertEqual(
-            testLedConfig[ i ][ "fpgaIpBlockConfig" ][ "csrOffset" ],
-            hex( 0x1000 + i * 0x10 )
-         )
-         if i % 2 == 0:
-            self.assertEqual( testLedConfig[ i ][ "ledId" ], 1 )
-         else:
-            self.assertEqual( testLedConfig[ i ][ "ledId" ], 2 )
+
+      # Sequential ports should use block configs, not individual configs
+      self.assertEqual( len( testLedConfig ), 0 )
+      self.assertEqual( len( testLedBlockConfig ), 1 )
+      self.assertEqual( testLedBlockConfig[ 0 ][ "pmUnitScopedNamePrefix" ], "TEST" )
+      self.assertEqual( testLedBlockConfig[ 0 ][ "numPorts" ], 32 )
+      self.assertEqual( testLedBlockConfig[ 0 ][ "ledPerPort" ], 2 )
+      self.assertEqual( testLedBlockConfig[ 0 ][ "startPort" ], 1 )
+
+      # Verify the block configuration details
+      blockConfig = testLedBlockConfig[ 0 ]
+      self.assertEqual( blockConfig[ "deviceName" ], "port_led" )
+      self.assertTrue( blockConfig[ "csrOffsetCalc" ].startswith( "0x1000" ) )
+      self.assertTrue( "{portNum}" in blockConfig[ "csrOffsetCalc" ] )
+      self.assertTrue( "{startPort}" in blockConfig[ "csrOffsetCalc" ] )
+      self.assertTrue( "{ledNum}" in blockConfig[ "csrOffsetCalc" ] )
       self.platform.pmUnitConfigs[ 1 ].populateSymlinkToDevicePaths()
-      symlinkDict = json.loads( self.platform.pmConfigJson() )[ "symbolicLinkToDevicePath" ]
+      symlinkDict = ( json.loads( self.platform.pmConfigJson() )
+                      [ "symbolicLinkToDevicePath" ] )
       self.assertEqual( len( symlinkDict ), 97 )
       self.assertTrue( "/run/devmap/xcvrs/xcvr_32" in symlinkDict )
       self.assertEqual(
@@ -979,14 +984,26 @@ class XcvrConfigTest( unittest.TestCase ):
       pmUnitDict = json.loads( self.platform.pmConfigJson() )[ "pmUnitConfigs" ]
       testUnitConfig = pmUnitDict[ "SMB" ]
       for i in range( len( self.platform.pmUnitConfigs[ 1 ].pciDeviceConfigs ) ):
-         self.assertEqual(
-            len( testUnitConfig[ "pciDeviceConfigs" ][ i ][ "xcvrCtrlConfigs" ] ),
-            16
-         )
-         self.assertEqual(
-            len( testUnitConfig[ "pciDeviceConfigs" ][ i ][ "ledCtrlConfigs" ] ),
-            32
-         )
+         testXcvrConfig = ( testUnitConfig[ "pciDeviceConfigs" ]
+                            [ i ][ "xcvrCtrlConfigs" ] )
+         testLedConfig = ( testUnitConfig[ "pciDeviceConfigs" ]
+                           [ i ][ "ledCtrlConfigs" ] )
+         testLedBlockConfig = ( testUnitConfig[ "pciDeviceConfigs" ]
+                                [ i ].get( "ledCtrlBlockConfigs", [] ) )
+
+         self.assertEqual( len( testXcvrConfig ), 16 )
+
+         # Non-sequential ports should use individual configs
+         self.assertEqual( len( testLedConfig ), 32 )
+         self.assertEqual( len( testLedBlockConfig ), 0 )
+
+         # Verify individual LED config structure
+         if len( testLedConfig ) > 0:
+            self.assertTrue( "fpgaIpBlockConfig" in testLedConfig[ 0 ] )
+            self.assertTrue( ( "pmUnitScopedName" in testLedConfig[ 0 ]
+                               [ "fpgaIpBlockConfig" ] ) )
+            self.assertTrue( "portNumber" in testLedConfig[ 0 ] )
+            self.assertTrue( "ledId" in testLedConfig[ 0 ] )
 
    def testLedsPerXcvr( self ):
       self.platform.pmUnitConfigs[ 1 ].addPciDeviceConfigs( [
@@ -1013,6 +1030,8 @@ class XcvrConfigTest( unittest.TestCase ):
       testUnitConfig = pmUnitDict[ "SMB" ]
       testXcvrConfig = testUnitConfig[ "pciDeviceConfigs" ][ 0 ][ "xcvrCtrlConfigs" ]
       testLedConfig = testUnitConfig[ "pciDeviceConfigs" ][ 0 ][ "ledCtrlConfigs" ]
+      testLedBlockConfig = ( testUnitConfig[ "pciDeviceConfigs" ][ 0 ]
+                             .get( "ledCtrlBlockConfigs", [] ) )
       self.assertEqual( len( testXcvrConfig ), 32 )
       for i in range( 32 ):
          self.assertEqual(
@@ -1020,24 +1039,64 @@ class XcvrConfigTest( unittest.TestCase ):
             hex( 0x00 + i * 0x10 )
          )
          self.assertEqual( testXcvrConfig[ i ][ "portNumber" ], i+1 )
-      self.assertEqual( len( testLedConfig ), 128 )
-      self.assertEqual(
-         testLedConfig[ 0 ][ "fpgaIpBlockConfig" ][ "pmUnitScopedName" ],
-         "TEST_PORT1_LED1"
-      )
-      for i in range( 128 ):
-         self.assertEqual(
-            testLedConfig[ i ][ "fpgaIpBlockConfig" ][ "csrOffset" ],
-            hex( 0x1000 + i * 0x10 )
+
+      # Sequential ports should use block configs, not individual configs
+      self.assertEqual( len( testLedConfig ), 0 )
+      self.assertEqual( len( testLedBlockConfig ), 1 )
+      self.assertEqual( testLedBlockConfig[ 0 ][ "pmUnitScopedNamePrefix" ], "TEST" )
+      self.assertEqual( testLedBlockConfig[ 0 ][ "numPorts" ], 32 )
+      self.assertEqual( testLedBlockConfig[ 0 ][ "ledPerPort" ], 4 )
+      self.assertEqual( testLedBlockConfig[ 0 ][ "startPort" ], 1 )
+
+   def testMixedSequentialAndNonSequential( self ):
+      """Test that mixed sequential and non-sequential ports are handled correctly"""
+      self.platform.pmUnitConfigs[ 1 ].addPciDeviceConfigs( [
+         PciDeviceConfig(
+            pmUnitScopedName="SMB_FPGA",
+            vendorId="0x3475",
+            deviceId="0x0001",
+            subSystemVendorId="0x3475",
+            subSystemDeviceId="0x0003"
          )
-         if i % 4 == 0:
-            self.assertEqual( testLedConfig[ i ][ "ledId" ], 1 )
-         elif i % 4 == 1:
-            self.assertEqual( testLedConfig[ i ][ "ledId" ], 2 )
-         elif i % 4 == 2:
-            self.assertEqual( testLedConfig[ i ][ "ledId" ], 3 )
-         else:
-            self.assertEqual( testLedConfig[ i ][ "ledId" ], 4 )
+      ] )
+
+      self.platform.pmUnitConfigs[ 1 ].pciDeviceConfigs[ 0 ].addXcvrCtrlConfigs(
+         numConfigs=4,
+         basePortNumber=1,
+         smbusName="testSmbus",
+         smbusAccelStart=1,
+         accelBusRange=( 0, 3 ),
+         portType="osfp",
+         xcvrBaseOffset="0x0000",
+         ledBaseOffset="0x1000"
+      )
+
+      self.platform.pmUnitConfigs[ 1 ].pciDeviceConfigs[ 0 ].addXcvrCtrlConfigs(
+         numConfigs=4,
+         basePortNumber=10,
+         smbusName="testSmbus",
+         smbusAccelStart=5,
+         accelBusRange=( 4, 7 ),
+         portType="qsfp",
+         xcvrBaseOffset="0x0100",
+         ledBaseOffset="0x2000",
+         portNumberSkipStep=5
+      )
+
+      pmUnitDict = json.loads( self.platform.pmConfigJson() )[ "pmUnitConfigs" ]
+      testUnitConfig = pmUnitDict[ "SMB" ]
+      testLedConfig = testUnitConfig[ "pciDeviceConfigs" ][ 0 ][ "ledCtrlConfigs" ]
+      testLedBlockConfig = ( testUnitConfig[ "pciDeviceConfigs" ][ 0 ]
+                             .get( "ledCtrlBlockConfigs", [] ) )
+
+      # Should have individual configs for non-sequential ports only
+      self.assertEqual( len( testLedConfig ), 8 )
+
+      # Should have block config for sequential ports only
+      self.assertEqual( len( testLedBlockConfig ), 1 )  # One block for OSFP
+      self.assertEqual( testLedBlockConfig[ 0 ][ "pmUnitScopedNamePrefix" ], "OSFP" )
+      self.assertEqual( testLedBlockConfig[ 0 ][ "numPorts" ], 4 )
+      self.assertEqual( testLedBlockConfig[ 0 ][ "startPort" ], 1 )
 
 
 class LedConfigTest( unittest.TestCase ):
