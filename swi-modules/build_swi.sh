@@ -5,6 +5,7 @@ echo "Beginning SWI build"
 ARCH=$1
 KERNEL=$2
 TARGET_DIR=$3
+RPM_DIR=$4
 
 if [ $KERNEL = "6.4" ]; then
     TARBALL="centos9_6.4.3-0_fbk747_rc2_1199_ga95cd85c72c4_live.tar"
@@ -25,7 +26,7 @@ touch version
 echo "SWI_VERSION=42.0.0" > version
 echo "BUILD_DATE=$(date -u +"%Y%m%dT%H%M%SZ")" >> version
 echo "SWI_VARIANT=US" >> version
-echo "KERNEL_VERSION=6.4" >> version
+echo "KERNEL_VERSION=$KERNEL" >> version
 
 wget -q http://dist/storage/fboss/"${TARBALL}"
 tar -xf "$TARBALL"
@@ -42,9 +43,13 @@ FBOSS_SWI_MODULES_DIR="$FBOSS_PTEST_DATA_DIR/swi-modules"
 
 cp -a "${FBOSS_SWI_MODULES_DIR}/." $TARGET_DIR
 rm -rf "build_swi.sh"
-cp -a "${FBOSS_CORE_RPM_DIR}/." $TARGET_DIR
-cp -a "${FBOSS_PLATFORM_RPM_DIR}/." $TARGET_DIR
-cp -a "${FBOSS_KMOD_DIR}/." $TARGET_DIR
+if ! [ -z "${RPM_DIR}" ]; then
+    cp -a "${RPM_DIR}/." $TARGET_DIR
+else
+    cp -a "${FBOSS_CORE_RPM_DIR}/." $TARGET_DIR
+    cp -a "${FBOSS_PLATFORM_RPM_DIR}/." $TARGET_DIR
+    cp -a "${FBOSS_KMOD_DIR}/." $TARGET_DIR
+fi
 
 zip FBOSS.swi *
 
