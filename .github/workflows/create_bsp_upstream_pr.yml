@@ -96,10 +96,10 @@ jobs:
       - name: Send status email
         if: env.SKIP_STEPS != 'true'
         run: |
-          mail_to_primary=$(git log --format='%ae' ${{ github.event.before }}..${{ github.event.after }} | head -n 1)
+          mail_to_primary=$(git log -n 1 --format='%ae' ${{ github.event.before }}..${{ github.event.after }})
           mail_to="$mail_to_primary" # Start with the primary recipient
           # Get the author of the commit just before the most recent one in the range
-          mail_to_pr_author=$(git log --format='%ae' ${{ github.event.before }}..${{ github.event.after }} | head -n 2 | tail -n 1)
+          mail_to_pr_author=$(git log -n 2 --format='%ae' ${{ github.event.before }}..${{ github.event.after }} | tail -n 1)
           # If a secondary author is found and is different from the primary, add them
           if [ -n "$mail_to_pr_author" ] && [ "$mail_to_pr_author" != "$mail_to_primary" ]; then
             mail_to="$mail_to,$mail_to_pr_author"

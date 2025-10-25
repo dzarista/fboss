@@ -38,9 +38,10 @@ if patch -p1 < ${SCRIPT_START_DIR}/text_only.patch &> patch_status.txt; then
       # If the updated binary file is found in 'original' copy, it's the version which we want to keep - copy it to the 'upstream_repo'
       # Otherwise it was deleted. Delete the file from the 'upstream repo'
       if [ -e "$modified_file" ]; then
-         cp $modified_file $new_path
+         mkdir -p "$(dirname "$new_path")"
+         cp "$modified_file" "$new_path"
       else
-         rm $new_path
+         rm "$new_path"
       fi
    # binary_only.diff will have lines in the format "Binary files path_to_file1/file1 and path_to_file2/file2 differ"
    done < <(awk '{print $3, $5}' binary_only.diff)
@@ -52,15 +53,16 @@ if patch -p1 < ${SCRIPT_START_DIR}/text_only.patch &> patch_status.txt; then
    GIT_SSH_COMMAND="ssh -i ${SCRIPT_START_DIR}/private.key -o IdentitiesOnly=yes" git push origin $upstream_pr_branch_name
    GIT_SSH_COMMAND="ssh -i ${SCRIPT_START_DIR}/private.key -o IdentitiesOnly=yes" git checkout main || exit 1
    gh_pr_create_output=$(gh pr create --title "$pr_title" --body "$pr_description" --head $upstream_pr_branch_name --base main --repo $repo_name --draft 2>&1)
+   gh_status=$?  # Capture the status immediately
    cd "${SCRIPT_START_DIR}"
-   if [ $? -eq 0 ]; then
+   if [ $gh_status -eq 0 ]; then
       pr_link=$(echo "$gh_pr_create_output" | grep https)
       echo "Created a pull request from branch $upstream_pr_branch_name." > $output_file
       echo "Created the draft pull request $pr_link with all the changes in BSP subtree. Make sure the pull request matches with the changes to the subtree. Please publish the pull request after updating the title and description." > $status_email_file
       echo "fboss.bsp.arista upstream pull request created from $PR_BRANCH" > $email_subject_file
    else
       echo "An error occurred while creating the pull request with the 'gh pr create' command. The attached file contains the full error details" > $status_email_file
-      echo $gh_pr_create_output > $output_file
+      echo "$gh_pr_create_output" > $output_file
       echo "Failed to upstream BSP changes from $PR_BRANCH" > $email_subject_file
    fi
 else
