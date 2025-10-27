@@ -27,12 +27,9 @@ protected:
   void printL1Info();
   void printLogs();
   void printSensors();
+  void printWeutilDetails();
+  void printFwutilDetails();
   void print_fboss2_show_cmd(std::string cmd);
-  void printWeutil(std::string target);
-  void printFpgaVersion(std::string name, std::string sysfsPath,
-                        std::string combinedRevPath);
-  void printFpgaVersion(std::string name, std::string sysfsPath,
-                        std::string majorRevPath, std::string minorRevPath);
 
   // Each platform overrides platform-specific info here.
   virtual void printPlatformInfo() = 0;

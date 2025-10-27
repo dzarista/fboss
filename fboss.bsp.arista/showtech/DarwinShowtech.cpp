@@ -18,32 +18,6 @@ void DarwinShowtech::printSwitchcardPowergood() {
   std::cout << std::endl;
 }
 
-void DarwinShowtech::printWeutilInfo() {
-  printMainHeader("WEUTIL INFO");
-
-  printWeutil("chassis");
-  if (product == "darwin") {
-    printWeutil("pem");
-  }
-  printWeutil("fanspinner");
-  printWeutil("rackmon");
-}
-
-void DarwinShowtech::printAllFpgaVersions() {
-  printMainHeader("FPGA VERSIONS");
-
-  printFpgaVersion("CPU_CPLD", cpuCpld->infoRomPath, "fw_ver");
-  printFpgaVersion("SWITCHCARD_CPLD", switchcardCpld->sysfsPath, "cpld_ver",
-                   "cpld_sub_ver");
-  printFpgaVersion("SWITCHCARD_SCD", switchcardScd->infoRomPath, "fw_ver");
-  printFpgaVersion("SAT_CPLD0", switchcardScd->sysfsPath, "sat0_cpld_ver",
-                   "sat0_cpld_sub_ver");
-  printFpgaVersion("SAT_CPLD1", switchcardScd->sysfsPath, "sat1_cpld_ver",
-                   "sat1_cpld_sub_ver");
-  printFpgaVersion("FAN_CPLD", fanCpld->sysfsPath, "cpld_ver", "cpld_sub_ver");
-  std::cout << std::endl;
-}
-
 void DarwinShowtech::printPemInfo() {
   printMainHeader("PEM DEBUG INFO");
 
@@ -173,8 +147,6 @@ void DarwinShowtech::printPlatformInfo() {
                                             "pca953x");
 
   printSwitchcardPowergood();
-  printWeutilInfo();
-  printAllFpgaVersions();
   printPemInfo();
   printFanspinnerInfo();
   printGpioShowtechInfo();
