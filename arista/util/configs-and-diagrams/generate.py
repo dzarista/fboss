@@ -15,7 +15,6 @@ EXCLUDE_LIST = {
    "pm-config": [
    ],
    "sensor-config": [
-      "Banff"
    ],
    "bsp-mapping": [
       "RackhawkORv3",
