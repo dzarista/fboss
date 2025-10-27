@@ -55,7 +55,9 @@ class ViperSMB( SMBUnit ):
          idPromConfigBusName="INCOMING@0",
          idPromConfigAddress="0x50",
          idPromConfigKernelDeviceName="24c512",
-         idPromConfigOffset=15360
+         idPromConfigOffset=15360,
+         createIdpromSymlink=True,
+         platformInIdpromSymlink=True,
       )
 
       # Initial I2c register values are implicitly cast to 8-bit unsigned integer

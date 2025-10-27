@@ -351,6 +351,8 @@ class SlotTypeConfig:
       self.idPromConfigAddress = None
       self.idPromConfigKernelDeviceName = None
       self.idPromConfigOffset = None
+      self.createIdpromSymlink = True
+      self.platformInIdpromSymlink = False
       self.pmUnitName = pmUnitName
       self.parentConfig = None
 
@@ -400,11 +402,14 @@ class PmUnitConfig:
       self.symlinkToDevicePaths = {}
       self.prefixSymlink = prefixSymlink
       self.parentConfig = None
+      self.slotTypeCount = {}
 
    def setSlotTypeConfig( self, numOutgoingI2cBuses=0, idPromConfigBusName=None,
                           idPromConfigAddress=None,
                           idPromConfigKernelDeviceName=None,
-                          idPromConfigOffset=None ):
+                          idPromConfigOffset=None,
+                          createIdpromSymlink=True,
+                          platformInIdpromSymlink=False ):
       args = [
          idPromConfigBusName,
          idPromConfigAddress,
@@ -419,6 +424,8 @@ class PmUnitConfig:
       self.slotTypeConfig.idPromConfigAddress = idPromConfigAddress
       self.slotTypeConfig.idPromConfigKernelDeviceName = idPromConfigKernelDeviceName
       self.slotTypeConfig.idPromConfigOffset = idPromConfigOffset
+      self.slotTypeConfig.createIdpromSymlink = createIdpromSymlink
+      self.slotTypeConfig.platformInIdpromSymlink = platformInIdpromSymlink
       self.slotTypeConfig.addParentConfigPointer( self )
 
    def addParentConfigPointer( self, parentConfig ):
@@ -432,6 +439,7 @@ class PmUnitConfig:
    def addOutgoingSlotConfigs( self, newConfigs ):
       for config in newConfigs:
          config.addParentConfigPointer( self )
+         self.slotTypeCount[ config.slotType ] = self.slotTypeCount.get( config.slotType, 0 ) + 1
       self.outgoingSlotConfigs.extend( newConfigs )
 
    def addPciDeviceConfigs( self, newConfigs ):
@@ -448,7 +456,7 @@ class PmUnitConfig:
       addedPaths = {
          **self.generateFpgaSymlinks(),
          **self.generateI2cBusSymlinks(),
-         **self.generateSMBIdPromSymlinks(),
+         **self.generateIdPromSymlinks(),
          **self.generateI2cDeviceSymlinks(),
          **self.generateEmbeddedSensorSymlinks(),
          **self.generateXcvrSymlinks(),
@@ -519,18 +527,30 @@ class PmUnitConfig:
          symlinkDict.update( pciConfig.generateSymlinkDevicePath() )
       return symlinkDict
 
-   def generateSMBIdPromSymlinks( self ):
-      platform = self.parentConfig.platformName
+   def generateIdPromSymlinks( self ):
       symlinkDict = OrderedDict()
-      if self.pmUnitName == "SCM":
-         for slotConfig in self.outgoingSlotConfigs:
-            if slotConfig.slotType == "SMB_SLOT":
-               # Add unit test support for SMB EEPROM PM config generation bb/1015713
-               smbPmUnit = self.parentConfig.getPmUnit( "SMB" )
-               symlinkDeviceName = smbPmUnit.prefixSymlink or platform.upper()
-               symlinkDict[
-                  f"/run/devmap/eeproms/{ symlinkDeviceName }_SMB_EEPROM"
-               ] = f"/{ slotConfig.slotName }/[IDPROM]"
+      idpromPrefix = "/run/devmap/eeproms"
+
+      # This assumes no nested PMUnits
+      platformConfig = self.parentConfig
+
+      if ( self.pmUnitName == platformConfig.rootPmUnitName and
+           self.slotTypeConfig.idPromConfigBusName and
+           self.slotTypeConfig.createIdpromSymlink ):
+           symlinkDict[ f"{idpromPrefix}/{self.pmUnitName}_EEPROM" ] = "/[IDPROM]"
+
+      for slotConfig in self.outgoingSlotConfigs:
+         slotTypeConfig = platformConfig.getPmUnit(
+                              slotConfig.pmUnitName ).slotTypeConfig
+         if ( slotTypeConfig.idPromConfigBusName and
+              slotTypeConfig.createIdpromSymlink ):
+            slotNum = ( int( slotConfig.slotNum ) + 1
+                        if self.slotTypeCount[ slotConfig.slotType ] > 1 else "" )
+            platform = ( f"{platformConfig.platformName.upper()}_"
+                         if slotTypeConfig.platformInIdpromSymlink else "" )
+            symlinkDict[
+               f"{idpromPrefix}/{platform}{slotTypeConfig.pmUnitName}{slotNum}_EEPROM"
+            ] = f"/{slotConfig.slotName}/[IDPROM]"
       return symlinkDict
 
    def generateSpiDeviceSymlinks( self ):
@@ -864,6 +884,18 @@ class I2cDeviceConfig:
       self.node = Node( f"{{ { self.address } | { self.pmUnitScopedName } }}",
                         shape="Mrecord" ).getNode()
 
+class I2cMux( I2cDeviceConfig ):
+   def __init__( self, *args, **kwargs ):
+      super().__init__( *args, **kwargs )
+      # Currently i2c muxes have no symlinks
+      self.symlinkPath = ""
+      self.buses = [
+         I2cBus(
+            busName=f"{ self.pmUnitScopedName }@{ i }",
+            parentConfig=self,
+            devicesOnBus=[]
+         ) for i in range( self.numOutgoingChannels )
+      ]
 
 class GpioChip( I2cDeviceConfig ):
    def __init__( self, *args, **kwargs ):
@@ -888,11 +920,14 @@ class FairywrenSensor( I2cDeviceConfig ):
 
 class SMBCpld( I2cDeviceConfig ):
    def __init__( self, *args, **kwargs ):
+      self.platformInSymlink = kwargs.pop( 'platformInSymlink', False )
       super().__init__( *args, **kwargs )
-      self.symlinkPath = "/run/devmap/cplds/{}_SMB_CPLD"
+      self.symlinkPath = "/run/devmap/cplds/{}SMB_CPLD"
 
    def generateSymlinkDevicePath( self ):
-      platform = self.parentConfig.parentConfig.platformName
+      platform = ""
+      if self.platformInSymlink:
+         platform = f"{self.parentConfig.parentConfig.platformName}_"
       return {
          self.symlinkPath.format( platform.upper() ):
             constructDevicePaths( self )[ 0 ]
@@ -984,7 +1019,8 @@ class SlotConfig:
    def __init__( self, slotName, presenceFileName=None, presenceDevicePath=None,
                  outgoingI2cBuses=None ):
       self.slotName = slotName
-      self.slotType = slotName.split( "@" )[ 0 ]
+      self.slotType, self.slotNum = slotName.split( "@" )
+      self.pmUnitName = self.slotType.replace( "_SLOT", "" )
       self.presenceFileName = presenceFileName
       self.presenceDevicePath = presenceDevicePath
       self.outgoingI2cBuses = outgoingI2cBuses or []
@@ -1061,7 +1097,8 @@ class PciDeviceConfig:
    def addParentConfigPointer( self, parentConfig ):
       self.parentConfig = parentConfig
 
-   def addI2cAdapterConfigs( self, numAdapters, adapterBaseName, baseCsrOffset ):
+   def addI2cAdapterConfigs( self, numAdapters, adapterBaseName, baseCsrOffset,
+                             numChannelsPerAdapter=8 ):
       configs = []
       numFormatSpecifiers = adapterBaseName.count( '{}' )
       for i in range( numAdapters ):
@@ -1072,7 +1109,8 @@ class PciDeviceConfig:
             adapterName = adapterBaseName.format( i )
          csrOffset = hex( int( baseCsrOffset, 16 ) + i * 0x80 )
          configs.append(
-            I2cAdapterConfig( self, adapterName, "i2c_master", -1, csrOffset, 8 )
+            I2cAdapterConfig( self, adapterName, "i2c_master", -1, csrOffset,
+                              numChannelsPerAdapter )
          )
       self.i2cAdapterConfigs.extend( configs )
 
@@ -1752,7 +1790,11 @@ class SCMFairywren( SCMUnit ):
          idPromConfigBusName="SMBus I801 adapter at 1000",
          idPromConfigAddress="0x50",
          idPromConfigKernelDeviceName="24c512",
-         idPromConfigOffset=15360
+         idPromConfigOffset=15360,
+         # For our Intel-based SCMs affected by BUG1042554, we don't need to create
+         # a symlink for the SCM EEPROM because platform manager hardcodes a
+         # workaround which automatically creates it.
+         createIdpromSymlink=False,
       )
 
       scmMpsDev = FairywrenSensor( "0x40", "pmbus", "SCM_MPS_PMBUS" )

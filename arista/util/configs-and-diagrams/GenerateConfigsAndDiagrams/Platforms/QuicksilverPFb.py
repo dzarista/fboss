@@ -56,11 +56,14 @@ class QuicksilverPFbSMB( SMBUnit ):
          idPromConfigBusName="INCOMING@0",
          idPromConfigAddress="0x50",
          idPromConfigKernelDeviceName="24c512",
-         idPromConfigOffset=15360
+         idPromConfigOffset=15360,
+         createIdpromSymlink=True,
+         platformInIdpromSymlink=True,
       )
 
 
-      smbCpld = SMBCpld( "0x23", "glath05a-64o_cpld", "SMB_CPLD", incomingBusIndex=0 )
+      smbCpld = SMBCpld( "0x23", "glath05a-64o_cpld", "SMB_CPLD", incomingBusIndex=0,
+                         platformInSymlink=True )
 
       smbFanTmp = Sensor( "0x48", "lm75", "FAN_TMP75", incomingBusIndex=2,
                           # Overtemperature threshold set to match EOS

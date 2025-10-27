@@ -18,6 +18,7 @@ from .BaseConfigs import (
    I2cAdapterConfig,
    I2cDeviceConfig,
    I2cIdProm,
+   I2cMux,
    LedConfig,
    OrderedDict,
    PciDeviceConfig,
@@ -169,6 +170,131 @@ class SlotTypeConfigTest( unittest.TestCase ):
             idPromConfigAddress="0x42",
             idPromConfigOffset=13500
          )
+
+   def testRootPmUnitWithoutCreatedIdPromSymlink( self ):
+      platform = PlatformConfig( "test_platform", rootPmUnitName="SCM" )
+
+      # Root PMUnit with no symlink
+      scmPmUnit = PmUnitConfig( pmUnitName="SCM" )
+      scmPmUnit.setSlotTypeConfig(
+         numOutgoingI2cBuses=4,
+         idPromConfigBusName="Internal Adapter",
+         idPromConfigAddress="0x50",
+         idPromConfigKernelDeviceName="24c512",
+         idPromConfigOffset=12000,
+         createIdpromSymlink=False,
+         platformInIdpromSymlink=False,
+      )
+
+      platform.addPmUnitConfigs( [ scmPmUnit ] )
+      scmPmUnit.populateSymlinkToDevicePaths()
+
+      pmConfig = json.loads( platform.pmConfigJson() )
+      symlinkDict = pmConfig[ "symbolicLinkToDevicePath" ]
+      self.assertEqual( len( symlinkDict), 0 )
+      self.assertTrue( "/run/devmap/eeproms/SCM_EEPROM" not in symlinkDict )
+
+   def testWithCreatedIdPromSymlinks( self ):
+      platform = PlatformConfig( "test_platform", rootPmUnitName="SCM" )
+
+      # Root PMUnit with symlink
+      scmPmUnit = PmUnitConfig( pmUnitName="SCM" )
+      scmPmUnit.setSlotTypeConfig(
+         numOutgoingI2cBuses=4,
+         idPromConfigBusName="Internal Adapter",
+         idPromConfigAddress="0x50",
+         idPromConfigKernelDeviceName="24c512",
+         idPromConfigOffset=12000,
+         createIdpromSymlink=True,
+         platformInIdpromSymlink=False,
+      )
+      scmPmUnit.addOutgoingSlotConfigs( [
+         SlotConfig( slotName="SMB_SLOT@0" ),
+         SlotConfig( slotName="PSU_SLOT@0" ),
+         SlotConfig( slotName="PSU_SLOT@1" ),
+         SlotConfig( slotName="RACKMON_SLOT@0" ),
+         SlotConfig( slotName="PEM_SLOT@0" ),
+      ])
+
+      # Non-root PMUnit with platform name in symlink
+      smbPmUnit = PmUnitConfig( pmUnitName="SMB" )
+      smbPmUnit.setSlotTypeConfig(
+         numOutgoingI2cBuses=4,
+         idPromConfigBusName="INCOMING@0",
+         idPromConfigAddress="0x52",
+         idPromConfigKernelDeviceName="24c512",
+         idPromConfigOffset=12000,
+         createIdpromSymlink=True,
+         platformInIdpromSymlink=True,
+      )
+
+      # Multiple non-root PMUnits without platform name in symlink but expect
+      # slot number in symlink
+      psuPmUnit = PmUnitConfig( pmUnitName="PSU" )
+      psuPmUnit.setSlotTypeConfig(
+         numOutgoingI2cBuses=1,
+         idPromConfigBusName="INCOMING@0",
+         idPromConfigAddress="0x52",
+         idPromConfigKernelDeviceName="24c512",
+         idPromConfigOffset=0,
+         createIdpromSymlink=True,
+         platformInIdpromSymlink=False,
+      )
+
+      # PMUnit without symlink
+      rackmonSlot = PmUnitConfig( pmUnitName="RACKMON" )
+      rackmonSlot.setSlotTypeConfig(
+         numOutgoingI2cBuses=1,
+         idPromConfigBusName="INCOMING@0",
+         idPromConfigAddress="0x52",
+         idPromConfigKernelDeviceName="24c512",
+         idPromConfigOffset=0,
+         createIdpromSymlink=False,
+         platformInIdpromSymlink=False,
+      )
+ 
+       # PMUnit with symlink but no platform in symlink
+      pemSlot = PmUnitConfig( pmUnitName="PEM" )
+      pemSlot.setSlotTypeConfig(
+         numOutgoingI2cBuses=1,
+         idPromConfigBusName="INCOMING@0",
+         idPromConfigAddress="0x52",
+         idPromConfigKernelDeviceName="24c512",
+         idPromConfigOffset=0,
+         createIdpromSymlink=True,
+         platformInIdpromSymlink=False,
+      )
+
+      platform.addPmUnitConfigs( [
+         scmPmUnit, smbPmUnit, psuPmUnit, rackmonSlot, pemSlot
+      ] )
+      for pmConfig in platform.pmUnitConfigs:
+         pmConfig.populateSymlinkToDevicePaths()
+
+      pmConfig = json.loads( platform.pmConfigJson() )
+      symlinkDict = pmConfig[ "symbolicLinkToDevicePath" ]
+      self.assertTrue( "/run/devmap/eeproms/SCM_EEPROM" in symlinkDict )
+      self.assertEqual(
+         symlinkDict[ "/run/devmap/eeproms/SCM_EEPROM" ], "/[IDPROM]"
+      )
+      self.assertTrue( "/run/devmap/eeproms/TEST_PLATFORM_SMB_EEPROM" in symlinkDict )
+      self.assertEqual(
+         symlinkDict[ "/run/devmap/eeproms/TEST_PLATFORM_SMB_EEPROM" ],
+         "/SMB_SLOT@0/[IDPROM]"
+      )
+      self.assertTrue( "/run/devmap/eeproms/PSU1_EEPROM" in symlinkDict )
+      self.assertEqual(
+         symlinkDict[ "/run/devmap/eeproms/PSU1_EEPROM" ], "/PSU_SLOT@0/[IDPROM]"
+      )
+      self.assertTrue( "/run/devmap/eeproms/PSU2_EEPROM" in symlinkDict )
+      self.assertEqual(
+         symlinkDict[ "/run/devmap/eeproms/PSU2_EEPROM" ], "/PSU_SLOT@1/[IDPROM]"
+      )
+      self.assertTrue( "/run/devmap/eeproms/RACKMON_EEPROM" not in symlinkDict )
+      self.assertTrue( "/run/devmap/eeproms/PEM_EEPROM" in symlinkDict )
+      self.assertEqual(
+         symlinkDict[ "/run/devmap/eeproms/PEM_EEPROM" ], "/PEM_SLOT@0/[IDPROM]"
+      )
 
 
 class PmUnitConfigTest( unittest.TestCase ):
@@ -372,7 +498,10 @@ class I2cDeviceConfigTest( unittest.TestCase ):
          Sensor( "0x4D", "max6581", "SMB_MAX6581", incomingBusIndex=0 ),
          FANCpld( "0x60", "pali2_cpld", "FAN_CPLD", incomingBusIndex=2 ),
          FANCpld( "0x61", "oasis_cpld0", "FAN0_CPLD", incomingBusIndex=3 ),
-         SMBCpld( "0x23", "decker_cpld", "SMB_CPLD", incomingBusIndex=0 )
+         # Covering both symlink cases for SMBCplds
+         SMBCpld( "0x23", "decker_cpld", "SMB_CPLD", incomingBusIndex=0 ),
+         SMBCpld( "0x24", "decker_cpld", "SMB_CPLD", incomingBusIndex=0,
+                  platformInSymlink=True )
       ] )
       self.platform.pmUnitConfigs[ 2 ].addI2cDeviceConfigs( [
          PSUBus( "0x58", "pmbus", "PSU_PMBUS", incomingBusIndex=0 )
@@ -411,8 +540,7 @@ class I2cDeviceConfigTest( unittest.TestCase ):
       4 for SCM i2c devices
       1 for SMB sensor
       4 symlinks for 2 FAN Cplds
-      1 for SMB Cpld
-      1 for SMB Idprom (generated automatically)
+      2 for SMB Cplds
       2 for PSU buses
       '''
       self.assertEqual( len( symlinkDict ), 22 )
@@ -455,6 +583,11 @@ class I2cDeviceConfigTest( unittest.TestCase ):
       self.assertTrue( "/run/devmap/cplds/TEST_PLATFORM_SMB_CPLD" in symlinkDict )
       self.assertEqual(
          symlinkDict[ "/run/devmap/cplds/TEST_PLATFORM_SMB_CPLD" ],
+         "/SMB_SLOT@7/[SMB_CPLD]"
+      )
+      self.assertTrue( "/run/devmap/cplds/SMB_CPLD" in symlinkDict )
+      self.assertEqual(
+         symlinkDict[ "/run/devmap/cplds/SMB_CPLD" ],
          "/SMB_SLOT@7/[SMB_CPLD]"
       )
       self.assertTrue( "/run/devmap/sensors/PSU14_PMBUS" in symlinkDict )
@@ -760,6 +893,39 @@ class I2cAdapterConfigTest( unittest.TestCase ):
       self.assertFalse(
          "/run/devmap/i2c-busses/TEST_PLATFORM_SMB_FPGA13_SMBUS12_CH7" in symlinkDict
       )
+
+   def testI2cBusesFewerChannels( self ):
+      self.platform.pmUnitConfigs[ 1 ].pciDeviceConfigs[ 0 ].addI2cAdapterConfigs(
+         numAdapters=12,
+         adapterBaseName="SMB_FPGA{}_I2C_MASTER{}",
+         baseCsrOffset="0x4000",
+         # Test case where we use non-default number of channels
+         numChannelsPerAdapter=4
+      )
+      self.platform.pmUnitConfigs[ 1 ].populateSymlinkToDevicePaths()
+      symlinkDict = json.loads( self.platform.pmConfigJson() )[ "symbolicLinkToDevicePath" ]
+      self.assertEqual( len( symlinkDict.keys() ), 12 * 4 + 1 )
+      self.assertTrue( "/run/devmap/fpgas/TEST_PLATFORM_SMB_FPGA13" in symlinkDict )
+      self.assertEqual(
+         symlinkDict[ "/run/devmap/fpgas/TEST_PLATFORM_SMB_FPGA13" ],
+         "/SMB_SLOT@21/[SMB_FPGA13]"
+      )
+
+      for channel in range( 4 ):
+         self.assertTrue(
+            f"/run/devmap/i2c-busses/TEST_PLATFORM_SMB_FPGA13_SMBUS11_CH{channel}"
+            in symlinkDict
+         )
+         self.assertEqual(
+            symlinkDict[f"/run/devmap/i2c-busses/TEST_PLATFORM_SMB_FPGA13_SMBUS11_CH{channel}"],
+            f"/SMB_SLOT@21/[SMB_FPGA13_I2C_MASTER11@{channel}]"
+         )
+
+      for channel in range( 4, 8 ):
+         self.assertFalse(
+            f"/run/devmap/i2c-busses/TEST_PLATFORM_SMB_FPGA13_SMBUS11_CH{channel}"
+            in symlinkDict
+         )
 
    def testAdapterConfigWithBusSymlinkPrefix( self ):
       '''Test that when a busSymlinkPrefix is provided to an I2cAdapterConfig that
@@ -1143,6 +1309,49 @@ class LedConfigTest( unittest.TestCase ):
       ] )
       with self.assertRaises( AssertionError ):
          self.platform.pmConfigJson()
+
+
+class I2cMuxTest( unittest.TestCase ):
+   def testI2cMux( self ):
+      # I2C mux with 4 channels
+      i2cMuxName = "SCM_MUX"
+      i2cMux = I2cMux( "0x75", "pca9548", i2cMuxName, incomingBusIndex=1,
+                       numOutgoingChannels=4 )
+
+      # Add the I2C mux to the SCM FPGA SMBus
+      self.platform = PlatformConfig( "test_platform" )
+      scmUnit = PmUnitConfig( "SCM" )
+      self.platform.addPmUnitConfigs( [ scmUnit ] )
+      scmUnit.addI2cDeviceConfigs( [ i2cMux ] )
+      scmUnit.addPciDeviceConfigs( [
+         *enumeratePciDeviceConfigs( 1, "SCM_FPGA", "0x3475", "0x0001", "0x3475",
+                                     "0x0008" )
+      ] )
+      scmUnit.pciDeviceConfigs[ 0 ].addI2cAdapterConfigs(
+         1, "SCM_I2C_MASTER{}", "0x8000"
+      )
+      scmUnit.pciDeviceConfigs[ 0 ].i2cAdapterConfigs[ 0 ].buses[ 0 ].addI2cDevices(
+         [ i2cMux ]
+      )
+
+      # Set I2C mux buses as the outgoing buses for the SMB slots
+      scmUnit.addOutgoingSlotConfigs( [
+            SlotConfig( slotName="SMB_SLOT@0",
+                        outgoingI2cBuses=[ i2cMux.buses[ 0 ] ] ),
+            SlotConfig( slotName="SMB_SLOT@1",
+                        outgoingI2cBuses=[ i2cMux.buses[ 1 ] ] ),
+            SlotConfig( slotName="SMB_SLOT@2",
+                        outgoingI2cBuses=[ i2cMux.buses[ 2 ] ] ),
+            SlotConfig( slotName="SMB_SLOT@3",
+                        outgoingI2cBuses=[ i2cMux.buses[ 3 ] ] ),
+      ] )
+
+      # Verify that bus naming is correct in resulting config
+      pmUnitDict = json.loads( self.platform.pmConfigJson() )[ "pmUnitConfigs" ]
+      slotConfigs = pmUnitDict[ "SCM" ][ "outgoingSlotConfigs" ]
+      for slotNum, slotConfig in enumerate( slotConfigs.values() ):
+         self.assertEqual( slotConfig[ "outgoingI2cBusNames" ][ 0 ],
+                           f"{ i2cMuxName }@{ slotNum }" )
 
 
 if __name__ == '__main__':
