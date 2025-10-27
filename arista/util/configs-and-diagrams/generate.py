@@ -124,6 +124,10 @@ def main():
          aristaCodename = p
          platform = platforms[ p ]()
          metaCodename = platform.platformName.lower()
+         # Special case for Banff/Thrasher because there's no Aboot18 support for
+         # overriding the dmidecode output.
+         if metaCodename == 'redstart-rmb':
+            metaCodename = 'glath06a-64o'
 
          genPmConfig( platform, aristaCodename, metaCodename, output )
          genSensorConfig( platform, aristaCodename, metaCodename, output )
