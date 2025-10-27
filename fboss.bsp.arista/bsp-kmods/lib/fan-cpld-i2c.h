@@ -31,7 +31,7 @@
 
 #define LED_NAME_MAX_SZ 30
 #define FAN_LED_COUNT 2
-#define MAX_FAN_COUNT 4
+#define MAX_FAN_COUNT 8
 
 /* Common fan CPLD register definitions */
 #define MINOR_VERSION_REG 0x00
@@ -48,25 +48,27 @@
 #define FAN_TACH_REG_LOW(Id, Num) (0x10 * ((Id) + 1) + ((Num) * 2) + 1)
 #define FAN_TACH_REG_HIGH(Id, Num) (0x10 * ((Id) + 1) + ((Num) * 2) + 2)
 
-#define FAN_ID_REG(Id) (0x61 + (Id))
-#define FAN_PRESENT_REG 0x70
-#define FAN_OK_REG 0x71
-
-#define FAN_BLUE_LED_REG 0x73
-#define FAN_AMBER_LED_REG 0x74
-
-#define FAN_INT_REG 0x77
-#define FAN_ID_CHNG_REG 0x78
-#define FAN_PRESENT_CHNG_REG 0x80
-#define FAN_OK_CHNG_REG 0x82
-
 #define FAN_INT_OK (1 << 0)
 #define FAN_INT_PRES (1 << 1)
 #define FAN_INT_ID (1 << 2)
 
 /* Common fan CPLD data structures */
+struct fan_cpld_reg_info {
+	u8 id_reg_base;
+	u8 present_reg;
+	u8 ok_reg;
+	u8 blue_led_reg;
+	u8 amber_led_reg;
+	u8 int_reg;
+	u8 id_change_reg;
+	u8 present_change_reg;
+	u8 ok_change_reg;
+	u8 change_reg_clear_val;
+};
+
 struct fan_cpld_info {
 	char *label;
+	const struct fan_cpld_reg_info *regs;
 	u8 fan_count;
 	u8 rotors;
 	int pulses;

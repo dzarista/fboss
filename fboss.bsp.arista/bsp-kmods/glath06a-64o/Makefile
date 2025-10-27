@@ -4,3 +4,5 @@
 
 obj-m += glath06a-64o-cpld.o
 glath06a-64o-cpld-objs := glath06a-64o-cpld-i2c.o ../lib/regbit-sysfs.o ../lib/smb-cpld-i2c.o
+obj-m += glath06a-64o-fan-cpld.o
+glath06a-64o-fan-cpld-objs := glath06a-64o-fan-cpld-i2c.o ../lib/fan-cpld-i2c.o

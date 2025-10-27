@@ -12,6 +12,8 @@
         "ledtrig_timer",
         "glath05a_64o_cpld",
         "glath05a_64o_fan_cpld",
+        "glath06a_64o_cpld",
+        "glath06a_64o_fan_cpld",
         "rook_fan_cpld",
         "scd_leds",
         "scd_smbus",
