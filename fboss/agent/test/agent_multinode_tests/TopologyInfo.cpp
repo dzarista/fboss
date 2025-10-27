@@ -10,11 +10,44 @@
 
 #include "fboss/agent/test/agent_multinode_tests/TopologyInfo.h"
 
+#include "fboss/agent/test/agent_multinode_tests/DsfTopologyInfo.h"
+
+namespace {
+
+using facebook::fboss::FbossError;
+using facebook::fboss::SwitchState;
+using facebook::fboss::utility::TopologyInfo;
+
+TopologyInfo::TopologyType getDerivedTopologyInfo(
+    const std::shared_ptr<SwitchState>& switchState) {
+  if (switchState->getDsfNodes()->size() > 0) {
+    return TopologyInfo::TopologyType::DSF;
+  }
+
+  throw FbossError("Unsupported topology type");
+}
+
+} // namespace
+
 namespace facebook::fboss::utility {
+
+std::unique_ptr<TopologyInfo> TopologyInfo::makeTopologyInfo(
+    const std::shared_ptr<SwitchState>& switchState) {
+  auto topologyType = getDerivedTopologyInfo(switchState);
+
+  switch (topologyType) {
+    case TopologyType::DSF:
+      return std::make_unique<DsfTopologyInfo>(switchState);
+  }
+
+  throw FbossError("Unexcepted topologyInfo: ", topologyType);
+}
 
 TopologyInfo::TopologyInfo(const std::shared_ptr<SwitchState>& switchState) {
   populateTopologyType(switchState);
 }
+
+TopologyInfo::~TopologyInfo() {}
 
 void TopologyInfo::populateTopologyType(
     const std::shared_ptr<SwitchState>& switchState) {

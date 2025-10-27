@@ -148560,7 +148560,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -148594,7 +148598,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -148628,7 +148636,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -148662,7 +148674,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -148696,7 +148712,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -148730,7 +148750,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -148764,7 +148788,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -148798,7 +148826,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -148832,7 +148864,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -148866,7 +148902,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -148900,7 +148940,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -148934,7 +148978,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -148968,7 +149016,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149002,7 +149054,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149036,7 +149092,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149070,7 +149130,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149104,7 +149168,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149138,7 +149206,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149172,7 +149244,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149206,7 +149282,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149240,7 +149320,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149274,7 +149358,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149308,7 +149396,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149342,7 +149434,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149376,7 +149472,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149410,7 +149510,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149444,7 +149548,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149478,7 +149586,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149512,7 +149624,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149546,7 +149662,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149580,7 +149700,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149614,7 +149738,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149648,7 +149776,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149682,7 +149814,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149716,7 +149852,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149750,7 +149890,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149784,7 +149928,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149818,7 +149966,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149852,7 +150004,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149886,7 +150042,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149920,7 +150080,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149954,7 +150118,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -149988,7 +150156,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150022,7 +150194,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150056,7 +150232,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150090,7 +150270,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150124,7 +150308,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150158,7 +150346,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150192,7 +150384,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150226,7 +150422,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150260,7 +150460,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150294,7 +150498,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150328,7 +150536,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150362,7 +150574,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150396,7 +150612,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150430,7 +150650,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150464,7 +150688,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150498,7 +150726,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150532,7 +150764,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150566,7 +150802,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150600,7 +150840,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150634,7 +150878,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150668,7 +150916,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150702,7 +150954,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150736,7 +150992,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150770,7 +151030,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150804,7 +151068,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150838,7 +151106,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150872,7 +151144,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150906,7 +151182,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150940,7 +151220,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -150974,7 +151258,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151008,7 +151296,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151042,7 +151334,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151076,7 +151372,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151110,7 +151410,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151144,7 +151448,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151178,7 +151486,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151212,7 +151524,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151246,7 +151562,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151280,7 +151600,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151314,7 +151638,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151348,7 +151676,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151382,7 +151714,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151416,7 +151752,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151450,7 +151790,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151484,7 +151828,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151518,7 +151866,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151552,7 +151904,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151586,7 +151942,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151620,7 +151980,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151654,7 +152018,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151688,7 +152056,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151722,7 +152094,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151756,7 +152132,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151790,7 +152170,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151824,7 +152208,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151858,7 +152246,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151892,7 +152284,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151926,7 +152322,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151960,7 +152360,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -151994,7 +152398,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152028,7 +152436,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152062,7 +152474,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152096,7 +152512,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152130,7 +152550,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152164,7 +152588,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152198,7 +152626,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152232,7 +152664,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152266,7 +152702,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152300,7 +152740,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152334,7 +152778,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152368,7 +152816,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152402,7 +152854,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152436,7 +152892,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152470,7 +152930,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152504,7 +152968,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152538,7 +153006,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152572,7 +153044,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152606,7 +153082,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152640,7 +153120,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152674,7 +153158,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152708,7 +153196,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152742,7 +153234,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152776,7 +153272,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152810,7 +153310,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152844,7 +153348,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152878,7 +153386,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152912,7 +153424,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152946,7 +153462,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -152980,7 +153500,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153014,7 +153538,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153048,7 +153576,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153082,7 +153614,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153116,7 +153652,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153150,7 +153690,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153184,7 +153728,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153218,7 +153766,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153252,7 +153804,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153286,7 +153842,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153320,7 +153880,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153354,7 +153918,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153388,7 +153956,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153422,7 +153994,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153456,7 +154032,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153490,7 +154070,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153524,7 +154108,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153558,7 +154146,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153592,7 +154184,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153626,7 +154222,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153660,7 +154260,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153694,7 +154298,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153728,7 +154336,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153762,7 +154374,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153796,7 +154412,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153830,7 +154450,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153864,7 +154488,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153898,7 +154526,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153932,7 +154564,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -153966,7 +154602,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154000,7 +154640,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154034,7 +154678,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154068,7 +154716,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154102,7 +154754,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154136,7 +154792,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154170,7 +154830,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154204,7 +154868,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154238,7 +154906,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154272,7 +154944,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154306,7 +154982,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154340,7 +155020,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154374,7 +155058,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154408,7 +155096,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154442,7 +155134,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154476,7 +155172,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154510,7 +155210,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154544,7 +155248,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154578,7 +155286,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154612,7 +155324,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154646,7 +155362,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154680,7 +155400,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154714,7 +155438,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154748,7 +155476,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154782,7 +155514,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154816,7 +155552,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154850,7 +155590,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154884,7 +155628,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154918,7 +155666,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154952,7 +155704,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -154986,7 +155742,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155020,7 +155780,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155054,7 +155818,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155088,7 +155856,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155122,7 +155894,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155156,7 +155932,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155190,7 +155970,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155224,7 +156008,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155258,7 +156046,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155292,7 +156084,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155326,7 +156122,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155360,7 +156160,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155394,7 +156198,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155428,7 +156236,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155462,7 +156274,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155496,7 +156312,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155530,7 +156350,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155564,7 +156388,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155598,7 +156426,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155632,7 +156464,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155666,7 +156502,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155700,7 +156540,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155734,7 +156578,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155768,7 +156616,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155802,7 +156654,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155836,7 +156692,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155870,7 +156730,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155904,7 +156768,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155938,7 +156806,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -155972,7 +156844,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156006,7 +156882,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156040,7 +156920,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156074,7 +156958,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156108,7 +156996,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156142,7 +157034,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156176,7 +157072,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156210,7 +157110,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156244,7 +157148,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156278,7 +157186,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156312,7 +157224,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156346,7 +157262,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156380,7 +157300,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156414,7 +157338,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156448,7 +157376,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156482,7 +157414,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156516,7 +157452,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156550,7 +157490,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156584,7 +157528,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156618,7 +157566,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156652,7 +157604,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156686,7 +157642,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156720,7 +157680,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156754,7 +157718,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156788,7 +157756,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156822,7 +157794,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156856,7 +157832,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156890,7 +157870,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156924,7 +157908,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156958,7 +157946,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -156992,7 +157984,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157026,7 +158022,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157060,7 +158060,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157094,7 +158098,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157128,7 +158136,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157162,7 +158174,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157196,7 +158212,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157230,7 +158250,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157264,7 +158288,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157298,7 +158326,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157332,7 +158364,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157366,7 +158402,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157400,7 +158440,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157434,7 +158478,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157468,7 +158516,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157502,7 +158554,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157536,7 +158592,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157570,7 +158630,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157604,7 +158668,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157638,7 +158706,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157672,7 +158744,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157706,7 +158782,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157740,7 +158820,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157774,7 +158858,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157808,7 +158896,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157842,7 +158934,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157876,7 +158972,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157910,7 +159010,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157944,7 +159048,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -157978,7 +159086,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158012,7 +159124,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158046,7 +159162,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158080,7 +159200,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158114,7 +159238,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158148,7 +159276,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158182,7 +159314,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158216,7 +159352,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158250,7 +159390,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158284,7 +159428,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158318,7 +159466,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158352,7 +159504,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158386,7 +159542,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158420,7 +159580,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158454,7 +159618,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158488,7 +159656,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158522,7 +159694,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158556,7 +159732,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158590,7 +159770,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158624,7 +159808,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158658,7 +159846,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158692,7 +159884,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158726,7 +159922,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158760,7 +159960,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158794,7 +159998,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158828,7 +160036,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158862,7 +160074,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158896,7 +160112,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158930,7 +160150,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158964,7 +160188,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -158998,7 +160226,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159032,7 +160264,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159066,7 +160302,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159100,7 +160340,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159134,7 +160378,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159168,7 +160416,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159202,7 +160454,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159236,7 +160492,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159270,7 +160530,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159304,7 +160568,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159338,7 +160606,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159372,7 +160644,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159406,7 +160682,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159440,7 +160720,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159474,7 +160758,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159508,7 +160796,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159542,7 +160834,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159576,7 +160872,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159610,7 +160910,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159644,7 +160948,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159678,7 +160986,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159712,7 +161024,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159746,7 +161062,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159780,7 +161100,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159814,7 +161138,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159848,7 +161176,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159882,7 +161214,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159916,7 +161252,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159950,7 +161290,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -159984,7 +161328,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160018,7 +161366,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160052,7 +161404,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160086,7 +161442,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160120,7 +161480,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160154,7 +161518,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160188,7 +161556,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160222,7 +161594,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160256,7 +161632,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160290,7 +161670,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160324,7 +161708,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160358,7 +161746,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160392,7 +161784,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160426,7 +161822,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160460,7 +161860,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160494,7 +161898,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160528,7 +161936,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160562,7 +161974,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160596,7 +162012,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160630,7 +162050,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160664,7 +162088,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160698,7 +162126,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160732,7 +162164,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160766,7 +162202,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160800,7 +162240,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160834,7 +162278,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160868,7 +162316,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160902,7 +162354,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160936,7 +162392,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -160970,7 +162430,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161004,7 +162468,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161038,7 +162506,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161072,7 +162544,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161106,7 +162582,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161140,7 +162620,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161174,7 +162658,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161208,7 +162696,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161242,7 +162734,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161276,7 +162772,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161310,7 +162810,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161344,7 +162848,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161378,7 +162886,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161412,7 +162924,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161446,7 +162962,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161480,7 +163000,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161514,7 +163038,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161548,7 +163076,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161582,7 +163114,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161616,7 +163152,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161650,7 +163190,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161684,7 +163228,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161718,7 +163266,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161752,7 +163304,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161786,7 +163342,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161820,7 +163380,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161854,7 +163418,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161888,7 +163456,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161922,7 +163494,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161956,7 +163532,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -161990,7 +163570,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162024,7 +163608,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162058,7 +163646,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162092,7 +163684,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162126,7 +163722,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162160,7 +163760,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162194,7 +163798,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162228,7 +163836,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162262,7 +163874,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162296,7 +163912,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162330,7 +163950,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162364,7 +163988,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162398,7 +164026,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162432,7 +164064,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162466,7 +164102,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162500,7 +164140,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162534,7 +164178,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162568,7 +164216,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162602,7 +164254,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162636,7 +164292,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162670,7 +164330,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162704,7 +164368,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162738,7 +164406,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162772,7 +164444,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162806,7 +164482,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162840,7 +164520,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162874,7 +164558,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162908,7 +164596,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162942,7 +164634,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -162976,7 +164672,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163010,7 +164710,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163044,7 +164748,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163078,7 +164786,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163112,7 +164824,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163146,7 +164862,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163180,7 +164900,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163214,7 +164938,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163248,7 +164976,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163282,7 +165014,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163316,7 +165052,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163350,7 +165090,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163384,7 +165128,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163418,7 +165166,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163452,7 +165204,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163486,7 +165242,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163520,7 +165280,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163554,7 +165318,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163588,7 +165356,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163622,7 +165394,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163656,7 +165432,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163690,7 +165470,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163724,7 +165508,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163758,7 +165546,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163792,7 +165584,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163826,7 +165622,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163860,7 +165660,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163894,7 +165698,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163928,7 +165736,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163962,7 +165774,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -163996,7 +165812,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164030,7 +165850,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164064,7 +165888,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164098,7 +165926,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164132,7 +165964,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164166,7 +166002,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164200,7 +166040,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164234,7 +166078,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164268,7 +166116,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164302,7 +166154,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164336,7 +166192,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164370,7 +166230,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164404,7 +166268,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164438,7 +166306,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164472,7 +166344,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164506,7 +166382,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164540,7 +166420,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164574,7 +166458,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164608,7 +166496,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164642,7 +166534,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164676,7 +166572,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164710,7 +166610,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164744,7 +166648,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164778,7 +166686,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164812,7 +166724,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164846,7 +166762,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164880,7 +166800,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164914,7 +166838,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164948,7 +166876,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -164982,7 +166914,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165016,7 +166952,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165050,7 +166990,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165084,7 +167028,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165118,7 +167066,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165152,7 +167104,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165186,7 +167142,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165220,7 +167180,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165254,7 +167218,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165288,7 +167256,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165322,7 +167294,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165356,7 +167332,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165390,7 +167370,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165424,7 +167408,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165458,7 +167446,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165492,7 +167484,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165526,7 +167522,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165560,7 +167560,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165594,7 +167598,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165628,7 +167636,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165662,7 +167674,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165696,7 +167712,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165730,7 +167750,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165764,7 +167788,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165798,7 +167826,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165832,7 +167864,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165866,7 +167902,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165900,7 +167940,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165934,7 +167978,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -165968,7 +168016,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166002,7 +168054,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166036,7 +168092,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166070,7 +168130,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166104,7 +168168,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166138,7 +168206,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166172,7 +168244,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166206,7 +168282,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166240,7 +168320,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166274,7 +168358,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166308,7 +168396,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166342,7 +168434,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166376,7 +168472,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166410,7 +168510,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166444,7 +168548,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166478,7 +168586,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166512,7 +168624,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166546,7 +168662,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166580,7 +168700,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166614,7 +168738,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166648,7 +168776,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166682,7 +168814,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166716,7 +168852,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166750,7 +168890,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166784,7 +168928,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166818,7 +168966,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166852,7 +169004,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166886,7 +169042,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166920,7 +169080,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166954,7 +169118,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -166988,7 +169156,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167022,7 +169194,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167056,7 +169232,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167090,7 +169270,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167124,7 +169308,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167158,7 +169346,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167192,7 +169384,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167226,7 +169422,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167260,7 +169460,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167294,7 +169498,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167328,7 +169536,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167362,7 +169574,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167396,7 +169612,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167430,7 +169650,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167464,7 +169688,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167498,7 +169726,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167532,7 +169764,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167566,7 +169802,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167600,7 +169840,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167634,7 +169878,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167668,7 +169916,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167702,7 +169954,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167736,7 +169992,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167770,7 +170030,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167804,7 +170068,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167838,7 +170106,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167872,7 +170144,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167906,7 +170182,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167940,7 +170220,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -167974,7 +170258,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168008,7 +170296,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168042,7 +170334,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168076,7 +170372,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168110,7 +170410,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168144,7 +170448,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168178,7 +170486,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168212,7 +170524,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168246,7 +170562,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168280,7 +170600,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168314,7 +170638,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168348,7 +170676,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168382,7 +170714,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168416,7 +170752,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168450,7 +170790,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168484,7 +170828,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168518,7 +170866,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168552,7 +170904,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168586,7 +170942,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168620,7 +170980,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168654,7 +171018,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168688,7 +171056,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168722,7 +171094,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168756,7 +171132,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168790,7 +171170,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168824,7 +171208,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168858,7 +171246,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168892,7 +171284,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168926,7 +171322,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168960,7 +171360,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -168994,7 +171398,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169028,7 +171436,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169062,7 +171474,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169096,7 +171512,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169130,7 +171550,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169164,7 +171588,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169198,7 +171626,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169232,7 +171664,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169266,7 +171702,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169300,7 +171740,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169334,7 +171778,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169368,7 +171816,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169402,7 +171854,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169436,7 +171892,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169470,7 +171930,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169504,7 +171968,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169538,7 +172006,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169572,7 +172044,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169606,7 +172082,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169640,7 +172120,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169674,7 +172158,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169708,7 +172196,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169742,7 +172234,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169776,7 +172272,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169810,7 +172310,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169844,7 +172348,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169878,7 +172386,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169912,7 +172424,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169946,7 +172462,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -169980,7 +172500,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170014,7 +172538,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170048,7 +172576,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170082,7 +172614,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170116,7 +172652,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170150,7 +172690,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170184,7 +172728,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170218,7 +172766,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170252,7 +172804,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170286,7 +172842,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170320,7 +172880,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170354,7 +172918,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170388,7 +172956,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170422,7 +172994,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170456,7 +173032,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170490,7 +173070,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170524,7 +173108,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170558,7 +173146,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170592,7 +173184,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170626,7 +173222,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170660,7 +173260,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170694,7 +173298,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170728,7 +173336,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170762,7 +173374,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170796,7 +173412,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170830,7 +173450,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170864,7 +173488,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170898,7 +173526,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170932,7 +173564,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -170966,7 +173602,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171000,7 +173640,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171034,7 +173678,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171068,7 +173716,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171102,7 +173754,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171136,7 +173792,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171170,7 +173830,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171204,7 +173868,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171238,7 +173906,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171272,7 +173944,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171306,7 +173982,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171340,7 +174020,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171374,7 +174058,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171408,7 +174096,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171442,7 +174134,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171476,7 +174172,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171510,7 +174210,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171544,7 +174248,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171578,7 +174286,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171612,7 +174324,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171646,7 +174362,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171680,7 +174400,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171714,7 +174438,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171748,7 +174476,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171782,7 +174514,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171816,7 +174552,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171850,7 +174590,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171884,7 +174628,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171918,7 +174666,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171952,7 +174704,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -171986,7 +174742,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172020,7 +174780,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172054,7 +174818,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172088,7 +174856,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172122,7 +174894,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172156,7 +174932,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172190,7 +174970,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172224,7 +175008,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172258,7 +175046,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172292,7 +175084,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172326,7 +175122,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172360,7 +175160,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172394,7 +175198,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172428,7 +175236,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172462,7 +175274,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172496,7 +175312,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172530,7 +175350,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172564,7 +175388,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172598,7 +175426,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172632,7 +175464,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172666,7 +175502,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172700,7 +175540,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172734,7 +175578,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172768,7 +175616,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172802,7 +175654,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172836,7 +175692,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172870,7 +175730,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172904,7 +175768,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172938,7 +175806,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -172972,7 +175844,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173006,7 +175882,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173040,7 +175920,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173074,7 +175958,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173108,7 +175996,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173142,7 +176034,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173176,7 +176072,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173210,7 +176110,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173244,7 +176148,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173278,7 +176186,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173312,7 +176224,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173346,7 +176262,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173380,7 +176300,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173414,7 +176338,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173448,7 +176376,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173482,7 +176414,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173516,7 +176452,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173550,7 +176490,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173584,7 +176528,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173618,7 +176566,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173652,7 +176604,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173686,7 +176642,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173720,7 +176680,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173754,7 +176718,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173788,7 +176756,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173822,7 +176794,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173856,7 +176832,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173890,7 +176870,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173924,7 +176908,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173958,7 +176946,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -173992,7 +176984,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174026,7 +177022,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174060,7 +177060,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174094,7 +177098,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174128,7 +177136,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174162,7 +177174,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174196,7 +177212,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174230,7 +177250,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174264,7 +177288,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174298,7 +177326,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174332,7 +177364,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174366,7 +177402,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174400,7 +177440,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174434,7 +177478,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174468,7 +177516,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174502,7 +177554,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174536,7 +177592,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174570,7 +177630,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174604,7 +177668,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174638,7 +177706,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174672,7 +177744,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174706,7 +177782,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174740,7 +177820,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174774,7 +177858,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174808,7 +177896,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174842,7 +177934,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174876,7 +177972,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174910,7 +178010,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174944,7 +178048,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -174978,7 +178086,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175012,7 +178124,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175046,7 +178162,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175080,7 +178200,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175114,7 +178238,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175148,7 +178276,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175182,7 +178314,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175216,7 +178352,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175250,7 +178390,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175284,7 +178428,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175318,7 +178466,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175352,7 +178504,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175386,7 +178542,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175420,7 +178580,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175454,7 +178618,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175488,7 +178656,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175522,7 +178694,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175556,7 +178732,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175590,7 +178770,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175624,7 +178808,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175658,7 +178846,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175692,7 +178884,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175726,7 +178922,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175760,7 +178960,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175794,7 +178998,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175828,7 +179036,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175862,7 +179074,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175896,7 +179112,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175930,7 +179150,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175964,7 +179188,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -175998,7 +179226,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176032,7 +179264,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176066,7 +179302,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176100,7 +179340,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176134,7 +179378,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176168,7 +179416,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176202,7 +179454,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176236,7 +179492,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176270,7 +179530,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176304,7 +179568,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176338,7 +179606,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176372,7 +179644,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176406,7 +179682,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176440,7 +179720,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176474,7 +179758,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176508,7 +179796,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176542,7 +179834,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176576,7 +179872,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176610,7 +179910,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176644,7 +179948,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176678,7 +179986,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176712,7 +180024,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176746,7 +180062,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176780,7 +180100,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176814,7 +180138,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176848,7 +180176,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176882,7 +180214,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176916,7 +180252,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176950,7 +180290,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -176984,7 +180328,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177018,7 +180366,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177052,7 +180404,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177086,7 +180442,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177120,7 +180480,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177154,7 +180518,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177188,7 +180556,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177222,7 +180594,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177256,7 +180632,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177290,7 +180670,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177324,7 +180708,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177358,7 +180746,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177392,7 +180784,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177426,7 +180822,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177460,7 +180860,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177494,7 +180898,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177528,7 +180936,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177562,7 +180974,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177596,7 +181012,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177630,7 +181050,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177664,7 +181088,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177698,7 +181126,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177732,7 +181164,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177766,7 +181202,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177800,7 +181240,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177834,7 +181278,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177868,7 +181316,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177902,7 +181354,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177936,7 +181392,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -177970,7 +181430,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178004,7 +181468,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178038,7 +181506,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178072,7 +181544,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178106,7 +181582,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178140,7 +181620,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178174,7 +181658,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178208,7 +181696,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178242,7 +181734,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178276,7 +181772,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178310,7 +181810,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178344,7 +181848,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178378,7 +181886,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178412,7 +181924,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178446,7 +181962,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178480,7 +182000,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178514,7 +182038,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178548,7 +182076,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178582,7 +182114,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178616,7 +182152,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178650,7 +182190,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178684,7 +182228,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178718,7 +182266,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178752,7 +182304,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178786,7 +182342,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178820,7 +182380,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178854,7 +182418,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178888,7 +182456,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178922,7 +182494,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178956,7 +182532,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -178990,7 +182570,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179024,7 +182608,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179058,7 +182646,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179092,7 +182684,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179126,7 +182722,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179160,7 +182760,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179194,7 +182798,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179228,7 +182836,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179262,7 +182874,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179296,7 +182912,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179330,7 +182950,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179364,7 +182988,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179398,7 +183026,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179432,7 +183064,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179466,7 +183102,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179500,7 +183140,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179534,7 +183178,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179568,7 +183216,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179602,7 +183254,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179636,7 +183292,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179670,7 +183330,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179704,7 +183368,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179738,7 +183406,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179772,7 +183444,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179806,7 +183482,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179840,7 +183520,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179874,7 +183558,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179908,7 +183596,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179942,7 +183634,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -179976,7 +183672,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180010,7 +183710,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180044,7 +183748,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180078,7 +183786,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180112,7 +183824,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180146,7 +183862,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180180,7 +183900,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180214,7 +183938,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180248,7 +183976,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180282,7 +184014,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180316,7 +184052,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180350,7 +184090,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180384,7 +184128,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180418,7 +184166,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180452,7 +184204,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180486,7 +184242,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180520,7 +184280,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180554,7 +184318,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180588,7 +184356,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180622,7 +184394,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180656,7 +184432,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180690,7 +184470,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180724,7 +184508,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180758,7 +184546,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180792,7 +184584,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180826,7 +184622,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180860,7 +184660,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180894,7 +184698,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180928,7 +184736,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180962,7 +184774,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -180996,7 +184812,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181030,7 +184850,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181064,7 +184888,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181098,7 +184926,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181132,7 +184964,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181166,7 +185002,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181200,7 +185040,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181234,7 +185078,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181268,7 +185116,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181302,7 +185154,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181336,7 +185192,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181370,7 +185230,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181404,7 +185268,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181438,7 +185306,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181472,7 +185344,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181506,7 +185382,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181540,7 +185420,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181574,7 +185458,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181608,7 +185496,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181642,7 +185534,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181676,7 +185572,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181710,7 +185610,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181744,7 +185648,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181778,7 +185686,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181812,7 +185724,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181846,7 +185762,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181880,7 +185800,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181914,7 +185838,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181948,7 +185876,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -181982,7 +185914,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182016,7 +185952,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182050,7 +185990,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182084,7 +186028,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182118,7 +186066,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182152,7 +186104,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182186,7 +186142,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182220,7 +186180,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182254,7 +186218,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182288,7 +186256,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182322,7 +186294,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182356,7 +186332,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182390,7 +186370,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182424,7 +186408,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182458,7 +186446,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182492,7 +186484,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182526,7 +186522,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182560,7 +186560,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182594,7 +186598,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182628,7 +186636,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182662,7 +186674,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182696,7 +186712,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182730,7 +186750,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182764,7 +186788,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182798,7 +186826,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182832,7 +186864,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182866,7 +186902,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182900,7 +186940,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182934,7 +186978,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -182968,7 +187016,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -183002,7 +187054,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -183036,7 +187092,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -183070,7 +187130,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -183104,7 +187168,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -183138,7 +187206,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -183172,7 +187244,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -183206,7 +187282,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -183240,7 +187320,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -183274,7 +187358,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -183308,7 +187396,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
@@ -183342,7 +187434,11 @@ constexpr auto kJsonMultiNpuProdPlatformMappingStr = R"(
         "mediaInterfaceCode": 3,
         "vendor": {
           "name": "Vendor_1",
-          "partNumber": "PartNum_1"
+          "oui": "",
+          "partNumber": "PartNum_1",
+          "rev": "",
+          "serialNumber": "",
+          "dateCode": ""
         }
       },
       "pins": {
