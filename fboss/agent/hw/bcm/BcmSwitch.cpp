@@ -734,15 +734,17 @@ std::shared_ptr<SwitchState> BcmSwitch::getColdBootSwitchState() const {
     swPort->setProfileId(
         platformPort->getProfileIDBySpeed(bcmPort->getSpeed()));
     // Coldboot state can assume transceiver doesn't exist
-    PlatformPortProfileConfigMatcher matcher{swPort->getProfileID(), portID};
-    if (auto profileConfig = platform_->getPortProfileConfig(matcher)) {
+    PlatformPortProfileConfigMatcher profileMatcher{
+        swPort->getProfileID(), portID};
+    if (auto profileConfig = platform_->getPortProfileConfig(profileMatcher)) {
       swPort->setProfileConfig(*profileConfig->iphy());
     } else {
       throw FbossError(
-          "No port profile config found with matcher:", matcher.toString());
+          "No port profile config found with matcher:",
+          profileMatcher.toString());
     }
     swPort->resetPinConfigs(
-        platform_->getPlatformMapping()->getPortIphyPinConfigs(matcher));
+        platform_->getPlatformMapping()->getPortIphyPinConfigs(profileMatcher));
     swPort->setSpeed(bcmPort->getSpeed());
     if (platform_->getAsic()->isSupported(HwAsic::Feature::L3_QOS)) {
       auto queues = bcmPort->getCurrentQueueSettings();
@@ -978,8 +980,7 @@ HwInitResult BcmSwitch::initImpl(
     // bcmSwitchL3EgressMode else the egress ids
     // in the host table don't show up correctly.
     // TODO: Use thrift representation for sw switch state.
-    auto switchStateJson =
-        getPlatform()->getWarmBootHelper()->getWarmBootState();
+    switchStateJson = getPlatform()->getWarmBootHelper()->getWarmBootState();
     warmBootCache_->populate(switchStateJson);
   }
   setupToCpuEgress();
@@ -3310,6 +3311,10 @@ HwSwitchTemperatureStats BcmSwitch::getSwitchTemperatureStats() const {
   return HwSwitchTemperatureStats{};
 }
 
+HwSwitchHardResetStats BcmSwitch::getHwSwitchHardResetStats() const {
+  return HwSwitchHardResetStats{};
+}
+
 bcm_if_t BcmSwitch::getDropEgressId() const {
   return platform_->getAsic()->getDefaultDropEgressID();
 }
@@ -4067,7 +4072,8 @@ static int _addL2Entry(int /*unit*/, bcm_l2_addr_t* l2addr, void* user_data) {
   return 0;
 }
 
-void BcmSwitch::fetchL2Table(std::vector<L2EntryThrift>* l2Table) const {
+void BcmSwitch::fetchL2Table(std::vector<L2EntryThrift>* l2Table, bool /*sdk*/)
+    const {
   auto cookie = std::make_pair(this, l2Table);
   int rv = bcm_l2_traverse(unit_, _addL2Entry, &cookie);
   bcmCheckError(rv, "bcm_l2_traverse failed");

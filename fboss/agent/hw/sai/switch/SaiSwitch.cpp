@@ -2495,9 +2495,10 @@ SaiSwitch::getVirtualDeviceToRemoteConnectionGroupsLocked(
       lookupVirtualDeviceId);
 }
 
-void SaiSwitch::fetchL2Table(std::vector<L2EntryThrift>* l2Table) const {
+void SaiSwitch::fetchL2Table(std::vector<L2EntryThrift>* l2Table, bool sdk)
+    const {
   std::lock_guard<std::mutex> lock(saiSwitchMutex_);
-  fetchL2TableLocked(lock, l2Table);
+  fetchL2TableLocked(lock, l2Table, sdk);
 }
 
 void SaiSwitch::gracefulExitImpl() {
@@ -4084,8 +4085,9 @@ bool SaiSwitch::sendPacketOutOfPortSync(
 
 void SaiSwitch::fetchL2TableLocked(
     const std::lock_guard<std::mutex>& /* lock */,
-    std::vector<L2EntryThrift>* l2Table) const {
-  *l2Table = managerTable_->fdbManager().getL2Entries();
+    std::vector<L2EntryThrift>* l2Table,
+    bool sdk) const {
+  *l2Table = managerTable_->fdbManager().getL2Entries(sdk);
 }
 
 folly::dynamic SaiSwitch::toFollyDynamicLocked(
@@ -4309,7 +4311,7 @@ SaiManagerTable* SaiSwitch::managerTableLocked(
 void SaiSwitch::fdbEventCallback(
     uint32_t count,
     const sai_fdb_event_notification_data_t* data) {
-  XLOG(DBG2) << "Received " << count << " learn notifications";
+  XLOG(DBG4) << "Received " << count << " learn notifications";
   if (runState_ < SwitchRunState::CONFIGURED) {
     // receive learn events after switch is configured to prevent
     // fdb entries from being created against ports  which would
@@ -4350,7 +4352,7 @@ void SaiSwitch::fdbEventCallback(
     }
     fdbEventNotificationDataTmp.emplace_back(
         data[i].event_type, data[i].fdb_entry, bridgePortSaiId, fdbMetaData);
-    XLOG(DBG2) << "Received FDB event: " << fdbEventToString(data[i].event_type)
+    XLOG(DBG4) << "Received FDB event: " << fdbEventToString(data[i].event_type)
                << " for bridge port: " << bridgePortSaiId;
   }
   fdbEventBottomHalfEventBase_.runInFbossEventBaseThread(
@@ -4369,6 +4371,7 @@ void SaiSwitch::fdbEventCallbackLockedBottomHalf(
         cfg::L2LearningMode::SOFTWARE) {
       // Some platforms call fdb callback even when mode is set to HW. In
       // keeping with our native SDK approach, don't send these events up.
+      XLOG(DBG4) << "Ignoring FDB learn notification as mode is not software";
       return;
     }
 
@@ -5134,6 +5137,13 @@ HwSwitchPipelineStats SaiSwitch::getSwitchPipelineStats() const {
 HwSwitchTemperatureStats SaiSwitch::getSwitchTemperatureStats() const {
   std::lock_guard<std::mutex> lk(saiSwitchMutex_);
   return managerTable_->switchManager().getSwitchTemperatureStats();
+}
+
+HwSwitchHardResetStats SaiSwitch::getHwSwitchHardResetStats() const {
+  HwSwitchHardResetStats hardResetStats;
+  hardResetStats.hard_reset_notification_received() =
+      hardResetNotificationReceived_.load();
+  return hardResetStats;
 }
 
 /*

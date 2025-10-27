@@ -895,7 +895,6 @@ void PortManager::
       if (shouldReinitPorts) {
         if (auto result = updateStateBlockingWithoutWait(
                 portId, PortStateMachineEvent::PORT_EV_RESET_TO_INITIALIZED)) {
-          XLOG(ERR) << "Reset port " << portId << " to initialized";
           results.push_back(result);
         }
       }
@@ -998,6 +997,10 @@ void PortManager::triggerAgentConfigChangeEvent() {
 
   transceiverManager_->triggerTransceiverEventsForAgentConfigChangeEvent(
       resetDataPath, newConfigAppliedInfo);
+  for (auto& stateMachine : stateMachineControllers_) {
+    stateMachine.second->getStateMachine().wlock()->get_attribute(
+        xphyNeedResetDataPath) = resetDataPath;
+  }
 
   configAppliedInfo_ = newConfigAppliedInfo;
 }
@@ -1537,12 +1540,12 @@ void PortManager::refreshStateMachines() {
   // transceivers and transceiver data.
   transceiverManager_->refreshTransceivers();
 
-  // Step 2: Reset port state machines for ports that have transceivers that are
+  // Step 2: Fetch current port status from wedge_agent.
+  updateTransceiverPortStatus();
+
+  // Step 3: Reset port state machines for ports that have transceivers that are
   // recently discovered to retrigger programming.
   detectTransceiverDiscoveredAndReinitializeCorrespondingPorts();
-
-  // Step 3: Fetch current port status from wedge_agent.
-  updateTransceiverPortStatus();
 
   // Step 4: Check whether there's a wedge_agent config change
   triggerAgentConfigChangeEvent();
@@ -1562,6 +1565,33 @@ void PortManager::refreshStateMachines() {
   setWarmBootState();
 
   XLOG(INFO) << "refreshStateMachines ended";
+}
+
+bool PortManager::getXphyNeedResetDataPath(PortID id) const {
+  auto stateMachineItr = stateMachineControllers_.find(id);
+  if (stateMachineItr == stateMachineControllers_.end()) {
+    throw FbossError("Port:", id, " doesn't exist");
+  }
+  return stateMachineItr->second->getStateMachine().rlock()->get_attribute(
+      xphyNeedResetDataPath);
+}
+
+void PortManager::programXphyPortPrbs(
+    PortID portId,
+    phy::Side side,
+    const phy::PortPrbsState& prbs) {
+  if (!phyManager_) {
+    throw FbossError(
+        "Unable to programXphyPortPrbs when PhyManager is not set");
+  }
+
+  phyManager_->setPortPrbs(portId, side, prbs);
+}
+
+phy::PortPrbsState PortManager::getXphyPortPrbs(
+    const PortID& portId,
+    phy::Side side) {
+  return phyManager_->getPortPrbs(portId, side);
 }
 
 } // namespace facebook::fboss

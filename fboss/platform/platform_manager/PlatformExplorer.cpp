@@ -804,9 +804,13 @@ void PlatformExplorer::publishHardwareVersions() {
   }
 
   auto chassisEepromContent = dataStore_.getEepromContents(chassisDevicePath);
+  auto version = chassisEepromContent.getVersion();
   auto prodState = chassisEepromContent.getProductionState();
   auto prodSubState = chassisEepromContent.getProductionSubState();
   auto variantVersion = chassisEepromContent.getVariantVersion();
+
+  // Report version
+  fb303::fbData->setCounter(fmt::format(kChassisEepromVersion, version), 1);
 
   // Report production state
   if (!prodState.empty()) {

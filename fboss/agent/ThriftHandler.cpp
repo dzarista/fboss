@@ -831,7 +831,7 @@ void ThriftHandler::syncFibInVrf(
   }
   // Only route updates in first syncFib for each client are logged
   auto firstClientSync =
-      syncedFibClients.find(client) == syncedFibClients.end();
+      syncedFibClients_.find(client) == syncedFibClients_.end();
   auto clientIdentifier = "fboss-agent-warmboot-" + clientName;
   if (firstClientSync && sw_->getBootType() == BootType::WARM_BOOT) {
     sw_->logRouteUpdates("::", 0, clientIdentifier);
@@ -848,7 +848,7 @@ void ThriftHandler::syncFibInVrf(
     sw_->setFibSyncTimeForClient(clientId);
   }
 
-  syncedFibClients.emplace(client);
+  syncedFibClients_.emplace(client);
 }
 
 void ThriftHandler::syncFib(
@@ -928,6 +928,11 @@ static void populateInterfaceDetail(
   }
 
   interfaceDetail.scope() = intf->getScope();
+
+  if (intf->getDesiredPeerAddressIPv6().has_value()) {
+    interfaceDetail.desiredPeerAddressIPv6() =
+        intf->getDesiredPeerAddressIPv6().value();
+  }
 }
 
 void ThriftHandler::getAllInterfaces(
@@ -2003,7 +2008,7 @@ void ThriftHandler::getRouteCounterBytes(
   for (const auto& statName : *counters) {
     // returns default stat if statName does not exists
     auto statPtr = statMap->getStatPtrNoExport(statName);
-    auto lockedStatPtr = statPtr->lock();
+    auto lockedStatPtr = statPtr->wlock();
     auto numLevels = lockedStatPtr->numLevels();
     // Cumulative (ALLTIME) counters are at (numLevels - 1)
     auto value = lockedStatPtr->sum(numLevels - 1);
