@@ -108,7 +108,7 @@ unset DESTDIR
 export CCACHE_CONFIGPATH=$(realpath arista/build-utils/ccache.conf)
 
 echo "==== Building fboss ===="
-time $getdeps build --allow-system-packages --num-jobs 40 \
+time $getdeps build --allow-system-packages --num-jobs 20 \
    --scratch-path $scratch_dir --build-type $build_type ${src_dir_arg[@]} fboss \
    --extra-cmake-defines='{"CMAKE_CXX_STANDARD":"20"}' ${cmake_target+--cmake-target $cmake_target} \
    ${FBOSS_BARNEY_BUILD+--schedule-type continuous}
