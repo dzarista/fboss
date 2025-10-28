@@ -104,7 +104,7 @@ class BanffSMB( SMBUnit ):
       smbTempSensor = Sensor( "0x4D", "max6581", "SMB_MAX6581",
                               incomingBusIndex=0 )
       smbTempSensor.addSensorConfigs( [
-         SensorConfig( "SMB_BOARD_FRONT_BOTTOM_TEMP", "temp1_input", SensorType.TEMP,
+         SensorConfig( "BOARD_FRONT_BOTTOM_TEMP", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=90.0, maxAlarmVal=80.0
@@ -120,22 +120,22 @@ class BanffSMB( SMBUnit ):
                            upperCriticalVal=115.0
                        ) ),
          # temp4_input is unused
-         SensorConfig( "SMB_BOARD_FRONT_1_TEMP", "temp5_input", SensorType.TEMP,
+         SensorConfig( "BOARD_FRONT_1_TEMP", "temp5_input", SensorType.TEMP,
                        compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=90.0, maxAlarmVal=80.0
                        ) ),
-         SensorConfig( "SMB_BOARD_FRONT_2_TEMP", "temp6_input", SensorType.TEMP,
+         SensorConfig( "BOARD_FRONT_2_TEMP", "temp6_input", SensorType.TEMP,
                        compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=90.0, maxAlarmVal=80.0
                        ) ),
-         SensorConfig( "SMB_BOARD_REAR_1_TEMP", "temp7_input", SensorType.TEMP,
+         SensorConfig( "BOARD_REAR_1_TEMP", "temp7_input", SensorType.TEMP,
                        compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=90.0, maxAlarmVal=80.0
                        ) ),
-         SensorConfig( "SMB_BOARD_REAR_2_TEMP", "temp8_input", SensorType.TEMP,
+         SensorConfig( "BOARD_REAR_2_TEMP", "temp8_input", SensorType.TEMP,
                        compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=90.0, maxAlarmVal=80.0
@@ -146,38 +146,38 @@ class BanffSMB( SMBUnit ):
                               incomingBusIndex=1 )
       pwrTempSensor.addSensorConfigs( [
          # TODO: BUG1304496: Add Sundance descriptions and limits when available.
-         SensorConfig( "SMB_PWR_BOARD_1_TEMP", "temp1_input", SensorType.TEMP,
+         SensorConfig( "PWR_BOARD_1_TEMP", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=90.0, maxAlarmVal=80.0
                        ) ),
-         SensorConfig( "SMB_PWR_BOARD_2_TEMP", "temp2_input", SensorType.TEMP,
+         SensorConfig( "PWR_BOARD_2_TEMP", "temp2_input", SensorType.TEMP,
                        compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=115.0, maxAlarmVal=105.0
                        ) ),
-         SensorConfig( "SMB_PWR_BOARD_3_TEMP", "temp3_input", SensorType.TEMP,
+         SensorConfig( "PWR_BOARD_3_TEMP", "temp3_input", SensorType.TEMP,
                        compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=115.0, maxAlarmVal=105.0
                        ) ),
          # temp4_input is unused
-         SensorConfig( "SMB_PWR_BOARD_4_TEMP", "temp5_input", SensorType.TEMP,
+         SensorConfig( "PWR_BOARD_4_TEMP", "temp5_input", SensorType.TEMP,
                        compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=90.0, maxAlarmVal=80.0
                        ) ),
-         SensorConfig( "SMB_PWR_BOARD_5_TEMP", "temp6_input", SensorType.TEMP,
+         SensorConfig( "PWR_BOARD_5_TEMP", "temp6_input", SensorType.TEMP,
                        compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=90.0, maxAlarmVal=80.0
                        ) ),
-         SensorConfig( "SMB_PWR_BOARD_6_TEMP", "temp7_input", SensorType.TEMP,
+         SensorConfig( "PWR_BOARD_6_TEMP", "temp7_input", SensorType.TEMP,
                        compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=90.0, maxAlarmVal=80.0
                        ) ),
-         SensorConfig( "SMB_PWR_BOARD_7_TEMP", "temp8_input", SensorType.TEMP,
+         SensorConfig( "PWR_BOARD_7_TEMP", "temp8_input", SensorType.TEMP,
                        compute="@/1000.0",
                        thresholds=Thresholds(
                            upperCriticalVal=110.0, maxAlarmVal=100.0
@@ -645,7 +645,7 @@ class BanffSMB( SMBUnit ):
                           upperCriticalVal=990, lowerCriticalVal=810
                        ) ),
          # TODO: BUG1304496: update temp limits when available.
-         SensorConfig( "TTH6_POS0V9_TRVDD_01_1_TEMP", "temp1_input", SensorType.TEMP,
+         SensorConfig( "TH6_POS0V9_TRVDD_01_1_TEMP", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0",
                        thresholds=Thresholds(
                           upperCriticalVal=125.0, maxAlarmVal=115.0
@@ -821,99 +821,99 @@ class BanffSMB( SMBUnit ):
       smbUcd = Sensor( "0x11", "glath06a_aucd90320", "SMB_UCD90320",
                        incomingBusIndex=2 )
       smbUcd.addSensorConfigs( [
-         SensorConfig( "DPM_POS12V_VOUT", "in1_input", SensorType.VOLTAGE,
+         SensorConfig( "UCD_POS12V_VOUT", "in1_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
                           upperCriticalVal=13200, lowerCriticalVal=10800
                        ) ),
-         SensorConfig( "DPM_POS3V3_VOUT", "in2_input", SensorType.VOLTAGE,
+         SensorConfig( "UCD_POS3V3_VOUT", "in2_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
                           upperCriticalVal=3630, lowerCriticalVal=2970
                        ) ),
-         SensorConfig( "DPM_POS1V8_VOUT", "in3_input", SensorType.VOLTAGE,
+         SensorConfig( "UCD_POS1V8_VOUT", "in3_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
                           upperCriticalVal=1980, lowerCriticalVal=1620
                        ) ),
-         SensorConfig( "DPM_POS0V75_TRVDD_0_VOUT", "in4_input", SensorType.VOLTAGE,
+         SensorConfig( "UCD_POS0V75_TRVDD_0_VOUT", "in4_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
                           upperCriticalVal=825, lowerCriticalVal=675
                        ) ),
-         SensorConfig( "DPM_POS0V75_TRVDD_1_VOUT", "in5_input", SensorType.VOLTAGE,
+         SensorConfig( "UCD_POS0V75_TRVDD_1_VOUT", "in5_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
                           upperCriticalVal=825, lowerCriticalVal=675
                        ) ),
-         SensorConfig( "DPM_POS0V9_TRVDD_0_VOUT", "in6_input", SensorType.VOLTAGE,
+         SensorConfig( "UCD_POS0V9_TRVDD_0_VOUT", "in6_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
                           upperCriticalVal=990, lowerCriticalVal=810
                        ) ),
-         SensorConfig( "DPM_POS0V9_TRVDD_1_VOUT", "in7_input", SensorType.VOLTAGE,
+         SensorConfig( "UCD_POS0V9_TRVDD_1_VOUT", "in7_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
                           upperCriticalVal=990, lowerCriticalVal=810
                        ) ),
-         SensorConfig( "DPM_POS1V5_RVDD_0_VOUT", "in8_input", SensorType.VOLTAGE,
+         SensorConfig( "UCD_POS1V5_RVDD_0_VOUT", "in8_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
                           upperCriticalVal=1650, lowerCriticalVal=1350
                        ) ),
-         SensorConfig( "DPM_POS1V5_RVDD_1_VOUT", "in9_input", SensorType.VOLTAGE,
+         SensorConfig( "UCD_POS1V5_RVDD_1_VOUT", "in9_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
                           upperCriticalVal=1650, lowerCriticalVal=1350
                        ) ),
-         SensorConfig( "DPM_POS3V3_OPTICS_LEFT_VOUT", "in10_input", SensorType.VOLTAGE,
+         SensorConfig( "UCD_POS3V3_OPTICS_LEFT_VOUT", "in10_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
                           upperCriticalVal=3630, lowerCriticalVal=2970
                        ) ),
-         SensorConfig( "DPM_POS3V3_OPTICS_RIGHT_VOUT", "in11_input", SensorType.VOLTAGE,
+         SensorConfig( "UCD_POS3V3_OPTICS_RIGHT_VOUT", "in11_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
                           upperCriticalVal=3630, lowerCriticalVal=2970
                        ) ),
-         SensorConfig( "DPM_POS5V_VOUT", "in12_input", SensorType.VOLTAGE,
+         SensorConfig( "UCD_POS5V_VOUT", "in12_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
                           upperCriticalVal=5500, lowerCriticalVal=4500
                        ) ),
-         SensorConfig( "DPM_POS0V75_CORE_VOUT", "in13_input", SensorType.VOLTAGE,
+         SensorConfig( "UCD_POS0V75_CORE_VOUT", "in13_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
                           upperCriticalVal=975, lowerCriticalVal=525
                        ) ),
-         SensorConfig( "DPM_POS0V75_PHYCORE_7_VOUT", "in14_input", SensorType.VOLTAGE,
+         SensorConfig( "UCD_POS0V75_PHYCORE_7_VOUT", "in14_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
                           upperCriticalVal=975, lowerCriticalVal=525
                        ) ),
-         SensorConfig( "DPM_POS0V72_TRVDD_7_VOUT", "in15_input", SensorType.VOLTAGE,
+         SensorConfig( "UCD_POS0V72_TRVDD_7_VOUT", "in15_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
                           upperCriticalVal=880, lowerCriticalVal=720
                        ) ),
-         SensorConfig( "DPM_POS3V3_RUNDLE_VOUT", "in16_input", SensorType.VOLTAGE,
+         SensorConfig( "UCD_POS3V3_RUNDLE_VOUT", "in16_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
                           upperCriticalVal=3630, lowerCriticalVal=2970
                        ) ),
-         SensorConfig( "DPM_POS5V0_SNOWFRONT_VOUT", "in17_input", SensorType.VOLTAGE,
+         SensorConfig( "UCD_POS5V0_SNOWFRONT_VOUT", "in17_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
                           upperCriticalVal=5500, lowerCriticalVal=4500
                        ) ),
-         SensorConfig( "DPM_POS3V3_SNOWFRONT_VOUT", "in18_input", SensorType.VOLTAGE,
+         SensorConfig( "UCD_POS3V3_SNOWFRONT_VOUT", "in18_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
                           upperCriticalVal=3630, lowerCriticalVal=2970
                        ) ),
-         SensorConfig( "DPM_POS5V0_SUNDANCE_VOUT", "in19_input", SensorType.VOLTAGE,
+         SensorConfig( "UCD_POS5V0_SUNDANCE_VOUT", "in19_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
                           upperCriticalVal=5500, lowerCriticalVal=4500
                        ) ),
-         SensorConfig( "DPM_POS3V3_SUNDANCE_VOUT", "in20_input", SensorType.VOLTAGE,
+         SensorConfig( "UCD_POS3V3_SUNDANCE_VOUT", "in20_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
                           upperCriticalVal=3630, lowerCriticalVal=2970
                        ) ),
-         SensorConfig( "DPM_POS5V0_SUNSHINE_A_VOUT", "in21_input", SensorType.VOLTAGE,
+         SensorConfig( "UCD_POS5V0_SUNSHINE_A_VOUT", "in21_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
                           upperCriticalVal=5500, lowerCriticalVal=4500
                        ) ),
-         SensorConfig( "DPM_POS3V3_SUNSHINE_A_VOUT", "in22_input", SensorType.VOLTAGE,
+         SensorConfig( "UCD_POS3V3_SUNSHINE_A_VOUT", "in22_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
                           upperCriticalVal=3630, lowerCriticalVal=2970
                        ) ),
-         SensorConfig( "DPM_POS5V0_SUNSHINE_B_VOUT", "in23_input", SensorType.VOLTAGE,
+         SensorConfig( "UCD_POS5V0_SUNSHINE_B_VOUT", "in23_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
                           upperCriticalVal=5500, lowerCriticalVal=4500
                        ) ),
-         SensorConfig( "DPM_POS3V3_SUNSHINE_B_VOUT", "in24_input", SensorType.VOLTAGE,
+         SensorConfig( "UCD_POS3V3_SUNSHINE_B_VOUT", "in24_input", SensorType.VOLTAGE,
                        thresholds=Thresholds(
                           upperCriticalVal=3630, lowerCriticalVal=2970
                        ) )

@@ -30,7 +30,7 @@
       "pmUnitName": "SMB",
       "sensors": [
         {
-          "name": "SMB_SMB_BOARD_FRONT_BOTTOM_TEMP",
+          "name": "SMB_BOARD_FRONT_BOTTOM_TEMP",
           "sysfsPath": "/run/devmap/sensors/SMB_MAX6581/temp1_input",
           "type": 3,
           "thresholds": {
@@ -58,7 +58,7 @@
           "compute": "@/1000.0"
         },
         {
-          "name": "SMB_SMB_BOARD_FRONT_1_TEMP",
+          "name": "SMB_BOARD_FRONT_1_TEMP",
           "sysfsPath": "/run/devmap/sensors/SMB_MAX6581/temp5_input",
           "type": 3,
           "thresholds": {
@@ -68,7 +68,7 @@
           "compute": "@/1000.0"
         },
         {
-          "name": "SMB_SMB_BOARD_FRONT_2_TEMP",
+          "name": "SMB_BOARD_FRONT_2_TEMP",
           "sysfsPath": "/run/devmap/sensors/SMB_MAX6581/temp6_input",
           "type": 3,
           "thresholds": {
@@ -78,7 +78,7 @@
           "compute": "@/1000.0"
         },
         {
-          "name": "SMB_SMB_BOARD_REAR_1_TEMP",
+          "name": "SMB_BOARD_REAR_1_TEMP",
           "sysfsPath": "/run/devmap/sensors/SMB_MAX6581/temp7_input",
           "type": 3,
           "thresholds": {
@@ -88,7 +88,7 @@
           "compute": "@/1000.0"
         },
         {
-          "name": "SMB_SMB_BOARD_REAR_2_TEMP",
+          "name": "SMB_BOARD_REAR_2_TEMP",
           "sysfsPath": "/run/devmap/sensors/SMB_MAX6581/temp8_input",
           "type": 3,
           "thresholds": {
@@ -98,7 +98,7 @@
           "compute": "@/1000.0"
         },
         {
-          "name": "SMB_SMB_PWR_BOARD_1_TEMP",
+          "name": "SMB_PWR_BOARD_1_TEMP",
           "sysfsPath": "/run/devmap/sensors/SMB_PWR_MAX6581/temp1_input",
           "type": 3,
           "thresholds": {
@@ -108,7 +108,7 @@
           "compute": "@/1000.0"
         },
         {
-          "name": "SMB_SMB_PWR_BOARD_2_TEMP",
+          "name": "SMB_PWR_BOARD_2_TEMP",
           "sysfsPath": "/run/devmap/sensors/SMB_PWR_MAX6581/temp2_input",
           "type": 3,
           "thresholds": {
@@ -118,7 +118,7 @@
           "compute": "@/1000.0"
         },
         {
-          "name": "SMB_SMB_PWR_BOARD_3_TEMP",
+          "name": "SMB_PWR_BOARD_3_TEMP",
           "sysfsPath": "/run/devmap/sensors/SMB_PWR_MAX6581/temp3_input",
           "type": 3,
           "thresholds": {
@@ -128,7 +128,7 @@
           "compute": "@/1000.0"
         },
         {
-          "name": "SMB_SMB_PWR_BOARD_4_TEMP",
+          "name": "SMB_PWR_BOARD_4_TEMP",
           "sysfsPath": "/run/devmap/sensors/SMB_PWR_MAX6581/temp5_input",
           "type": 3,
           "thresholds": {
@@ -138,7 +138,7 @@
           "compute": "@/1000.0"
         },
         {
-          "name": "SMB_SMB_PWR_BOARD_5_TEMP",
+          "name": "SMB_PWR_BOARD_5_TEMP",
           "sysfsPath": "/run/devmap/sensors/SMB_PWR_MAX6581/temp6_input",
           "type": 3,
           "thresholds": {
@@ -148,7 +148,7 @@
           "compute": "@/1000.0"
         },
         {
-          "name": "SMB_SMB_PWR_BOARD_6_TEMP",
+          "name": "SMB_PWR_BOARD_6_TEMP",
           "sysfsPath": "/run/devmap/sensors/SMB_PWR_MAX6581/temp7_input",
           "type": 3,
           "thresholds": {
@@ -158,7 +158,7 @@
           "compute": "@/1000.0"
         },
         {
-          "name": "SMB_SMB_PWR_BOARD_7_TEMP",
+          "name": "SMB_PWR_BOARD_7_TEMP",
           "sysfsPath": "/run/devmap/sensors/SMB_PWR_MAX6581/temp8_input",
           "type": 3,
           "thresholds": {
@@ -976,7 +976,7 @@
           }
         },
         {
-          "name": "SMB_TTH6_POS0V9_TRVDD_01_1_TEMP",
+          "name": "SMB_TH6_POS0V9_TRVDD_01_1_TEMP",
           "sysfsPath": "/run/devmap/sensors/SMB_XDPE_TH6_POS0V9_TRVDD_01/temp1_input",
           "type": 3,
           "thresholds": {
@@ -1286,7 +1286,7 @@
           "compute": "@/1000.0"
         },
         {
-          "name": "SMB_DPM_POS12V_VOUT",
+          "name": "SMB_UCD_POS12V_VOUT",
           "sysfsPath": "/run/devmap/sensors/SMB_UCD90320/in1_input",
           "type": 1,
           "thresholds": {
@@ -1295,7 +1295,7 @@
           }
         },
         {
-          "name": "SMB_DPM_POS3V3_VOUT",
+          "name": "SMB_UCD_POS3V3_VOUT",
           "sysfsPath": "/run/devmap/sensors/SMB_UCD90320/in2_input",
           "type": 1,
           "thresholds": {
@@ -1304,7 +1304,7 @@
           }
         },
         {
-          "name": "SMB_DPM_POS1V8_VOUT",
+          "name": "SMB_UCD_POS1V8_VOUT",
           "sysfsPath": "/run/devmap/sensors/SMB_UCD90320/in3_input",
           "type": 1,
           "thresholds": {
@@ -1313,7 +1313,7 @@
           }
         },
         {
-          "name": "SMB_DPM_POS0V75_TRVDD_0_VOUT",
+          "name": "SMB_UCD_POS0V75_TRVDD_0_VOUT",
           "sysfsPath": "/run/devmap/sensors/SMB_UCD90320/in4_input",
           "type": 1,
           "thresholds": {
@@ -1322,7 +1322,7 @@
           }
         },
         {
-          "name": "SMB_DPM_POS0V75_TRVDD_1_VOUT",
+          "name": "SMB_UCD_POS0V75_TRVDD_1_VOUT",
           "sysfsPath": "/run/devmap/sensors/SMB_UCD90320/in5_input",
           "type": 1,
           "thresholds": {
@@ -1331,7 +1331,7 @@
           }
         },
         {
-          "name": "SMB_DPM_POS0V9_TRVDD_0_VOUT",
+          "name": "SMB_UCD_POS0V9_TRVDD_0_VOUT",
           "sysfsPath": "/run/devmap/sensors/SMB_UCD90320/in6_input",
           "type": 1,
           "thresholds": {
@@ -1340,7 +1340,7 @@
           }
         },
         {
-          "name": "SMB_DPM_POS0V9_TRVDD_1_VOUT",
+          "name": "SMB_UCD_POS0V9_TRVDD_1_VOUT",
           "sysfsPath": "/run/devmap/sensors/SMB_UCD90320/in7_input",
           "type": 1,
           "thresholds": {
@@ -1349,7 +1349,7 @@
           }
         },
         {
-          "name": "SMB_DPM_POS1V5_RVDD_0_VOUT",
+          "name": "SMB_UCD_POS1V5_RVDD_0_VOUT",
           "sysfsPath": "/run/devmap/sensors/SMB_UCD90320/in8_input",
           "type": 1,
           "thresholds": {
@@ -1358,7 +1358,7 @@
           }
         },
         {
-          "name": "SMB_DPM_POS1V5_RVDD_1_VOUT",
+          "name": "SMB_UCD_POS1V5_RVDD_1_VOUT",
           "sysfsPath": "/run/devmap/sensors/SMB_UCD90320/in9_input",
           "type": 1,
           "thresholds": {
@@ -1367,7 +1367,7 @@
           }
         },
         {
-          "name": "SMB_DPM_POS3V3_OPTICS_LEFT_VOUT",
+          "name": "SMB_UCD_POS3V3_OPTICS_LEFT_VOUT",
           "sysfsPath": "/run/devmap/sensors/SMB_UCD90320/in10_input",
           "type": 1,
           "thresholds": {
@@ -1376,7 +1376,7 @@
           }
         },
         {
-          "name": "SMB_DPM_POS3V3_OPTICS_RIGHT_VOUT",
+          "name": "SMB_UCD_POS3V3_OPTICS_RIGHT_VOUT",
           "sysfsPath": "/run/devmap/sensors/SMB_UCD90320/in11_input",
           "type": 1,
           "thresholds": {
@@ -1385,7 +1385,7 @@
           }
         },
         {
-          "name": "SMB_DPM_POS5V_VOUT",
+          "name": "SMB_UCD_POS5V_VOUT",
           "sysfsPath": "/run/devmap/sensors/SMB_UCD90320/in12_input",
           "type": 1,
           "thresholds": {
@@ -1394,7 +1394,7 @@
           }
         },
         {
-          "name": "SMB_DPM_POS0V75_CORE_VOUT",
+          "name": "SMB_UCD_POS0V75_CORE_VOUT",
           "sysfsPath": "/run/devmap/sensors/SMB_UCD90320/in13_input",
           "type": 1,
           "thresholds": {
@@ -1403,7 +1403,7 @@
           }
         },
         {
-          "name": "SMB_DPM_POS0V75_PHYCORE_7_VOUT",
+          "name": "SMB_UCD_POS0V75_PHYCORE_7_VOUT",
           "sysfsPath": "/run/devmap/sensors/SMB_UCD90320/in14_input",
           "type": 1,
           "thresholds": {
@@ -1412,7 +1412,7 @@
           }
         },
         {
-          "name": "SMB_DPM_POS0V72_TRVDD_7_VOUT",
+          "name": "SMB_UCD_POS0V72_TRVDD_7_VOUT",
           "sysfsPath": "/run/devmap/sensors/SMB_UCD90320/in15_input",
           "type": 1,
           "thresholds": {
@@ -1421,7 +1421,7 @@
           }
         },
         {
-          "name": "SMB_DPM_POS3V3_RUNDLE_VOUT",
+          "name": "SMB_UCD_POS3V3_RUNDLE_VOUT",
           "sysfsPath": "/run/devmap/sensors/SMB_UCD90320/in16_input",
           "type": 1,
           "thresholds": {
@@ -1430,7 +1430,7 @@
           }
         },
         {
-          "name": "SMB_DPM_POS5V0_SNOWFRONT_VOUT",
+          "name": "SMB_UCD_POS5V0_SNOWFRONT_VOUT",
           "sysfsPath": "/run/devmap/sensors/SMB_UCD90320/in17_input",
           "type": 1,
           "thresholds": {
@@ -1439,7 +1439,7 @@
           }
         },
         {
-          "name": "SMB_DPM_POS3V3_SNOWFRONT_VOUT",
+          "name": "SMB_UCD_POS3V3_SNOWFRONT_VOUT",
           "sysfsPath": "/run/devmap/sensors/SMB_UCD90320/in18_input",
           "type": 1,
           "thresholds": {
@@ -1448,7 +1448,7 @@
           }
         },
         {
-          "name": "SMB_DPM_POS5V0_SUNDANCE_VOUT",
+          "name": "SMB_UCD_POS5V0_SUNDANCE_VOUT",
           "sysfsPath": "/run/devmap/sensors/SMB_UCD90320/in19_input",
           "type": 1,
           "thresholds": {
@@ -1457,7 +1457,7 @@
           }
         },
         {
-          "name": "SMB_DPM_POS3V3_SUNDANCE_VOUT",
+          "name": "SMB_UCD_POS3V3_SUNDANCE_VOUT",
           "sysfsPath": "/run/devmap/sensors/SMB_UCD90320/in20_input",
           "type": 1,
           "thresholds": {
@@ -1466,7 +1466,7 @@
           }
         },
         {
-          "name": "SMB_DPM_POS5V0_SUNSHINE_A_VOUT",
+          "name": "SMB_UCD_POS5V0_SUNSHINE_A_VOUT",
           "sysfsPath": "/run/devmap/sensors/SMB_UCD90320/in21_input",
           "type": 1,
           "thresholds": {
@@ -1475,7 +1475,7 @@
           }
         },
         {
-          "name": "SMB_DPM_POS3V3_SUNSHINE_A_VOUT",
+          "name": "SMB_UCD_POS3V3_SUNSHINE_A_VOUT",
           "sysfsPath": "/run/devmap/sensors/SMB_UCD90320/in22_input",
           "type": 1,
           "thresholds": {
@@ -1484,7 +1484,7 @@
           }
         },
         {
-          "name": "SMB_DPM_POS5V0_SUNSHINE_B_VOUT",
+          "name": "SMB_UCD_POS5V0_SUNSHINE_B_VOUT",
           "sysfsPath": "/run/devmap/sensors/SMB_UCD90320/in23_input",
           "type": 1,
           "thresholds": {
@@ -1493,7 +1493,7 @@
           }
         },
         {
-          "name": "SMB_DPM_POS3V3_SUNSHINE_B_VOUT",
+          "name": "SMB_UCD_POS3V3_SUNSHINE_B_VOUT",
           "sysfsPath": "/run/devmap/sensors/SMB_UCD90320/in24_input",
           "type": 1,
           "thresholds": {
