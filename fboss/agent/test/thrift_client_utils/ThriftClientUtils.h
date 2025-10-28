@@ -10,11 +10,21 @@
 
 #pragma once
 
+#include "fboss/agent/if/gen-cpp2/FbossHwCtrl.h"
 #include "fboss/agent/if/gen-cpp2/TestCtrlAsyncClient.h"
 
 namespace facebook::fboss::utility {
 
 std::unique_ptr<apache::thrift::Client<facebook::fboss::TestCtrl>>
 getSwAgentThriftClient(const std::string& switchName);
+std::unique_ptr<apache::thrift::Client<FbossHwCtrl>> getHwAgentThriftClient(
+    const std::string& switchName,
+    int port);
+
+MultiSwitchRunState getMultiSwitchRunState(const std::string& switchName);
+int getNumHwSwitches(const std::string& switchName);
+
+std::map<std::string, FabricEndpoint> getFabricPortToFabricEndpoint(
+    const std::string& switchName);
 
 } // namespace facebook::fboss::utility
