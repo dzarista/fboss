@@ -25,9 +25,11 @@ void ExplorationSummary::addError(
   ExplorationError newError;
   newError.errorType() = toExplorationErrorTypeStr(errorType);
   newError.message() = message;
-  if ((errorType == ExplorationErrorType::SLOT_PM_UNIT_ABSENCE ||
-       errorType == ExplorationErrorType::RUN_DEVMAP_SYMLINK) &&
-      isSlotExpectedToBeEmpty(devicePath)) {
+  if (((errorType == ExplorationErrorType::SLOT_PM_UNIT_ABSENCE ||
+        errorType == ExplorationErrorType::RUN_DEVMAP_SYMLINK) &&
+       isSlotExpectedToBeEmpty(devicePath)) ||
+      (errorType == ExplorationErrorType::IDPROM_READ &&
+       platformConfig_.platformName().value() == "darwin")) {
     devicePathToExpectedErrors_[devicePath].push_back(newError);
     nExpectedErrs_++;
   } else {
