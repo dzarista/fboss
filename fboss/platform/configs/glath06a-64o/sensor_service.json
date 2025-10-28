@@ -1135,7 +1135,8 @@
           "thresholds": {
             "upperCriticalVal": 3630.0,
             "lowerCriticalVal": 2970.0
-          }
+          },
+          "compute": "2.071*@"
         },
         {
           "name": "SMB_POS3V3_OPTICS_LEFT_1_TEMP",
@@ -1217,7 +1218,8 @@
           "thresholds": {
             "upperCriticalVal": 3630.0,
             "lowerCriticalVal": 2970.0
-          }
+          },
+          "compute": "2.071*@"
         },
         {
           "name": "SMB_POS3V3_OPTICS_RIGHT_1_TEMP",

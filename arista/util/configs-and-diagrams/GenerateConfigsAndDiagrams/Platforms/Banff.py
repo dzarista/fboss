@@ -734,6 +734,7 @@ class BanffSMB( SMBUnit ):
                           upperCriticalVal=13200, lowerCriticalVal=10800
                        ) ),
          SensorConfig( "POS3V3_OPTICS_LEFT_VOUT", "in3_input", SensorType.VOLTAGE,
+                       compute="2.071*@",
                        thresholds=Thresholds(
                           upperCriticalVal=3630, lowerCriticalVal=2970
                        ) ),
@@ -779,6 +780,7 @@ class BanffSMB( SMBUnit ):
                           upperCriticalVal=13200, lowerCriticalVal=10800
                        ) ),
          SensorConfig( "POS3V3_OPTICS_RIGHT_VOUT", "in3_input", SensorType.VOLTAGE,
+                       compute="2.071*@",
                        thresholds=Thresholds(
                           upperCriticalVal=3630, lowerCriticalVal=2970
                        ) ),
