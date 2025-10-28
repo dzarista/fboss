@@ -62,3 +62,8 @@ clean:
 	$(MAKE) -C fboss.bsp.arista/showtech clean
 	$(MAKE) -C arista/psu-upgrade clean
 	build/fbcode_builder/getdeps.py clean --scratch-path $(scratch-dir)
+
+# Use an arbitrary sai for sai independent target fboss-bspmapping-gen
+bspmapping_gen:
+	@./build.sh --sai xgs-14.0 --scratch-dir $(scratch-dir) --cmake-target fboss-bspmapping-gen
+	@$(scratch-dir)/build/fboss/fboss-bspmapping-gen

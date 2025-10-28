@@ -5,6 +5,7 @@
 #include <folly/Singleton.h>
 #include "fboss/lib/bsp/darwin/DarwinBspPlatformMapping.h"
 #include "fboss/lib/bsp/glath05a-64o/Glath05a-64oBspPlatformMapping.h"
+#include "fboss/lib/bsp/glath06a-64o/Glath06a-64oBspPlatformMapping.h"
 #include "fboss/lib/bsp/icecube800bc/Icecube800bcBspPlatformMapping.h"
 #include "fboss/lib/bsp/icetea800bc/Icetea800bcBspPlatformMapping.h"
 #include "fboss/lib/bsp/janga800bic/Janga800bicBspPlatformMapping.h"
@@ -173,6 +174,15 @@ template <>
 std::shared_ptr<Glath05a_64oSystemContainer>
 Glath05a_64oSystemContainer::getInstance() {
   return _glath05a_64oSystemContainer.try_get();
+}
+
+using Glath06a_64oSystemContainer =
+    BspGenericSystemContainer<Glath06a_64oBspPlatformMapping>;
+folly::Singleton<Glath06a_64oSystemContainer> _glath06a_64oSystemContainer;
+template <>
+std::shared_ptr<Glath06a_64oSystemContainer>
+Glath06a_64oSystemContainer::getInstance() {
+  return _glath06a_64oSystemContainer.try_get();
 }
 
 using DarwinSystemContainer =

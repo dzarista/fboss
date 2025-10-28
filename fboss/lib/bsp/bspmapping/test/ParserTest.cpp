@@ -76,6 +76,10 @@ TEST(ParserTest, GetNameForTests) {
       facebook::fboss::Parser::getNameFor(
           facebook::fboss::PlatformType::PLATFORM_GLATH05A_64O),
       "glath05a-64o");
+  EXPECT_EQ(
+      facebook::fboss::Parser::getNameFor(
+          facebook::fboss::PlatformType::PLATFORM_GLATH06A_64O),
+      "glath06a-64o");
 }
 
 TEST(ParserTest, GetTransceiverConfigRowFromCsvLine) {
