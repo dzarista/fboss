@@ -9,6 +9,7 @@ from GenerateConfigsAndDiagrams.BaseConfigs import (
    FanServiceConfig,
    Flash,
    I2cMux,
+   LedConfig,
    PciDeviceConfig,
    PlatformConfig,
    PSUUnit,
@@ -43,6 +44,13 @@ class ThrasherSCM( SCMUnit ):
                                       symlinkDeviceName="SCM_FPGA")
       self.scmFpga.addInfoRomConfigs( "0x100" )
       self.addPciDeviceConfigs( [ self.scmFpga ] )
+
+      self.scmFpga.addLedCtrlConfigs( [
+         LedConfig( ledName="SYSTEM_STATUS_LED", offset="0x6050" ),
+         LedConfig( ledName="FAN_STATUS_LED", offset="0x6060" ),
+         LedConfig( ledName="PSU_STATUS_LED", offset="0x6070" ),
+         LedConfig( ledName="SMB_STATUS_LED", offset="0x6090" ),
+      ] )
 
       self.scmFpga.addI2cAdapterConfigs( 2, "SCM_I2C_MASTER{}", "0x8000" )
       self.scmI2cMaster0 = self.scmFpga.i2cAdapterConfigs[ 0 ]

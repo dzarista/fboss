@@ -73,7 +73,36 @@
             }
           ],
           "spiMasterConfigs": [],
-          "ledCtrlConfigs": [],
+          "ledCtrlConfigs": [
+            {
+              "fpgaIpBlockConfig": {
+                "pmUnitScopedName": "SYSTEM_STATUS_LED",
+                "deviceName": "sys_led",
+                "csrOffset": "0x6050"
+              }
+            },
+            {
+              "fpgaIpBlockConfig": {
+                "pmUnitScopedName": "FAN_STATUS_LED",
+                "deviceName": "fan_led",
+                "csrOffset": "0x6060"
+              }
+            },
+            {
+              "fpgaIpBlockConfig": {
+                "pmUnitScopedName": "PSU_STATUS_LED",
+                "deviceName": "psu_led",
+                "csrOffset": "0x6070"
+              }
+            },
+            {
+              "fpgaIpBlockConfig": {
+                "pmUnitScopedName": "SMB_STATUS_LED",
+                "deviceName": "smb_led",
+                "csrOffset": "0x6090"
+              }
+            }
+          ],
           "xcvrCtrlConfigs": [],
           "infoRomConfigs": [
             {
