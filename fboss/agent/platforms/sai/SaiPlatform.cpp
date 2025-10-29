@@ -18,6 +18,7 @@
 #include "fboss/agent/platforms/sai/SaiBcmDarwinPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiBcmElbertPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiBcmFujiPlatformPort.h"
+#include "fboss/agent/platforms/sai/SaiBcmGlath06a-64oPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiBcmIcecube800bcPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiBcmIcetea800bcPlatformPort.h"
 #include "fboss/agent/platforms/sai/SaiBcmMinipackPlatformPort.h"
@@ -406,6 +407,8 @@ void SaiPlatform::initPorts() {
       saiPort = std::make_unique<SaiBcmTahansb800bcPlatformPort>(portId, this);
     } else if (platformMode == PlatformType::PLATFORM_GLATH05A_64O) {
       saiPort = std::make_unique<SaiGlath05a_64oPlatformPort>(portId, this);
+    } else if (platformMode == PlatformType::PLATFORM_GLATH06A_64O) {
+      saiPort = std::make_unique<SaiBcmGlath06a_64oPlatformPort>(portId, this);
     } else {
       saiPort = std::make_unique<SaiFakePlatformPort>(portId, this);
     }
