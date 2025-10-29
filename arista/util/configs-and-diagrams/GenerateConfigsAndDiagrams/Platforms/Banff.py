@@ -56,8 +56,7 @@ class ThrasherSCM( SCMUnit ):
          SensorConfig( "ACPI_TEMP", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0", prependPmUnit=False,
                        thresholds=Thresholds(
-                           # TODO
-                           upperCriticalVal=110.0, maxAlarmVal=90.0
+                           upperCriticalVal=105.0, maxAlarmVal=95.0
                        ) )
       ] )
 
@@ -67,7 +66,6 @@ class ThrasherSCM( SCMUnit ):
          SensorConfig( "NVME_COMPOSITE_TEMP", "temp1_input", SensorType.TEMP,
                        compute="@/1000.0", prependPmUnit=False,
                        thresholds=Thresholds(
-                          # TODO
                           upperCriticalVal=80.0
                        ) )
       ] )
@@ -105,53 +103,821 @@ class BanffSMB( SMBUnit ):
 
       smbTempSensor = Sensor( "0x4D", "max6581", "SMB_MAX6581",
                               incomingBusIndex=0 )
+      smbTempSensor.addSensorConfigs( [
+         SensorConfig( "BOARD_FRONT_BOTTOM_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=90.0, maxAlarmVal=80.0
+                       ) ),
+         SensorConfig( "TH6_DIODE_1_TEMP", "temp2_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=115.0
+                       ) ),
+         SensorConfig( "TH6_DIODE_2_TEMP", "temp3_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=115.0
+                       ) ),
+         # temp4_input is unused
+         SensorConfig( "BOARD_FRONT_1_TEMP", "temp5_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=90.0, maxAlarmVal=80.0
+                       ) ),
+         SensorConfig( "BOARD_FRONT_2_TEMP", "temp6_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=90.0, maxAlarmVal=80.0
+                       ) ),
+         SensorConfig( "BOARD_REAR_1_TEMP", "temp7_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=90.0, maxAlarmVal=80.0
+                       ) ),
+         SensorConfig( "BOARD_REAR_2_TEMP", "temp8_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=90.0, maxAlarmVal=80.0
+                       ) )
+      ] )
 
       pwrTempSensor = Sensor( "0x4D", "max6581", "SMB_PWR_MAX6581",
                               incomingBusIndex=1 )
+      pwrTempSensor.addSensorConfigs( [
+         # TODO: BUG1304496: Add Sundance descriptions and limits when available.
+         SensorConfig( "PWR_BOARD_1_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=90.0, maxAlarmVal=80.0
+                       ) ),
+         SensorConfig( "PWR_BOARD_2_TEMP", "temp2_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=115.0, maxAlarmVal=105.0
+                       ) ),
+         SensorConfig( "PWR_BOARD_3_TEMP", "temp3_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=115.0, maxAlarmVal=105.0
+                       ) ),
+         # temp4_input is unused
+         SensorConfig( "PWR_BOARD_4_TEMP", "temp5_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=90.0, maxAlarmVal=80.0
+                       ) ),
+         SensorConfig( "PWR_BOARD_5_TEMP", "temp6_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=90.0, maxAlarmVal=80.0
+                       ) ),
+         SensorConfig( "PWR_BOARD_6_TEMP", "temp7_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=90.0, maxAlarmVal=80.0
+                       ) ),
+         SensorConfig( "PWR_BOARD_7_TEMP", "temp8_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                           upperCriticalVal=110.0, maxAlarmVal=100.0
+                       ) )
+      ] )
 
       th6CoreVrm = Sensor( "0x70", "xdpe1a2g5b", "SMB_XDPE_TH6_POS0V75_CORE",
                            incomingBusIndex=1 )
+      th6CoreVrm.addSensorConfigs( [
+         SensorConfig( "TH6_POS0V75_CORE_VIN", "in1_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=13200, lowerCriticalVal=10800
+                       ) ),
+         SensorConfig( "TH6_POS0V75_CORE_VOUT", "in3_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=975, lowerCriticalVal=525
+                       ) ),
+         # TODO: BUG1304496: update temp limits when available.
+         SensorConfig( "TH6_POS0V75_CORE_1_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V75_CORE_2_TEMP", "temp2_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V75_CORE_3_TEMP", "temp3_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V75_CORE_4_TEMP", "temp4_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V75_CORE_PIN", "power1_input", SensorType.POWER,
+                       compute="@/1000000.0"
+                       ),
+         SensorConfig( "TH6_POS0V75_CORE_POUT", "power3_input", SensorType.POWER,
+                       compute="@/1000000.0"
+                       ),
+         SensorConfig( "TH6_POS0V75_CORE_IIN", "curr1_input", SensorType.CURRENT,
+                       compute="@/1000.0"
+                       ),
+         SensorConfig( "TH6_POS0V75_CORE_IOUT", "curr3_input", SensorType.CURRENT,
+                       compute="@/1000.0"
+                       )
+      ] )
+
       th6PhyCoreVrm1 = Sensor( "0x58", "xdpe1b284b",
                                "SMB_XDPE_TH6_POS0V75_PHYCORE_01",
                                incomingBusIndex=1 )
+      th6PhyCoreVrm1.addSensorConfigs( [
+         SensorConfig( "TH6_POS0V75_PHYCORE_01_VIN", "in1_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=13200, lowerCriticalVal=10800
+                       ) ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_0_VOUT", "in3_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=975, lowerCriticalVal=525
+                       ) ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_1_VOUT", "in4_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=975, lowerCriticalVal=525
+                       ) ),
+         # TODO: BUG1304496: update temp limits when available.
+         SensorConfig( "TH6_POS0V75_PHYCORE_01_1_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_01_2_TEMP", "temp2_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_01_3_TEMP", "temp3_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_01_4_TEMP", "temp4_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_0_POUT", "power3_input", SensorType.POWER,
+                       compute="@/1000000.0"
+                       ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_1_POUT", "power4_input", SensorType.POWER,
+                       compute="@/1000000.0"
+                       ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_0_IOUT", "curr3_input", SensorType.CURRENT,
+                       compute="@/1000.0"
+                       ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_1_IOUT", "curr4_input", SensorType.CURRENT,
+                       compute="@/1000.0"
+                       )
+      ] )
+
       th6PhyCoreVrm2 = Sensor( "0x5A", "xdpe1b284b",
                                "SMB_XDPE_TH6_POS0V75_PHYCORE_23",
                                incomingBusIndex=1 )
+      th6PhyCoreVrm2.addSensorConfigs( [
+         SensorConfig( "TH6_POS0V75_PHYCORE_23_VIN", "in1_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=13200, lowerCriticalVal=10800
+                       ) ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_2_VOUT", "in3_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=975, lowerCriticalVal=525
+                       ) ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_3_VOUT", "in4_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=975, lowerCriticalVal=525
+                       ) ),
+         # TODO: BUG1304496: update temp limits when available.
+         SensorConfig( "TH6_POS0V75_PHYCORE_23_1_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_23_2_TEMP", "temp2_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_23_3_TEMP", "temp3_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_23_4_TEMP", "temp4_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_2_POUT", "power3_input", SensorType.POWER,
+                       compute="@/1000000.0"
+                       ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_3_POUT", "power4_input", SensorType.POWER,
+                       compute="@/1000000.0"
+                       ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_2_IOUT", "curr3_input", SensorType.CURRENT,
+                       compute="@/1000.0"
+                       ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_3_IOUT", "curr4_input", SensorType.CURRENT,
+                       compute="@/1000.0"
+                       )
+      ] )
+
       th6PhyCoreVrm3 = Sensor( "0x5C", "xdpe1b284b",
                                "SMB_XDPE_TH6_POS0V75_PHYCORE_45",
                                incomingBusIndex=1 )
+      th6PhyCoreVrm3.addSensorConfigs( [
+         SensorConfig( "TH6_POS0V75_PHYCORE_45_VIN", "in1_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=13200, lowerCriticalVal=10800
+                       ) ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_4_VOUT", "in3_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=975, lowerCriticalVal=525
+                       ) ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_5_VOUT", "in4_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=975, lowerCriticalVal=525
+                       ) ),
+         # TODO: BUG1304496: update temp limits when available.
+         SensorConfig( "TH6_POS0V75_PHYCORE_45_1_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_45_2_TEMP", "temp2_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_45_3_TEMP", "temp3_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_45_4_TEMP", "temp4_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_4_POUT", "power3_input", SensorType.POWER,
+                       compute="@/1000000.0"
+                       ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_5_POUT", "power4_input", SensorType.POWER,
+                       compute="@/1000000.0"
+                       ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_4_IOUT", "curr3_input", SensorType.CURRENT,
+                       compute="@/1000.0"
+                       ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_5_IOUT", "curr4_input", SensorType.CURRENT,
+                       compute="@/1000.0"
+                       )
+      ] )
+
       th6PhyCoreVrm4 = Sensor( "0x5E", "xdpe1b284b",
                                "SMB_XDPE_TH6_POS0V75_PHYCORE_67",
                                incomingBusIndex=1 )
+      th6PhyCoreVrm4.addSensorConfigs( [
+         SensorConfig( "TH6_POS0V75_PHYCORE_67_VIN", "in1_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=13200, lowerCriticalVal=10800
+                       ) ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_6_VOUT", "in3_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=975, lowerCriticalVal=525
+                       ) ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_7_VOUT", "in4_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=975, lowerCriticalVal=525
+                       ) ),
+         # TODO: BUG1304496: update temp limits when available.
+         SensorConfig( "TH6_POS0V75_PHYCORE_67_1_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_67_2_TEMP", "temp2_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_67_3_TEMP", "temp3_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_67_4_TEMP", "temp4_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_6_POUT", "power3_input", SensorType.POWER,
+                       compute="@/1000000.0"
+                       ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_7_POUT", "power4_input", SensorType.POWER,
+                       compute="@/1000000.0"
+                       ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_6_IOUT", "curr3_input", SensorType.CURRENT,
+                       compute="@/1000.0"
+                       ),
+         SensorConfig( "TH6_POS0V75_PHYCORE_7_IOUT", "curr4_input", SensorType.CURRENT,
+                       compute="@/1000.0"
+                       )
+      ] )
       th6TrvddVrm1 = Sensor( "0x60", "xdpe1b284b",
                              "SMB_XDPE_TH6_POS0V72_TRVDD_01",
                              incomingBusIndex=1 )
+      th6TrvddVrm1.addSensorConfigs( [
+         SensorConfig( "TH6_POS0V72_TRVDD_01_VIN", "in1_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=13200, lowerCriticalVal=10800
+                       ) ),
+         SensorConfig( "TH6_POS0V72_TRVDD_0_VOUT", "in3_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=880, lowerCriticalVal=720
+                       ) ),
+         SensorConfig( "TH6_POS0V72_TRVDD_1_VOUT", "in4_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=880, lowerCriticalVal=720
+                       ) ),
+         # TODO: BUG1304496: update temp limits when available.
+         SensorConfig( "TH6_POS0V72_TRVDD_01_1_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V72_TRVDD_01_2_TEMP", "temp2_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V72_TRVDD_01_3_TEMP", "temp3_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V72_TRVDD_01_4_TEMP", "temp4_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) )
+      ] )
+
       th6TrvddVrm2 = Sensor( "0x62", "xdpe1b284b",
                              "SMB_XDPE_TH6_POS0V72_TRVDD_23",
                              incomingBusIndex=1 )
+      th6TrvddVrm2.addSensorConfigs( [
+         SensorConfig( "TH6_POS0V72_TRVDD_23_VIN", "in1_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=13200, lowerCriticalVal=10800
+                       ) ),
+         SensorConfig( "TH6_POS0V72_TRVDD_2_VOUT", "in3_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=880, lowerCriticalVal=720
+                       ) ),
+         SensorConfig( "TH6_POS0V72_TRVDD_3_VOUT", "in4_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=880, lowerCriticalVal=720
+                       ) ),
+         # TODO: BUG1304496: update temp limits when available.
+         SensorConfig( "TH6_POS0V72_TRVDD_23_1_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V72_TRVDD_23_2_TEMP", "temp2_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V72_TRVDD_23_3_TEMP", "temp3_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V72_TRVDD_23_4_TEMP", "temp4_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) )
+      ] )
+
       th6TrvddVrm3 = Sensor( "0x64", "xdpe1b284b",
                              "SMB_XDPE_TH6_POS0V72_TRVDD_45",
                              incomingBusIndex=1 )
+      th6TrvddVrm3.addSensorConfigs( [
+         SensorConfig( "TH6_POS0V72_TRVDD_45_VIN", "in1_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=13200, lowerCriticalVal=10800
+                       ) ),
+         SensorConfig( "TH6_POS0V72_TRVDD_4_VOUT", "in3_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=880, lowerCriticalVal=720
+                       ) ),
+         SensorConfig( "TH6_POS0V72_TRVDD_5_VOUT", "in4_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=880, lowerCriticalVal=720
+                       ) ),
+         # TODO: BUG1304496: update temp limits when available.
+         SensorConfig( "TH6_POS0V72_TRVDD_45_1_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V72_TRVDD_45_2_TEMP", "temp2_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V72_TRVDD_45_3_TEMP", "temp3_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V72_TRVDD_45_4_TEMP", "temp4_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) )
+      ] )
+
       th6TrvddVrm4 = Sensor( "0x66", "xdpe1b284b",
                              "SMB_XDPE_TH6_POS0V72_TRVDD_67",
                              incomingBusIndex=1 )
+      th6TrvddVrm4.addSensorConfigs( [
+         SensorConfig( "TH6_POS0V72_TRVDD_67_VIN", "in1_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=13200, lowerCriticalVal=10800
+                       ) ),
+         SensorConfig( "TH6_POS0V72_TRVDD_6_VOUT", "in3_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=880, lowerCriticalVal=720
+                       ) ),
+         SensorConfig( "TH6_POS0V72_TRVDD_7_VOUT", "in4_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=880, lowerCriticalVal=720
+                       ) ),
+         # TODO: BUG1304496: update temp limits when available.
+         SensorConfig( "TH6_POS0V72_TRVDD_67_1_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V72_TRVDD_67_2_TEMP", "temp2_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V72_TRVDD_67_3_TEMP", "temp3_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V72_TRVDD_67_4_TEMP", "temp4_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) )
+      ] )
+
       th6TrvddVrm5 = Sensor( "0x68", "xdpe1b284b",
                              "SMB_XDPE_TH6_POS0V75_TRVDD_01",
                              incomingBusIndex=1 )
+      th6TrvddVrm5.addSensorConfigs( [
+         SensorConfig( "TH6_POS0V75_TRVDD_01_VIN", "in1_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=13200, lowerCriticalVal=10800
+                       ) ),
+         SensorConfig( "TH6_POS0V75_TRVDD_0_VOUT", "in3_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=825, lowerCriticalVal=675
+                       ) ),
+         SensorConfig( "TH6_POS0V75_TRVDD_1_VOUT", "in4_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=825, lowerCriticalVal=675
+                       ) ),
+         # TODO: BUG1304496: update temp limits when available.
+         SensorConfig( "TH6_POS0V75_TRVDD_01_1_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V75_TRVDD_01_2_TEMP", "temp2_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V75_TRVDD_01_3_TEMP", "temp3_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V75_TRVDD_01_4_TEMP", "temp4_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) )
+      ] )
+
       th6TrvddVrm6 = Sensor( "0x6A", "xdpe1b284b",
                              "SMB_XDPE_TH6_POS0V9_TRVDD_01",
                              incomingBusIndex=1 )
+      th6TrvddVrm6.addSensorConfigs( [
+         SensorConfig( "TH6_POS0V9_TRVDD_01_VIN", "in1_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=13200, lowerCriticalVal=10800
+                       ) ),
+         SensorConfig( "TH6_POS0V9_TRVDD_0_VOUT", "in3_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=990, lowerCriticalVal=810
+                       ) ),
+         SensorConfig( "TH6_POS0V9_TRVDD_1_VOUT", "in4_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=990, lowerCriticalVal=810
+                       ) ),
+         # TODO: BUG1304496: update temp limits when available.
+         SensorConfig( "TH6_POS0V9_TRVDD_01_1_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V9_TRVDD_01_2_TEMP", "temp2_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V9_TRVDD_01_3_TEMP", "temp3_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V9_TRVDD_01_4_TEMP", "temp4_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS0V9_TRVDD_0_POUT", "power3_input", SensorType.POWER,
+                       compute="@/1000000.0"
+                       ),
+         SensorConfig( "TH6_POS0V9_TRVDD_1_POUT", "power4_input", SensorType.POWER,
+                       compute="@/1000000.0"
+                       ),
+         SensorConfig( "TH6_POS0V9_TRVDD_0_IOUT", "curr3_input", SensorType.CURRENT,
+                       compute="@/1000.0"
+                       ),
+         SensorConfig( "TH6_POS0V9_TRVDD_1_IOUT", "curr4_input", SensorType.CURRENT,
+                       compute="@/1000.0"
+                       )
+      ] )
       th6RvddVrm1 = Sensor( "0x48", "tda38740a", "SMB_TDA_TH6_POS1V5_RVDD_0",
                             incomingBusIndex=1 )
+      th6RvddVrm1.addSensorConfigs( [
+         SensorConfig( "TH6_POS1V5_RVDD_0_VIN", "in1_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=13200, lowerCriticalVal=10800
+                       ) ),
+         SensorConfig( "TH6_POS1V5_RVDD_0_VOUT", "in2_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=1650, lowerCriticalVal=1350
+                       ) ),
+         SensorConfig( "TH6_POS1V5_RVDD_0_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS1V5_RVDD_0_IIN", "curr1_input", SensorType.CURRENT,
+                       compute="@/1000.0"
+                       ),
+         SensorConfig( "TH6_POS1V5_RVDD_0_IOUT", "curr2_input", SensorType.CURRENT,
+                       compute="@/1000.0"
+                       )
+      ] )
+
       th6RvddVrm2 = Sensor( "0x49", "tda38740a", "SMB_TDA_TH6_POS1V5_RVDD_1",
                             incomingBusIndex=1 )
+      th6RvddVrm2.addSensorConfigs( [
+         SensorConfig( "TH6_POS1V5_RVDD_1_VIN", "in1_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=13200, lowerCriticalVal=10800
+                       ) ),
+         SensorConfig( "TH6_POS1V5_RVDD_1_VOUT", "in2_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=1650, lowerCriticalVal=1350
+                       ) ),
+         SensorConfig( "TH6_POS1V5_RVDD_1_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "TH6_POS1V5_RVDD_1_IIN", "curr1_input", SensorType.CURRENT,
+                       compute="@/1000.0"
+                       ),
+         SensorConfig( "TH6_POS1V5_RVDD_1_IOUT", "curr2_input", SensorType.CURRENT,
+                       compute="@/1000.0"
+                       )
+      ] )
+
       opticsLeftVrm = Sensor( "0x72", "xdpe1a2g5b", "SMB_TDA_POS3V3_OPTICS_LEFT",
                               incomingBusIndex=1 )
+      opticsLeftVrm.addSensorConfigs( [
+         SensorConfig( "POS3V3_OPTICS_LEFT_VIN", "in1_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=13200, lowerCriticalVal=10800
+                       ) ),
+         SensorConfig( "POS3V3_OPTICS_LEFT_VOUT", "in3_input", SensorType.VOLTAGE,
+                       compute="2.071*@",
+                       thresholds=Thresholds(
+                          upperCriticalVal=3630, lowerCriticalVal=2970
+                       ) ),
+         SensorConfig( "POS3V3_OPTICS_LEFT_1_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "POS3V3_OPTICS_LEFT_2_TEMP", "temp2_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "POS3V3_OPTICS_LEFT_3_TEMP", "temp3_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "POS3V3_OPTICS_LEFT_4_TEMP", "temp4_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "POS3V3_OPTICS_LEFT_PIN", "power1_input", SensorType.POWER,
+                       compute="@/1000000.0"
+                       ),
+         SensorConfig( "POS3V3_OPTICS_LEFT_POUT", "power3_input", SensorType.POWER,
+                       compute="@/1000000.0"
+                       ),
+         SensorConfig( "POS3V3_OPTICS_LEFT_IIN", "curr1_input", SensorType.CURRENT,
+                       compute="@/1000.0"
+                       ),
+         SensorConfig( "POS3V3_OPTICS_LEFT_IOUT", "curr3_input", SensorType.CURRENT,
+                       compute="@/1000.0"
+                       )
+      ] )
+
       opticsRightVrm = Sensor( "0x74", "xdpe1a2g5b", "SMB_TDA_POS3V3_OPTICS_RIGHT",
                                incomingBusIndex=1 )
+      opticsRightVrm.addSensorConfigs( [
+         SensorConfig( "POS3V3_OPTICS_RIGHT_VIN", "in1_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=13200, lowerCriticalVal=10800
+                       ) ),
+         SensorConfig( "POS3V3_OPTICS_RIGHT_VOUT", "in3_input", SensorType.VOLTAGE,
+                       compute="2.071*@",
+                       thresholds=Thresholds(
+                          upperCriticalVal=3630, lowerCriticalVal=2970
+                       ) ),
+         SensorConfig( "POS3V3_OPTICS_RIGHT_1_TEMP", "temp1_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "POS3V3_OPTICS_RIGHT_2_TEMP", "temp2_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "POS3V3_OPTICS_RIGHT_3_TEMP", "temp3_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "POS3V3_OPTICS_RIGHT_4_TEMP", "temp4_input", SensorType.TEMP,
+                       compute="@/1000.0",
+                       thresholds=Thresholds(
+                          upperCriticalVal=125.0, maxAlarmVal=115.0
+                       ) ),
+         SensorConfig( "POS3V3_OPTICS_RIGHT_PIN", "power1_input", SensorType.POWER,
+                       compute="@/1000000.0"
+                       ),
+         SensorConfig( "POS3V3_OPTICS_RIGHT_POUT", "power3_input", SensorType.POWER,
+                       compute="@/1000000.0"
+                       ),
+         SensorConfig( "POS3V3_OPTICS_RIGHT_IIN", "curr1_input", SensorType.CURRENT,
+                       compute="@/1000.0"
+                       ),
+         SensorConfig( "POS3V3_OPTICS_RIGHT_IOUT", "curr3_input", SensorType.CURRENT,
+                       compute="@/1000.0"
+                       )
+      ] )
 
       smbUcd = Sensor( "0x11", "glath06a_aucd90320", "SMB_UCD90320",
                        incomingBusIndex=2 )
+      smbUcd.addSensorConfigs( [
+         SensorConfig( "UCD_POS12V_VOUT", "in1_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=13200, lowerCriticalVal=10800
+                       ) ),
+         SensorConfig( "UCD_POS3V3_VOUT", "in2_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=3630, lowerCriticalVal=2970
+                       ) ),
+         SensorConfig( "UCD_POS1V8_VOUT", "in3_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=1980, lowerCriticalVal=1620
+                       ) ),
+         SensorConfig( "UCD_POS0V75_TRVDD_0_VOUT", "in4_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=825, lowerCriticalVal=675
+                       ) ),
+         SensorConfig( "UCD_POS0V75_TRVDD_1_VOUT", "in5_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=825, lowerCriticalVal=675
+                       ) ),
+         SensorConfig( "UCD_POS0V9_TRVDD_0_VOUT", "in6_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=990, lowerCriticalVal=810
+                       ) ),
+         SensorConfig( "UCD_POS0V9_TRVDD_1_VOUT", "in7_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=990, lowerCriticalVal=810
+                       ) ),
+         SensorConfig( "UCD_POS1V5_RVDD_0_VOUT", "in8_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=1650, lowerCriticalVal=1350
+                       ) ),
+         SensorConfig( "UCD_POS1V5_RVDD_1_VOUT", "in9_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=1650, lowerCriticalVal=1350
+                       ) ),
+         SensorConfig( "UCD_POS3V3_OPTICS_LEFT_VOUT", "in10_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=3630, lowerCriticalVal=2970
+                       ) ),
+         SensorConfig( "UCD_POS3V3_OPTICS_RIGHT_VOUT", "in11_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=3630, lowerCriticalVal=2970
+                       ) ),
+         SensorConfig( "UCD_POS5V_VOUT", "in12_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=5500, lowerCriticalVal=4500
+                       ) ),
+         SensorConfig( "UCD_POS0V75_CORE_VOUT", "in13_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=975, lowerCriticalVal=525
+                       ) ),
+         SensorConfig( "UCD_POS0V75_PHYCORE_7_VOUT", "in14_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=975, lowerCriticalVal=525
+                       ) ),
+         SensorConfig( "UCD_POS0V72_TRVDD_7_VOUT", "in15_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=880, lowerCriticalVal=720
+                       ) ),
+         SensorConfig( "UCD_POS3V3_RUNDLE_VOUT", "in16_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=3630, lowerCriticalVal=2970
+                       ) ),
+         SensorConfig( "UCD_POS5V0_SNOWFRONT_VOUT", "in17_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=5500, lowerCriticalVal=4500
+                       ) ),
+         SensorConfig( "UCD_POS3V3_SNOWFRONT_VOUT", "in18_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=3630, lowerCriticalVal=2970
+                       ) ),
+         SensorConfig( "UCD_POS5V0_SUNDANCE_VOUT", "in19_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=5500, lowerCriticalVal=4500
+                       ) ),
+         SensorConfig( "UCD_POS3V3_SUNDANCE_VOUT", "in20_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=3630, lowerCriticalVal=2970
+                       ) ),
+         SensorConfig( "UCD_POS5V0_SUNSHINE_A_VOUT", "in21_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=5500, lowerCriticalVal=4500
+                       ) ),
+         SensorConfig( "UCD_POS3V3_SUNSHINE_A_VOUT", "in22_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=3630, lowerCriticalVal=2970
+                       ) ),
+         SensorConfig( "UCD_POS5V0_SUNSHINE_B_VOUT", "in23_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=5500, lowerCriticalVal=4500
+                       ) ),
+         SensorConfig( "UCD_POS3V3_SUNSHINE_B_VOUT", "in24_input", SensorType.VOLTAGE,
+                       thresholds=Thresholds(
+                          upperCriticalVal=3630, lowerCriticalVal=2970
+                       ) )
+      ] )
 
       smbMux = I2cMux( "0x75", "pca9548", "SMB_MUX", incomingBusIndex=2,
                        numOutgoingChannels=8 )

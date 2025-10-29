@@ -25,7 +25,7 @@ mkdir -p %{_fboss_target_var}
 install %{_fboss_glath06a_64o_dir}/config/fruid/fruid.json %{_fboss_target_var}
 
 mkdir -p %{_fboss_target_share}/platform_configs
-# cp -rf %{_fboss_config_dir}/glath06a-64o/* %{_fboss_target_share}/platform_configs/
+cp -rf %{_fboss_config_dir}/glath06a-64o/* %{_fboss_target_share}/platform_configs/
 
 mkdir -p %{_fboss_target_share}/firmware
 mkdir -p %{_fboss_target_share}/firmware/oldreleases
