@@ -1,6 +1,6 @@
 diff -Naur original/jp_25/Makefile jp_25/Makefile
---- original/jp_25/Makefile	1969-12-31 16:00:00.000000000 -0800
-+++ jp_25/Makefile	2023-11-13 15:04:55.535622967 -0800
+--- original/jp_25/Makefile	1970-01-01 00:00:00.000000000 +0000
++++ jp_25/Makefile	2025-10-24 16:26:22.144876883 +0000
 @@ -0,0 +1,22 @@
 +VERSION := 0.0.1
 +
@@ -25,8 +25,8 @@ diff -Naur original/jp_25/Makefile jp_25/Makefile
 +clean:
 +	rm -rf $(BUILD_DIR)
 diff -Naur original/jp_25/source/jamarray.c jp_25/source/jamarray.c
---- original/jp_25/source/jamarray.c	2023-11-13 15:04:37.295544686 -0800
-+++ jp_25/source/jamarray.c	2023-11-13 15:04:55.535622967 -0800
+--- original/jp_25/source/jamarray.c	2025-10-22 16:33:42.331364179 +0000
++++ jp_25/source/jamarray.c	2025-10-24 16:26:22.290877489 +0000
 @@ -22,6 +22,7 @@
  #include "jamutil.h"
  #include "jamcomp.h"
@@ -814,8 +814,8 @@ diff -Naur original/jp_25/source/jamarray.c jp_25/source/jamarray.c
  				}
  				else
 diff -Naur original/jp_25/source/jamarray.h jp_25/source/jamarray.h
---- original/jp_25/source/jamarray.h	2023-11-13 15:04:37.295544686 -0800
-+++ jp_25/source/jamarray.h	2023-11-13 15:04:55.531622950 -0800
+--- original/jp_25/source/jamarray.h	2025-10-22 16:33:42.332364183 +0000
++++ jp_25/source/jamarray.h	2025-10-24 16:26:22.245877302 +0000
 @@ -11,6 +11,8 @@
  #ifndef INC_JAMARRAY_H
  #define INC_JAMARRAY_H
@@ -837,8 +837,8 @@ diff -Naur original/jp_25/source/jamarray.h jp_25/source/jamarray.h
  
  #endif	/* INC_JAMARRAY_H */
 diff -Naur original/jp_25/source/jamcomp.c jp_25/source/jamcomp.c
---- original/jp_25/source/jamcomp.c	2023-11-13 15:04:37.295544686 -0800
-+++ jp_25/source/jamcomp.c	2023-11-13 15:04:55.535622967 -0800
+--- original/jp_25/source/jamcomp.c	2025-10-22 16:33:42.331364179 +0000
++++ jp_25/source/jamcomp.c	2025-10-24 16:26:22.277877435 +0000
 @@ -17,6 +17,7 @@
  #include "jamexprt.h"
  #include "jamdefs.h"
@@ -909,8 +909,8 @@ diff -Naur original/jp_25/source/jamcomp.c jp_25/source/jamcomp.c
  	{
  		i = 0;
 diff -Naur original/jp_25/source/jamcomp.h jp_25/source/jamcomp.h
---- original/jp_25/source/jamcomp.h	2023-11-13 15:04:37.295544686 -0800
-+++ jp_25/source/jamcomp.h	2023-11-13 15:04:55.535622967 -0800
+--- original/jp_25/source/jamcomp.h	2025-10-22 16:33:42.332364183 +0000
++++ jp_25/source/jamcomp.h	2025-10-24 16:26:22.225877219 +0000
 @@ -12,13 +12,15 @@
  #ifndef INC_JAMCOMP_H
  #define INC_JAMCOMP_H
@@ -932,8 +932,8 @@ diff -Naur original/jp_25/source/jamcomp.h jp_25/source/jamcomp.h
  
  #endif /* INC_JAMCOMP_H */
 diff -Naur original/jp_25/source/jamcrc.c jp_25/source/jamcrc.c
---- original/jp_25/source/jamcrc.c	2023-11-13 15:04:37.295544686 -0800
-+++ jp_25/source/jamcrc.c	2023-11-13 15:04:55.531622950 -0800
+--- original/jp_25/source/jamcrc.c	2025-10-22 16:33:42.332364183 +0000
++++ jp_25/source/jamcrc.c	2025-10-24 16:26:22.299877526 +0000
 @@ -12,6 +12,7 @@
  #include "jamdefs.h"
  #include "jamexec.h"
@@ -999,8 +999,8 @@ diff -Naur original/jp_25/source/jamcrc.c jp_25/source/jamcrc.c
  	unsigned short tmp_actual_crc = 0;
  	JAM_RETURN_TYPE status = JAMC_SUCCESS;
 diff -Naur original/jp_25/source/jamdefs.h jp_25/source/jamdefs.h
---- original/jp_25/source/jamdefs.h	2023-11-13 15:04:37.295544686 -0800
-+++ jp_25/source/jamdefs.h	2023-11-13 15:04:55.531622950 -0800
+--- original/jp_25/source/jamdefs.h	2025-10-22 16:33:42.331364179 +0000
++++ jp_25/source/jamdefs.h	2025-10-24 16:26:22.280877447 +0000
 @@ -13,6 +13,8 @@
  #ifndef INC_JAMDEFS_H
  #define INC_JAMDEFS_H
@@ -1043,8 +1043,8 @@ diff -Naur original/jp_25/source/jamdefs.h jp_25/source/jamdefs.h
  extern char **jam_init_list;
  
 diff -Naur original/jp_25/source/jamexec.c jp_25/source/jamexec.c
---- original/jp_25/source/jamexec.c	2023-11-13 15:04:37.295544686 -0800
-+++ jp_25/source/jamexec.c	2023-11-13 15:04:55.535622967 -0800
+--- original/jp_25/source/jamexec.c	2025-10-22 16:33:42.331364179 +0000
++++ jp_25/source/jamexec.c	2025-10-24 16:26:22.311877576 +0000
 @@ -33,6 +33,9 @@
  #include "jamarray.h"
  #include "jamjtag.h"
@@ -3770,8 +3770,8 @@ diff -Naur original/jp_25/source/jamexec.c jp_25/source/jamexec.c
  				);
  			}
 diff -Naur original/jp_25/source/jamexec.h jp_25/source/jamexec.h
---- original/jp_25/source/jamexec.h	2023-11-13 15:04:37.295544686 -0800
-+++ jp_25/source/jamexec.h	2023-11-13 15:04:55.535622967 -0800
+--- original/jp_25/source/jamexec.h	2025-10-22 16:33:42.332364183 +0000
++++ jp_25/source/jamexec.h	2025-10-24 16:26:22.266877389 +0000
 @@ -11,19 +11,21 @@
  #ifndef INC_JAMEXEC_H
  #define INC_JAMEXEC_H
@@ -3836,8 +3836,8 @@ diff -Naur original/jp_25/source/jamexec.h jp_25/source/jamexec.h
  	char *statement_buffer
  );
 diff -Naur original/jp_25/source/jamexp.c jp_25/source/jamexp.c
---- original/jp_25/source/jamexp.c	2023-11-13 15:04:37.295544686 -0800
-+++ jp_25/source/jamexp.c	2023-11-13 15:04:55.531622950 -0800
+--- original/jp_25/source/jamexp.c	2025-10-22 16:33:42.332364183 +0000
++++ jp_25/source/jamexp.c	2025-10-24 16:26:22.324877630 +0000
 @@ -54,7 +54,7 @@
  #define	MAX_BUFFER_LENGTH	1024
  #define END_OF_STRING		-1
@@ -4211,8 +4211,8 @@ diff -Naur original/jp_25/source/jamexp.c jp_25/source/jamexp.c
    YYSTYPE *jam_yypv;
  
 diff -Naur original/jp_25/source/jamexp.h jp_25/source/jamexp.h
---- original/jp_25/source/jamexp.h	2023-11-13 15:04:37.295544686 -0800
-+++ jp_25/source/jamexp.h	2023-11-13 15:04:55.531622950 -0800
+--- original/jp_25/source/jamexp.h	2025-10-22 16:33:42.332364183 +0000
++++ jp_25/source/jamexp.h	2025-10-24 16:26:22.260877365 +0000
 @@ -14,7 +14,7 @@
  JAM_RETURN_TYPE jam_evaluate_expression
  (
@@ -4223,8 +4223,8 @@ diff -Naur original/jp_25/source/jamexp.h jp_25/source/jamexp.h
  );
  
 diff -Naur original/jp_25/source/jamexprt.h jp_25/source/jamexprt.h
---- original/jp_25/source/jamexprt.h	2023-11-13 15:04:37.295544686 -0800
-+++ jp_25/source/jamexprt.h	2023-11-13 15:04:55.535622967 -0800
+--- original/jp_25/source/jamexprt.h	2025-10-22 16:33:42.332364183 +0000
++++ jp_25/source/jamexprt.h	2025-10-24 16:26:22.238877273 +0000
 @@ -14,13 +14,15 @@
  #ifndef INC_JAMEXPRT_H
  #define INC_JAMEXPRT_H
@@ -4368,8 +4368,8 @@ diff -Naur original/jp_25/source/jamexprt.h jp_25/source/jamexprt.h
  
  void jam_free
 diff -Naur original/jp_25/source/jamheap.c jp_25/source/jamheap.c
---- original/jp_25/source/jamheap.c	2023-11-13 15:04:37.295544686 -0800
-+++ jp_25/source/jamheap.c	2023-11-13 15:04:55.535622967 -0800
+--- original/jp_25/source/jamheap.c	2025-10-22 16:33:42.332364183 +0000
++++ jp_25/source/jamheap.c	2025-10-24 16:26:22.263877377 +0000
 @@ -19,6 +19,7 @@
  #include "jamheap.h"
  #include "jamjtag.h"
@@ -4567,8 +4567,8 @@ diff -Naur original/jp_25/source/jamheap.c jp_25/source/jamheap.c
  
  	return (temp_workspace);
 diff -Naur original/jp_25/source/jamheap.h jp_25/source/jamheap.h
---- original/jp_25/source/jamheap.h	2023-11-13 15:04:37.295544686 -0800
-+++ jp_25/source/jamheap.h	2023-11-13 15:04:55.531622950 -0800
+--- original/jp_25/source/jamheap.h	2025-10-22 16:33:42.332364183 +0000
++++ jp_25/source/jamheap.h	2025-10-24 16:26:22.328877647 +0000
 @@ -13,6 +13,8 @@
  #ifndef INC_JAMHEAP_H
  #define INC_JAMHEAP_H
@@ -4607,8 +4607,8 @@ diff -Naur original/jp_25/source/jamheap.h jp_25/source/jamheap.h
  
  void jam_free_temp_workspace
 diff -Naur original/jp_25/source/jamjtag.c jp_25/source/jamjtag.c
---- original/jp_25/source/jamjtag.c	2023-11-13 15:04:37.295544686 -0800
-+++ jp_25/source/jamjtag.c	2023-11-13 15:04:55.535622967 -0800
+--- original/jp_25/source/jamjtag.c	2025-10-22 16:33:42.332364183 +0000
++++ jp_25/source/jamjtag.c	2025-10-24 16:26:22.242877290 +0000
 @@ -22,6 +22,7 @@
  #include "jamstack.h"
  #include "jamutil.h"
@@ -5290,8 +5290,8 @@ diff -Naur original/jp_25/source/jamjtag.c jp_25/source/jamjtag.c
  /*																			*/
  /*	Description:	Frees memory allocated for JTAG IR and DR buffers		*/
 diff -Naur original/jp_25/source/jamjtag.h jp_25/source/jamjtag.h
---- original/jp_25/source/jamjtag.h	2023-11-13 15:04:37.295544686 -0800
-+++ jp_25/source/jamjtag.h	2023-11-13 15:04:55.531622950 -0800
+--- original/jp_25/source/jamjtag.h	2025-10-22 16:33:42.331364179 +0000
++++ jp_25/source/jamjtag.h	2025-10-24 16:26:22.286877472 +0000
 @@ -11,6 +11,8 @@
  #ifndef INC_JAMJTAG_H
  #define INC_JAMJTAG_H
@@ -5416,8 +5416,8 @@ diff -Naur original/jp_25/source/jamjtag.h jp_25/source/jamjtag.h
  
  #endif /* INC_JAMJTAG_H */
 diff -Naur original/jp_25/source/jamnote.c jp_25/source/jamnote.c
---- original/jp_25/source/jamnote.c	2023-11-13 15:04:37.295544686 -0800
-+++ jp_25/source/jamnote.c	2023-11-13 15:04:55.535622967 -0800
+--- original/jp_25/source/jamnote.c	2025-10-22 16:33:42.331364179 +0000
++++ jp_25/source/jamnote.c	2025-10-24 16:26:22.332877663 +0000
 @@ -12,6 +12,7 @@
  #include "jamdefs.h"
  #include "jamexec.h"
@@ -5530,8 +5530,8 @@ diff -Naur original/jp_25/source/jamnote.c jp_25/source/jamnote.c
  		else
  		{
 diff -Naur original/jp_25/source/jamport.h jp_25/source/jamport.h
---- original/jp_25/source/jamport.h	2023-11-13 15:04:37.295544686 -0800
-+++ jp_25/source/jamport.h	2023-11-13 15:04:55.531622950 -0800
+--- original/jp_25/source/jamport.h	2025-10-22 16:33:42.331364179 +0000
++++ jp_25/source/jamport.h	2025-10-24 16:26:22.320877613 +0000
 @@ -11,6 +11,8 @@
  #ifndef INC_JAMPORT_H
  #define INC_JAMPORT_H
@@ -5550,8 +5550,8 @@ diff -Naur original/jp_25/source/jamport.h jp_25/source/jamport.h
  
  #endif /* INC_JAMPORT_H */
 diff -Naur original/jp_25/source/jamstack.c jp_25/source/jamstack.c
---- original/jp_25/source/jamstack.c	2023-11-13 15:04:37.295544686 -0800
-+++ jp_25/source/jamstack.c	2023-11-13 15:04:55.535622967 -0800
+--- original/jp_25/source/jamstack.c	2025-10-22 16:33:42.332364183 +0000
++++ jp_25/source/jamstack.c	2025-10-24 16:26:22.270877406 +0000
 @@ -15,6 +15,7 @@
  #include "jamutil.h"
  #include "jamsym.h"
@@ -5706,8 +5706,8 @@ diff -Naur original/jp_25/source/jamstack.c jp_25/source/jamstack.c
  
  	return (jam_push_stack_record(&stack_record));
 diff -Naur original/jp_25/source/jamstack.h jp_25/source/jamstack.h
---- original/jp_25/source/jamstack.h	2023-11-13 15:04:37.295544686 -0800
-+++ jp_25/source/jamstack.h	2023-11-13 15:04:55.535622967 -0800
+--- original/jp_25/source/jamstack.h	2025-10-22 16:33:42.331364179 +0000
++++ jp_25/source/jamstack.h	2025-10-24 16:26:22.316877597 +0000
 @@ -13,6 +13,8 @@
  #ifndef INC_JAMSTACK_H
  #define INC_JAMSTACK_H
@@ -5760,8 +5760,8 @@ diff -Naur original/jp_25/source/jamstack.h jp_25/source/jamstack.h
  
  #endif /* INC_JAMSTACK_H */
 diff -Naur original/jp_25/source/jamstub.c jp_25/source/jamstub.c
---- original/jp_25/source/jamstub.c	2023-11-13 15:04:37.295544686 -0800
-+++ jp_25/source/jamstub.c	2023-11-13 15:04:55.531622950 -0800
+--- original/jp_25/source/jamstub.c	2025-10-22 16:33:42.332364183 +0000
++++ jp_25/source/jamstub.c	2025-10-24 16:26:22.249877319 +0000
 @@ -36,15 +36,17 @@
  #pragma warning(disable:4514)
  #endif
@@ -6763,8 +6763,8 @@ diff -Naur original/jp_25/source/jamstub.c jp_25/source/jamstub.c
 +	while (count != 0) count--;
  }
 diff -Naur original/jp_25/source/jamsym.c jp_25/source/jamsym.c
---- original/jp_25/source/jamsym.c	2023-11-13 15:04:37.295544686 -0800
-+++ jp_25/source/jamsym.c	2023-11-13 15:04:55.531622950 -0800
+--- original/jp_25/source/jamsym.c	2025-10-22 16:33:42.332364183 +0000
++++ jp_25/source/jamsym.c	2025-10-24 16:26:22.256877348 +0000
 @@ -20,6 +20,7 @@
  #include "jamsym.h"
  #include "jamheap.h"
@@ -6925,8 +6925,8 @@ diff -Naur original/jp_25/source/jamsym.c jp_25/source/jamsym.c
  
  /*																			*/
 diff -Naur original/jp_25/source/jamsym.h jp_25/source/jamsym.h
---- original/jp_25/source/jamsym.h	2023-11-13 15:04:37.295544686 -0800
-+++ jp_25/source/jamsym.h	2023-11-13 15:04:55.535622967 -0800
+--- original/jp_25/source/jamsym.h	2025-10-22 16:33:42.332364183 +0000
++++ jp_25/source/jamsym.h	2025-10-24 16:26:22.294877505 +0000
 @@ -13,6 +13,8 @@
  #ifndef INC_JAMSYM_H
  #define INC_JAMSYM_H
@@ -6984,8 +6984,8 @@ diff -Naur original/jp_25/source/jamsym.h jp_25/source/jamsym.h
  
  JAM_RETURN_TYPE jam_get_symbol_record
 diff -Naur original/jp_25/source/jamutil.c jp_25/source/jamutil.c
---- original/jp_25/source/jamutil.c	2023-11-13 15:04:37.295544686 -0800
-+++ jp_25/source/jamutil.c	2023-11-13 15:04:55.531622950 -0800
+--- original/jp_25/source/jamutil.c	2025-10-22 16:33:42.332364183 +0000
++++ jp_25/source/jamutil.c	2025-10-24 16:26:22.303877543 +0000
 @@ -12,63 +12,64 @@
  /****************************************************************************/
  
@@ -7139,8 +7139,8 @@ diff -Naur original/jp_25/source/jamutil.c jp_25/source/jamutil.c
  	char ch;
  
 diff -Naur original/jp_25/source/jamutil.h jp_25/source/jamutil.h
---- original/jp_25/source/jamutil.h	2023-11-13 15:04:37.295544686 -0800
-+++ jp_25/source/jamutil.h	2023-11-13 15:04:55.531622950 -0800
+--- original/jp_25/source/jamutil.h	2025-10-22 16:33:42.332364183 +0000
++++ jp_25/source/jamutil.h	2025-10-24 16:26:22.253877335 +0000
 @@ -11,6 +11,8 @@
  #ifndef INC_JAMUTIL_H
  #define INC_JAMUTIL_H
@@ -7203,9 +7203,9 @@ diff -Naur original/jp_25/source/jamutil.h jp_25/source/jamutil.h
  
  #endif /* INC_JAMUTIL_H */
 diff -Naur original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
---- original/jp_25/source/jtag_intf.c	1969-12-31 16:00:00.000000000 -0800
-+++ jp_25/source/jtag_intf.c	2023-11-13 15:09:39.344841188 -0800
-@@ -0,0 +1,442 @@
+--- original/jp_25/source/jtag_intf.c	1970-01-01 00:00:00.000000000 +0000
++++ jp_25/source/jtag_intf.c	2025-10-24 16:26:22.274877423 +0000
+@@ -0,0 +1,778 @@
 +// Copyright (c) 2023 Arista Networks, Inc.  All rights reserved.
 +// Arista Networks, Inc. Confidential and Proprietary.
 +
@@ -7225,6 +7225,158 @@ diff -Naur original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 +
 +static const U32 WEST_PORT_ID = 0xc2;
 +static const U32 EAST_PORT_ID = 0xc5;
++
++Gpio_Map v3000_map[ 149 ] = {
++   { 0, 0, 0x00, 0x0, 0x000 },
++   { 1, 0, 0x00, 0x0, 0x000 },
++   { 2, 1, 0xd02, 0x1, 0x1508 / 4 },
++   { 3, 1, 0xd03, 0x0, 0x150c / 4 },
++   { 4, 1, 0xd04, 0x0, 0x1510 / 4 },
++   { V3000_CPU_JTAG1_TDI, 1, 0xd05, 0x0, 0x1514 / 4 },
++   { V3000_CPU_JTAG1_TMS, 1, 0xd06, 0x0, 0x1518 / 4 },
++   { V3000_CPU_JTAG1_TRST_L, 1, 0xd07, 0x0, 0x151c / 4 },
++   { V3000_CPU_JTAG1_TCK, 1, 0xd08, 0x0, 0x1520 / 4 },
++   { 9, 1, 0xd09, 0x0, 0x1524 / 4 },
++   { 10, 1, 0xd0a, 0x0, 0x1528 / 4 },
++   { 11, 1, 0xd0b, 0x0, 0x152c / 4 },
++   { 12, 1, 0xd0c, 0x1, 0x1530 / 4 },
++   { 13, 0, 0x00, 0x0, 0x000 },
++   { 14, 0, 0x00, 0x0, 0x000 },
++   { 15, 0, 0x00, 0x0, 0x000 },
++   { 16, 1, 0xd10, 0x0, 0x1540 / 4 },
++   { 17, 0, 0x00, 0x0, 0x000 },
++   { 18, 1, 0xd12, 0x0, 0x1548 / 4 },
++   { 19, 1, 0xd13, 0x1, 0x154c / 4 },
++   { 20, 1, 0xd14, 0x1, 0x1550 / 4 },
++   { 21, 0, 0x00, 0x0, 0x000 },
++   { 22, 1, 0xd16, 0x1, 0x1558 / 4 },
++   { 23, 1, 0xd17, 0x1, 0x155c / 4 },
++   { 24, 0, 0x00, 0x0, 0x000 },
++   { 25, 0, 0x00, 0x0, 0x000 },
++   { 26, 1, 0xd1a, 0x0, 0x1568 / 4 },
++   { 27, 1, 0xd1b, 0x1, 0x156c / 4 },
++   { 28, 0, 0x00, 0x0, 0x000 },
++   { 29, 1, 0xd1d, 0x0, 0x1574 / 4 },
++   { 30, 1, 0xd1e, 0x1, 0x1578 / 4 },
++   { 31, 1, 0xd1f, 0x1, 0x157c / 4 },
++   { 32, 1, 0xd20, 0x0, 0x1580 / 4 },
++   { 33, 0, 0x00, 0x0, 0x000 },
++   { 34, 0, 0x00, 0x0, 0x000 },
++   { 35, 0, 0x00, 0x0, 0x000 },
++   { 36, 0, 0x00, 0x0, 0x000 },
++   { 37, 0, 0x00, 0x0, 0x000 },
++   { V3000_CPU_JTAG0_TRST_L, 1, 0xd26, 0x1, 0x1598 / 4 },
++   { V3000_CPU_JTAG0_SEL, 1, 0xd27, 0x1, 0x159c / 4 },
++   { V3000_CPU_JTAG1_TDO, 1, 0xd28, 0x1, 0x15a0 / 4 },
++   { 41, 0, 0x00, 0x0, 0x000 },
++   { 42, 1, 0xd2a, 0x0, 0x15a8 / 4 },
++   { 43, 0, 0x00, 0x0, 0x000 },
++   { 44, 0, 0x00, 0x0, 0x000 },
++   { 45, 0, 0x00, 0x0, 0x000 },
++   { 46, 0, 0x00, 0x0, 0x000 },
++   { 47, 0, 0x00, 0x0, 0x000 },
++   { 48, 0, 0x00, 0x0, 0x000 },
++   { 49, 0, 0x00, 0x0, 0x000 },
++   { 50, 0, 0x00, 0x0, 0x000 },
++   { 51, 0, 0x00, 0x0, 0x000 },
++   { 52, 0, 0x00, 0x0, 0x000 },
++   { 53, 0, 0x00, 0x0, 0x000 },
++   { 54, 0, 0x00, 0x0, 0x000 },
++   { 55, 0, 0x00, 0x0, 0x000 },
++   { 56, 0, 0x00, 0x0, 0x000 },
++   { 57, 0, 0x00, 0x0, 0x000 },
++   { 58, 0, 0x00, 0x0, 0x000 },
++   { 59, 0, 0x00, 0x0, 0x000 },
++   { 60, 0, 0x00, 0x0, 0x000 },
++   { 61, 0, 0x00, 0x0, 0x000 },
++   { 62, 0, 0x00, 0x0, 0x000 },
++   { 63, 0, 0x00, 0x0, 0x000 },
++   { 64, 0, 0x00, 0x0, 0x000 },
++   { 65, 0, 0x00, 0x0, 0x000 },
++   { 66, 0, 0x00, 0x0, 0x000 },
++   { 67, 1, 0xd43, 0x1, 0x160c / 4 },
++   { 68, 0, 0x00, 0x0, 0x000 },
++   { 69, 0, 0x00, 0x0, 0x000 },
++   { 70, 1, 0xd46, 0x1, 0x1618 / 4 },
++   { 71, 0, 0x00, 0x0, 0x000 },
++   { 72, 0, 0x00, 0x0, 0x000 },
++   { 73, 0, 0x00, 0x0, 0x000 },
++   { 74, 0, 0x00, 0x0, 0x000 },
++   { 75, 1, 0xd51, 0x2, 0x162c / 4 },
++   { 76, 0, 0x00, 0x0, 0x000 },
++   { 77, 0, 0x00, 0x0, 0x000 },
++   { 78, 0, 0x00, 0x0, 0x000 },
++   { 79, 0, 0x00, 0x0, 0x000 },
++   { 80, 0, 0x00, 0x0, 0x000 },
++   { 81, 0, 0x00, 0x0, 0x000 },
++   { 82, 0, 0x00, 0x0, 0x000 },
++   { 83, 0, 0x00, 0x0, 0x000 },
++   { 84, 0, 0x00, 0x0, 0x000 },
++   { 85, 0, 0x00, 0x0, 0x000 },
++   { 86, 0, 0x00, 0x0, 0x000 },
++   { 87, 0, 0x00, 0x0, 0x000 },
++   { 88, 0, 0x00, 0x0, 0x000 },
++   { 89, 1, 0xd59, 0x2, 0x1664 / 4 },
++   { 90, 1, 0xd5a, 0x2, 0x1668 / 4 },
++   { 91, 1, 0xd5b, 0x2, 0x1668 / 4 },
++   { 92, 1, 0xd5c, 0x3, 0x1670 / 4 },
++   { 93, 0, 0x00, 0x0, 0x000 },
++   { 94, 0, 0x00, 0x0, 0x000 },
++   { 95, 0, 0x00, 0x0, 0x000 },
++   { 96, 0, 0x00, 0x0, 0x000 },
++   { 97, 0, 0x00, 0x0, 0x000 },
++   { 98, 0, 0x00, 0x0, 0x000 },
++   { 99, 0, 0x00, 0x0, 0x000 },
++   { 100, 0, 0x00, 0x0, 0x000 },
++   { 101, 0, 0x00, 0x0, 0x000 },
++   { 102, 0, 0x00, 0x0, 0x000 },
++   { 103, 0, 0x00, 0x0, 0x000 },
++   { 104, 1, 0xd68, 0x1, 0x16a0 / 4 },
++   { 105, 1, 0xd69, 0x1, 0x16a4 / 4 },
++   { 106, 1, 0xd6a, 0x1, 0x16a8 / 4 },
++   { 107, 1, 0xd6b, 0x1, 0x16ac / 4 },
++   { 108, 0, 0x00, 0x0, 0x000 },
++   { 109, 0, 0x00, 0x0, 0x000 },
++   { 110, 0, 0x00, 0x0, 0x000 },
++   { 111, 0, 0x00, 0x0, 0x000 },
++   { 112, 0, 0x00, 0x0, 0x000 },
++   { 113, 1, 0xd71, 0x1, 0x16c4 / 4 },
++   { 114, 1, 0xd72, 0x1, 0x16c8 / 4 },
++   { V3000_CPU_JTAG0_TDI, 1, 0xd73, 0x1, 0x16cc / 4 },
++   { V3000_CPU_JTAG0_TCK, 1, 0xd74, 0x1, 0x16d0 / 4 },
++   { 117, 0, 0x00, 0x0, 0x000 },
++   { 118, 0, 0x00, 0x0, 0x000 },
++   { 119, 0, 0x00, 0x0, 0x000 },
++   { 120, 0, 0x00, 0x0, 0x000 },
++   { 121, 0, 0x00, 0x0, 0x000 },
++   { 122, 0, 0x00, 0x0, 0x000 },
++   { 123, 0, 0x00, 0x0, 0x000 },
++   { 124, 0, 0x00, 0x0, 0x000 },
++   { 125, 0, 0x00, 0x0, 0x000 },
++   { 126, 0, 0x00, 0x0, 0x000 },
++   { 127, 0, 0x00, 0x0, 0x000 },
++   { 128, 0, 0x00, 0x0, 0x000 },
++   { 129, 0, 0x00, 0x0, 0x000 },
++   { 130, 1, 0xd82, 0x1, 0x1708 / 4 },
++   { V3000_CPU_JTAG0_TDO, 1, 0xd83, 0x3, 0x170c / 4 },
++   { V3000_CPU_JTAG0_TMS, 1, 0xd84, 0x3, 0x1710 / 4 },
++   { 133, 0, 0x00, 0x0, 0x000 },
++   { 134, 0, 0x00, 0x0, 0x000 },
++   { 135, 0, 0x00, 0x0, 0x000 },
++   { 136, 1, 0xd88, 0x0, 0x1724 / 4 },
++   { 137, 0, 0x00, 0x0, 0x000 },
++   { 138, 1, 0xd8a, 0x0, 0x1728 / 4 },
++   { 139, 0, 0x00, 0x0, 0x000 },
++   { 140, 0, 0x00, 0x0, 0x000 },
++   { 141, 0, 0x00, 0x0, 0x000 },
++   { 142, 0, 0x00, 0x0, 0x000 },
++   { 143, 0, 0x00, 0x0, 0x000 },
++   { 144, 0, 0x00, 0x0, 0x000 },
++   { 145, 1, 0xd91, 0x0, 0x1744 / 4 },
++   { 146, 1, 0xd92, 0x0, 0x1748 / 4 },
++   { 147, 1, 0xd93, 0x0, 0x174c / 4 },
++   { 148, 1, 0xd94, 0x0, 0x1750 / 4 },
++};
 +
 +// Grab a kernel flock on LOCK_FILE to prevent more than one
 +// process from accessing the JTAG pins at once.
@@ -7246,19 +7398,14 @@ diff -Naur original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 +}
 +
 +// Map GPIO register space.
-+static void jtag_intf_gpio_mmap(jtag_intf * jif) {
++static void jtag_intf_gpio_mmap(jtag_intf * jif, size_t length, off_t offset) {
 +   int fd;
-+   size_t map_size;
-+   off_t offset, pa_offset;
 +
 +   fd = open("/dev/mem", O_RDWR);
 +   assert (fd >= 0);
-+   // GPIOs are in base + 0xc20800 - 0xc50c40, just map up to 0xc60000
-+   map_size = 0xc60000;
-+   offset = 0xfd000000;
-+   pa_offset = offset & ~(sysconf(_SC_PAGE_SIZE) - 1);
-+   jif->gpio_details.gpio_base_ptr = mmap(NULL, map_size + offset - pa_offset, PROT_READ | PROT_WRITE,
-+                        MAP_SHARED, fd, pa_offset);
++
++   jif->gpio_details.gpio_base_ptr = mmap(NULL, length, PROT_READ | PROT_WRITE,
++                                          MAP_SHARED, fd, offset);
 +   close(fd);
 +}
 +
@@ -7271,7 +7418,8 @@ diff -Naur original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 +   assert(filep);
 +
 +   fseek(filep, GPIO_BASE_ADDR, SEEK_SET);
-+   rc = fread(&jif->gpio_details.gpio_offset, sizeof(jif->gpio_details.gpio_offset), 1, filep);
++   rc = fread(&jif->gpio_details.gpio_offset, sizeof(jif->gpio_details.gpio_offset),
++              1, filep);
 +   assert(rc == 1);
 +
 +   // Apply offset mask.
@@ -7325,7 +7473,6 @@ diff -Naur original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 +   outl(data, addr);
 +}
 +
-+
 +static void set_output(U32 gpio_offset, U8 gpo) {
 +   if (gpo == 0xff) return;
 +
@@ -7343,12 +7490,27 @@ diff -Naur original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 +}
 +
 +static void set_output_meru(U32 *gpio_base_ptr, U32 reg) {
-+   if( reg == 0xffffffff ) return;
++   if (reg == 0xffffffff) return;
 +
 +   U32 old_val = *( ( volatile U32 * ) ( (char *)gpio_base_ptr + reg ) );
 +   // Turn off TX disable and turn on RX disable
 +   U32 new_val = ( old_val | 0x200 ) & 0xfffffeff;
 +   *( ( volatile U32 * ) ( (char *)gpio_base_ptr + reg ) ) = new_val;
++}
++
++static void set_output_glath06a_64o(U32 *gpio_base_ptr, Gpio_Map *gpio_map,
++                                    U8 gpo) {
++   volatile U32 *waddr;
++   volatile U8 *addr;
++   U32 val;
++
++   if (gpo == 0xff) return;
++
++   waddr = (volatile U32 *)gpio_base_ptr;
++   addr = (volatile U8 *)gpio_base_ptr;
++   addr[ gpio_map[ gpo ].mux_offset ] = gpio_map[ gpo ].mux_value;
++   val = waddr[ gpio_map[ gpo ].gpio_offset ];
++   waddr[ gpio_map[ gpo ].gpio_offset ] = val | 0x00800000;
 +}
 +
 +static void set_input(U32 gpio_offset, U8 gpo) {
@@ -7374,6 +7536,21 @@ diff -Naur original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 +   // Turn off RX disable and turn on TX disable
 +   U32 new_val = ( old_val | 0x100 ) & 0xfffffdff;
 +   *( ( volatile U32 * ) ( (char *)gpio_base_ptr + reg ) ) = new_val;
++}
++
++static void set_input_glath06a_64o(U32 *gpio_base_ptr, Gpio_Map *gpio_map,
++                                   U8 gpo) {
++   volatile U32 *waddr;
++   volatile U8 *addr;
++   U32 val;
++
++   if (gpo == 0xff) return;
++
++   waddr = (volatile U32 *)gpio_base_ptr;
++   addr = (volatile U8 *)gpio_base_ptr;
++   addr[ gpio_map[ gpo ].mux_offset ] = gpio_map[ gpo ].mux_value;
++   val = waddr[ gpio_map[ gpo ].gpio_offset ];
++   waddr[ gpio_map[ gpo ].gpio_offset ] = val & ( ~0x00800000 );
 +}
 +
 +static void set_bit(U32 gpio_offset, U8 gpo, bool value) {
@@ -7405,6 +7582,25 @@ diff -Naur original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 +   *( ( volatile U32 * ) ( (char *)gpio_base_ptr + reg ) ) = new_val;
 +}
 +
++static void set_bit_glath06a_64o(U32 *gpio_base_ptr, Gpio_Map *gpio_map,
++                                 U8 gpo, bool value) {
++   volatile U32 *waddr;
++   U32 old_val;
++   U32 new_val = 0;
++
++   if (gpo == 0xff) return;
++
++   waddr = (volatile U32 *)gpio_base_ptr;
++   old_val = waddr[ gpio_map[ gpo ].gpio_offset ];
++
++   if (value) {
++      new_val = old_val | ( 1 << V3000_OUT_BIT );
++   } else {
++      new_val = old_val & ~( 1 << V3000_OUT_BIT );
++   }
++   waddr[ gpio_map[ gpo ].gpio_offset ] = new_val;
++}
++
 +static bool get_bit(U32 gpio_offset, U8 gpo) {
 +   if (gpo == 0xff) return false;
 +
@@ -7422,11 +7618,28 @@ diff -Naur original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 +   return ( val & 0x2 ) != 0;
 +}
 +
++static bool get_bit_glath06a_64o(U32 *gpio_base_ptr, Gpio_Map *gpio_map,
++                                 U8 gpo ) {
++   volatile U32 *waddr;
++   U32 val;
++
++   if (gpo == 0xff) return false;
++
++   waddr = (volatile U32 *)gpio_base_ptr;
++   val = waddr[ gpio_map[ gpo ].gpio_offset ];
++   return ( val & ( 1 << V3000_IN_BIT ) );
++}
++
 +static void tdi_is(jtag_intf * jif, bool value) {
-+   if (jif->platform == MERU)
-+   {
++   if (jif->platform == MERU) {
 +      // Set TDI pin.
 +      set_bit_meru(jif->gpio_details.gpio_base_ptr, jif->tdi.tdi_u32, value);
++      jif->tdi_val = value;
++      return;
++   } else if (jif->platform == GLATH06A_64O) {
++      // Set TDI pin.
++      set_bit_glath06a_64o(jif->gpio_details.gpio_base_ptr, jif->gpio_map,
++                           jif->tdi.tdi_u8, value);
 +      jif->tdi_val = value;
 +      return;
 +   }
@@ -7439,10 +7652,15 @@ diff -Naur original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 +}
 +
 +static void tms_is(jtag_intf * jif, bool value) {
-+   if (jif->platform == MERU)
-+   {
++   if (jif->platform == MERU) {
 +      // Set TMS pin.
 +      set_bit_meru(jif->gpio_details.gpio_base_ptr, jif->tms.tms_u32, value);
++      jif->tms_val = value;
++      return;
++   } else if (jif->platform == GLATH06A_64O) {
++      // Set TMS pin.
++      set_bit_glath06a_64o(jif->gpio_details.gpio_base_ptr, jif->gpio_map,
++                           jif->tms.tms_u8, value);
 +      jif->tms_val = value;
 +      return;
 +   }
@@ -7455,10 +7673,14 @@ diff -Naur original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 +}
 +
 +static void tclk_is(jtag_intf * jif, bool value) {
-+   if (jif->platform == MERU)
-+   {
++   if (jif->platform == MERU) {
 +      // Set TCK pin.
 +      set_bit_meru(jif->gpio_details.gpio_base_ptr, jif->tclk.tclk_u32, value);
++      return;
++   } else if (jif->platform == GLATH06A_64O) {
++      // Set TCK pin.
++      set_bit_glath06a_64o(jif->gpio_details.gpio_base_ptr, jif->gpio_map,
++                           jif->tclk.tclk_u8, value);
 +      return;
 +   }
 +
@@ -7468,8 +7690,16 @@ diff -Naur original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 +
 +// Set JTAG pins in MERU platform.
 +static void jtag_intf_select_meru(jtag_intf * jif, char * fpga) {
++   size_t map_size;
++   off_t offset, pa_offset;
++
 +   jtag_intf_flock(jif);
-+   jtag_intf_gpio_mmap(jif);
++
++   // GPIOs are in base + 0xc20800 - 0xc50c40, just map up to 0xc60000
++   map_size = 0xc60000;
++   offset = 0xfd000000;
++   pa_offset = offset & ~(sysconf(_SC_PAGE_SIZE) - 1);
++   jtag_intf_gpio_mmap(jif, map_size + offset - pa_offset, pa_offset);
 +
 +   jif->trstl.trstl_u32 = 0xffffffff;
 +   jif->sel0.sel0_u32 = 0xffffffff;
@@ -7535,6 +7765,86 @@ diff -Naur original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 +   jif->tms_val = false;
 +}
 +
++// Set JTAG pins in GLATH06A_64O platform.
++static void jtag_intf_select_glath06a_64o(jtag_intf * jif, char * fpga) {
++   jtag_intf_flock(jif);
++   jtag_intf_gpio_mmap(jif, V3000_MMAP_SIZE, V3000_GPIO_BASE);
++
++   jif->trstl.trstl_u8 = 0xff;
++   jif->sel0.sel0_u8 = 0xff;
++   jif->sel1.sel1_u8 = 0xff;
++   jif->sel2.sel2_u8 = 0xff;
++   jif->sel0_val = false;
++   jif->sel1_val = false;
++   jif->sel2_val = false;
++
++   if (!strncmp(fpga, GLATH06A_64O_SCM_CPLD, STR_MAX)) {
++      // JTAG1
++      jif->tms.tms_u8 = V3000_CPU_JTAG1_TMS;
++      jif->tclk.tclk_u8 = V3000_CPU_JTAG1_TCK;
++      jif->tdi.tdi_u8 = V3000_CPU_JTAG1_TDI;
++      jif->tdo.tdo_u8 = V3000_CPU_JTAG1_TDO;
++      jif->trstl.trstl_u8 = V3000_CPU_JTAG1_TRST_L;
++      jif->sel0.sel0_u8 = 0xff;
++      jif->sel0_val = false;
++   } else if (!strncmp(fpga, GLATH06A_64O_SMB_CPLD, STR_MAX)) {
++      // JTAG0
++      jif->tms.tms_u8 = V3000_CPU_JTAG0_TMS;
++      jif->tclk.tclk_u8 = V3000_CPU_JTAG0_TCK;
++      jif->tdi.tdi_u8 = V3000_CPU_JTAG0_TDI;
++      jif->tdo.tdo_u8 = V3000_CPU_JTAG0_TDO;
++      jif->trstl.trstl_u8 = V3000_CPU_JTAG0_TRST_L;
++      jif->sel0.sel0_u8 = V3000_CPU_JTAG0_SEL;
++      jif->sel0_val = false;
++   }
++
++   // Need to set IO privilege level to allow read/write.
++   if (iopl(3) < 0)
++      exit(1);
++
++   set_output_glath06a_64o(jif->gpio_details.gpio_base_ptr, jif->gpio_map,
++                           jif->tclk.tclk_u8);
++   set_output_glath06a_64o(jif->gpio_details.gpio_base_ptr, jif->gpio_map,
++                           jif->tdi.tdi_u8);
++   set_output_glath06a_64o(jif->gpio_details.gpio_base_ptr, jif->gpio_map,
++                           jif->tms.tms_u8);
++   set_output_glath06a_64o(jif->gpio_details.gpio_base_ptr, jif->gpio_map,
++                           jif->trstl.trstl_u8);
++   set_output_glath06a_64o(jif->gpio_details.gpio_base_ptr, jif->gpio_map,
++                           jif->sel0.sel0_u8);
++   set_output_glath06a_64o(jif->gpio_details.gpio_base_ptr, jif->gpio_map,
++                           jif->sel1.sel1_u8);
++   set_output_glath06a_64o(jif->gpio_details.gpio_base_ptr, jif->gpio_map,
++                           jif->sel2.sel2_u8);
++   set_input_glath06a_64o(jif->gpio_details.gpio_base_ptr, jif->gpio_map,
++                          jif->tdo.tdo_u8);
++   set_bit_glath06a_64o(jif->gpio_details.gpio_base_ptr, jif->gpio_map,
++                        jif->tclk.tclk_u8, false);
++   set_bit_glath06a_64o(jif->gpio_details.gpio_base_ptr, jif->gpio_map,
++                        jif->tdi.tdi_u8, false);
++   set_bit_glath06a_64o(jif->gpio_details.gpio_base_ptr, jif->gpio_map,
++                        jif->tms.tms_u8, false);
++   // Toggle this pin only when it is used by the product.
++   if (jif->trstl.trstl_u8 != 0xff ){
++      set_bit_glath06a_64o(jif->gpio_details.gpio_base_ptr, jif->gpio_map,
++                           jif->trstl.trstl_u8, false);
++      // Let us Toggle the TRST line for 100 ms. This function takes the delay
++      // in terms of microseconds.
++      usleep( 100 * 1000 );
++      set_bit_glath06a_64o(jif->gpio_details.gpio_base_ptr, jif->gpio_map,
++                           jif->trstl.trstl_u8, true);
++   }
++   set_bit_glath06a_64o(jif->gpio_details.gpio_base_ptr, jif->gpio_map,
++                        jif->sel0.sel0_u8, jif->sel0_val);
++   set_bit_glath06a_64o(jif->gpio_details.gpio_base_ptr, jif->gpio_map,
++                        jif->sel1.sel1_u8, jif->sel1_val);
++   set_bit_glath06a_64o(jif->gpio_details.gpio_base_ptr, jif->gpio_map,
++                        jif->sel2.sel2_u8, jif->sel2_val);
++
++   jif->tdi_val = false;
++   jif->tms_val = false;
++}
++
 +static void jtag_intf_cleanup_meru(jtag_intf * jif) {
 +   set_input_meru(jif->gpio_details.gpio_base_ptr, jif->tclk.tclk_u32);
 +   set_input_meru(jif->gpio_details.gpio_base_ptr, jif->tdi.tdi_u32);
@@ -7545,15 +7855,38 @@ diff -Naur original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 +   set_input_meru(jif->gpio_details.gpio_base_ptr, jif->sel2.sel2_u32 );
 +}
 +
++static void jtag_intf_cleanup_glath06a_64o(jtag_intf * jif) {
++   set_input_glath06a_64o(jif->gpio_details.gpio_base_ptr, jif->gpio_map,
++                          jif->tclk.tclk_u8);
++   set_input_glath06a_64o(jif->gpio_details.gpio_base_ptr, jif->gpio_map,
++                          jif->tdi.tdi_u8);
++   set_input_glath06a_64o(jif->gpio_details.gpio_base_ptr, jif->gpio_map,
++                          jif->tms.tms_u8);
++   set_input_glath06a_64o(jif->gpio_details.gpio_base_ptr, jif->gpio_map,
++                          jif->trstl.trstl_u8);
++   set_input_glath06a_64o(jif->gpio_details.gpio_base_ptr, jif->gpio_map,
++                          jif->sel0.sel0_u8 );
++   set_input_glath06a_64o(jif->gpio_details.gpio_base_ptr, jif->gpio_map,
++                          jif->sel1.sel1_u8 );
++   set_input_glath06a_64o(jif->gpio_details.gpio_base_ptr, jif->gpio_map,
++                          jif->sel2.sel2_u8 );
++}
++
 +// Set JTAG pins based on given FPGA name.
 +void jtag_intf_select(jtag_intf * jif, char * fpga) {
 +   int32_t rc;
 +
 +   if (!strncmp(fpga, MERU_CPU_CPLD, STR_MAX) ||
-+         !strncmp(fpga, MERU_SWITCH_CPLD, STR_MAX) ||
-+         !strncmp(fpga, MERU_FAN_CPLD, STR_MAX)) {
++       !strncmp(fpga, MERU_SWITCH_CPLD, STR_MAX) ||
++       !strncmp(fpga, MERU_FAN_CPLD, STR_MAX)) {
 +      jif->platform = MERU;
 +      jtag_intf_select_meru(jif, fpga);
++      return;
++   } else if (!strncmp(fpga, GLATH06A_64O_SCM_CPLD, STR_MAX) ||
++              !strncmp(fpga, GLATH06A_64O_SMB_CPLD, STR_MAX) ) {
++      jif->platform = GLATH06A_64O;
++      jif->gpio_map = v3000_map;
++      jtag_intf_select_glath06a_64o(jif, fpga);
 +      return;
 +   }
 +
@@ -7607,17 +7940,20 @@ diff -Naur original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 +   set_bit(jif->gpio_details.gpio_offset, jif->tdi.tdi_u8, false);
 +   set_bit(jif->gpio_details.gpio_offset, jif->tms.tms_u8, false);
 +   set_bit(jif->gpio_details.gpio_offset, jif->sel0.sel0_u8, jif->sel0_val);
-+   
++
 +   jif->tdi_val = false;
 +   jif->tms_val = false;
 +}
 +
 +void jtag_intf_cleanup(jtag_intf * jif) {
-+   if (jif->platform == MERU)
-+   {
++   if (jif->platform == MERU) {
 +      jtag_intf_cleanup_meru(jif);
 +      return;
++   } else if (jif->platform == GLATH06A_64O) {
++      jtag_intf_cleanup_glath06a_64o(jif);
++      return;
 +   }
++
 +   // Restore JTAG GPIOs to inputs.
 +   set_input(jif->gpio_details.gpio_offset, jif->tclk.tclk_u8);
 +   set_input(jif->gpio_details.gpio_offset, jif->tdi.tdi_u8);
@@ -7635,12 +7971,12 @@ diff -Naur original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 +}
 +
 +int32_t jtag_intf_tdo(jtag_intf * jif) {
-+   if (jif->platform == MERU)
-+   {
++   if (jif->platform == MERU) {
 +      return (int32_t)get_bit_meru(jif->gpio_details.gpio_base_ptr, jif->tdo.tdo_u32);
-+   }
-+   else
-+   {
++   } else if (jif->platform == GLATH06A_64O) {
++      return (int32_t)get_bit_glath06a_64o(jif->gpio_details.gpio_base_ptr,
++                                           jif->gpio_map, jif->tdo.tdo_u8);
++   } else {
 +      return (int32_t)get_bit(jif->gpio_details.gpio_offset, jif->tdo.tdo_u8);
 +   }
 +}
@@ -7649,9 +7985,9 @@ diff -Naur original/jp_25/source/jtag_intf.c jp_25/source/jtag_intf.c
 +   return tclk_is(jif, (bool)value);
 +}
 diff -Naur original/jp_25/source/jtag_intf.h jp_25/source/jtag_intf.h
---- original/jp_25/source/jtag_intf.h	1969-12-31 16:00:00.000000000 -0800
-+++ jp_25/source/jtag_intf.h	2023-11-13 15:04:55.535622967 -0800
-@@ -0,0 +1,146 @@
+--- original/jp_25/source/jtag_intf.h	1970-01-01 00:00:00.000000000 +0000
++++ jp_25/source/jtag_intf.h	2025-10-24 16:26:22.228877232 +0000
+@@ -0,0 +1,180 @@
 +// Copyright (c) 2023 Arista Networks, Inc.  All rights reserved.
 +// Arista Networks, Inc. Confidential and Proprietary.
 +
@@ -7666,7 +8002,7 @@ diff -Naur original/jp_25/source/jtag_intf.h jp_25/source/jtag_intf.h
 +#include <stdbool.h>
 +
 +// Valid FPGA names.
-+#define STR_MAX 12
++#define STR_MAX 32
 +#define CPU_CPLD "cpu_cpld"
 +#define SC_CPLD "sc_cpld"
 +#define SC_SCD "sc_scd"
@@ -7674,6 +8010,8 @@ diff -Naur original/jp_25/source/jtag_intf.h jp_25/source/jtag_intf.h
 +#define MERU_CPU_CPLD "meru_cpu_cpld"
 +#define MERU_SWITCH_CPLD "meru_switch_cpld"
 +#define MERU_FAN_CPLD "meru_fan_cpld"
++#define GLATH06A_64O_SCM_CPLD "glath06a_64o_scm_cpld"
++#define GLATH06A_64O_SMB_CPLD "glath06a_64o_smb_cpld"
 +
 +// Hardcoded reference to LPC PCI interface in sysfs.
 +#define LPC_PCI_SYSFS "/sys/bus/pci/devices/0000:00:1f.0/config"
@@ -7714,6 +8052,26 @@ diff -Naur original/jp_25/source/jtag_intf.h jp_25/source/jtag_intf.h
 +   CPLD_JTAG_TMS = 48
 +};
 +
++// AMD V3000
++#define V3000_IN_BIT 16
++#define V3000_OUT_BIT 22
++#define V3000_GPIO_BASE 0xfed80000U
++#define V3000_OUT_EN_BIT 23
++#define V3000_MMAP_SIZE 8192
++enum {
++   V3000_CPU_JTAG1_TDI = 5,
++   V3000_CPU_JTAG1_TMS = 6,
++   V3000_CPU_JTAG1_TRST_L = 7,
++   V3000_CPU_JTAG1_TCK = 8,
++   V3000_CPU_JTAG0_TRST_L = 38,
++   V3000_CPU_JTAG0_SEL = 39,
++   V3000_CPU_JTAG1_TDO = 40,
++   V3000_CPU_JTAG0_TDI = 115,
++   V3000_CPU_JTAG0_TCK = 116,
++   V3000_CPU_JTAG0_TDO = 131,
++   V3000_CPU_JTAG0_TMS = 132,
++};
++
 +#define unlikely( cond ) __builtin_expect((cond),0)
 +#define likely( cond ) __builtin_expect((cond),1)
 +
@@ -7725,6 +8083,14 @@ diff -Naur original/jp_25/source/jtag_intf.h jp_25/source/jtag_intf.h
 +   U32 gpio_offset;
 +   U32 *gpio_base_ptr;
 +} Gpio_Details;
++
++typedef struct {
++   U32 index;
++   U32 valid;
++   U32 mux_offset;
++   U32 mux_value;
++   U32 gpio_offset;
++} Gpio_Map;
 +
 +typedef union {
 +   U8 trstl_u8;
@@ -7757,23 +8123,27 @@ diff -Naur original/jp_25/source/jtag_intf.h jp_25/source/jtag_intf.h
 +} Sel0;
 +
 +typedef union {
++   U8 sel1_u8;
 +   U32 sel1_u32;
 +} Sel1;
 +
 +typedef union {
++   U8 sel2_u8;
 +   U32 sel2_u32;
 +} Sel2;
 +
 +typedef enum {
 +   DARWIN,
-+   MERU
++   MERU,
++   GLATH06A_64O,
 +} Platform_Name;
 +
 +// Interface to JTAG pins for programming.
 +typedef struct {
 +   Platform_Name platform;
-+   char * fpga;
++   char *fpga;
 +   Gpio_Details gpio_details;
++   Gpio_Map *gpio_map;
 +   Trstl trstl;
 +   Tclk tclk;
 +   Tdi tdi;
@@ -7790,11 +8160,11 @@ diff -Naur original/jp_25/source/jtag_intf.h jp_25/source/jtag_intf.h
 +} jtag_intf;
 +
 +// API used by programming utilities.
-+void jtag_intf_select(jtag_intf * jif, char * fpga);
-+void jtag_intf_cleanup(jtag_intf * jif);
-+void jtag_intf_tdi_is(jtag_intf * jif, int32_t value);
-+void jtag_intf_tms_is(jtag_intf * jif, int32_t value);
-+int32_t jtag_intf_tdo(jtag_intf * jif);
-+void jtag_intf_tclk_is(jtag_intf * jif, int32_t value);
++void jtag_intf_select(jtag_intf *jif, char *fpga);
++void jtag_intf_cleanup(jtag_intf *jif);
++void jtag_intf_tdi_is(jtag_intf *jif, int32_t value);
++void jtag_intf_tms_is(jtag_intf *jif, int32_t value);
++int32_t jtag_intf_tdo(jtag_intf *jif);
++void jtag_intf_tclk_is(jtag_intf *jif, int32_t value);
 +
 +#endif // SRC_PCI_INTF_H
