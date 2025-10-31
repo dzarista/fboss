@@ -1,4 +1,6 @@
-Adds support for AMD V3000 SPI.
+Adds support for AMD V3000 LPC device ID 0x1682, updates default frequency for
+AMD CPUs to 33 MHz, and backports patch to fix spi100 bit mappings. See
+https://github.com/flashrom/flashrom/commit/b94a5a21c34877082477af7a7f29f952f5364944
 
 diff -Naru ../original/flashrom-v1.2.1/chipset_enable.c flashrom-v1.2.1/chipset_enable.c
 --- ../original/flashrom-v1.2.1/chipset_enable.c	2025-10-31 12:08:58.664242581 +0000
