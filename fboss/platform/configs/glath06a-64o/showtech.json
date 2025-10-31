@@ -1,0 +1,41 @@
+{
+  "i2cBusIgnore": [
+    "SMBus PIIX4 adapter port 0 at 0b00",
+    "SMBus PIIX4 adapter port 2 at 0b00",
+    "SMBus PIIX4 adapter port 1 at 0b20"
+  ],
+  "i2cDumpDevices": [
+    "/run/devmap/cplds/SMB_CPLD",
+    "/run/devmap/cplds/FAN_CPLD",
+    "/run/devmap/sensors/SMB_TDA_POS3V3_OPTICS_LEFT",
+    "/run/devmap/sensors/SMB_TDA_POS3V3_OPTICS_RIGHT",
+    "/run/devmap/sensors/SMB_TDA_TH6_POS1V5_RVDD_0",
+    "/run/devmap/sensors/SMB_TDA_TH6_POS1V5_RVDD_1",
+    "/run/devmap/sensors/SMB_XDPE_TH6_POS0V72_TRVDD_01",
+    "/run/devmap/sensors/SMB_XDPE_TH6_POS0V72_TRVDD_23",
+    "/run/devmap/sensors/SMB_XDPE_TH6_POS0V72_TRVDD_45",
+    "/run/devmap/sensors/SMB_XDPE_TH6_POS0V72_TRVDD_67",
+    "/run/devmap/sensors/SMB_XDPE_TH6_POS0V75_CORE",
+    "/run/devmap/sensors/SMB_XDPE_TH6_POS0V75_PHYCORE_01",
+    "/run/devmap/sensors/SMB_XDPE_TH6_POS0V75_PHYCORE_23",
+    "/run/devmap/sensors/SMB_XDPE_TH6_POS0V75_PHYCORE_45",
+    "/run/devmap/sensors/SMB_XDPE_TH6_POS0V75_PHYCORE_67",
+    "/run/devmap/sensors/SMB_XDPE_TH6_POS0V75_TRVDD_01",
+    "/run/devmap/sensors/SMB_XDPE_TH6_POS0V9_TRVDD_01"
+  ],
+  "psus": [
+    "/run/devmap/sensors/PSU1_PMBUS",
+    "/run/devmap/sensors/PSU2_PMBUS",
+    "/run/devmap/sensors/PSU3_PMBUS",
+    "/run/devmap/sensors/PSU4_PMBUS"
+  ],
+  "gpios": [],
+  "pems": [],
+  "fanspinners": [],
+  "sc_powergood": {
+    "sysfsAttribute": {
+      "name": "SMB_POWERGOOD",
+      "path": "/run/devmap/cplds/SMB_CPLD/switch_card_pwr_status"
+    }
+  }
+}
