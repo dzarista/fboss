@@ -17,9 +17,11 @@ namespace facebook::fboss::utility {
 
 class DsfTopologyInfo : public TopologyInfo {
  public:
-  DsfTopologyInfo(const std::shared_ptr<SwitchState>& switchState)
+  explicit DsfTopologyInfo(const std::shared_ptr<SwitchState>& switchState)
       : TopologyInfo(switchState) {
     populateDsfNodeInfo(switchState->getDsfNodes());
+    populateAllRdsws();
+    populateAllFdsws();
   }
 
   const std::map<int, std::vector<std::string>>& getClusterIdToRdsws()
@@ -30,6 +32,14 @@ class DsfTopologyInfo : public TopologyInfo {
   const std::map<int, std::vector<std::string>>& getClusterIdToFdsws()
       const override {
     return clusterIdToFdsws_;
+  }
+
+  const std::set<std::string>& getRdsws() const override {
+    return allRdsws_;
+  }
+
+  const std::set<std::string>& getFdsws() const override {
+    return allFdsws_;
   }
 
   const std::set<std::string>& getSdsws() const override {
@@ -54,6 +64,8 @@ class DsfTopologyInfo : public TopologyInfo {
  private:
   void populateDsfNodeInfo(
       const std::shared_ptr<MultiSwitchDsfNodeMap>& dsfNodeMap);
+  void populateAllRdsws();
+  void populateAllFdsws();
 
   std::map<int, std::vector<std::string>> clusterIdToRdsws_;
   std::map<int, std::vector<std::string>> clusterIdToFdsws_;
@@ -62,6 +74,9 @@ class DsfTopologyInfo : public TopologyInfo {
   std::map<SwitchID, std::string> switchIdToSwitchName_;
   std::map<std::string, std::set<SwitchID>> switchNameToSwitchIds_;
   std::map<std::string, cfg::AsicType> switchNameToAsicType_;
+
+  std::set<std::string> allRdsws_;
+  std::set<std::string> allFdsws_;
 };
 
 } // namespace facebook::fboss::utility

@@ -9,6 +9,7 @@
  */
 
 #include "fboss/agent/platforms/common/PlatformMapping.h"
+#include <algorithm>
 #include "fboss/lib/config/PlatformConfigUtils.h"
 
 #include <folly/logging/xlog.h>
@@ -124,12 +125,15 @@ bool PlatformPortProfileConfigMatcher::matchOverrideWithFactor(
     }
     // compare only the name and part number of the current optics to the
     // override factor.
-    return isTransceiverVendorOverrideMatch(
-        overrideVendor->name().value(),
-        overrideVendor->partNumber().value(),
-        portConfigOverrideFactor_->vendor()->name().value(),
-        portConfigOverrideFactor_->vendor()->partNumber().value());
+    if (!isTransceiverVendorOverrideMatch(
+            overrideVendor->name().value(),
+            overrideVendor->partNumber().value(),
+            portConfigOverrideFactor_->vendor()->name().value(),
+            portConfigOverrideFactor_->vendor()->partNumber().value())) {
+      return false;
+    }
   }
+  XLOGF(INFO, "Found override for matcher {}", toString());
   return true;
 }
 
@@ -168,6 +172,9 @@ std::string PlatformPortProfileConfigMatcher::toString() const {
         apache::thrift::SimpleJSONSerializer::serialize<std::string>(
             *portConfigOverrideFactor_));
   }
+
+  std::replace(str.begin(), str.end(), '{', '(');
+  std::replace(str.begin(), str.end(), '}', ')');
   return str;
 }
 

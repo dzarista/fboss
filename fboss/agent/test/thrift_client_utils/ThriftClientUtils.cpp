@@ -82,4 +82,47 @@ std::map<std::string, FabricEndpoint> getFabricPortToFabricEndpoint(
   return fabricPortToFabricEndpoint;
 }
 
+std::map<std::string, std::vector<std::string>> getRemoteSwitchToReachablePorts(
+    const std::string& switchName,
+    const std::vector<std::string>& remoteSwitches) {
+  auto swAgentClient = getSwAgentThriftClient(switchName);
+  std::map<std::string, std::vector<std::string>> remoteSwitchToReachablePorts;
+  swAgentClient->sync_getSwitchReachability(
+      remoteSwitchToReachablePorts, remoteSwitches);
+
+  return remoteSwitchToReachablePorts;
+}
+
+std::map<int32_t, PortInfoThrift> getPortIdToPortInfo(
+    const std::string& switchName) {
+  std::map<int32_t, PortInfoThrift> portIdToPortInfo;
+  auto swAgentClient = getSwAgentThriftClient(switchName);
+  swAgentClient->sync_getAllPortInfo(portIdToPortInfo);
+  return portIdToPortInfo;
+}
+
+std::map<int64_t, facebook::fboss::SystemPortThrift>
+getSystemPortdIdToSystemPort(const std::string& switchName) {
+  auto swAgentClient = getSwAgentThriftClient(switchName);
+  std::map<int64_t, facebook::fboss::SystemPortThrift> systemPortIdToSystemPort;
+  swAgentClient->sync_getSystemPorts(systemPortIdToSystemPort);
+  return systemPortIdToSystemPort;
+}
+
+std::map<int32_t, facebook::fboss::InterfaceDetail> getIntfIdToIntf(
+    const std::string& switchName) {
+  auto swAgentClient = getSwAgentThriftClient(switchName);
+  std::map<int32_t, facebook::fboss::InterfaceDetail> intfIdToIntf;
+  swAgentClient->sync_getAllInterfaces(intfIdToIntf);
+  return intfIdToIntf;
+}
+
+std::vector<facebook::fboss::NdpEntryThrift> getNdpEntries(
+    const std::string& switchName) {
+  auto swAgentClient = getSwAgentThriftClient(switchName);
+  std::vector<facebook::fboss::NdpEntryThrift> ndpEntries;
+  swAgentClient->sync_getNdpTable(ndpEntries);
+  return ndpEntries;
+}
+
 } // namespace facebook::fboss::utility

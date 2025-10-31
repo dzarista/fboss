@@ -676,8 +676,17 @@ void SwSwitch::stop(bool isGracefulStop, bool revertToMinAlpmState) {
   // state. Thus, directly calling underlying getHw_DEPRECATED()->stateChanged()
   if (revertToMinAlpmState) {
     XLOG(DBG3) << "setup min ALPM state";
-    stateChanged(
-        StateDelta(getState(), getMinAlpmRouteState(getState())), false);
+    auto minAlpmStateDelta =
+        StateDelta(getState(), getMinAlpmRouteState(getState()));
+    if (stateDeltaLogger_ && FLAGS_enable_state_delta_logging) {
+      stateDeltaLogger_->logStateDelta(
+          minAlpmStateDelta, "Setup min ALPM state");
+    }
+    stateChanged(minAlpmStateDelta, false);
+  }
+
+  if (stateDeltaLogger_ && FLAGS_enable_state_delta_logging) {
+    stateDeltaLogger_.reset();
   }
 }
 
@@ -1346,6 +1355,12 @@ std::shared_ptr<SwitchState> SwSwitch::preInit(SwitchFlags flags) {
   if (!hwAsicTable_->getVoqAsics().empty()) {
     shelManager_ = std::make_unique<ShelManager>();
   }
+
+  // Init StateDeltaLogger for logging state deltas
+  if (FLAGS_enable_state_delta_logging) {
+    stateDeltaLogger_ = std::make_unique<StateDeltaLogger>();
+  }
+
   XLOG(DBG2)
       << "Time to init switch and start all threads "
       << duration_cast<duration<float>>(steady_clock::now() - begin).count();
@@ -1397,7 +1412,6 @@ void SwSwitch::init(
   multiHwSwitchHandler_->stateChanged(deltas, false, hwWriteBehavior);
   if (ecmpResourceManager_) {
     ecmpResourceManager_->updateDone();
-    updateRibEcmpOverrides(StateDelta(origInitialState, initialState));
   }
   if (shelManager_) {
     shelManager_->updateDone();
@@ -1491,7 +1505,6 @@ void SwSwitch::init(const HwWriteBehavior& hwWriteBehavior, SwitchFlags flags) {
   }
   if (ecmpResourceManager_) {
     ecmpResourceManager_->updateDone();
-    updateRibEcmpOverrides(StateDelta(origInitialState, initialState));
   }
   if (shelManager_) {
     shelManager_->updateDone();
@@ -1546,9 +1559,10 @@ void SwSwitch::initialConfigApplied(
   sendNeighborSolicitationForConfiguredInterfaces("warm boot");
 
   if (flags_ & SwitchFlags::PUBLISH_STATS) {
-    stats()->switchConfiguredMs(duration_cast<std::chrono::milliseconds>(
-                                    steady_clock::now() - startTime)
-                                    .count());
+    stats()->switchConfiguredMs(
+        duration_cast<std::chrono::milliseconds>(
+            steady_clock::now() - startTime)
+            .count());
   }
 #if FOLLY_HAS_COROUTINES
   if (flags_ & SwitchFlags::ENABLE_MACSEC) {
@@ -1969,6 +1983,12 @@ SwSwitch::applyUpdate(
     return std::make_pair(oldState, newDesiredState);
   }
 
+  // Log state deltas that are sent to HwSwitch
+  if (stateDeltaLogger_ && FLAGS_enable_state_delta_logging) {
+    stateDeltaLogger_->logStateDeltas(
+        deltas, "Update after ERM and Shel Manager");
+  }
+
   std::shared_ptr<SwitchState> newAppliedState;
 
   // Inform the HwSwitch of the change.
@@ -2001,9 +2021,6 @@ SwSwitch::applyUpdate(
     dumpBadStateUpdate(oldState, newDesiredState);
     XLOG(FATAL) << "encountered a fatal error: " << folly::exceptionStr(ex);
   }
-  if (ecmpResourceManager_ && newAppliedState != oldState) {
-    updateRibEcmpOverrides(StateDelta(origDesiredState, newAppliedState));
-  }
 
   setStateInternal(newAppliedState);
 
@@ -2021,72 +2038,6 @@ SwSwitch::applyUpdate(
 
   XLOG(DBG0) << "Update state took " << duration.count() << "us";
   return std::make_pair(newAppliedState, newDesiredState);
-}
-
-void SwSwitch::updateRibEcmpOverrides(const StateDelta& delta) {
-  std::map<
-      RouterID,
-      std::map<folly::CIDRNetwork, std::optional<cfg::SwitchingMode>>>
-      rid2prefix2SwitchingMode;
-  std::map<
-      RouterID,
-      std::map<folly::CIDRNetwork, std::optional<RouteNextHopSet>>>
-      rid2prefix2Nhops;
-
-  forEachChangedRoute(
-      delta,
-      [&rid2prefix2SwitchingMode, &rid2prefix2Nhops](
-          RouterID rid, const auto& oldRoute, const auto& newRoute) {
-        if (!newRoute->isResolved()) {
-          return;
-        }
-        if (!oldRoute->isResolved()) {
-          if (newRoute->getForwardInfo()
-                  .getOverrideEcmpSwitchingMode()
-                  .has_value()) {
-            rid2prefix2SwitchingMode[rid][newRoute->prefix().toCidrNetwork()] =
-                newRoute->getForwardInfo().getOverrideEcmpSwitchingMode();
-          }
-          if (newRoute->getForwardInfo().getOverrideNextHops().has_value()) {
-            rid2prefix2Nhops[rid][newRoute->prefix().toCidrNetwork()] =
-                newRoute->getForwardInfo().getOverrideNextHops();
-          }
-        } else {
-          // both are resolved
-          if (oldRoute->getForwardInfo().getOverrideEcmpSwitchingMode() !=
-              newRoute->getForwardInfo().getOverrideEcmpSwitchingMode()) {
-            rid2prefix2SwitchingMode[rid][newRoute->prefix().toCidrNetwork()] =
-                newRoute->getForwardInfo().getOverrideEcmpSwitchingMode();
-          }
-          if (oldRoute->getForwardInfo().getOverrideNextHops() !=
-              newRoute->getForwardInfo().getOverrideNextHops()) {
-            rid2prefix2Nhops[rid][newRoute->prefix().toCidrNetwork()] =
-                newRoute->getForwardInfo().getOverrideNextHops();
-          }
-        }
-      },
-      [&rid2prefix2SwitchingMode, &rid2prefix2Nhops](
-          RouterID rid, const auto& newRoute) {
-        if (newRoute->isResolved() &&
-            newRoute->getForwardInfo()
-                .getOverrideEcmpSwitchingMode()
-                .has_value()) {
-          rid2prefix2SwitchingMode[rid][newRoute->prefix().toCidrNetwork()] =
-              newRoute->getForwardInfo().getOverrideEcmpSwitchingMode();
-        }
-        if (newRoute->getForwardInfo().getOverrideNextHops().has_value()) {
-          rid2prefix2Nhops[rid][newRoute->prefix().toCidrNetwork()] =
-              newRoute->getForwardInfo().getOverrideNextHops();
-        }
-      },
-      [&rid2prefix2SwitchingMode](RouterID /*rid*/, const auto& /*oldRoute*/) {
-      });
-  for (const auto& [rid, prefixes] : rid2prefix2SwitchingMode) {
-    getRouteUpdater().programEcmpSwitchingModeAsync(rid, prefixes);
-  }
-  for (const auto& [rid, prefixes] : rid2prefix2Nhops) {
-    getRouteUpdater().programEcmpNhopOverridesAsync(rid, prefixes);
-  }
 }
 
 void SwSwitch::dumpBadStateUpdate(
@@ -2550,43 +2501,16 @@ void SwSwitch::linkActiveStateChangedOrFwIsolated(
           virtualDeviceId, numActivePorts);
     }
 
-    // We consider following scenarios:
-    //
-    // (A) When the Firmware Isolates the device, if the number of Active links
-    //     at FwIsolate > minLinkThreshold, it is a fatal error i.e. set
-    //     DRAINED_DUE_TO_ASIC_ERROR
-    //
-    // (B) When the Firmware Isolates the device, if the number of Active links
-    //     at FwIsolate <= minLinkThreshold, this is not a fatal error. Compare
-    //     the current number of Active links with the threshold to determine
-    //     the drain state i.e. computeActualSwitchDrainState.
-    //
-    // (C) If Firmware has not Isolated the device, this processing is in the
-    //     context of link active/inactive processing. Compare the current
-    //     number of Active links with the threshold to determine the drain
-    //     state i.e. computeActualSwitchDrainState. Thus, same as (B).
-    //
-    // Note: For (B), we MUST compare against the current number of Active
-    // links, else we can end up with incorrect Drain state. Consider the
-    // following sequence:
-    //    - Cold boot init.
-    //    - Links flap during init.
-    //    - FwIsolates with the number of Active links = 0. Rare, but possible.
-    //    - All links turn Active, active callbacks received, device UNDRAINED.
-    //    - FwIsolate callback arrives, contains number of Active links = 0.
-    //      If we compare the nunber of Active links at FwIsolate i.e. 0 with
-    //      the threshold, the device will be marked as DRAINED. Since all the
-    //      links are Active, no subsequent callbacks will be issued and the
-    //      device will incorrectly remain DRAINED. If there is a subsequent
-    //      port flap, the device will receive a link Active callback and will
-    //      be UNDRAINED.
     SwitchDrainState newActualSwitchDrainState;
-    if (fwIsolated &&
-        isSwitchErrorFirmwareIsolate(
-            numActiveFabricPortsAtFwIsolate, switchSettings)) {
-      stats()->fwDrainedWithHighNumActiveFabricLinks();
-      newActualSwitchDrainState =
-          cfg::SwitchDrainState::DRAINED_DUE_TO_ASIC_ERROR;
+    if (fwIsolated) {
+      if (isSwitchErrorFirmwareIsolate(
+              numActiveFabricPortsAtFwIsolate, switchSettings)) {
+        stats()->fwDrainedWithHighNumActiveFabricLinks();
+        newActualSwitchDrainState =
+            cfg::SwitchDrainState::DRAINED_DUE_TO_ASIC_ERROR;
+      } else {
+        newActualSwitchDrainState = cfg::SwitchDrainState::DRAINED;
+      }
     } else {
       newActualSwitchDrainState =
           computeActualSwitchDrainState(switchSettings, numActiveFabricPorts);
@@ -3559,6 +3483,15 @@ void SwSwitch::applyConfigImpl(
         }
         return newState;
       });
+  // Since config update can also update ecmp overrides - in
+  // case of config changing ecmp switching mode. Sync these
+  // route overrides to rib
+  updateEventBase_.runInFbossEventBaseThreadAndWait([this]() {
+    if (rib_) {
+      rib_->updateEcmpOverrides(
+          StateDelta(std::make_shared<SwitchState>(), getState()));
+    }
+  });
   // Since we're using blocking state update, once we reach here, the new
   // config should be already applied and programmed into hardware.
   updateConfigAppliedInfo();
@@ -3579,7 +3512,6 @@ void SwSwitch::applyConfigImpl(
    * and applyConfig. So ensure programming allways goes through the route
    * update wrapper abstraction
    */
-
   routeUpdater.program();
   runFsdbSyncFunction([&oldConfig, &newConfig](auto& syncer) {
     syncer->cfgUpdated(oldConfig, newConfig);

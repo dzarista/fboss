@@ -84,6 +84,8 @@ struct PortPfc {
   2: bool rx = false;
   3: PortPgConfigName portPgConfigName;
   4: optional PfcWatchdog watchdog;
+  5: optional bool txPfcDurationEnable;
+  6: optional bool rxPfcDurationEnable;
 }
 
 /**
@@ -184,6 +186,7 @@ enum PortProfileID {
   PROFILE_800G_4_PAM4_RS544X2N_COPPER = 57,
   PROFILE_400G_2_PAM4_RS544X2N_COPPER = 58,
   PROFILE_200G_1_PAM4_RS544X2N_COPPER = 59,
+  PROFILE_100G_1_PAM4_RS544X2N_COPPER = 60,
 }
 
 enum Scope {
