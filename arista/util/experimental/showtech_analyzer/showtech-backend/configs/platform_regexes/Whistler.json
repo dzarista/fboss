@@ -1,0 +1,6 @@
+{
+  "platform": "Whistler",
+  "product_name": "MERU800BFA",
+  "description": "This file contains Whistler's regex patterns to look for in showtech files",
+  "regexes": []
+}

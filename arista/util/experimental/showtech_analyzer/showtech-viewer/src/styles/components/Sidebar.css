@@ -1,0 +1,534 @@
+/* -------- Sidebar -------- */
+.sidebar {
+  width: 250px;
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+  border-radius: 0.5rem;
+  padding: 1rem;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1),
+              0 2px 4px -1px rgba(0,0,0,0.06);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  transition: transform 0.2s ease;
+  user-select: none;
+}
+
+/* collapsed state: only show handle */
+.sidebar.collapsed {
+  width: 0;
+  padding: 0.3rem;
+  overflow: visible; /* allow the arrow to show outside */
+  background: transparent;
+  box-shadow: none;
+}
+
+/* collapse handle: small rectangle centered vertically */
+.sidebar-collapse-handle {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  width: 0.8rem;
+  height: 3.5rem;
+  background: var(--bg-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: -1px 0 2px rgba(0,0,0,0.1);
+}
+
+/* triangle arrow inside handle */
+.sidebar-collapse-handle::before {
+  content: '';
+  display: block;
+  width: 0;
+  height: 0;
+  border-top: 0.25rem solid transparent;
+  border-bottom: 0.25rem solid transparent;
+  border-right: 0.4rem solid var(--text-primary);
+}
+
+/* flip arrow when collapsed */
+.sidebar.collapsed .sidebar-collapse-handle::before {
+  border-right: none;
+  border-left: 0.4rem solid var(--text-primary);
+}
+
+/* -------- Sidebar Header -------- */
+.sidebar-header {
+  background-color: var(--bg-dark);
+  color: var(--text-inverse);
+  padding: 0.5rem;
+  margin: -1rem -1rem 1rem -1rem;
+  border-radius: 0.5rem 0.5rem 0 0;
+  position: relative;
+}
+
+/* -------- Header Version -------- */
+.header-version {
+  position: absolute;
+  bottom: 0.25rem;
+  right: 0.5rem;
+  font-size: 0.6rem;
+  color: var(--text-inverse);
+  opacity: 0.7;
+  font-weight: 400;
+  cursor: help;
+  transition: opacity 0.2s ease;
+  font-family: 'Courier New', 'Monaco', monospace;
+}
+
+.header-version:hover {
+  opacity: 1;
+}
+
+.app-title {
+  font-size: 1.3rem;
+  font-weight: 600;
+  font-family: 'Courier New', 'Monaco', monospace;
+  letter-spacing: 0.05em;
+  margin: 0;
+  padding: 0.25rem 0;
+  color: var(--text-inverse);
+  text-align: center;
+}
+
+.status-indicator {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  cursor: help;
+}
+
+.status-indicator.success { background: var(--accent-success); box-shadow: 0 0 1px var(--accent-success); }
+.status-indicator.error   { background: var(--accent-error);   box-shadow: 0 0 1px var(--accent-error); }
+
+/* -------- Title Row -------- */
+.sidebar-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 3px;
+}
+
+.title-spacer {
+  width: 40px; /* Same width as upload button to balance layout */
+}
+
+.sidebar-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0;
+  flex: 1;
+  text-align: center;
+}
+
+/* Title divider */
+.title-divider {
+  height: 1px;
+  background: #d1d5db;
+  margin: 3px 0 5px 0;
+}
+
+/* -------- Upload Button -------- */
+.upload-icon-button {
+  background: var(--accent-button-bg);
+  color: var(--accent-button);
+  border: none;
+  border-radius: 0.375rem;
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  align-self: flex-end;
+}
+.upload-icon-button:hover:not(.disabled) {
+  background: var(--accent-button-hover);
+}
+
+.upload-icon-button.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+}
+
+.upload-icon-button.disabled svg {
+  opacity: 0.6;
+}
+
+/* -------- File List -------- */
+.sidebar-files {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 0.1rem 0;
+}
+
+.file-tab {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 0.25rem 0.75rem;
+  margin-bottom: 0.25rem;
+  border-radius: 0.375rem;
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.785rem;
+  min-height: auto;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.file-tab:hover {
+  background-color: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.2);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.file-tab:active {
+  background-color: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.4);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  transform: translateY(0);
+}
+.file-tab:hover {
+  background: var(--bg-subtle);
+}
+
+
+.sidebar-file-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  margin-right: 0.5rem;
+  min-width: 0;
+}
+
+.sidebar .file-name {
+  text-align: left;
+  word-break: break-all;
+  white-space: normal !important;
+  line-height: 1.3;
+  font-weight: 500;
+  overflow: visible !important;
+  text-overflow: unset !important;
+}
+
+.file-hostname {
+  font-size: 0.5rem;
+  color: var(--text-muted, #6b7280);
+  font-weight: 400;
+  line-height: 1.2;
+  word-break: break-all;
+}
+
+.remove-file-button {
+  background: transparent;
+  border: none;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.125rem 0.25rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 0.125rem;
+}
+.remove-file-button:hover {
+  color: var(--accent-error, #b91c1c);
+}
+
+.remove-file-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Files Loading Section */
+.files-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+  color: var(--text-secondary, #6b7280);
+}
+
+/* Session Management Section */
+.session-section {
+  margin-bottom: 1rem;
+  padding: 0.75rem 0.75rem 0.4rem 0.75rem;
+  background: white;
+  border-radius: 0.375rem;
+  border: 2px solid #d1d5db;
+}
+
+.current-session {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.session-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+}
+
+.session-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.session-label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.session-name-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0 0 0 0.2rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.25rem;
+  background: white;
+}
+
+.session-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text-primary);
+  white-space: normal;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  line-height: 1.3;
+  flex: 1;
+  margin: 0;
+}
+
+.session-rename-button {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+  opacity: 0.7;
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+.session-rename-button:hover {
+  background: var(--bg-hover, #f3f4f6);
+  color: var(--text-primary);
+  opacity: 1;
+}
+
+.session-rename-button svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* Inline rename functionality */
+.rename-input-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.rename-input {
+  flex: 1;
+  min-width: 0; /* Allow input to shrink */
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: white;
+  box-sizing: border-box;
+}
+
+.rename-input:focus {
+  outline: none;
+  border-color: var(--accent-button-bg);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.rename-buttons {
+  display: flex;
+  gap: 0.25rem;
+  flex-shrink: 0; /* Prevent buttons from shrinking */
+}
+
+.rename-save-button,
+.rename-cancel-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: bold;
+  width: 20px;
+  height: 20px;
+  transition: all 0.2s;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.rename-save-button {
+  color: #16a34a;
+}
+
+.rename-save-button:hover {
+  background: #dcfce7;
+}
+
+.rename-cancel-button {
+  color: #dc2626;
+}
+
+.rename-cancel-button:hover {
+  background: #fef2f2;
+}
+
+/* Inline rename functionality */
+.rename-input-container {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.rename-input {
+  flex: 1;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.25rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  background: white;
+}
+
+.rename-input:focus {
+  outline: none;
+  border-color: var(--accent-button-bg);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+}
+
+.rename-buttons {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.rename-save-button,
+.rename-cancel-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: bold;
+  width: 24px;
+  height: 24px;
+  transition: all 0.2s;
+}
+
+.rename-save-button {
+  color: #16a34a;
+}
+
+.rename-save-button:hover {
+  background: #dcfce7;
+}
+
+.rename-cancel-button {
+  color: #dc2626;
+}
+
+.rename-cancel-button:hover {
+  background: #fef2f2;
+}
+
+.session-meta {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.session-manager-button {
+  background: var(--accent-button-bg);
+  color: var(--accent-button);
+  border: none;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  cursor: pointer;
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: background-color 0.2s;
+  white-space: nowrap;
+}
+
+.session-manager-button:hover {
+  background: var(--accent-button-hover);
+}
+
+.session-manager-button.primary {
+  background: var(--accent-button-bg);
+  color: var(--accent-button);
+  border: none;
+  width: 100%;
+  padding: 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border-radius: 0.375rem;
+  transition: background-color 0.2s;
+}
+
+.session-manager-button.primary:hover {
+  background: var(--accent-button-hover);
+}
+
+/* Responsive design for session management */
+@media (max-width: 768px) {
+  .current-session {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  .session-manager-button {
+    width: 100%;
+    text-align: center;
+  }
+}

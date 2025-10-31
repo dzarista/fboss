@@ -1,0 +1,31 @@
+{
+    "bspKmods": [
+        "amax5970",
+        "aslg4f4527",
+        "aucd9000",
+        "blackhawk_cpld",
+        "bp4a_isl68137",
+        "bp4a_lm90",
+        "bp4a_max1363",
+        "decker_cpld",
+        "dsf_fan_cpld",
+        "ledtrig_timer",
+        "glath05a_64o_cpld",
+        "glath05a_64o_fan_cpld",
+        "glath06a_64o_cpld",
+        "glath06a_64o_fan_cpld",
+        "rook_fan_cpld",
+        "scd_leds",
+        "scd_smbus",
+        "scd_spi",
+        "scd_xcvr",
+        "scd_watchdog_darwin",
+        "scd_info",
+        "scd_leds_darwin",
+        "scd_vcpld",
+        "scd_adc"
+    ],
+    "sharedKmods": [
+        "scd"
+    ]
+}

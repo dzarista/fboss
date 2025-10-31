@@ -1,0 +1,6 @@
+- FBOSS BSP now supports initial platform services for Meru800bia:
+  - Upgrading BIOS via fw_util (requires flashrom patch)
+  - Upgrading MERU_SCM_CPLD via fw_util (JTAG, requires jam patch)
+  - Initial sensor_service (SCM sensors only, no scaling/thresholds)
+  - Initial data_corral_service (LED initialization but no FRU control yet)
+- Meru800bia udev rules updated to include previously missing SCM VRM

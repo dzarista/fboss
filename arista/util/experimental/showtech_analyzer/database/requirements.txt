@@ -1,0 +1,2 @@
+# Database API Requirements
+pymongo==4.10.1

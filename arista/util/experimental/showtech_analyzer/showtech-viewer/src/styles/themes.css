@@ -1,0 +1,29 @@
+:root {
+  /* Text Colors */
+  --text-primary: #1f2937; /* gray-800 */
+  --text-secondary: #374151; /* slate-700 */
+  --text-muted: #6b7280; /* slate-500 */
+  --text-inverse: #ffffff;
+
+  /* Background Colors */
+  --bg-primary: #f3f4f6; /* gray-100 */
+  --bg-secondary: #ffffff;
+  --bg-dark: #1e293b; /* slate-800 */
+  --bg-subtle: #f9fafb; /* gray-50 */
+  --bg-code: #1f2937; /* gray-800 */
+
+  /* Accent Colors */
+  --accent-success: #22c55e;
+  --accent-error: #ef4444;
+  --accent-warning: #facc15;
+  --accent-button: #2563eb;
+  --accent-button-hover: #dbeafe;
+  --accent-button-bg: #eff6ff;
+
+  /* Border Colors */
+  --border-default: #e5e7eb;
+
+  /* Typography */
+  --font-sans: 'Inter', sans-serif;
+  --font-mono: 'Menlo', 'Monaco', 'Consolas', monospace;
+}

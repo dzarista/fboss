@@ -1,0 +1,45 @@
+{
+  "platform": "QuicksilverPFb",
+  "product_name": "GLATH05a-64o",
+  "description": "Quicksilver platform configuration for PCIE device validation",
+  "pcie_devices": [
+    {
+      "slot": "07:00.0",
+      "location": "SCM",
+      "device_type": "FPGA",
+      "description": "SCM FPGA",
+      "expected_speed": "Gen1x1"
+    },
+    {
+      "slot": "01:00.0",
+      "location": "SMB",
+      "device_type": "FPGA",
+      "description": "SMB FPGA",
+      "expected_speed": "Gen1x1"
+    },
+    {
+      "slot": "15:00.0",
+      "location": "ASIC0",
+      "device_type": "ASIC",
+      "description": "ASIC0",
+      "expected_speed": "Gen4x4"
+    }
+  ],
+  "system_map": {
+    "front": ["ports"],
+    "rear": ["psu", "fans"],
+    "ports": {
+      "num_ports": 64,
+      "grid_rows": 4,
+      "grid_columns": 16,
+      "port_map": [
+        [1, 5, 9, 13, 17, 21, 25, 29, 33, 37, 41, 45, 49, 53, 57, 61],
+        [2, 6, 10, 14, 18, 22, 26, 30, 34, 38, 42, 46, 50, 54, 58, 62],
+        [3, 7, 11, 15, 19, 23, 27, 31, 35, 39, 43, 47, 51, 55, 59, 63],
+        [4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64]
+      ]
+    },
+    "fans": 4,
+    "psu": 2
+  }
+}

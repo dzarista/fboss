@@ -22,7 +22,7 @@ std::string getEepromName(const std::string& symbolicPath) {
   // Edge case: /run/devmap/eeproms/MERU800BFA_SCM_EEPROM -> SCM
 
   static const re2::RE2 re(
-      "^/run/devmap/eeproms/([A-Za-z0-9_]+?)(?:_EEPROM)?$");
+      "^/run/devmap/eeproms/([A-Za-z0-9_-]+?)(?:_EEPROM)?$");
   re2::StringPiece match;
   if (!re2::RE2::FullMatch(symbolicPath, re, &match)) {
     throw std::runtime_error(
@@ -34,7 +34,7 @@ std::string getEepromName(const std::string& symbolicPath) {
   // Special handling for MERU platforms: extract text after underscore
   folly::StringPiece sp(eepromName);
   if (sp.removePrefix("MERU800BFA_") || sp.removePrefix("MERU_") ||
-      sp.removePrefix("MERU800BIA_")) {
+      sp.removePrefix("MERU800BIA_") || sp.removePrefix("GLATH05A-64O_")) {
     eepromName = sp.str();
   }
 
@@ -76,6 +76,17 @@ int getEepromOffset(
       }
     }
   }
+
+  for (const auto& [__, pmUnitConfig] : *platformConfig.pmUnitConfigs()) {
+    for (const auto& i2cDeviceConfig : *pmUnitConfig.i2cDeviceConfigs()) {
+      if (*i2cDeviceConfig.pmUnitScopedName() == eepromName + "_EEPROM" &&
+          *i2cDeviceConfig.isEeprom() && *i2cDeviceConfig.eepromOffset()) {
+        eepromOffset = *i2cDeviceConfig.eepromOffset();
+        break;
+      }
+    }
+  }
+
   return eepromOffset;
 }
 
@@ -143,7 +154,8 @@ std::unordered_map<std::string, FruEeprom> ConfigUtils::getFruEepromList() {
   // a regular file). So it is not present in `symbolicLinkToDevicePath`, and we
   // have to add it explicitly. ```
   if (config_.platformName().value() == "meru800bfa" ||
-      config_.platformName().value() == "meru800bia") {
+      config_.platformName().value() == "meru800bia" ||
+      config_.platformName().value() == "glath05a-64o") {
     std::string eepromName = "SCM";
     FruEeprom fruEeprom;
     fruEeprom.path = "/run/devmap/eeproms/MERU_SCM_EEPROM";

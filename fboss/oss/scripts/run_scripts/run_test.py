@@ -868,7 +868,6 @@ class SaiTestRunner(TestRunner):
     def _filter_tests(self, tests: List[str]) -> List[str]:
         return tests
 
-
 class QsfpTestRunner(TestRunner):
     def add_subcommand_arguments(self, sub_parser: ArgumentParser):
         sub_parser.add_argument(

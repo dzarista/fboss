@@ -1,0 +1,12 @@
+{
+  "defaultCommandLineArgs": {
+    "mode": "glath06a-64o"
+  },
+  "transceiverConfigOverrides": [
+
+  ],
+  "qsfpTestConfig": {
+    "cabledPortPairs": [
+    ]
+  }
+}
