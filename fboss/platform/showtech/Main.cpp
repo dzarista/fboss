@@ -87,7 +87,7 @@ int main(int argc, char** argv) {
 
    std::string config_file_path;
    app.add_option(
-      "--config_file", config_file_path, "Path to showtech config flie");
+      "--config_file", config_file_path, "Path to showtech config file");
   try {
     app.parse(argc, argv);
   } catch (const CLI::ParseError& e) {
