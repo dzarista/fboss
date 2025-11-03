@@ -29,9 +29,9 @@ cp -rf %{_fboss_config_dir}/glath06a-64o/* %{_fboss_target_share}/platform_confi
 
 mkdir -p %{_fboss_target_share}/firmware
 mkdir -p %{_fboss_target_share}/firmware/oldreleases
-# %define _latest_fw_package %(find %{_fboss_fw_dir} -maxdepth 1 -type d -name 'package_*' | sort -V | tail -n 1 | xargs realpath)
-# cp -rf %{_latest_fw_package}/* %{_fboss_target_share}/firmware/
-# cp -rf %{_fboss_fw_dir}/firmware_downgrade/* %{_fboss_target_share}/firmware/oldreleases/
+%define _latest_fw_package %(find %{_fboss_fw_dir} -maxdepth 1 -type d -name 'package_*' | sort -V | tail -n 1 | xargs realpath)
+cp -rf %{_latest_fw_package}/* %{_fboss_target_share}/firmware/
+cp -rf %{_fboss_fw_dir}/firmware_downgrade/* %{_fboss_target_share}/firmware/oldreleases/
 
 %files
 /var/facebook/fboss/fruid.json
