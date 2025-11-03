@@ -20,7 +20,6 @@ _codename_ (_PLATFORM_NAME_) switches.
 
 %install
 mkdir -p %{_fboss_target_share}
-cp -rf %{_sai_sdk_dir}/db %{_fboss_target_share}/
 
 mkdir -p %{_fboss_target_var}
 install %{_fboss__codename2__dir}/config/fruid/fruid.json %{_fboss_target_var}
@@ -36,6 +35,5 @@ mkdir -p %{_fboss_target_share}/firmware/oldreleases
 
 %files
 /var/facebook/fboss/fruid.json
-/opt/fboss/share/db
 /opt/fboss/share/platform_configs
 /opt/fboss/share/firmware

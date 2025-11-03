@@ -605,6 +605,10 @@ static void read_revision_reg(struct scd_dev_priv *priv)
 		    regbit_sysfs_show, regbit_sysfs_store)                              \
 	REGBIT_FILE(fairywren, switch_jtag_enable, 0x2f40, 0, 1, FMODE_RW,				\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
+	REGBIT_FILE(fairywren, switch_jtag_sel, 0x2f40, 16, 1, FMODE_RW,				\
+		    regbit_sysfs_show, regbit_sysfs_store)				\
+	REGBIT_FILE(fairywren, switch_jtag_sel_value, 0x2f40, 17, 1, FMODE_RW,				\
+		    regbit_sysfs_show, regbit_sysfs_store)				\
 	REGBIT_FILE(fairywren, oob_eeprom_cmd, 0x7f00, 0, 32, FMODE_RW,				\
 		    regbit_sysfs_show, regbit_sysfs_store)				\
 	REGBIT_FILE(fairywren, oob_eeprom_resp, 0x7f10, 0, 32, FMODE_RW,				\

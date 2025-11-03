@@ -45,6 +45,8 @@ add_library(sai_platform
   fboss/agent/platforms/sai/SaiBcmWedge800baPlatform.cpp
   fboss/agent/platforms/sai/SaiBcmWedge800baPlatformPort.cpp
   fboss/agent/platforms/sai/SaiGlath05a-64oPlatform.cpp
+  fboss/agent/platforms/sai/SaiBcmGlath06a-64oPlatform.cpp
+  fboss/agent/platforms/sai/SaiBcmGlath06a-64oPlatformPort.cpp
   fboss/agent/platforms/sai/oss/SaiBcmMinipackPlatform.cpp
   fboss/agent/platforms/sai/oss/SaiTajoPlatform.cpp
   fboss/agent/platforms/sai/oss/SaiBcmMinipackPlatformPort.cpp
@@ -116,6 +118,7 @@ target_link_libraries(sai_platform
   icecube800bc_platform_mapping
   icetea800bc_platform_mapping
   glath05a-64o_platform_mapping
+  glath06a-64o_platform_mapping
   led_structs_types_cpp2
   led_mapping_cpp2
   wedge800ba_platform_mapping

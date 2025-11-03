@@ -17,7 +17,6 @@ add_library(platform_check
 
 target_link_libraries(platform_check
   check_types_cpp2
-  config_utils
   platform_manager_config_cpp2
 )
 
@@ -52,8 +51,6 @@ add_executable(pci_device_check_test
 )
 
 target_link_libraries(pci_device_check_test
-  check_types_cpp2
-  platform_manager_config_cpp2
   platform_checks
   ${GTEST}
   ${LIBGMOCK_LIBRARIES}

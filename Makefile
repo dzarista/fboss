@@ -10,7 +10,8 @@ pmapping-src = \
 	fboss/agent/platforms/common/meru800bfa/Meru800bfaProdPlatformMapping.h \
 	fboss/agent/platforms/common/meru800bfa/Meru800bfaP1PlatformMapping.cpp \
 	fboss/agent/platforms/common/darwin/DarwinPlatformMapping.cpp \
-	fboss/agent/platforms/common/glath05a-64o/Glath05a-64oPlatformMapping.cpp
+	fboss/agent/platforms/common/glath05a-64o/Glath05a-64oPlatformMapping.cpp \
+	fboss/agent/platforms/common/glath06a-64o/Glath06a-64oPlatformMapping.cpp
 thrifts = \
    fboss/agent/if/ctrl.thrift \
    fboss/agent/if/hw_ctrl.thrift \
@@ -67,3 +68,8 @@ clean:
 bspmapping_gen:
 	@./build.sh --sai xgs-14.0 --scratch-dir $(scratch-dir) --cmake-target fboss-bspmapping-gen
 	@$(scratch-dir)/build/fboss/fboss-bspmapping-gen
+
+platform_mapping_gen:
+	@./build.sh --sai xgs-14.0 --scratch-dir $(scratch-dir) --cmake-target fboss-platform-mapping-gen
+	@$(scratch-dir)/build/fboss/fboss-platform-mapping-gen --platform-name $(platform)
+

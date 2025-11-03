@@ -112,6 +112,8 @@ inline std::string toString(PlatformType mode) {
       return "GLATH05A-64O";
     case PlatformType::PLATFORM_GLATH06A_64O:
       return "GLATH06A-64O";
+    case PlatformType::PLATFORM_GLATH06L_64OR:
+      return "GLATH06L-64OR";
     case PlatformType::PLATFORM_UNKNOWN:
       return "UNKNOWN";
   }

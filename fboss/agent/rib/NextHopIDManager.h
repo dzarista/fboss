@@ -2,18 +2,29 @@
 
 #pragma once
 
+#include <gtest/gtest.h>
 #include <cstdint>
-#include <map>
 #include <unordered_map>
-#include <unordered_set>
-
 #include "fboss/agent/state/RouteNextHop.h"
+#include "fboss/agent/state/RouteNextHopEntry.h"
 #include "fboss/agent/types.h"
 
 namespace facebook::fboss {
 
 // A set of NextHopIDs (used as key for NextHopIDSetID mapping)
 using NextHopIDSet = std::set<NextHopID>;
+
+} // namespace facebook::fboss
+
+// Hash function for NextHopIDSet to be used in unordered_map
+namespace std {
+template <>
+struct hash<facebook::fboss::NextHopIDSet> {
+  size_t operator()(const facebook::fboss::NextHopIDSet& idSet) const;
+};
+} // namespace std
+
+namespace facebook::fboss {
 
 /**
  * NextHopIDManager is responsible for generating and managing unique IDs
@@ -36,11 +47,12 @@ class NextHopIDManager {
       const NextHopIDSet& nextHopIDSet);
 
   // Decrement reference count for a NextHop and deallocate if count reaches 0
-  void decrOrDeallocateNextHop(const NextHop& nextHop);
+  // Returns true if deallocated, false otherwise
+  bool decrOrDeallocateNextHop(const NextHop& nextHop);
 
   // Decrement reference count for a set of NextHopIDs and deallocate if count
-  // reaches 0
-  void decrOrDeallocateNextHopIDSet(const NextHopIDSet& nextHopIDSet);
+  // reaches 0. Returns true if deallocated, false otherwise
+  bool decrOrDeallocateNextHopIDSet(const NextHopIDSet& nextHopIDSet);
 
   // Get the reverse lookup map from NextHopID to NextHop
   const std::unordered_map<NextHopID, NextHop>& getIdToNextHop() const {
@@ -52,6 +64,12 @@ class NextHopIDManager {
       const {
     return idToNextHopIdSet_;
   }
+
+  // Retrieves or allocate NextHopSetID for a RouteNextHopSet
+  NextHopSetID getOrAllocRouteNextHopSetID(const RouteNextHopSet& nextHopSet);
+
+  // Decrements or deallcoates NextHopSetID for a RouteNextHopSet
+  bool decrOrDeallocRouteNextHopSetID(NextHopSetID nextHopSetID);
 
  private:
   // Structure to hold ID and reference count for NextHops
@@ -91,6 +109,32 @@ class NextHopIDManager {
 
   // Map from NextHopSetID to set of NextHopIDs
   std::unordered_map<NextHopSetID, NextHopIDSet> idToNextHopIdSet_;
+
+  // Get the ref count for a given NextHop
+  uint32_t getNextHopRefCount(const NextHop& nextHop);
+
+  // Get the ref count for a given set of NextHopIDs
+  uint32_t getNextHopIDSetRefCount(const NextHopIDSet& nextHopIDSet);
+
+  // Get the NextHopSetID for a given NextHopIDSet
+  // Returns std::nullopt if the set doesn't exist
+  std::optional<NextHopSetID> getNextHopSetID(
+      const NextHopIDSet& nextHopIDSet) const;
+
+  // Get the NextHopID for a given NextHop (lookup only, no allocation)
+  // Returns std::nullopt if the NextHop doesn't exist
+  std::optional<NextHopID> getNextHopID(const NextHop& nextHop) const;
+
+  FRIEND_TEST(NextHopIDManagerTest, getOrAllocateNextHopID);
+  FRIEND_TEST(NextHopIDManagerTest, getOrAllocateNextHopSetID);
+  FRIEND_TEST(NextHopIDManagerTest, getOrAllocateNextHopSetIDOrderIndependence);
+  FRIEND_TEST(NextHopIDManagerTest, decrOrDeallocateNextHop);
+  FRIEND_TEST(NextHopIDManagerTest, decrOrDeallocateNextHopIDSet);
+  FRIEND_TEST(NextHopIDManagerTest, getOrAllocRouteNextHopSetIDWithEmptySet);
+  FRIEND_TEST(
+      NextHopIDManagerTest,
+      getOrAllocRouteNextHopSetIDSubSetSuperSetNextHops);
+  FRIEND_TEST(NextHopIDManagerTest, delOrDecrRouteNextHopSetID);
 };
 
 } // namespace facebook::fboss
