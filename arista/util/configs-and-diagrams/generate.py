@@ -32,7 +32,6 @@ EXCLUDE_LIST = {
    "led-config": [
       "Rackhawk",
       "RackhawkORv3",
-      "Banff",
       "Steamerlane"
    ]
 }
