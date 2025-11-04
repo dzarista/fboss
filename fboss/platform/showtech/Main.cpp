@@ -85,6 +85,9 @@ int main(int argc, char** argv) {
       ->delimiter(',')
       ->check(CLI::IsMember(getValidDetailNames()));
 
+   std::string config_file_path;
+   app.add_option(
+      "--config_file", config_file_path, "Path to showtech config file");
   try {
     app.parse(argc, argv);
   } catch (const CLI::ParseError& e) {
@@ -92,7 +95,8 @@ int main(int argc, char** argv) {
   }
 
   try {
-    std::string showtechConfJson = ConfigLib().getShowtechConfig();
+    ConfigLib configLib(config_file_path);
+    std::string showtechConfJson = configLib.getShowtechConfig();
     auto config =
         apache::thrift::SimpleJSONSerializer::deserialize<ShowtechConfig>(
             showtechConfJson);
