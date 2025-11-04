@@ -144,57 +144,6 @@ Glath05a_64oShowtech::Glath05a_64oShowtech() : MeruShowtech() {
       cpuCpld->addr, 1, 3, "60", "glath05a-64o-fan-cpld"));
 }
 
-void MeruShowtech::printWeutilInfo() {
-  printMainHeader("WEUTIL INFO");
-  printWeutil("SCM");
-  printWeutil("SMB");
-}
-
-void MeruShowtech::printAllFpgaVersions() {
-  printMainHeader("FPGA VERSIONS");
-
-  std::string major_rev_path, minor_rev_path, combined_path;
-  std::set<std::filesystem::path> fpga_sorted_by_name, cpld_sorted_by_name;
-  std::string fpga_path = "/run/devmap/fpgas/";
-  std::string cpld_path = "/run/devmap/cplds/";
-
-  if (std::filesystem::exists(fpga_path)) {
-    for (const auto &fpga : std::filesystem::directory_iterator(fpga_path)) {
-      if (fpga.is_directory() &&
-          fpga.path().filename().string().find("INFO_ROM") != std::string::npos)
-        fpga_sorted_by_name.insert(fpga.path());
-    }
-  } else {
-    std::cout << fpga_path << " does not exist" << std::endl;
-  }
-  for (const auto &path : fpga_sorted_by_name) {
-    combined_path = "/fw_ver";
-    printFpgaVersion(path.filename().string(), path.string(), combined_path);
-  }
-
-  if (std::filesystem::exists(cpld_path)) {
-    for (const auto &cpld : std::filesystem::directory_iterator(cpld_path)) {
-      cpld_sorted_by_name.insert(cpld.path());
-    }
-  } else {
-    std::cout << cpld_path << " does not exist" << std::endl;
-  }
-  for (const auto &path : cpld_sorted_by_name) {
-    if (path.string().find("FAN") != std::string::npos) {
-      // Fan CPLDs are a special case because the version files are in hwmon.
-      major_rev_path = "/hwmon/hwmon*/cpld_ver";
-      minor_rev_path = "/hwmon/hwmon*/cpld_sub_ver";
-    } else {
-      major_rev_path = "/cpld_ver";
-      minor_rev_path = "/cpld_sub_ver";
-    }
-    printFpgaVersion(path.filename().string(), path.string(), major_rev_path,
-                     minor_rev_path);
-  }
-
-  std::cout << std::endl;
-}
-
 void MeruShowtech::printFanInfo() {
   printMainHeader("FAN DEBUG INFO");
   int i, pwm_pcnt, num_cpld = 0;
@@ -313,8 +262,6 @@ void MeruShowtech::printNvmeInfo() {
 }
 
 void MeruShowtech::printPlatformInfo() {
-  printWeutilInfo();
-  printAllFpgaVersions();
   printFanInfo();
   printPsuShowtechInfo();
   printGpioShowtechInfo();

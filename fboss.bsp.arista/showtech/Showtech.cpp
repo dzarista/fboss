@@ -18,47 +18,6 @@ void Showtech::print_fboss2_show_cmd(std::string cmd) {
   }
 }
 
-void Showtech::printWeutil(std::string target) {
-  std::string cmd = "weutil --eeprom " + target;
-  std::filesystem::path ossConfigPath{
-      "/opt/fboss/share/platform_configs/weutil.json"};
-
-  if (std::filesystem::exists(ossConfigPath)) {
-    // OSS doesn't support running weutil without the -config_file arg.
-    cmd = cmd + " -config_file " + ossConfigPath.string();
-  }
-
-  printSubHeader(target + " SERIAL NUMBER");
-  std::cout << run_cmd_no_check(cmd) << std::endl;
-}
-
-void Showtech::printFpgaVersion(std::string name, std::string sysfsPath,
-                                std::string combinedRevPath) {
-  std::string combinedRev;
-  if (run_cmd("head -n 1 " + sysfsPath + combinedRevPath, combinedRev) == 0) {
-    strip(combinedRev);
-    std::cout << name << ": " << combinedRev << std::endl;
-  } else {
-    std::cout << name << ": VERSION_NOT_DETECTED" << std::endl;
-  }
-}
-
-void Showtech::printFpgaVersion(std::string name, std::string sysfsPath,
-                                std::string majorRevPath,
-                                std::string minorRevPath) {
-  std::string majorRev;
-  std::string minorRev;
-  if (run_cmd("head -n 1 " + sysfsPath + majorRevPath, majorRev) == 0 &&
-      run_cmd("head -n 1 " + sysfsPath + minorRevPath, minorRev) == 0) {
-    strip(majorRev);
-    strip(minorRev);
-    std::cout << name << ": " << std::stoul(majorRev, nullptr, 16) << "."
-              << std::stoul(minorRev, nullptr, 16) << std::endl;
-  } else {
-    std::cout << name << ": VERSION_NOT_DETECTED" << std::endl;
-  }
-}
-
 void Showtech::printVersion() {
   printMainHeader("SHOWTECH VERSION " + version);
 }
@@ -77,6 +36,17 @@ void Showtech::printCpuDetails() {
 
   printSubHeader("CPU UPTIME");
   std::cout << run_cmd_no_check("uptime") << std::endl;
+}
+
+void Showtech::printWeutilDetails() {
+  printMainHeader("WEUTIL INFO");
+  std::cout << run_cmd_no_check("weutil --all") << std::endl;
+}
+
+void Showtech::printFwutilDetails() {
+  printMainHeader("FPGA VERSIONS");
+  std::string cmd = "fw_util --fw_action version --fw_target_name all";
+  std::cout << run_cmd_no_check(cmd) << std::endl;
 }
 
 void Showtech::printFbossDetails() {
@@ -208,6 +178,8 @@ void Showtech::printSensors() {
 void Showtech::printShowtech() {
   printVersion();
   printCpuDetails();
+  printWeutilDetails();
+  printFwutilDetails();
   printFbossDetails();
   printPlatformInfo();
   printLspci();

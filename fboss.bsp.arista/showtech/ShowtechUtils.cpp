@@ -15,11 +15,11 @@ void printMainHeader(std::string_view headerName) {
   std::string topPadding = std::string(headerName.size() + 12, '#');
   std::cout << topPadding << "\n";
   std::cout << "##### " << headerName << " #####\n";
-  std::cout << topPadding << "\n\n";
+  std::cout << topPadding << "\n" << std::endl;
 }
 
 void printSubHeader(std::string_view headerName) {
-  std::cout << "#### " << headerName << " ####\n";
+  std::cout << "#### " << headerName << " ####" << std::endl;
 }
 
 int run_cmd(std::string cmd, std::string &output) {

@@ -32,8 +32,6 @@ protected:
 
 private:
   int numFansPerCpld = 4;
-  void printWeutilInfo();
-  void printAllFpgaVersions();
   void printFanInfo();
   void printI2cInfo();
   void printPsuShowtechInfo();
