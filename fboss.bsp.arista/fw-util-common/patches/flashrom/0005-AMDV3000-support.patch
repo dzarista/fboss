@@ -1,0 +1,110 @@
+Adds support for AMD V3000 LPC device ID 0x1682, updates default frequency for
+AMD CPUs to 33 MHz, and backports patch to fix spi100 bit mappings. See
+https://github.com/flashrom/flashrom/commit/b94a5a21c34877082477af7a7f29f952f5364944
+
+diff -Naru ../original/flashrom-v1.2.1/chipset_enable.c flashrom-v1.2.1/chipset_enable.c
+--- ../original/flashrom-v1.2.1/chipset_enable.c	2025-10-31 12:08:58.664242581 +0000
++++ flashrom-v1.2.1/chipset_enable.c	2025-10-31 12:10:25.460586875 +0000
+@@ -1707,6 +1707,7 @@
+ 	{0x1022, 0x7468, B_PFL,  OK,  "AMD", "AMD-8111",			enable_flash_amd_768_8111},
+ 	{0x1022, 0x780e, B_FLS,  OK,  "AMD", "FCH",				enable_flash_sb600},
+ 	{0x1022, 0x790e, B_FLS,  OK,  "AMD", "FP4",				enable_flash_sb600},
++	{0x1022, 0x1682, B_FLS,  OK,  "AMD", "FP4",				enable_flash_sb600},
+ 	{0x1039, 0x0406, B_PFL,  NT,  "SiS", "501/5101/5501",			enable_flash_sis501},
+ 	{0x1039, 0x0496, B_PFL,  NT,  "SiS", "85C496+497",			enable_flash_sis85c496},
+ 	{0x1039, 0x0530, B_PFL,  OK,  "SiS", "530",				enable_flash_sis530},
+diff -Naru ../original/flashrom-v1.2.1/sb600spi.c flashrom-v1.2.1/sb600spi.c
+--- ../original/flashrom-v1.2.1/sb600spi.c	2019-11-14 22:42:37.000000000 +0000
++++ flashrom-v1.2.1/sb600spi.c	2025-10-31 12:13:29.110313707 +0000
+@@ -56,6 +56,10 @@
+ #define FIFO_SIZE_OLD		8
+ #define FIFO_SIZE_YANGTZE	71
+ 
++#define SPI100_CMD_CODE_REG    0x45
++#define SPI100_CMD_TRIGGER_REG 0x47
++#define SPI100_EXECUTE_CMD     (1 << 7)
++
+ static int sb600_spi_send_command(struct flashctx *flash, unsigned int writecnt, unsigned int readcnt,
+ 				  const unsigned char *writearr, unsigned char *readarr);
+ static int spi100_spi_send_command(struct flashctx *flash, unsigned int writecnt, unsigned int readcnt,
+@@ -98,6 +102,9 @@
+ 	amd_gen = CHIPSET_AMD_UNKNOWN;
+ 	msg_pdbg2("Trying to determine the generation of the SPI interface... ");
+ 	if (dev->device_id == 0x438d) {
++		int rev = find_smbus_dev_rev(0x1002, 0x4385);
++		if (rev < 0)
++			return -1;
+ 		amd_gen = CHIPSET_SB6XX;
+ 		msg_pdbg("SB6xx detected.\n");
+ 	} else if (dev->device_id == 0x439d) {
+@@ -136,23 +143,12 @@
+ 				  "Please report this to flashrom@flashrom.org and include this log and\n"
+ 				  "the output of lspci -nnvx, thanks!.\n", rev);
+ 		}
+-	} else if (dev->device_id == 0x790e) {
++	} else if (dev->device_id == 0x790e || dev->device_id == 0x1682) {
+ 		int rev = find_smbus_dev_rev(0x1022, 0x790B);
+ 		if (rev < 0)
+ 			return -1;
+-		if (rev == 0x4a) {
+-			amd_gen = CHIPSET_YANGTZE;
+-			msg_pdbg("Yangtze detected.\n");
+-		} else if (rev == 0x4b) {
+-			amd_gen = CHIPSET_PROMONTORY;
+-			msg_pdbg("Promontory detected.\n");
+-		} else {
+-			msg_pwarn("FCH device found but SMBus revision 0x%02x does not match known values.\n"
+-				  "Please report this to flashrom@flashrom.org and include this log and\n"
+-				  "the output of lspci -nnvx, thanks!.\n", rev);
+-		}
+-
+-
++		amd_gen = CHIPSET_PROMONTORY;
++		msg_pdbg("Promontory detected.\n");
+ 	} else
+ 		msg_pwarn("%s: Unknown LPC device %" PRIx16 ":%" PRIx16 ".\n"
+ 			  "Please report this to flashrom@flashrom.org and include this log and\n"
+@@ -217,6 +213,16 @@
+ 	msg_pspew("done\n");
+ }
+ 
++static void execute_spi100_command(void)
++{
++       msg_pspew("Executing... ");
++       mmio_writeb(mmio_readb(sb600_spibar + SPI100_CMD_TRIGGER_REG) | SPI100_EXECUTE_CMD,
++               sb600_spibar + SPI100_CMD_TRIGGER_REG);
++       while (mmio_readb(sb600_spibar + SPI100_CMD_TRIGGER_REG) & SPI100_CMD_TRIGGER_REG)
++        ;
++       msg_pspew("done\n");
++}
++
+ static int sb600_spi_send_command(struct flashctx *flash, unsigned int writecnt,
+ 				  unsigned int readcnt,
+ 				  const unsigned char *writearr,
+@@ -312,7 +318,7 @@
+ 	unsigned char cmd = *writearr++;
+ 	writecnt--;
+ 	msg_pspew("%s, cmd=0x%02x, writecnt=%d, readcnt=%d\n", __func__, cmd, writecnt, readcnt);
+-	mmio_writeb(cmd, sb600_spibar + 0);
++	mmio_writeb(cmd, sb600_spibar + SPI100_CMD_CODE_REG);
+ 
+ 	int ret = check_readwritecnt(flash, writecnt, readcnt);
+ 	if (ret != 0)
+@@ -330,7 +336,7 @@
+ 	}
+ 	msg_pspew("\n");
+ 
+-	execute_command();
++	execute_spi100_command();
+ 
+ 	msg_pspew("Reading buffer: ");
+ 	for (count = 0; count < readcnt; count++) {
+@@ -395,7 +401,7 @@
+ static int handle_speed(struct pci_dev *dev)
+ {
+ 	uint32_t tmp;
+-	uint8_t spispeed_idx = 3; /* Default to 16.5 MHz */
++	uint8_t spispeed_idx = 1; /* Default to 33 MHz */
+ 
+ 	char *spispeed = extract_programmer_param("spispeed");
+ 	if (spispeed != NULL) {
