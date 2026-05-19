@@ -239,6 +239,7 @@ std::unique_ptr<PlatformMapping> initPlatformMapping(PlatformType type) {
     case PlatformType::PLATFORM_MERU400BIU_DEPRECATED:
     case PlatformType::PLATFORM_MERU400BFU_DEPRECATED:
     case PlatformType::PLATFORM_MERU400BIA_DEPRECATED:
+    case PlatformType::PLATFORM_SAINTPAUL:
     case PlatformType::PLATFORM_UNKNOWN:
       throw FbossError("Unsupported platform type");
   }
